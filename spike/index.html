@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Spike — Gemini Live (A/B/C) · dev-only</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; padding: 20px; font: 14px/1.5 system-ui, sans-serif;
+        background: #15181d; color: #e6e8ea;
+      }
+      h1 { font-size: 17px; margin: 0 0 4px; }
+      .sub { color: #8b949e; margin: 0 0 18px; font-size: 12px; }
+      fieldset { border: 1px solid #2d333b; border-radius: 8px; margin: 0 0 14px; padding: 12px 14px; }
+      legend { color: #adbac7; font-weight: 600; padding: 0 6px; font-size: 13px; }
+      button { background: #21262d; color: #e6e8ea; border: 1px solid #373e47;
+               border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+      button:hover:not(:disabled) { background: #30363d; }
+      button:disabled { opacity: .45; cursor: not-allowed; }
+      button.primary { background: #1f6feb; border-color: #1f6feb; }
+      input { background: #0d1117; color: #e6e8ea; border: 1px solid #373e47;
+              border-radius: 6px; padding: 6px 10px; font: inherit; }
+      input[type=password] { width: 340px; }
+      input[type=text] { width: 100%; box-sizing: border-box; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .row + .row { margin-top: 8px; }
+      #state { font-weight: 600; }
+      .badge { display: inline-block; padding: 1px 8px; border-radius: 10px;
+               background: #2d333b; font-size: 12px; font-family: ui-monospace, monospace; }
+      pre { background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
+            padding: 10px; max-height: 300px; overflow: auto; font-size: 12px; margin: 0; }
+      .warn { color: #d29922; font-size: 12px; }
+      .note { color: #8b949e; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Spike — Gemini 3.8 Live no navegador</h1>
+    <p class="sub">
+      Página <strong>dev-only</strong>, fora do bundle de produção (entra só com
+      <code>BPMN_SPIKE=1</code>). Não é o widget: é a prova do transporte.
+      Change: <code>add-bpmn-public-live-assistant-mvp</code>.
+    </p>
+
+    <fieldset>
+      <legend>Credencial (BYOK)</legend>
+      <div class="row">
+        <input id="key" type="password" placeholder="sua chave do Google AI Studio" autocomplete="off" />
+        <button id="connect" class="primary">Conectar</button>
+        <button id="disconnect" disabled>Encerrar</button>
+        <span>estado: <span id="state" class="badge">idle</span></span>
+      </div>
+      <p class="warn">
+        A chave fica só na memória desta aba. Não vai para storage, nem para log, nem para servidor
+        nosso — só para <code>generativelanguage.googleapis.com</code>. F5 apaga.
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Prova C — pergunta digitada → resposta textual estruturada</legend>
+      <div class="row">
+        <input id="ask" type="text" value="Qual a diferença entre um gateway exclusivo e um paralelo?" />
+      </div>
+      <div class="row">
+        <button id="send" disabled>Perguntar</button>
+        <span class="note">texto por <code>realtimeInput.text</code> → <code>entregar_resposta</code></span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Provas A e B — microfone → Live → alto-falante</legend>
+      <div class="row">
+        <button id="mic" disabled>Falar (abrir microfone)</button>
+        <button id="mute" disabled>Parar microfone</button>
+        <button id="resume">Liberar áudio</button>
+        <span class="note">captura 16 kHz · reprodução 24 kHz</span>
+      </div>
+      <div class="row note">
+        quadros enviados: <span id="frames" class="badge">0</span>
+        · áudio recebido: <span id="chunks" class="badge">0</span>
+        · buffer: <span id="buffered" class="badge">—</span>
+        · underflow: <span id="under" class="badge">0</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Diagnóstico</legend>
+      <div class="row">
+        <button id="probe-text" disabled>Pedir saída TEXT (espera-se fechar com 1007)</button>
+        <button id="probe-token">Sondar token efêmero (CORS)</button>
+      </div>
+      <p class="note">
+        Os dois medem afirmações que a change marca como a provar: a recusa de
+        <code>responseModalities: TEXT</code> e se <code>authTokens.create</code> aceita chamada do
+        navegador.
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Transcrição e resposta</legend>
+      <pre id="out">—</pre>
+    </fieldset>
+
+    <fieldset>
+      <legend>Log</legend>
+      <pre id="log">—</pre>
+    </fieldset>
+
+    <script src="/spike.js"></script>
+  </body>
+</html>

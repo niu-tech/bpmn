@@ -4,9 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run test:sim && npm run test:spike",
     "dev": "webpack serve --config webpack.config.js",
-    "build": "webpack --config webpack.config.js"
+    "build": "webpack --config webpack.config.js",
+    "test:sim": "node src/batchsim/__tests__/validate.mjs && node src/batchsim/__tests__/validate-deterministic.mjs && node src/batchsim/__tests__/validate-pizza.mjs && node src/batchsim/__tests__/smoke-refactor.mjs",
+    "test:spike": "node spike/__tests__/protocol.mjs && node spike/__tests__/session.mjs && node spike/__tests__/worklets.mjs && node spike/__tests__/audio-and-safety.mjs",
+    "dev:spike": "node spike/dev.mjs"
   },
   "keywords": [],
   "author": "",

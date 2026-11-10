@@ -1,0 +1,11 @@
+schema: spec-driven
+
+context: |
+  bpmn — front-end estático (sem backend, sem banco). Modelador bpmn-js em `/index.html`
+  (entry `src/app.js` → `dist/bundle.js`), viewer + simulação em lote em `/viewer.html`
+  (entry `src/viewer.js` → `dist/viewer.js`). Build: webpack 5. Testes: scripts `.mjs`
+  rodados por `node` direto (sem runner), em `src/batchsim/__tests__/`.
+  Deploy: Dockerfile (webpack --mode production + nginx) → docker-compose no loopback →
+  nginx do host termina TLS. CI/CD em `.github/workflows/pipeline.yml`.
+  Branch de trabalho: `ImproveSimulation`. Remotes: `bpmn` (kaiosmacedo), `origin`
+  (devInfomarcas), `upstream` (flavioluizseixas — projeto base).

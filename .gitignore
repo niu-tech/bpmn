@@ -1,2 +1,7 @@
 node_modules/
 .DS_Store
+
+# Credencial do aluno (BYOK) nunca entra no repositorio - ver openspec design D5
+.env
+.env.*
+*.key
