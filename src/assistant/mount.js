@@ -7,11 +7,41 @@
 // diferentes e um `let montado` não os enxergaria.
 
 import './ui/assistant.css';
+import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
 import { createWidget } from './ui/widget.js';
 
 const MARK = 'bpmnAssistantMounted';
+
+/** Barras do produto que vivem no mesmo canto inferior e nao devem ser cobertas. */
+const BARRAS_DO_RODAPE = '.bz-toolbar';
+
+/**
+ * A casca: mede a barra e escreve o resultado numa variavel CSS. `ResizeObserver` porque a barra
+ * expande e recolhe no clique do usuario — reservar so a altura inicial deixaria o problema
+ * voltar no primeiro toque.
+ */
+function reservarRodape(root) {
+  const barra = document.querySelector(BARRAS_DO_RODAPE);
+  if (!barra || typeof ResizeObserver === 'undefined') return () => {};
+
+  const aplicar = () => {
+    const px = calcularReserva({
+      larguraJanela: window.innerWidth,
+      alturaJanela: window.innerHeight,
+      alturaBarra: barra.getBoundingClientRect().height,
+    });
+    root.style.setProperty('--bpmn-assist-bottom', `${px}px`);
+  };
+
+  const ro = new ResizeObserver(aplicar);
+  ro.observe(barra);
+  window.addEventListener('resize', aplicar);
+  aplicar();
+
+  return () => { ro.disconnect(); window.removeEventListener('resize', aplicar); };
+}
 
 export function mountAssistant({ container = document.body, debug = false } = {}) {
   if (document.documentElement.dataset[MARK] === '1') return null;
@@ -43,6 +73,8 @@ export function mountAssistant({ container = document.body, debug = false } = {}
   container.append(widget.root);
   widget.render(view());
 
+  const pararDeMedir = reservarRodape(widget.root);
+
   // Sair da página sem isto deixa o microfone aberto e a sessão consumindo cota. `pagehide`
   // cobre o caso que `beforeunload` não cobre em iOS/Safari (bfcache).
   const bye = () => { try { session.stop(); } catch { /* indo embora de qualquer jeito */ } };
@@ -55,6 +87,7 @@ export function mountAssistant({ container = document.body, debug = false } = {}
     widget,
     /** Desmonta de verdade: encerra a sessão, tira os listeners e libera a marca. */
     async destroy() {
+      pararDeMedir();
       window.removeEventListener('beforeunload', bye);
       window.removeEventListener('pagehide', bye);
       await session.stop();

@@ -12,7 +12,9 @@
 .bpmn-assist {
   position: fixed;
   right: 14px;
-  bottom: 14px;
+  /* Quanto reservar no rodape para a barra do modelador, que mora no mesmo canto inferior em
+   * telas estreitas. `mount.js` mede a barra e escreve este valor; sem barra, fica o default. */
+  bottom: var(--bpmn-assist-bottom, 14px);
   z-index: 100000;
   display: flex;
   flex-direction: column;
@@ -209,9 +211,12 @@
 
 /* Em tela estreita o painel ocupa a largura e cresce menos em altura: num celular, 70vh com o
  * teclado virtual aberto esconde o campo de digitar. */
+/* Em tela estreita o painel ocupa a largura. Medido em 375x812: a barra do modelador colapsada
+ * e uma faixa de 51 px no rodape, e o painel ia por cima dela. Reservar o rodape mantem as duas
+ * alcancaveis sem redesenhar a barra do produto — que seria refatorar UI alheia. */
 @media (max-width: 520px) {
-  .bpmn-assist { left: 10px; right: 10px; bottom: 10px; align-items: stretch; }
-  .bpmn-assist__panel { width: auto; max-height: 62vh; }
+  .bpmn-assist { left: 10px; right: 10px; align-items: stretch; }
+  .bpmn-assist__panel { width: auto; max-height: 56vh; }
   .bpmn-assist__toggle { align-self: flex-end; }
 }
 

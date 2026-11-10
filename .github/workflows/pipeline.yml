@@ -7,7 +7,11 @@ name: CI-CD Pipeline
 # publicaria na VPS sem ninguém decidir. Quem está empurrando um commit de trabalho não está
 # pedindo um deploy.
 #
-# Como publicar agora: Actions -> "CI-CD Pipeline" -> Run workflow -> `deploy: true`.
+# ⚠ PRE-REQUISITO do botao: o GitHub so oferece "Run workflow" para workflow presente na branch
+# DEFAULT do repositorio. Hoje este arquivo existe so em `ImproveSimulation`. Enquanto nao estiver
+# tambem na default, o CI roda em push normalmente, mas NAO ha como disparar o deploy pela UI.
+#
+# Como publicar: Actions -> "CI-CD Pipeline" -> Run workflow -> `deploy: true`.
 # O job ainda exige o ambiente `production`, então, se o repositório tiver revisores configurados
 # nele (Settings -> Environments -> production -> Required reviewers), a publicação só sai depois
 # da aprovação. Sem revisores configurados, o `workflow_dispatch` com `deploy: true` já é o ato
@@ -104,5 +108,17 @@ jobs:
             cd "$APP_DIR"
             git fetch origin "${{ github.ref_name }}"
             git checkout -f -B "${{ github.ref_name }}" "origin/${{ github.ref_name }}"
-            docker-compose up -d --build
-            docker-compose ps
+            # Compose v1 (`docker-compose`) foi aposentado; instalacoes novas so trazem o plugin
+            # v2 (`docker compose`). Escolher na hora evita o deploy morrer no ultimo passo por
+            # causa do nome do binario.
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE="docker-compose"
+            else
+              echo "nem 'docker compose' nem 'docker-compose' disponiveis na VPS" >&2
+              exit 1
+            fi
+            echo "usando: $COMPOSE"
+            $COMPOSE up -d --build
+            $COMPOSE ps

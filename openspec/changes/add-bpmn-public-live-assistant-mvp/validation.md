@@ -248,3 +248,92 @@ npm run dev      # http://localhost:8080/  (modelador) e /viewer.html
 
 Se algo divergir, o console e o estado no cabeçalho do painel dizem o quê — e a chave não aparece
 em nenhum dos dois.
+
+---
+
+# P3 — homologação e preparação de release (2026-11-10)
+
+**Nenhuma credencial do dono foi usada.** O cofre DPAPI não foi acessado. Onde um teste precisava
+de chave, usei valor sintético que não autentica em lugar nenhum. Evidência completa em
+`renders/p3-homologacao.txt`; veredito de release em `release-checklist.md`.
+
+## Suíte
+
+`npm test` exit **0** — **279 assertions** (124 originais intactas):
+
+```
+test:sim         33 + 63 + 28 passed  ·  smoke OK
+test:assistant   credential        21 passed, 0 failed   (+6: reserva do rodapé)
+                 session-manager   30 passed, 0 failed   (+2: chave recusada)
+test:spike       protocol          33 passed, 0 failed
+                 session           31 passed, 0 failed   (+2: 1007/1008 ambíguos)
+                 worklets          19 passed, 0 failed
+                 audio-and-safety  21 passed, 0 failed
+```
+
+## O bloqueio B1 caiu: Docker homologado
+
+O Docker **estava** instalado, em caminho por-usuário (`%LOCALAPPDATA%\Programs\DockerDesktop`)
+e não no padrão de *Program Files* — foi por isso que o bloco anterior o deu como indisponível.
+
+| O quê | Nível | Resultado |
+|---|---|---|
+| `docker compose config` | LOCAL | ✔ publica `127.0.0.1:8880` → 80 |
+| `docker build` (multi-stage, `--mode production`) | LOCAL | ✔ |
+| Smoke das 5 URLs do workflow | LOCAL | ✔ 5/5 em 200 |
+| Helper presente nos dois bundles **da imagem** | LOCAL | ✔ |
+| `/spike/` e `/openspec/` servidos? | BROWSER | ✔ **404** nos dois |
+| Credencial em qualquer caminho da imagem | LOCAL | ✔ nenhuma |
+| Site da imagem no navegador | BROWSER | ✔ helper monta, 0 erro próprio |
+
+**Isto prova a imagem, não a hospedagem.** Nenhuma VPS foi tocada.
+
+## Navegador — bundle fresco a cada mudança
+
+| O quê | Resultado |
+|---|---|
+| Modelador 1280×860 | 0 erro de console |
+| Clique no canvas com o painel **aberto** | seleciona normalmente (o painel não é modal) |
+| Viewer 1280×860 | 0 erro de console |
+| **Simulação em lote com o painel aberto** | ✔ 30 replicações, throughput 0,1762, heatmap em 185 elementos |
+| Barra da simulação responde com o painel aberto | ✔ |
+
+## 375 px — resolvido, e o primeiro conserto estava errado
+
+| Situação | Reserva | Painel | Barra | Sobrepõe? |
+|---|---|---|---|---|
+| Antes (P2) | — | …802 | 747–798 | **sim** |
+| 1ª tentativa, teto fixo de 120 px, barra **expandida** | 144 | 211–668 | 533–798 | **sim** — cobria o cabeçalho, que é onde fica o botão de recolher |
+| Agora, barra colapsada | 75 | 280–737 | 747–798 | não |
+| Agora, barra expandida | 289 | 66–523 | 533–798 | não |
+
+Cobrir o único jeito de recolher a barra é, na prática, **travar o modelador** — por isso o teto
+fixo foi descartado. A conta virou `src/assistant/layout.js`, com 6 testes.
+
+## Dois defeitos achados pela auditoria
+
+**1. Chave inválida era reportada como erro de configuração.** O Google usa `1007` tanto para
+"modalidade não suportada" quanto para "API key not valid", e `1008` tanto para cota quanto para
+"unregistered callers". Para quem traz a própria chave, o caso de chave errada é o mais comum — e
+a mensagem mandava procurar defeito no lugar errado. Agora o texto do fechamento decide.
+Provado na imagem reconstruída: *"a chave foi recusada"* + *"confira a chave em
+aistudio.google.com…"*.
+
+**2. O removedor de comentários das varreduras estava quebrado em silêncio.** O repositório fica
+com CRLF no disco e, em JavaScript, `.` **não casa `\r`** — então `/\/\/.*$/` nunca casava o fim
+da linha e o comentário sobrevivia. A varredura acusava prosa e, pior, poderia deixar de acusar
+código real depois de qualquer ajuste. Uma implementação só, em `tools/test-harness.mjs`.
+
+## Dois riscos de publicação encontrados
+
+**O botão de deploy não existiria.** `workflow_dispatch` só é oferecido para workflow presente na
+branch **default**, e o arquivo está só em `ImproveSimulation`. O CI rodaria no push; o deploy não
+teria como ser disparado. Não resolvi — exige push/merge, fora da autorização.
+
+**Compose v1 × v2.** O passo de deploy usava `docker-compose` (nome do binário v1, aposentado).
+Resolvido: detecta qual existe e falha nomeado se nenhum estiver.
+
+## Teste manual — continua sendo do dono
+
+Inalterado desde o P2, e agora é o **último impedimento técnico** antes de publicar:
+seção *Teste manual* acima. São 2 minutos com `npm run dev`.

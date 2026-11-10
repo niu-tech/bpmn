@@ -253,17 +253,26 @@ export function createSession({
     };
     ws.onclose = (event) => {
       const code = event?.code ?? 0;
+      const texto = String(event?.reason ?? '');
       ready = false;
       clearTimers();
       if (closedByUs) { setState('idle'); return; }
 
-      // 1007 = payload inválido. É o que o servidor devolve ao pedido de saída TEXT, que o
-      // 3.8 recusa. Nomeado à parte porque é DIAGNÓSTICO, não falha de rede.
-      if (code === 1007) { fail('ws-closed:1007', 'servidor recusou o payload do setup'); return; }
-      if (code === 1008 || code === 1011) { fail('quota', `fechado com ${code}`); return; }
-      // Nunca aceitou o setup: credencial é a causa mais provável.
-      if (!turns.length && attempts === 0 && code !== 1000 && !event?.reconnecting) {
-        // ainda assim tenta reconectar: chave errada fecha de novo, e aí o teto decide.
+      // ⚠ 1007 é AMBÍGUO: o servidor usa o mesmo código para "configuração recusada" (o pedido de
+      // saída TEXT, que o 3.8 nega) e para "API key not valid". Para quem traz a própria chave, o
+      // segundo caso é de longe o mais comum — e dizer "o servidor recusou a configuração" manda
+      // o aluno procurar defeito no lugar errado. Medido nas duas situações no P1, o que separa
+      // uma da outra é o TEXTO do fechamento.
+      if (code === 1007) {
+        if (/api[ _-]?key/i.test(texto)) fail('bad-key', 'o servidor recusou a credencial');
+        else fail('ws-closed:1007', 'servidor recusou o payload do setup');
+        return;
+      }
+      if (code === 1008 || code === 1011) {
+        // 1008 também aparece como "unregistered callers" quando a credencial não autentica.
+        if (/unregistered|credential|api[ _-]?key/i.test(texto)) { fail('bad-key', 'credencial não aceita'); return; }
+        fail('quota', `fechado com ${code}`);
+        return;
       }
 
       if (attempts < cfg.maxReconnects) {

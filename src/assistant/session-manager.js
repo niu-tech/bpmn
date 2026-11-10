@@ -135,7 +135,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
         setState(s, r);
-        if (s === 'error') note(`não deu: ${describeError(r)}`, 'error');
+        if (s !== 'error') return;
+        note(`não deu: ${describeError(r)}`, 'error');
+        // Chave recusada tem conserto, e o conserto é do aluno: dizer o que fazer vale mais que
+        // repetir o código do erro.
+        if (r === 'bad-key') {
+          note('confira a chave em aistudio.google.com e informe de novo em "Usar esta chave".', 'error');
+        }
       },
       onLog: (m) => { if (deps.debug) note(m, 'debug'); },
       onText: ({ text, fallback, complete }) => {

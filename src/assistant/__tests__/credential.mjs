@@ -9,8 +9,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createCredentialStore } from '../credential.js';
+import { calcularReserva } from '../layout.js';
 import { forgetSecrets, looksLikeSecret, redact } from '../live/redact.js';
-import { report, test } from '../../../tools/test-harness.mjs';
+import { codigoSemComentarios as codigo, report, test } from '../../../tools/test-harness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const CHAVE = 'AQ.CHAVE-SINTETICA-DE-TESTE-NAO-E-DE-NINGUEM-0123456';
@@ -128,15 +129,6 @@ function walk(dir) {
 }
 const fontes = walk(join(root, 'src', 'assistant'));
 
-/** Codigo sem comentarios. Sem isto a varredura acusa o proprio comentario que explica a regra. */
-function codigo(file) {
-  return readFileSync(file, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .split('\n')
-    .map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1'))
-    .join('\n');
-}
-
 test('nenhum modulo do ajudante toca armazenamento do navegador', () => {
   const proibido = /localStorage|sessionStorage|indexedDB|document\.cookie|caches\./;
   const culpados = fontes.filter((f) => proibido.test(codigo(f)))
@@ -172,6 +164,38 @@ test('a chave nunca e escrita na URL da APLICACAO', () => {
   const culpados = fontes.filter((f) => proibido.test(codigo(f)))
     .map((f) => f.slice(root.length + 1));
   assert.deepEqual(culpados, [], `mexe na URL da pagina: ${culpados.join(', ')}`);
+});
+
+
+
+console.log('\n▶ reserva do rodape em tela estreita (medido em 375x812)');
+
+test('tela larga: cada um no seu canto, sem reserva', () => {
+  assert.equal(calcularReserva({ larguraJanela: 1280, alturaJanela: 900, alturaBarra: 51 }), 14);
+});
+
+test('tela estreita com a barra COLAPSADA (51 px) reserva a faixa inteira', () => {
+  assert.equal(calcularReserva({ larguraJanela: 375, alturaJanela: 812, alturaBarra: 51 }), 75);
+});
+
+test('tela estreita com a barra EXPANDIDA (265 px) reserva a barra INTEIRA', () => {
+  // Um teto fixo de 120 px deixava o cabecalho da barra coberto — e e la que fica o botao de
+  // recolher. Cobrir o unico jeito de recolher a barra trava o modelador.
+  assert.equal(calcularReserva({ larguraJanela: 375, alturaJanela: 812, alturaBarra: 265 }), 289);
+});
+
+test('barra absurda nao espreme o painel abaixo do usavel', () => {
+  const r = calcularReserva({ larguraJanela: 375, alturaJanela: 812, alturaBarra: 900 });
+  assert.equal(r, 812 - 320);
+  assert.ok(812 - r >= 320, 'sobra pelo menos a altura minima util do painel');
+});
+
+test('sem barra no rodape, nada a reservar', () => {
+  assert.equal(calcularReserva({ larguraJanela: 375, alturaJanela: 812, alturaBarra: 0 }), 14);
+});
+
+test('tela minuscula nao produz reserva negativa', () => {
+  assert.ok(calcularReserva({ larguraJanela: 320, alturaJanela: 300, alturaBarra: 51 }) >= 14);
 });
 
 report('credential');

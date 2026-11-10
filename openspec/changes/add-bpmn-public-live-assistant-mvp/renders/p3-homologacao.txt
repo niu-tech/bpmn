@@ -1,0 +1,152 @@
+P3 — homologacao local, 2026-11-10
+Nenhuma credencial do dono foi usada. O cofre DPAPI NAO foi acessado nesta rodada. Onde era
+preciso uma chave, usei um valor sintetico que nao autentica em lugar nenhum.
+
+================================================================================
+1. DOCKER — o bloqueio B1 do P1/P2 CAIU
+================================================================================
+Docker Desktop estava instalado em caminho por-usuario
+(%LOCALAPPDATA%\Programs\DockerDesktop), nao no caminho padrao de Program Files — por isso o
+bloco anterior concluiu "indisponivel". Engine 29.8.2, Compose v5.5.1.
+
+  docker compose -f docker-compose.yml config ...... OK
+      publica 127.0.0.1:8880 -> 80, restart always, rede bpmn_default
+
+  docker build -t bpmn .............................. OK
+      multi-stage: node:24-alpine (npm ci + webpack --mode production) -> nginx:stable-alpine
+
+  docker run -d -p 8095:80 + smoke das 5 URLs do workflow:
+      /                            -> 200
+      /viewer.html                 -> 200
+      /bundle.js                   -> 200
+      /viewer.js                   -> 200
+      /pizza-collaboration.bpmn    -> 200
+
+AUDITORIA DA IMAGEM (dentro do container, nao do repo):
+  helper presente nos DOIS bundles .... bundle.js: marcador do widget x2, entregar_resposta x1
+                                        viewer.js: marcador do widget x1, entregar_resposta x1
+  spike/ servido? ..................... NAO (HTTP 404)
+  openspec/ servido? .................. NAO (HTTP 404)
+  credencial em /usr/share/nginx/html . nenhuma
+  credencial em QUALQUER caminho ...... nenhuma
+  conteudo servido .................... index.html, viewer.html, bundle.js, viewer.js,
+                                        2 worklets com hash, fontes, 3 .bpmn, simulations/
+
+⚠ Isto prova a IMAGEM, nao a HOSPEDAGEM. Nenhuma VPS foi tocada, nenhum deploy foi disparado.
+
+================================================================================
+2. NAVEGADOR — bundle FRESCO em porta nova a cada mudanca
+================================================================================
+(O HMR do webpack-dev-server nao conecta neste painel; no P2 isso fez duas medicoes lerem bundle
+velho. Agora cada rodada usa porta nova, e a conferencia e o numero da linha do stack bater.)
+
+MODELADOR (/), 1280x860 .............. 0 erro de console
+  clique no canvas, painel FECHADO ... 1 elemento selecionado
+  clique no canvas, painel ABERTO .... 1 elemento selecionado  (o painel nao e modal)
+
+VIEWER (/viewer.html), 1280x860 ...... 0 erro de console
+  "Export CSV" antes de simular ...... "Nada para exportar ainda. Rode uma simulacao."
+                                       (a barra da simulacao responde com o painel aberto)
+  SIMULACAO EM LOTE com o painel aberto, alimentando o JSON real do repo:
+       "Concluido. Replicacoes: 30 | Throughput medio: 0.1762 | WIP medio: 10.5622
+        Heatmap aplicado no diagrama."
+       185 elementos com heatmap · 57 elementos antes e depois · painel seguiu aberto
+
+IMAGEM PUBLICADA (porta 8095, servida pelo nginx do container) .... 0 erro proprio
+  helper monta, painel abre, campo type=password, Conectar bloqueado sem chave
+  localStorage 0 · sessionStorage 0 · cookies 0 · caches 0 · indexedDB 0
+
+================================================================================
+3. 375 x 812 — o limite do P2 foi RESOLVIDO (e o primeiro conserto estava errado)
+================================================================================
+Medido: a barra do modelador colapsada e uma faixa de 51 px no rodape; expandida, 265 px.
+
+  ANTES (P2) ....... painel ia ate y=802, barra em 747-798  -> COBRIA a barra
+  1a tentativa ..... reserva com teto fixo de 120 px
+                     barra colapsada: resolvido
+                     barra EXPANDIDA: painel 211-668, barra 533-798 -> AINDA cobria o
+                     CABECALHO dela, que e onde fica o botao de recolher. Cobrir o unico jeito
+                     de recolher a barra e, na pratica, TRAVAR o modelador. Descartado.
+  AGORA ............ reserva a barra inteira, limitada so por "nao espremer o painel abaixo de
+                     320 px de altura util"
+
+  barra colapsada .. reserva 75 px  · painel 280-737 · barra 747-798 · sobrepoe: NAO
+  barra expandida .. reserva 289 px · painel  66-523 · barra 533-798 · sobrepoe: NAO
+                     painel ainda com 457 px de altura
+                     botao de recolher da barra alcancavel por hit-test: SIM
+  volta a colapsar . reserva volta a 75 px (ResizeObserver)
+
+A conta virou funcao pura em `src/assistant/layout.js` com 6 testes.
+
+================================================================================
+4. BYOK — auditoria ponta a ponta na IMAGEM, com conexao REAL ao Google
+================================================================================
+Valor sintetico informado no campo, consentimento marcado, Conectar acionado. O socket abriu
+contra generativelanguage.googleapis.com e o servidor recusou a credencial.
+
+  o valor aparece em console? ............ NAO   (console, onerror, unhandledrejection capturados)
+  em document.body.innerText? ............ NAO
+  no HTML inteiro (outerHTML)? ........... NAO
+  em localStorage / sessionStorage? ...... NAO (ambos com 0 entradas)
+  em cookies? ............................ NAO (0)
+  na URL da aplicacao / referrer? ........ NAO
+  em performance resource timing? ........ NAO   (e por onde a URL do socket vazaria)
+  caches / indexedDB ..................... 0 / 0
+  campo pre-preenchido depois de usar? ... NAO (limpo)
+
+DEFEITO ENCONTRADO AQUI E CORRIGIDO:
+  o estado dizia "o servidor recusou a configuracao da sessao" para uma CHAVE invalida.
+  O Google usa 1007 para as duas coisas — "modalidade nao suportada" e "API key not valid" —
+  e 1008 tanto para cota quanto para "unregistered callers". Para quem traz a propria chave, o
+  caso de chave errada e de longe o mais comum, e a mensagem mandava procurar defeito no lugar
+  errado. Agora o texto do fechamento decide.
+
+  Depois do conserto, na imagem reconstruida:
+      estado ...... "erro: a chave foi recusada"
+      mensagem .... "confira a chave em aistudio.google.com e informe de novo em
+                     'Usar esta chave'."
+      vazou ....... NAO
+
+================================================================================
+5. DEFEITO NA PROPRIA FERRAMENTA DE AUDITORIA (achado e corrigido)
+================================================================================
+As varreduras que procuram `spike`/`localStorage` no codigo tiram os comentarios antes de julgar
+(citar a regra num comentario e o que se QUER escrito). O removedor de comentarios estava
+quebrado em silencio: o repositorio fica com CRLF no disco e, em JavaScript, `.` NAO casa `\r`.
+Com `split('\n')`, cada linha terminava em `\r`, `/\/\/.*$/` nunca casava o fim, e o comentario
+SOBREVIVIA.
+
+Efeito pratico: a varredura acusava prosa (falso positivo) e, pior, poderia deixar de acusar
+codigo real depois de qualquer ajuste. Normalizado em `tools/test-harness.mjs`, uma implementacao
+so, usada pelas duas suites.
+
+================================================================================
+6. PUBLICACAO — dois riscos concretos encontrados
+================================================================================
+(a) O BOTAO DE DEPLOY NAO EXISTIRIA.
+    `workflow_dispatch` so e oferecido pelo GitHub para workflow presente na branch DEFAULT.
+    Conferido: `.github/workflows/pipeline.yml` esta SO em `ImproveSimulation`.
+    Consequencia: depois do push, o CI roda (o gatilho `push` nao depende disso), mas o unico
+    caminho de deploy — o botao Run workflow — NAO aparece.
+    Nao resolvi: exige push/merge para a default, que esta fora da autorizacao deste bloco.
+
+(b) COMPOSE v1 x v2 NO PASSO DE DEPLOY.
+    O CI usa `docker compose` (v2). O script que roda na VPS usava `docker-compose` (nome do
+    binario v1, aposentado; instalacoes novas so trazem o plugin v2). O deploy morreria no ultimo
+    passo por causa do nome.
+    Resolvido: o script agora detecta qual existe e usa esse, falhando com mensagem clara se
+    nenhum estiver presente.
+
+Revisores obrigatorios do ambiente `production` NAO sao automaticos: `environment: production` no
+job cria o portao, mas a exigencia de aprovacao so existe se alguem configurar em
+Settings -> Environments. Nao toquei em nenhuma configuracao do GitHub.
+
+================================================================================
+NAO PROVADO — e o que falta para cada um
+================================================================================
+  conversa real pelo widget ....... exige a chave do aluno no campo BYOK (2 min, roteiro em
+                                    validation.md)
+  fala humana no microfone ........ exige alguem falando
+  barge-in ao vivo ................ exige os dois acima
+  desconexao no meio do turno ..... exige sessao viva
+  hospedagem ...................... exige dominio, DNS e a primeira publicacao — decisao do dono

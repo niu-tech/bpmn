@@ -257,15 +257,30 @@ test('o relogio injetado e chamado como METODO do proprio objeto', () => {
 
 console.log('\n▶ falhas nomeadas');
 
-test('1007 (payload recusado) e nomeado e NAO vira retry', () => {
+test('1007 de CONFIGURACAO e nomeado e NAO vira retry', () => {
   const { session, ws } = ready();
-  ws.serverClose(1007, 'invalid payload');
+  ws.serverClose(1007, 'The requested combination of response modalities (TEXT) is not supported');
   assert.equal(session.state, 'error');
   assert.equal(session.reason, 'ws-closed:1007');
   assert.equal(MockSocket.instances.length, 1, 'nao deveria ter reconectado');
 });
 
-test('1011 vira quota, nao retry', () => {
+test('1007 de CHAVE vira bad-key, nao "configuracao recusada"', () => {
+  // O servidor usa 1007 para as duas coisas. Para quem traz a propria chave, dizer "o servidor
+  // recusou a configuracao" manda o aluno procurar defeito no lugar errado.
+  const { session, ws } = ready();
+  ws.serverClose(1007, 'API key not valid. Please pass a valid API key.');
+  assert.equal(session.reason, 'bad-key');
+  assert.equal(MockSocket.instances.length, 1, 'credencial errada nao se conserta repetindo');
+});
+
+test('1008 de credencial tambem vira bad-key, nao quota', () => {
+  const { session, ws } = ready();
+  ws.serverClose(1008, "Method doesn't allow unregistered callers");
+  assert.equal(session.reason, 'bad-key');
+});
+
+test('1011 sem texto de credencial vira quota, nao retry', () => {
   const { session, ws } = ready();
   ws.serverClose(1011);
   assert.equal(session.reason, 'quota');

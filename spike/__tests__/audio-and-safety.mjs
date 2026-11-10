@@ -14,6 +14,7 @@ import { MASK, forgetSecrets, looksLikeSecret, redact, rememberSecret } from '..
 import { assertSecureContext } from '../../src/assistant/live/audio.js';
 import { probeEphemeralToken } from '../../src/assistant/live/token-probe.js';
 import { report, test, testAsync } from './mock-socket.mjs';
+import { codigoSemComentarios as semComentarios } from '../../tools/test-harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
@@ -144,15 +145,6 @@ await testAsync('sem chave -> rejected, sem chamar a rede', async () => {
 });
 
 console.log('\n▶ isolamento spike <-> produto (design D6)');
-
-/** Codigo sem comentarios: a varredura tem de julgar import, nao nota de rodape. */
-function semComentarios(file) {
-  return readFileSync(file, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .split(String.fromCharCode(10))
-    .map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1'))
-    .join(String.fromCharCode(10));
-}
 
 function walk(dir) {
   const out = [];

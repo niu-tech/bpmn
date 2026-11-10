@@ -6,12 +6,17 @@
       `webpack.config.js`, `package.json` contra o que o build realmente emite
 - [x] 0.3 Versionar o stack de deploy (os cinco caminhos de E1) — autorizado pelo dono e feito
       em `803aa36`; `.dockerignore` passou a excluir `spike/` e `openspec/`
-- [ ] 0.4 Provar o build da imagem localmente + smoke test das cinco URLs do workflow
-      (**bloqueado**: Docker não disponível nesta máquina — ver `validation.md` B1)
+- [x] 0.4 Build da imagem + smoke das cinco URLs: **feito no P3**. O Docker estava instalado em
+      caminho por-usuário, não no padrão — por isso o bloco anterior concluiu "indisponível".
+      `compose config` OK, imagem construída, 5/5 em 200, e a imagem auditada (helper nos dois
+      bundles, `spike/` e `openspec/` em 404, nenhuma credencial em nenhum caminho)
 - [x] 0.5 Runbook de rollback em `deploy/README.md`: o que caracteriza falha, volta por checkout
       do commit bom + rebuild, e a saída rápida pela imagem anterior já no host
 - [ ] 0.6 Decidir host/HTTPS e o (sub)domínio; registrar o valor real em `deploy/host-vhost.conf`
       (**gate do dono**: envolve DNS, fora deste bloco)
+- [ ] 0.7 **Levar o workflow para a branch default** — o GitHub só oferece *Run workflow* para
+      workflow presente nela, e hoje o arquivo existe só em `ImproveSimulation`. Sem isso o único
+      caminho de deploy não aparece na UI (gate do dono: exige push/merge)
 
 ## 1. P1 — Spike técnico isolado (primeiro bloco de execução)
 
@@ -71,19 +76,35 @@
 - [ ] 2.13 Conversa real pelo widget contra o Gemini — **pendente**: exige credencial, e o dono
       determinou não reusar a do cofre. Roteiro em `validation.md`
 
-## 3. P3 — Integração, homologação e publicação
+## 3. P3 — Homologação e preparação de release
 
 - [x] 3.1a Isolamento de credencial exercido na página: sem chave não conecta, chave curta
       recusada, sem consentimento não conecta, `localStorage`/`sessionStorage`/cookie em 0
+- [x] 3.1c Auditoria BYOK ponta a ponta **na imagem publicada**, com conexão real ao Google:
+      a chave não aparece em console, `onerror`, DOM, HTML, storage, cookie, cache, IndexedDB,
+      URL da aplicação, referrer nem resource timing
 - [ ] 3.1b Cenários que precisam de credencial ou de hardware: negação de microfone ao vivo,
       desconexão no meio do turno, expiração
-- [ ] 3.2 Desktop e mobile (iOS exige gesto e tem regra própria de `AudioContext`)
-- [ ] 3.3 Evidência de segurança: nenhuma chave em bundle, storage, log, URL ou commit
+- [x] 3.2 Desktop (1280×860) e móvel (375×812) medidos nas duas páginas
+- [x] 3.3 Evidência de segurança: nenhuma chave em bundle, imagem, storage, URL, log ou commit
 - [x] 3.4 CI roda `npm test` e inspeciona os arquivos **servidos pela imagem** procurando
-      credencial (produto BYOK não tem motivo para conter nenhuma)
+      credencial
 - [x] 3.6 **Publicar virou ato explícito**: push e PR rodam só CI; a implantação exige
-      `workflow_dispatch` com `deploy: true` e o ambiente `production` (onde revisores
-      obrigatórios podem ser configurados). Documentado em `deploy/README.md`
+      `workflow_dispatch` com `deploy: true` e o ambiente `production`
+- [x] 3.7 **Docker homologado de verdade**: `compose config`, build da imagem, container de pé,
+      smoke 5/5, e a imagem auditada por dentro
+- [x] 3.8 **Limite de 375 px resolvido**: o ajudante reserva a barra do modelador inteira,
+      colapsada (51 px) ou expandida (265 px), sem cobrir o botão que a recolhe. A conta é função
+      pura em `src/assistant/layout.js`, com 6 testes
+- [x] 3.9 **Defeito de BYOK corrigido**: o servidor usa 1007 para "configuração recusada" E para
+      "API key not valid", e 1008 para cota E para credencial. A mensagem mandava o aluno procurar
+      defeito no lugar errado; agora o texto do fechamento decide
+- [x] 3.10 **Defeito na ferramenta de auditoria corrigido**: o removedor de comentários das
+      varreduras quebrava com CRLF (em JS, `.` não casa ``), então comentários sobreviviam e a
+      varredura podia deixar de acusar código real
+- [x] 3.11 **Compose v1 × v2**: o passo de deploy usava o nome do binário v1, aposentado. Agora
+      detecta qual existe e falha nomeado se nenhum estiver presente
+- [x] 3.12 Checklist GO/NO-GO e roteiro da primeira publicação: `release-checklist.md`
 - [ ] 3.5 Publicar (gate do dono) e conferir o site no endereço real
 
 ## Futuro — fora do MVP

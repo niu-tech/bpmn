@@ -117,6 +117,23 @@ await (async () => {
     forgetSecrets();
   });
 
+  test('chave recusada DIZ ao aluno o que fazer, nao so o codigo', async () => {
+    const { session, live } = montar();
+    await session.connect('texto');
+    live.ultima.falha('bad-key');
+    const textos = session.messages.map((m) => m.text).join(' ');
+    assert.match(textos, /aistudio\.google\.com/, 'o conserto e do aluno: dizer onde');
+    forgetSecrets();
+  });
+
+  test('a chave NAO e apagada quando o servidor recusa (daria para redigitar tudo)', async () => {
+    const { session, credentials, live } = montar();
+    await session.connect('texto');
+    live.ultima.falha('bad-key');
+    assert.equal(credentials.hasKey, true);
+    forgetSecrets();
+  });
+
   console.log('\n▶ contratos por modo');
 
   test('modo texto declara a funcao de entrega', async () => {
