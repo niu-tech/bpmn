@@ -162,12 +162,59 @@ test('tres turnos seguidos fecham em ordem, sem resto de um no outro', () => {
 
 console.log('\n▶ PROVAS A e B — audio');
 
-test('quadro do microfone sai com mimeType de 16 kHz', () => {
+test('quadro do microfone sai em realtimeInput.audio a 16 kHz', () => {
   const { session, ws } = ready();
   session.pushAudio('QUJD');
-  const chunk = ws.framesOf('realtimeInput').at(-1).realtimeInput.mediaChunks[0];
-  assert.match(chunk.mimeType, /rate=16000/);
-  assert.equal(chunk.data, 'QUJD');
+  const frame = ws.framesOf('realtimeInput').at(-1).realtimeInput;
+  assert.match(frame.audio.mimeType, /rate=16000/);
+  assert.equal(frame.audio.data, 'QUJD');
+});
+
+test('fechar o microfone avisa o fim da fala (sem isso o servidor nao transcreve)', () => {
+  const { session, ws } = ready();
+  session.pushAudio('QUJD');
+  session.endAudio();
+  assert.equal(ws.framesOf('realtimeInput').at(-1).realtimeInput.audioStreamEnd, true);
+});
+
+test('frame vazio e generationComplete nao fecham o turno nem poluem o log', () => {
+  const { session, ws, logs } = ready();
+  session.ask('p');
+  ws.emit({});
+  ws.emit({ serverContent: {} });
+  ws.emit({ serverContent: { generationComplete: true } });
+  assert.equal(session.turns.length, 0, 'nenhum deles encerra o turno');
+  assert.ok(!logs.some((m) => /nao reconhecido/.test(m)), `log poluido: ${logs.join(' | ')}`);
+  ws.emit({ serverContent: { turnComplete: true } });
+  assert.equal(session.turns.length, 1);
+});
+
+test('a legenda que vem JUNTO do audio entra na transcricao', () => {
+  const trans = [];
+  const { session, ws } = ready({ onTranscript: (t) => trans.push(t) });
+  session.ask('p');
+  ws.emit({ serverContent: {
+    modelTurn: { parts: [{ inlineData: { data: 'AAAA' } }] },
+    outputTranscription: { text: 'falando' } } });
+  ws.emit({ serverContent: { turnComplete: true } });
+  assert.deepEqual(trans.map((t) => t.text), ['falando']);
+  assert.equal(session.turns.at(-1).fallback, true, 'sem entrega estruturada, a legenda e o texto');
+});
+
+test('a alca de retomada e guardada, nao virada ruido', () => {
+  const { session, ws, logs } = ready();
+  ws.emit({ sessionResumptionUpdate: { newHandle: 'h-42', resumable: true } });
+  assert.equal(session.resumptionHandle, 'h-42');
+  assert.ok(!logs.some((m) => /nao reconhecido/.test(m)));
+});
+
+test('a contagem de tokens do turno fica disponivel (custo e a cota do aluno)', () => {
+  const { session, ws } = ready();
+  session.ask('p');
+  ws.emit({ toolCall: { functionCalls: [{ id: 'c1', name: DELIVERY_TOOL, args: { texto: 'x' } }] } });
+  ws.emit({ serverContent: { turnComplete: true }, usageMetadata: { totalTokenCount: 771 } });
+  assert.equal(session.turns.at(-1).usage.totalTokenCount, 771);
+  assert.equal(session.lastUsage.totalTokenCount, 771);
 });
 
 test('audio do modelo chega ao playback e o estado vira speaking', () => {
@@ -186,6 +233,26 @@ test('interrupcao avisa para descartar o buffer', () => {
   ws.emit({ serverContent: { interrupted: true } });
   assert.equal(flushed, 1);
   assert.equal(session.state, 'ready');
+});
+
+test('o relogio injetado e chamado como METODO do proprio objeto', () => {
+  // Protege o contrato da injecao. O defeito irmao — guardar `window.setTimeout` cru no relogio
+  // DEFAULT e perder o `this` — so aparece no NAVEGADOR (TypeError: Illegal invocation) e esta
+  // registrado em validation.md: por isso a rodada no browser faz parte do procedimento.
+  const clock = {
+    marca: 'eu',
+    setTimeout(fn, ms) { if (this?.marca !== 'eu') throw new TypeError('Illegal invocation'); return setTimeout(fn, ms); },
+    clearTimeout(id) { if (this?.marca !== 'eu') throw new TypeError('Illegal invocation'); clearTimeout(id); },
+  };
+  const s = createSession({ apiKey: 'AIzaCHAVEFALSADETESTE123456', socketFactory: mockFactory(), clock });
+  s.start();
+  const ws = MockSocket.instances.at(-1);
+  ws.open();
+  ws.emit({ setupComplete: {} });
+  s.ask('p');                       // arma e desarma o relogio do turno
+  ws.emit({ serverContent: { turnComplete: true } });
+  s.close();
+  assert.equal(s.state, 'idle');
 });
 
 console.log('\n▶ falhas nomeadas');

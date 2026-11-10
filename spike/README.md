@@ -32,8 +32,24 @@ Apagar este diretório inteiro não quebra o produto.
 | **C** | pergunta digitada → resposta textual | `live/protocol.js` + `live/session.js` |
 
 C não é "pedi TEXT e recebi TEXT": o `gemini-3.8-live` **recusa** saída TEXT e fecha o socket com
-1007. O texto sai pelos **argumentos** de uma função declarada (`entregar_resposta`), e toda
-chamada tem de ser respondida com `toolResponse` — senão o turno fica pendurado.
+1007 (medido aqui em 2026-11-10 — o `setupComplete` chega e a recusa só vem ao pedir conteúdo).
+O texto sai pelos **argumentos** de `entregar_resposta`, e toda chamada tem de ser respondida com
+`toolResponse` — senão o turno fica pendurado.
+
+## Dois modos, e eles são exclusivos
+
+Medido com sessões reais: **declarar a função faz o modelo não falar** (0 quadros de áudio);
+**sem a função ele fala** (29–48 quadros) e manda a legenda junto. Não dá para ter os dois no
+mesmo turno.
+
+| Modo | Função | Volta | Para quê |
+|---|---|---|---|
+| texto | declarada | argumentos de `entregar_resposta`, zero áudio | chat digitado, mais barato |
+| voz | ausente | áudio 24 kHz + legenda | microfone |
+
+Dois detalhes que o microfone não perdoa, os dois medidos: o quadro vai em
+**`realtimeInput.audio`** (a forma antiga `mediaChunks` é aceita **em silêncio** e ignorada), e ao
+parar de falar é **obrigatório** mandar **`audioStreamEnd`** — sem ele não há transcrição.
 
 ## Arquivos
 
@@ -60,6 +76,12 @@ O que a sessão gasta é a cota **do aluno**: encerre quando terminar.
 
 ```bash
 npm run test:spike    # sem chave, sem rede
+```
+
+Prova contra o servidor real (opcional, gated — sem a variável não faz rede nenhuma):
+
+```bash
+GEMINI_API_KEY=<a sua chave> node spike/__tests__/live-probe.mjs
 ```
 
 `__tests__/worklets.mjs` **executa os arquivos de worklet do disco**, com os globais do

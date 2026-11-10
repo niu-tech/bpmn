@@ -1,0 +1,65 @@
+Evidencia da rodada VIVA no navegador — 2026-11-10
+Pagina: http://127.0.0.1:8080/spike/  (dev server com BPMN_SPIKE=1)
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0.7977.167
+window.isSecureContext: true   (127.0.0.1 conta como contexto seguro)
+
+A chave usada foi a do dono, resolvida do cofre DPAPI da MAIA e entregue a pagina por um canal
+local de UM USO. Ela nao aparece aqui, nem no log da pagina, nem em nenhum argumento de ferramenta.
+
+================================================================================
+MODO TEXTO  (funcao `entregar_resposta` declarada)
+================================================================================
+voce> Em uma frase: o que e um evento de borda em BPMN?
+A> Um evento de borda e um evento posicionado no limite de uma atividade para capturar ou lancar
+   gatilhos especificos, como erros, mensagens ou tempo, durante a execucao daquela atividade.
+
+estado: ready | audio recebido: 0 quadros
+
+-> A resposta veio pelos ARGUMENTOS da funcao, e o modelo NAO falou. PROVA C no navegador.
+
+================================================================================
+MODO VOZ  (sem funcao declarada)
+================================================================================
+voce> Diga em uma frase o que e um gateway inclusivo em BPMN.
+· Um gateway inclusivo
+· em BPMN
+·  e usado para criar
+·  caminhos alternativos
+·  ou paralelos
+·  em um processo,
+·  ativando um
+·  ou mais fluxos com base
+·  em condicoes avaliadas.
+
+estado: ready | audio recebido: 29 | buffer: 0 ms | underflow: 1
+entregas estruturadas (linhas "A> "): 0
+legendas (linhas "· "): 9
+
+Log da pagina:
+  11:56:04  spike carregado. contexto seguro: true
+  11:56:50  reproducao pronta, contexto running
+  11:56:52  conectando no modo voz (sem funcao: o modelo fala e legenda)
+  11:56:58  primeira amostra audivel do trecho 1
+  ...  (29 trechos, um por quadro de audio)
+  11:57:07  primeira amostra audivel do trecho 29
+  11:57:08  turno fechou SEM entrega estruturada: texto veio da transcricao
+
+-> 29 quadros recebidos, 29 marcados como AUDIVEIS pelo worklet de reproducao: cada trecho saiu
+   de fato pelo alto-falante. PROVA B no navegador, com audio real do modelo.
+-> ZERO entrega estruturada no modo voz, 9 legendas: confirma, na pagina, o que a sonda em node
+   mediu em tres sessoes — declarar a funcao e falar sao exclusivos no mesmo turno.
+
+================================================================================
+O QUE ESTA RODADA PROVOU E O NODE NAO PODIA
+================================================================================
+1. E13 (era HIPOTESE): o WebSocket do Live ACEITA conexao de ORIGEM DE NAVEGADOR com a chave na
+   query string. Nenhum relay, nenhum backend.
+2. O AudioWorklet de reproducao carrega do asset que o webpack emite (URL com hash) e toca.
+3. Um defeito que o node NAO consegue ver: `clock = { setTimeout, clearTimeout }` guardava o
+   metodo do `window` sem vinculo, e o navegador lancou
+   `TypeError: Illegal invocation` em `session.js:292`. A sessao chegava a `ready` e a primeira
+   pergunta morria ANTES de ser enviada. Corrigido com envoltorios; o teste de contrato do
+   relogio injetado esta em `__tests__/session.mjs`.
+
+O QUE CONTINUA SEM PROVA: microfone fisico com fala humana. Precisa de alguem falando — roteiro
+em validation.md.

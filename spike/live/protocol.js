@@ -27,15 +27,19 @@ export const DELIVERY_TOOL = 'entregar_resposta';
 export const CAPTURE_RATE = 16000;   // aba -> Live
 export const PLAYBACK_RATE = 24000;  // Live -> aba
 
+/** O domínio. Vale para os dois modos. */
 export const SYSTEM_INSTRUCTION = [
   'Você é um assistente especialista em BPMN 2.0 embutido num modelador e visualizador de',
   'diagramas. Responda em português do Brasil, de forma curta e direta, sobre notação BPMN:',
   'eventos, atividades, gateways, pools, lanes, fluxo de mensagem, fluxo de sequência e boas',
   'práticas de modelagem. Se a pergunta não for sobre BPMN nem sobre o diagrama, diga isso em',
   'uma frase.',
-  '',
-  `IMPORTANTE: ao terminar de responder, chame a função ${DELIVERY_TOOL} com o texto completo da`,
-  'sua resposta no campo "texto". A fala é para quem ouve; a função é para quem lê.',
+].join(' ');
+
+/** Acrescentado SÓ no modo texto, junto com a declaração da função. Ver {@link buildSetup}. */
+export const DELIVERY_INSTRUCTION = [
+  `IMPORTANTE: não fale. Responda chamando a função ${DELIVERY_TOOL} com o texto completo da sua`,
+  'resposta no campo "texto".',
 ].join(' ');
 
 /** URL do socket. A chave vai na query string — é o contrato do Live, não escolha nossa. */
@@ -45,9 +49,23 @@ export function socketUrl(apiKey, base = WS_BASE) {
 }
 
 /**
- * Frame de `setup`. `modalities` existe SÓ para a prova de incompatibilidade: pedir `['TEXT']` de
- * propósito e registrar o 1007 com medição própria (openspec spec, cenário "Saída TEXT é
- * incompatível e isso é medido"). Em uso normal não se passa nada.
+ * Frame de `setup`.
+ *
+ * ⚠ `withDeliveryTool` é a ESCOLHA DE MODO, medida ao vivo em 2026-11-10 (três sessões reais
+ * contra `gemini-3.8-live`):
+ *
+ *   • COM a função declarada: o modelo **não fala**. Foi direto ao `toolCall` e a sessão
+ *     inteira teve **0 frames de áudio**. Ótimo para o chat digitado: texto exato, sem gastar
+ *     token de áudio.
+ *   • SEM a função: o modelo fala — 29 frames de `audio/pcm;rate=24000` — e manda
+ *     `outputTranscription` junto, que é a legenda. É o modo de VOZ.
+ *
+ * Ou seja, não dá para ter fala e entrega estruturada no mesmo turno: é um ou outro. O desenho
+ * anterior declarava a função sempre e teria deixado o ajudante **mudo**, o que só apareceria
+ * quando alguém apertasse o microfone.
+ *
+ * `modalities` existe SÓ para a prova de incompatibilidade: pedir `['TEXT']` de propósito e
+ * registrar o 1007 com medição própria. Em uso normal não se passa nada.
  */
 export function buildSetup({
   model = MODEL,
@@ -56,6 +74,11 @@ export function buildSetup({
   modalities = ['AUDIO'],
   withDeliveryTool = true,
 } = {}) {
+  // A instrução de entrega só existe quando a função existe — senão o modelo é mandado chamar
+  // algo que não foi declarado.
+  if (withDeliveryTool && systemInstruction === SYSTEM_INSTRUCTION) {
+    systemInstruction = `${SYSTEM_INSTRUCTION}\n\n${DELIVERY_INSTRUCTION}`;
+  }
   const setup = {
     model: `models/${model}`,
     generationConfig: {
@@ -93,13 +116,32 @@ export function buildTextTurn(text) {
   return { realtimeInput: { text: String(text ?? '') } };
 }
 
-/** Quadro de áudio do microfone. `pcm16Base64` = PCM16 mono 16 kHz em base64. */
+/**
+ * Quadro de áudio do microfone. `pcm16Base64` = PCM16 mono 16 kHz em base64.
+ *
+ * ⚠ É `realtimeInput.audio` (objeto único), NÃO `realtimeInput.mediaChunks[]`. Medido em
+ * 2026-11-10: a forma antiga `mediaChunks` é aceita **sem erro nenhum** e simplesmente
+ * IGNORADA — o socket segue saudável, os quadros são engolidos e nenhuma transcrição de entrada
+ * chega. É a pior classe de falha: silenciosa. A primeira versão deste arquivo usava `mediaChunks`
+ * e teria produzido um microfone que "funciona" e não é ouvido.
+ */
 export function buildAudioChunk(pcm16Base64) {
   return {
     realtimeInput: {
-      mediaChunks: [{ mimeType: `audio/pcm;rate=${CAPTURE_RATE}`, data: pcm16Base64 }],
+      audio: { mimeType: `audio/pcm;rate=${CAPTURE_RATE}`, data: pcm16Base64 },
     },
   };
+}
+
+/**
+ * Fim da fala. **Obrigatório**: sem ele o servidor não transcreve nada.
+ *
+ * Medido em 2026-11-10 com a MESMA fala e o MESMO formato: com `audioStreamEnd`, a transcrição
+ * de entrada chegou exata; sem ele, nada, e o turno nunca fechou. Quem para de falar tem de
+ * avisar — o VAD automático do servidor sozinho não bastou nesta medição.
+ */
+export function buildAudioStreamEnd() {
+  return { realtimeInput: { audioStreamEnd: true } };
 }
 
 /** Histórico semeado sem fechar o turno (fato 2). `turns` = [{role, text}]. */
@@ -167,12 +209,39 @@ export function parseServerFrame(raw) {
     return { kind: 'tool-call', calls, delivery: hit ? deliveryText(hit.args) : null };
   }
 
+  // Medido ao vivo: o servidor manda MUITO frame vazio (`{}`) entre os de conteúdo — 20 dos 64
+  // de uma sessão de voz. Tratá-los como desconhecido enchia o log de "frame não reconhecido" e
+  // escondia o que importa.
+  if (Object.keys(message).length === 0) return { kind: 'noop' };
+
+  // Alça de retomada da sessão. Não é usada ainda; reconhecida para não virar ruído, e porque é
+  // por ela que uma reconexão preservaria o contexto depois do MVP.
+  if (message.sessionResumptionUpdate) {
+    return {
+      kind: 'resumption',
+      handle: message.sessionResumptionUpdate.newHandle ?? null,
+      resumable: message.sessionResumptionUpdate.resumable === true,
+    };
+  }
+
+  if (message.usageMetadata && !message.serverContent) {
+    return { kind: 'usage', usage: message.usageMetadata };
+  }
+
   const content = message.serverContent;
   if (content) {
     if (content.interrupted) return { kind: 'interrupted' };
 
     const inline = content.modelTurn?.parts?.find((p) => p.inlineData?.data);
-    if (inline) return { kind: 'audio', pcm16Base64: inline.inlineData.data };
+    if (inline) {
+      // O mesmo frame pode trazer áudio E legenda (medido: `{modelTurn,outputTranscription}`).
+      // Devolver só um dos dois perdia a legenda de um frame a cada três.
+      return {
+        kind: 'audio',
+        pcm16Base64: inline.inlineData.data,
+        text: content.outputTranscription?.text ?? null,
+      };
+    }
 
     if (content.inputTranscription?.text) {
       return { kind: 'input-text', text: content.inputTranscription.text };
@@ -182,11 +251,20 @@ export function parseServerFrame(raw) {
     }
 
     const status = content.interactionStatus ?? message.interactionStatus ?? null;
-    if (content.turnComplete === true || content.generationComplete === true) {
-      // IN_PROGRESS = ainda vem coisa. Qualquer outro valor (ou nenhum) = terminou de verdade.
-      return { kind: 'turn-complete', idle: status !== 'IN_PROGRESS', status };
+
+    // `generationComplete` chega num frame PRÓPRIO, logo antes do `turnComplete` (medido). Fechar
+    // o turno nele encerrava um frame cedo e descartava o `usageMetadata` que vem junto do fim.
+    if (content.generationComplete === true && content.turnComplete !== true) {
+      return { kind: 'generation-complete' };
     }
-    if (status === 'IDLE') return { kind: 'turn-complete', idle: true, status };
+    if (content.turnComplete === true) {
+      // IN_PROGRESS = ainda vem coisa. Qualquer outro valor (ou nenhum) = terminou de verdade.
+      return { kind: 'turn-complete', idle: status !== 'IN_PROGRESS', status, usage: message.usageMetadata ?? null };
+    }
+    if (status === 'IDLE') return { kind: 'turn-complete', idle: true, status, usage: message.usageMetadata ?? null };
+
+    // `serverContent: {}` também aparece: abertura do turno, sem conteúdo.
+    if (Object.keys(content).length === 0) return { kind: 'noop' };
   }
 
   return { kind: 'unknown', raw: message };

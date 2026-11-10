@@ -49,9 +49,9 @@ qualquer destino que não seja o endpoint oficial do Google.
 - **THEN** o servidor aceita o setup e a sessão fica pronta para receber turnos
 
 #### Scenario: Saída TEXT é incompatível e isso é medido
-- **WHEN** uma sessão de diagnóstico pede `responseModalities: ["TEXT"]`
-- **THEN** o socket é fechado com código 1007 e a incompatibilidade é registrada na evidência da
-  change com a medição própria, não apenas com citação de outro projeto
+- **WHEN** uma sessão de diagnóstico pede `responseModalities: ["TEXT"]` e em seguida pede conteúdo
+- **THEN** o setup é aceito, o socket é fechado com código 1007 ao pedir conteúdo, e a
+  incompatibilidade é registrada com medição própria, não apenas com citação de outro projeto
 
 #### Scenario: Credencial ausente ou inválida
 - **WHEN** o aluno não informou chave, ou a chave é recusada
@@ -78,6 +78,23 @@ bundle ou no repositório.
 - **THEN** nenhum arquivo contém chave, e `.gitignore` cobre os arquivos de ambiente usados nos
   testes locais
 
+### Requirement: Modo de voz e modo de texto são exclusivos
+Declarar a função de entrega SHALL suprimir a fala do modelo, e omiti-la SHALL produzir fala com
+legenda; o assistente SHALL escolher um dos dois por turno e SHALL NOT instruir o modelo a chamar
+uma função que não declarou.
+
+#### Scenario: Modo texto
+- **WHEN** a sessão declara a função de entrega
+- **THEN** a resposta vem pelos argumentos dela e nenhum quadro de áudio é recebido
+
+#### Scenario: Modo voz
+- **WHEN** a sessão não declara a função de entrega
+- **THEN** o modelo fala, os quadros de áudio chegam e a legenda acompanha
+
+#### Scenario: Instrução coerente com o que foi declarado
+- **WHEN** a sessão não declara a função
+- **THEN** a instrução de sistema não menciona chamá-la
+
 ### Requirement: Captura de áudio do navegador
 A captura SHALL ser iniciada apenas por gesto explícito do usuário, apenas em contexto seguro, e
 SHALL entregar ao transporte PCM16 mono a 16 kHz em quadros de 40 ms.
@@ -94,6 +111,16 @@ SHALL entregar ao transporte PCM16 mono a 16 kHz em quadros de 40 ms.
 #### Scenario: Formato do quadro
 - **WHEN** o contexto de áudio captura a 48 kHz
 - **THEN** cada quadro emitido tem 640 amostras `Int16` e representa 40 ms a 16 kHz
+
+#### Scenario: Campo aceito pelo servidor
+- **WHEN** um quadro é enviado
+- **THEN** ele viaja no campo de áudio em tempo real que o servidor realmente consome, e não no
+  campo legado que é aceito em silêncio e descartado
+
+#### Scenario: Fim da fala anunciado
+- **WHEN** o aluno para de falar ou fecha o microfone
+- **THEN** o fim do fluxo de áudio é anunciado, e sem esse anúncio nenhuma transcrição de entrada
+  é esperada
 
 #### Scenario: Liberação completa
 - **WHEN** a sessão é encerrada
@@ -156,6 +183,16 @@ estado travado nem retry infinito.
 #### Scenario: Silêncio do servidor
 - **WHEN** o servidor aceita o setup e não envia nada dentro do prazo
 - **THEN** o estado vira `error(timeout)` em vez de permanecer em `connecting`
+
+#### Scenario: Frames sem conteúdo não poluem nem encerram
+- **WHEN** chegam frames vazios, alça de retomada ou fim de geração
+- **THEN** nenhum deles encerra o turno nem aparece como frame não reconhecido, e o relógio de
+  silêncio é renovado
+
+#### Scenario: Funciona no navegador, não só no teste
+- **WHEN** a sessão é aberta numa página real
+- **THEN** conectar, perguntar e receber funcionam, e nenhuma função do ambiente é invocada de
+  modo que o navegador recuse
 
 #### Scenario: Resposta truncada
 - **WHEN** o turno é cortado antes do fim

@@ -18,42 +18,60 @@ Decisão: **browser → Gemini direto**, chave em memória da aba. Relay mínimo
 provar que o caminho direto não serve (handshake recusado por origem, por exemplo). A P1 **mede**
 isso — E13 é hipótese, não fato.
 
-## D2. Token efêmero: o que é possível e o que é teatro
+## D2. Token efêmero: medido, e a resposta é "quase"
 
-A doc oficial (E11) diz: o token é criado por `authTokens.create`, **a criação exige uma chave de
-API**, e isso deve rodar num backend. Também diz que o token, como a chave, **pode ser extraído do
-cliente** — o ganho é ser curto, não ser secreto.
+Tudo abaixo foi medido em 2026-11-10 com a chave do dono, não lido em documentação:
 
-Num cenário BYOK **sem backend**, o token efêmero resolve pouco: quem mintaria o token é a própria
-aba, com a chave do aluno já em mãos. O ganho real seria limitar o estrago de um XSS (o token
-expira; a chave não). Vale medir, não vale assumir.
+| Pergunta | Resposta |
+|---|---|
+| O endpoint existe? | Sim, em `v1alpha/**auth_tokens**` (snake_case). `authTokens` em camelCase devolve **404** — foi o que fez a primeira rodada concluir, errado, que não existia |
+| Dá para chamar do **navegador**? | **Sim.** Preflight `OPTIONS` responde 200 com `access-control-allow-origin` ecoando a origem e `x-goog-api-key` em `allow-headers`. O `POST` com `Origin` responde 200 e emite o token |
+| O token **abre a sessão** Live? | **Não.** Quatro formas testadas (`access_token` e `key`, em `v1beta` e `v1alpha`): 1008 *"unregistered callers"* ou 1007 *"API key not valid"*. A resposta traz **só** o campo `name` (`auth_tokens/<id>`), nenhum segredo separado |
 
-**O que a P1 prova (ou derruba):** se `POST .../authTokens` responde a uma requisição de **origem
-de navegador** (CORS) com a chave do aluno no cabeçalho (E12). Se responder, o fluxo preferido
-passa a ser: chave → token de uso único e escopo travado → WS com o token; a chave só é tocada uma
-vez por sessão. Se **não** responder, o fluxo é chave na query do WS (E5), e isso fica **registrado
-como limitação**, não escondido.
+**Decisão:** o caminho BYOK do MVP é a **chave na query string do WebSocket** (E13, confirmado na
+página). O token efêmero fica registrado como **meio caminho**: mintável sem backend, inútil como
+credencial de sessão para esta chave hoje. Quando o Google fechar essa lacuna, o troco é de uma
+linha — `socketUrl` passa a receber o token. A sonda (`spike/live/token-probe.js`) fica no
+repositório justamente para refazer a medição.
 
-Em nenhum caminho a chave vai para um servidor nosso.
+A consequência honesta: num app estático com BYOK, **a chave do aluno fica na URL do socket**
+dentro da aba dele. Não há como evitar sem um backend, e um backend trocaria o problema por outro
+(nós passaríamos a guardar a chave). D5 trata do que sobra: ela não persistir e não vazar.
 
-## D3. Texto sai por function calling, não por `responseModalities: TEXT`
+## D3. Dois modos, e eles são exclusivos (medido)
 
-Fato medido (E6): `gemini-3.8-live` **fecha o socket com 1007** quando se pede saída `TEXT`. É o
-mesmo modelo que a prova C precisa. Portanto:
+Três fatos medidos contra `gemini-3.8-live` em 2026-11-10, cada um com sessão real:
 
-- `setup.generationConfig.responseModalities = ["AUDIO"]`, **sempre** (E6/E7).
-- `inputAudioTranscription` e `outputAudioTranscription` ligados: é daí que sai o texto do que o
-  aluno falou e a legenda do que o modelo falou.
-- Uma função declarada **`entregar_resposta`** com um campo de texto. Resposta final de verdade =
-  **argumentos** dessa chamada (E7). A transcrição da fala é **fallback**, porque JSON falado não
-  sobrevive à transcrição (E7).
-- Cada `toolCall` **tem** de receber `toolResponse`. Sem isso o turno do modelo fica pendurado e o
-  pedido seguinte cai no meio dele (E8).
+1. **`responseModalities: ["TEXT"]` é recusado.** O `setupComplete` **chega** — e por isso a
+   primeira versão da sonda concluiu errado que servia. O socket fecha com **1007** quando se
+   pede conteúdo: *"The requested combination of response modalities (TEXT) is not supported by
+   the model."* Então a saída é `AUDIO`, sempre.
+2. **Com `entregar_resposta` declarada, o modelo não fala.** Foi direto ao `toolCall` e a sessão
+   teve **0 frames de áudio**. Texto exato nos argumentos, e nenhum token de áudio gasto.
+3. **Sem a função, o modelo fala** — 29 a 48 frames de `audio/pcm;rate=24000` — e manda
+   `outputTranscription` junto, que é a legenda.
 
-A prova C, portanto, não é "pedi TEXT e recebi TEXT". É: *pergunta digitada por
-`realtimeInput.text` → `toolCall` de `entregar_resposta` → texto nos argumentos → `toolResponse` →
-`turnComplete`.* A P1 **também** registra o 1007 ao pedir TEXT de propósito, uma vez, para
-documentar a incompatibilidade com medição própria em vez de nota de terceiro.
+Ou seja: **fala e entrega estruturada não coexistem no mesmo turno.** O desenho anterior declarava
+a função sempre; o ajudante teria saído **mudo**, e isso só apareceria quando alguém apertasse o
+microfone. Vira escolha de modo, explícita em `buildSetup({ withDeliveryTool })`:
+
+| Modo | Função declarada | O que volta | Para quê |
+|---|---|---|---|
+| **Texto** | sim | argumentos de `entregar_resposta`, zero áudio | chat digitado; mais barato |
+| **Voz** | não | áudio 24 kHz + `outputTranscription` | microfone; a legenda é o texto |
+
+A instrução de sistema acompanha o modo: mandar chamar uma função **não declarada** seria pedir
+alucinação, então `DELIVERY_INSTRUCTION` só é anexada quando a função existe.
+
+Em qualquer modo, todo `toolCall` **tem** de receber `toolResponse` — sem isso o turno do modelo
+fica pendurado e o pedido seguinte cai no meio dele.
+
+### O fio, como ele é de verdade
+
+Medido numa sessão de voz de 64 frames: **20 eram `{}` vazios**. Também chegam
+`sessionResumptionUpdate` (alça de retomada), `generationComplete` **num frame próprio, antes** do
+`turnComplete`, e `usageMetadata` junto do fim. Tratar tudo isso como "desconhecido" enchia o log
+e fechava o turno um frame cedo.
 
 ## D4. Formato do áudio: assimétrico de propósito
 
@@ -69,6 +87,13 @@ lados. Desenho:
 - **Captura** — `getUserMedia` → `AudioWorkletNode` que decima de `sampleRate` do contexto para
   16 kHz pela média da janela (box low-pass, suficiente para fala) e emite `Int16Array` de 640
   amostras por `postMessage` **transferindo** o buffer (E9).
+- **Dois detalhes do fio que o microfone não perdoa**, ambos medidos em 2026-11-10 com a mesma
+  fala e o mesmo formato:
+  - o quadro vai em **`realtimeInput.audio`** (objeto único). A forma antiga
+    `realtimeInput.mediaChunks[]` é aceita **sem erro nenhum** e simplesmente ignorada: socket
+    saudável, quadros engolidos, nenhuma transcrição. É a pior classe de falha — silenciosa;
+  - ao parar de falar é **obrigatório** mandar **`audioStreamEnd`**. Com ele, a transcrição de
+    entrada chegou exata; sem ele, nada chegou e o turno nunca fechou.
 - **Reprodução** — worklet com **ring bounded**, `prime` de ~120 ms, reamostragem linear
   24 kHz → `sampleRate` do contexto, `underflow`/`overflow` **contados** (não silenciados), e
   `flush` para cancelamento/barge-in (E10). Underflow que não é contado é underflow que ninguém
@@ -98,6 +123,11 @@ Terceira entry no webpack **condicional**:
 - `spike/index.html` **não** é copiado pela imagem (o Dockerfile lista as páginas uma a uma).
 - O spike não importa nada de `src/**`, e `src/**` não importa nada de `spike/**`. A direção
   importa: é o que garante que apagar `spike/` não quebra o produto.
+- **Arquivo de worklet é copiado VERBATIM pelo webpack** (asset). Um `import` dentro dele
+  sobrevive no arquivo emitido e o módulo importado **não** é emitido ao lado: `addModule` daria
+  404 em runtime, depois de o teste ter passado. Por isso os dois worklets são autossuficientes,
+  e o teste os **executa a partir do disco** com os globais do AudioWorkletGlobalScope
+  esbulhados.
 
 Isolamento verificado por **teste**, não por intenção (ver tasks 2.6).
 
@@ -107,6 +137,13 @@ O repositório já testa com `.mjs` + `node` direto (E4). Adicionar Jest/Vitest 
 dependências, config e tempo de CI para resolver um problema que o `node:assert` resolve. Os testes
 do spike seguem o mesmo padrão, em `spike/__tests__/*.mjs`, e `package.json` ganha scripts que os
 nomeiam — `npm test` deixa de ser `exit 1` e passa a rodar o conjunto existente **mais** os novos.
+
+**O que o mock não alcança, com nome:** `clock = { setTimeout, clearTimeout }` guardava o método
+do `window` sem vínculo. No node funciona; no navegador o browser lança `TypeError: Illegal
+invocation`, a sessão chega a `ready` e a primeira pergunta morre antes de ser enviada. Nenhum
+teste em node pegaria isso — é por isso que **a rodada no navegador faz parte do procedimento**,
+não é enfeite. O teste que sobrou protege o contrato vizinho (o relógio injetado é chamado como
+método do próprio objeto).
 
 **Mock de protocolo:** um duplo de `WebSocket` que fala o shape real do fio (frames de `setup`,
 `serverContent`, `toolCall`, `toolResponse`, `turnComplete`, `goAway`). Isso cobre montagem do

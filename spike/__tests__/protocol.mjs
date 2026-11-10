@@ -6,8 +6,9 @@
  */
 import assert from 'node:assert/strict';
 import {
-  CAPTURE_RATE, DELIVERY_TOOL, MODEL, buildAudioChunk, buildHistory, buildSetup,
-  buildTextTurn, buildToolResponse, parseServerFrame, socketUrl,
+  CAPTURE_RATE, DELIVERY_INSTRUCTION, DELIVERY_TOOL, MODEL, SYSTEM_INSTRUCTION,
+  buildAudioChunk, buildAudioStreamEnd, buildHistory, buildSetup, buildTextTurn,
+  buildToolResponse, parseServerFrame, socketUrl,
 } from '../live/protocol.js';
 import { test, report } from './mock-socket.mjs';
 
@@ -43,10 +44,29 @@ test('declara entregar_resposta com campo texto obrigatorio', () => {
   assert.equal(decl.parameters.properties.texto.type, 'string');
 });
 
-test('systemInstruction e de dominio BPMN e manda chamar a funcao', () => {
+test('modo TEXTO: declara a funcao E manda chamar', () => {
   const text = buildSetup().setup.systemInstruction.parts[0].text;
   assert.match(text, /BPMN/);
   assert.match(text, new RegExp(DELIVERY_TOOL));
+});
+
+test('modo VOZ: sem funcao e SEM a instrucao de entrega (senao o modelo fica mudo)', () => {
+  // Medido em 2026-11-10: com a funcao declarada o modelo nao fala (0 frames de audio); sem ela
+  // fala e manda outputTranscription junto. Nao da para ter os dois no mesmo turno.
+  const { setup } = buildSetup({ withDeliveryTool: false });
+  assert.equal(setup.tools, undefined);
+  assert.equal(setup.systemInstruction.parts[0].text, SYSTEM_INSTRUCTION);
+  assert.ok(!setup.systemInstruction.parts[0].text.includes(DELIVERY_TOOL),
+    'mandar chamar uma funcao nao declarada e pedir alucinacao');
+});
+
+test('instrucao propria do chamador e respeitada, sem anexo surpresa', () => {
+  const { setup } = buildSetup({ systemInstruction: 'instrucao minha' });
+  assert.equal(setup.systemInstruction.parts[0].text, 'instrucao minha');
+});
+
+test('DELIVERY_INSTRUCTION manda NAO falar', () => {
+  assert.match(DELIVERY_INSTRUCTION, /n[aã]o fale/i);
 });
 
 test('modo diagnostico consegue pedir TEXT de proposito (para medir o 1007)', () => {
@@ -71,10 +91,15 @@ test('pergunta digitada vai por realtimeInput.text', () => {
   assert.deepEqual(buildTextTurn('oi'), { realtimeInput: { text: 'oi' } });
 });
 
-test('audio vai com mimeType declarando 16 kHz', () => {
-  const chunk = buildAudioChunk('QUJD').realtimeInput.mediaChunks[0];
-  assert.equal(chunk.mimeType, `audio/pcm;rate=${CAPTURE_RATE}`);
-  assert.equal(chunk.data, 'QUJD');
+test('audio vai em realtimeInput.audio, NAO em mediaChunks (medido: mediaChunks e ignorado em silencio)', () => {
+  const frame = buildAudioChunk('QUJD').realtimeInput;
+  assert.equal(frame.mediaChunks, undefined, 'a forma antiga e aceita sem erro e ignorada pelo servidor');
+  assert.equal(frame.audio.mimeType, `audio/pcm;rate=${CAPTURE_RATE}`);
+  assert.equal(frame.audio.data, 'QUJD');
+});
+
+test('existe um frame de FIM de fala (sem ele o servidor nao transcreve)', () => {
+  assert.deepEqual(buildAudioStreamEnd(), { realtimeInput: { audioStreamEnd: true } });
 });
 
 test('historico vai por clientContent SEM fechar o turno', () => {
@@ -144,6 +169,37 @@ test('IDLE sem turnComplete tambem fecha', () => {
 
 test('goAway e reconhecido', () => {
   assert.equal(parseServerFrame({ goAway: { timeLeft: '10s' } }).timeLeft, '10s');
+});
+
+test('frame vazio e noop (o servidor manda MUITOS: 20 de 64 numa sessao de voz)', () => {
+  assert.equal(parseServerFrame({}).kind, 'noop');
+  assert.equal(parseServerFrame({ serverContent: {} }).kind, 'noop');
+});
+
+test('sessionResumptionUpdate e reconhecido (nao vira ruido no log)', () => {
+  const f = parseServerFrame({ sessionResumptionUpdate: { newHandle: 'h-1', resumable: true } });
+  assert.equal(f.kind, 'resumption');
+  assert.equal(f.handle, 'h-1');
+  assert.equal(f.resumable, true);
+});
+
+test('generationComplete NAO fecha o turno (chega num frame proprio, antes do turnComplete)', () => {
+  assert.equal(parseServerFrame({ serverContent: { generationComplete: true } }).kind, 'generation-complete');
+});
+
+test('audio e legenda no MESMO frame: os dois sao devolvidos', () => {
+  const f = parseServerFrame({ serverContent: {
+    modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'AAAA' } }] },
+    outputTranscription: { text: 'uma raia serve' } } });
+  assert.equal(f.kind, 'audio');
+  assert.equal(f.pcm16Base64, 'AAAA');
+  assert.equal(f.text, 'uma raia serve', 'a legenda vinha junto e era descartada');
+});
+
+test('usageMetadata vem junto do turnComplete (custo e a cota do aluno)', () => {
+  const f = parseServerFrame({ serverContent: { turnComplete: true }, usageMetadata: { totalTokenCount: 771 } });
+  assert.equal(f.kind, 'turn-complete');
+  assert.equal(f.usage.totalTokenCount, 771);
 });
 
 test('frame desconhecido nao e engolido em silencio', () => {

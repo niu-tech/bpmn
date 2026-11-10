@@ -12,9 +12,9 @@
 //  - nenhum retry infinito: recuo exponencial com TETO, e depois do teto o erro FICA visível;
 //  - toda mensagem de erro passa por `redact` antes de sair (a chave viaja na URL do socket).
 
-import { redact } from './redact.js';
+import { redact, rememberSecret } from './redact.js';
 import {
-  buildAudioChunk, buildSetup, buildTextTurn, buildToolResponse,
+  buildAudioChunk, buildAudioStreamEnd, buildSetup, buildTextTurn, buildToolResponse,
   parseServerFrame, socketUrl,
 } from './protocol.js';
 
@@ -40,7 +40,12 @@ export function createSession({
   onAudio,
   onInterrupted,
   onLog,
-  clock = { setTimeout, clearTimeout },
+  // ⚠ Envoltórios, NUNCA as referências cruas. No navegador `setTimeout` é método de `window`:
+  // guardá-lo num objeto e chamar `clock.setTimeout(...)` perde o `this` e o browser lança
+  // `TypeError: Illegal invocation`. No node a mesma linha funciona — então o defeito é
+  // INVISÍVEL para os testes e fatal na página. Medido ao vivo em 2026-11-10: a sessão chegava
+  // a `ready` e a primeira pergunta morria antes de ser enviada.
+  clock = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) },
   ...options
 } = {}) {
   const cfg = { ...DEFAULTS, ...options };
@@ -56,6 +61,8 @@ export function createSession({
   let closedByUs = false;
   const turns = [];            // histórico de turnos concluídos, para diagnóstico
   let turn = null;
+  let resumptionHandle = null; // alça de retomada que o servidor manda; não usada ainda
+  let lastUsage = null;        // contagem de tokens do último turno (custo é a cota do aluno)
 
   const log = (...parts) => onLog?.(parts.map((p) => redact(p)).join(' '));
 
@@ -122,6 +129,7 @@ export function createSession({
       turn.empty = true;
     }
     turn.idle = idle;
+    turn.usage = lastUsage;
     turns.push(turn);
     turn = null;
     if (turnTimer) { clock.clearTimeout(turnTimer); turnTimer = null; }
@@ -145,6 +153,26 @@ export function createSession({
         setState('speaking');
         armTurnTimer();
         onAudio?.(frame.pcm16Base64);
+        // O mesmo frame costuma trazer a legenda junto; sem isto ela se perdia.
+        if (frame.text) {
+          if (turn) turn.spoken += frame.text;
+          onTranscript?.({ side: 'output', text: frame.text });
+        }
+        return;
+
+      case 'noop':
+      case 'generation-complete':
+        // Frame vazio e fim-de-geração: vivos, mas não dizem nada. Só renovam o relógio — sem
+        // isso o silêncio entre eles contaria como servidor calado.
+        armTurnTimer();
+        return;
+
+      case 'resumption':
+        resumptionHandle = frame.handle;
+        return;
+
+      case 'usage':
+        lastUsage = frame.usage;
         return;
 
       case 'input-text':
@@ -184,6 +212,7 @@ export function createSession({
       case 'turn-complete':
         // `idle=false` é só o enchimento ("vou pensar…"): ainda vem geração nova. Fechar aqui
         // apresentaria resposta parcial como completa.
+        if (frame.usage) lastUsage = frame.usage;
         if (!frame.idle) { log('turno em progresso (enchimento), aguardando IDLE'); armTurnTimer(); return; }
         endTurn(true);
         return;
@@ -272,9 +301,14 @@ export function createSession({
     get reason() { return reason; },
     get turns() { return turns.slice(); },
     get isReady() { return ready; },
+    get resumptionHandle() { return resumptionHandle; },
+    get lastUsage() { return lastUsage; },
 
     start() {
       if (!apiKey) { fail('bad-key', 'chave ausente'); return; }
+      // Registra ANTES de conectar: a partir daqui qualquer eco dela em log ou erro e mascarado
+      // por igualdade exata, sem depender de reconhecer o formato.
+      rememberSecret(apiKey);
       closedByUs = false;
       attempts = 0;
       open();
@@ -291,6 +325,15 @@ export function createSession({
     pushAudio(pcm16Base64) {
       if (!turn) beginTurn('voice', null);
       send(buildAudioChunk(pcm16Base64));
+    },
+
+    /**
+     * O aluno parou de falar. **Obrigatório** — sem isto o servidor não transcreve (medido).
+     * Chamar ao fechar o microfone, não a cada pausa.
+     */
+    endAudio() {
+      send(buildAudioStreamEnd());
+      setState('listening');
     },
 
     /** Encerramento explícito: sem isto a cota do aluno continua correndo. */

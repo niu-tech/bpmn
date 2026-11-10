@@ -15,7 +15,9 @@
 
 import { redact } from './redact.js';
 
-const ENDPOINT = 'https://generativelanguage.googleapis.com/v1alpha/authTokens';
+// ⚠ snake_case. `v1alpha/authTokens` (camelCase) devolve 404 — medido em 2026-11-10, e foi o
+// que fez a primeira rodada concluir, errado, que o recurso nao existia.
+const ENDPOINT = 'https://generativelanguage.googleapis.com/v1alpha/auth_tokens';
 
 /**
  * Tenta criar um token efêmero a partir do navegador.

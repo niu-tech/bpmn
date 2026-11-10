@@ -6,11 +6,12 @@
 import { createSession } from './live/session.js';
 import { startCapture, startPlayback } from './live/audio.js';
 import { probeEphemeralToken } from './live/token-probe.js';
-import { looksLikeSecret, redact } from './live/redact.js';
+import { forgetSecrets, looksLikeSecret, redact, rememberSecret } from './live/redact.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
-  key: $('key'), connect: $('connect'), disconnect: $('disconnect'), state: $('state'),
+  key: $('key'), connectText: $('connect-text'), connectVoice: $('connect-voice'),
+  disconnect: $('disconnect'), state: $('state'),
   ask: $('ask'), send: $('send'), mic: $('mic'), mute: $('mute'), resume: $('resume'),
   frames: $('frames'), chunks: $('chunks'), buffered: $('buffered'), under: $('under'),
   probeText: $('probe-text'), probeToken: $('probe-token'), out: $('out'), log: $('log'),
@@ -23,6 +24,7 @@ let capture = null;
 let playback = null;
 let frames = 0;
 let chunks = 0;
+let modo = null;   // 'texto' (entrega estruturada, mudo) | 'voz' (fala + legenda)
 
 const lines = [];
 function log(...parts) {
@@ -48,7 +50,14 @@ function paint({ state, reason }) {
   els.mic.disabled = !live || Boolean(capture);
   els.mute.disabled = !capture;
   els.disconnect.disabled = state === 'idle' || state === 'error';
-  els.connect.disabled = live || state === 'connecting';
+  const ocupado = live || state === 'connecting';
+  els.connectText.disabled = ocupado;
+  els.connectVoice.disabled = ocupado;
+  // Digitar vale nos DOIS modos: no texto a resposta volta estruturada, na voz volta falada com
+  // legenda. Desabilitar no modo voz era um erro meu — o modelo responde pergunta digitada
+  // normalmente (medido). O microfone, esse sim, so faz sentido no modo voz.
+  els.send.disabled = !live;
+  els.mic.disabled = !live || modo !== 'voz' || Boolean(capture);
   els.probeText.disabled = !apiKey;
 }
 
@@ -87,19 +96,30 @@ function connect(setupOptions = {}) {
   session.start();
 }
 
-els.connect.onclick = () => {
-  apiKey = els.key.value.trim();
+function conectarComo(novoModo) {
+  const digitada = els.key.value.trim();
+  if (digitada) {
+    apiKey = digitada;
+    rememberSecret(apiKey);
+    els.key.value = '';                     // o campo não guarda o valor depois de usado
+    els.key.placeholder = 'chave em memória (F5 apaga)';
+  }
   if (!apiKey) { log('informe a chave'); return; }
-  els.key.value = '';                       // o campo não guarda o valor depois de usado
-  els.key.placeholder = 'chave em memória (F5 apaga)';
-  log('conectando com a chave da sessão');
-  connect();
-};
+  modo = novoModo;
+  session?.close();
+  log(`conectando no modo ${novoModo}`,
+    novoModo === 'texto' ? '(função declarada: o modelo não fala)' : '(sem função: o modelo fala e legenda)');
+  connect({ withDeliveryTool: novoModo === 'texto' });
+}
+
+els.connectText.onclick = () => conectarComo('texto');
+els.connectVoice.onclick = () => conectarComo('voz');
 
 els.disconnect.onclick = async () => {
   await capture?.stop(); capture = null;
   await playback?.stop(); playback = null;
   session?.close(); session = null;
+  apiKey = null; modo = null; forgetSecrets();
   frames = chunks = 0;
   els.frames.textContent = els.chunks.textContent = '0';
   log('encerrado: microfone, reprodução e socket liberados');
@@ -136,7 +156,9 @@ els.mic.onclick = async () => {
 els.mute.onclick = async () => {
   await capture?.stop();
   capture = null;
-  log('microfone fechado');
+  // Sem avisar o fim da fala o servidor nao transcreve nada (medido em 2026-11-10).
+  session?.endAudio();
+  log('microfone fechado, audioStreamEnd enviado');
   paint({ state: session?.state ?? 'idle', reason: session?.reason ?? null });
 };
 
@@ -149,9 +171,12 @@ els.resume.onclick = async () => {
 // fechar com 1007. Medir aqui transforma nota de terceiro em evidência própria.
 els.probeText.onclick = () => {
   if (!apiKey) { log('informe a chave primeiro'); return; }
+  // O setup é ACEITO mesmo pedindo TEXT; a recusa (1007) só vem quando se pede conteúdo.
   log('abrindo sessão de diagnóstico pedindo responseModalities=TEXT…');
   session?.close();
+  modo = 'diagnostico';
   connect({ modalities: ['TEXT'], withDeliveryTool: false });
+  setTimeout(() => session?.ask('O que e um gateway paralelo?'), 1500);
 };
 
 // Diagnóstico 2: CORS do endpoint de token efêmero (E12).

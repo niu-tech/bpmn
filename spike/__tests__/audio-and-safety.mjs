@@ -10,7 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { base64ToPcm16, floatToPcm16, pcm16ToBase64 } from '../live/pcm.js';
-import { MASK, looksLikeSecret, redact } from '../live/redact.js';
+import { MASK, forgetSecrets, looksLikeSecret, redact, rememberSecret } from '../live/redact.js';
 import { assertSecureContext } from '../live/audio.js';
 import { probeEphemeralToken } from '../live/token-probe.js';
 import { report, test, testAsync } from './mock-socket.mjs';
@@ -53,6 +53,26 @@ test('looksLikeSecret acusa antes e absolve depois', () => {
   const dirty = 'wss://x?key=AIzaSyAbCdEf0123456789xyz';
   assert.equal(looksLikeSecret(dirty), true);
   assert.equal(looksLikeSecret(redact(dirty)), false);
+});
+
+test('formato AQ. (a chave real de 2026-11-10) tambem e mascarado', () => {
+  const k = 'AQ.VALOR-SINTETICO-DE-TESTE-NAO-E-CHAVE-DE-NINGUEM-0123';
+  assert.ok(!/AQ\./.test(redact(`falhou com ${k} ok`)), 'o formato AQ. tem de ser mascarado');
+  assert.equal(looksLikeSecret(k), true);
+});
+
+test('segredo REGISTRADO e mascarado mesmo em formato desconhecido', () => {
+  // A regra por formato ja falhou uma vez (so conhecia AIza). O registro exato nao depende dela.
+  const exotica = 'zzz-formato-que-ninguem-previu-123456789';
+  assert.equal(redact(`vazou ${exotica}`), `vazou ${exotica}`, 'sem registro, nao ha como saber');
+  rememberSecret(exotica);
+  try {
+    assert.equal(redact(`vazou ${exotica}`), `vazou ${MASK}`);
+    assert.equal(looksLikeSecret(exotica), true);
+  } finally {
+    forgetSecrets();
+  }
+  assert.equal(redact(`vazou ${exotica}`), `vazou ${exotica}`, 'forgetSecrets tem de esquecer');
 });
 
 test('texto sem credencial sai intacto', () => {

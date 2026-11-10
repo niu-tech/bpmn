@@ -46,10 +46,17 @@
       <legend>Credencial (BYOK)</legend>
       <div class="row">
         <input id="key" type="password" placeholder="sua chave do Google AI Studio" autocomplete="off" />
-        <button id="connect" class="primary">Conectar</button>
+        <button id="connect-text" class="primary">Conectar (texto)</button>
+        <button id="connect-voice">Conectar (voz)</button>
         <button id="disconnect" disabled>Encerrar</button>
         <span>estado: <span id="state" class="badge">idle</span></span>
       </div>
+      <p class="warn">
+        <strong>Dois modos, e não dá para ter os dois no mesmo turno</strong> (medido em
+        2026-11-10): declarar a função <code>entregar_resposta</code> faz o modelo
+        <em>não falar</em> — texto exato, zero áudio. Sem a função ele fala e manda a legenda
+        junto. Texto = chat; voz = microfone.
+      </p>
       <p class="warn">
         A chave fica só na memória desta aba. Não vai para storage, nem para log, nem para servidor
         nosso — só para <code>generativelanguage.googleapis.com</code>. F5 apaga.

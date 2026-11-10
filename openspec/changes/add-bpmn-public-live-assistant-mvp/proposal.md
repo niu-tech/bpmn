@@ -44,8 +44,8 @@ modelador (`src/app.js`), o viewer (`src/viewer.js`) e a simulação (`src/batch
 - **Build:** `webpack.config.js` ganha uma entry **condicional** (`BPMN_SPIKE=1`) para a página do
   spike. Sem a variável, o grafo de módulos de produção é bit-a-bit o de hoje.
 - **Novo código:** `spike/**` (dev-only) na P1; `src/assistant/**` na P2.
-- **Sem backend novo** no MVP: o navegador fala direto com `generativelanguage.googleapis.com`.
-  Um relay mínimo em Node só entra se a P1 provar que o caminho direto não serve (ver design D4).
+- **Sem backend novo** no MVP, agora por medição e não por aposta: o navegador fala direto com
+  `generativelanguage.googleapis.com` (E13 confirmado na página). O relay fica descartado.
 
 ## Classificação da evidência
 
@@ -63,11 +63,30 @@ Esta é a base factual da change. Nada abaixo é suposição implícita.
 | E8 | Entrada textual em sessão viva vai por `realtimeInput.text`; histórico por `clientContent`; `toolResponse` fecha a chamada — sem ela o turno fica pendurado | **COMPROVADO EM OUTRO PROJETO** | `GeminiLiveBrainProvider.cs:696-731`, `GeminiLiveBrainSession.cs:10,130,277` |
 | E9 | Captura no navegador: `getUserMedia` + AudioWorklet, PCM16 mono 16 kHz, frames de 40 ms, média de janela como low-pass | **COMPROVADO EM OUTRO PROJETO** (gateway, não ligação direta ao Gemini) | CopilotSpeaker `tools/cloud-desktop/voice-worklet.js`, `voice.js:54-55,69-111` |
 | E10 | Reprodução no navegador: PCM16 24 kHz, ring bounded, prime, reamostragem linear, underflow/overflow contados, `flush` para cancelar | **COMPROVADO EM OUTRO PROJETO** (prova só de playback) | CopilotSpeaker `src/CopilotSpeaker.Games.Gateway/Assets/npc-voice/worklet.js`, `app.js:141-154,289-353` |
-| E11 | Token efêmero do Live é criado por `authTokens.create`, **que exige uma chave de API**, e a doc do Google manda rodar isso **no servidor** | **PESQUISA EXTERNA (doc oficial)** | ai.google.dev/gemini-api/docs/live-api/ephemeral-tokens |
-| E12 | O endpoint de token efêmero **aceita** ser chamado do **navegador** com a chave do aluno (CORS) | **NÃO VALIDADO — a provar na P1** | — |
-| E13 | O **WebSocket** do Live conecta de **origem de navegador** com chave na query string | **HIPÓTESE FORTE** (o WS não é sujeito a CORS; nenhuma medição nossa) | — |
-| E14 | Turnos múltiplos e barge-in funcionam com uma única sessão Live aberta pela aba | **HIPÓTESE — a medir na P1** | — |
-| E15 | `interactionStatus: IN_PROGRESS` no `turnComplete` fecha só o enchimento; o fim real é `IDLE` (modo Extended) | **COMPROVADO EM OUTRO PROJETO** | `GeminiLiveBrainProvider.cs:17,457-461` |
+| E11 | Token efêmero é criado por `auth_tokens` (snake_case), que exige uma chave de API | **MEDIDO POR NÓS** (2026-11-10) | `v1alpha/authTokens` camelCase devolve **404**; `v1alpha/auth_tokens` devolve **200** |
+| E12 | O endpoint de token efêmero **aceita** chamada de **origem de navegador** (CORS) | **MEDIDO — CONFIRMADO** | preflight `OPTIONS` → 200 com `access-control-allow-origin` ecoado e `x-goog-api-key` em `allow-headers`; `POST` com `Origin` → 200, token emitido |
+| E12b | O token emitido **abre** a sessão Live no lugar da chave | **MEDIDO — FALSO** | 4 formas testadas (`access_token`/`key` × `v1beta`/`v1alpha`): 1008 "unregistered callers" ou 1007 "API key not valid". A resposta traz só o campo `name` |
+| E13 | O WebSocket do Live conecta de **origem de navegador** com a chave na query | **MEDIDO — CONFIRMADO** | sessão aberta e respondida na página do spike, Chrome 152, `isSecureContext=true` |
+| E14 | Turnos múltiplos e barge-in numa única sessão | **MEDIDO (turnos múltiplos)** | 3 turnos seguidos na mesma sessão, em ordem, sem resto de um no outro. Barge-in segue não medido |
+| E15 | `interactionStatus: IN_PROGRESS` no `turnComplete` fecha só o enchimento; o fim real é `IDLE` | COMPROVADO EM OUTRO PROJETO (não reproduzido aqui) | `GeminiLiveBrainProvider.cs:17,457-461`; nas nossas sessões o turno fechou direto com `turnComplete` |
+
+### Achados que SÓ a medição ao vivo deu (2026-11-10)
+
+Cinco fatos que nenhuma leitura de código de outro projeto entregaria, e dois deles quebrariam
+o produto em silêncio:
+
+| # | Achado | Consequência |
+|---|---|---|
+| M1 | **Declarar `entregar_resposta` faz o modelo não falar.** Com a função: `toolCall` e **0 frames de áudio**. Sem ela: 29–48 frames de `audio/pcm;rate=24000` + `outputTranscription` | O desenho anterior declarava a função **sempre** — o ajudante sairia **mudo**, e só se descobriria ao apertar o microfone. Virou escolha de **modo** (D3) |
+| M2 | **`realtimeInput.mediaChunks[]` é aceito sem erro e IGNORADO.** O correto é `realtimeInput.audio` | Microfone que "funciona", socket saudável, e o servidor não ouve nada. Falha silenciosa |
+| M3 | **`audioStreamEnd` é obrigatório.** Mesma fala, mesmo formato: com ele a transcrição chegou exata; sem ele, nada | Quem para de falar tem de avisar; o VAD automático não bastou |
+| M4 | **O servidor manda muito frame vazio** (`{}`), além de `sessionResumptionUpdate`, `generationComplete` separado do `turnComplete`, e `usageMetadata` | O parser tratava tudo como "desconhecido" (log inútil) e fechava o turno um frame cedo |
+| M5 | **`clock = { setTimeout, clearTimeout }` quebra no navegador** (`TypeError: Illegal invocation`): o método perde o `this` do `window`. No node funciona | Classe de defeito **invisível** para o teste e fatal na página — a sessão chegava a `ready` e a primeira pergunta morria antes de sair |
+
+A medição também **confirmou E6 com evidência própria**: pedindo `responseModalities: ["TEXT"]`, o
+`setupComplete` **chega**, e o socket só fecha com **1007** quando se pede conteúdo —
+*"The requested combination of response modalities (TEXT) is not supported by the model."* A
+primeira versão da sonda parava no `ready` e concluiu, errado, que o servidor aceitava.
 
 ## Baseline, ownership e riscos
 
