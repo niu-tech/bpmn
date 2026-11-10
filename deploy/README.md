@@ -5,10 +5,17 @@ Mesmo padrão do `javis.docker` (GitHub Actions → SSH → `docker-compose`) e 
 termina o TLS e faz `proxy_pass` para o container, que só fala HTTP.
 
 ```
-push (main | ImproveSimulation) → Actions: valida compose + build da imagem + smoke test
-  → SSH na VPS: git fetch/checkout + docker-compose up -d --build
-  → container nginx :80 → 127.0.0.1:8880 → nginx do host (TLS) → https://<dominio>
+push / PR → Actions CI: npm test + valida compose + build da imagem + smoke test
+            + guarda de credencial nos arquivos servidos        (NÃO publica)
+
+Run workflow + deploy:true → CI, e então, com o ambiente `production` aprovado:
+            SSH na VPS → git fetch/checkout → docker-compose up -d --build
+            → container nginx :80 → 127.0.0.1:8880 → nginx do host (TLS) → https://<dominio>
 ```
+
+> **Publicar é um ato explícito.** Push nunca publica. Até 2026-11-10 o deploy rodava em todo
+> push em `main`/`ImproveSimulation` — quem empurra um commit de trabalho não está pedindo um
+> deploy, e o primeiro push depois de versionar o workflow publicaria sem ninguém decidir.
 
 | Arquivo | Para quê |
 |---|---|
@@ -38,9 +45,16 @@ push (main | ImproveSimulation) → Actions: valida compose + build da imagem + 
    ```
    Se os outros vhosts do host emitem certificado de outro jeito, copie os `ssl_certificate` de um deles em vez do certbot.
 
-## Depois disso
+## Como o DevOps publica
 
-Todo push nas branches acima redeploya sozinho. Deploy manual: `cd ~/github/bpmn && git pull && docker-compose up -d --build`.
+1. GitHub → **Actions** → **CI-CD Pipeline** → **Run workflow**.
+2. Escolha a branch e marque **`deploy: true`**. Desmarcado, roda só o CI.
+3. Se o ambiente `production` tiver revisores (Settings → Environments → `production` →
+   *Required reviewers*), a publicação fica **aguardando aprovação** antes de tocar a VPS.
+   Sem revisores, o acionamento manual já é o ato explícito.
+
+Direto na máquina, quando for mais rápido que a Action:
+`cd ~/github/bpmn && git pull && docker-compose up -d --build`.
 
 ## Rollback
 

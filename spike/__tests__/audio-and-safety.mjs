@@ -9,10 +9,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { base64ToPcm16, floatToPcm16, pcm16ToBase64 } from '../live/pcm.js';
-import { MASK, forgetSecrets, looksLikeSecret, redact, rememberSecret } from '../live/redact.js';
-import { assertSecureContext } from '../live/audio.js';
-import { probeEphemeralToken } from '../live/token-probe.js';
+import { base64ToPcm16, floatToPcm16, pcm16ToBase64 } from '../../src/assistant/live/pcm.js';
+import { MASK, forgetSecrets, looksLikeSecret, redact, rememberSecret } from '../../src/assistant/live/redact.js';
+import { assertSecureContext } from '../../src/assistant/live/audio.js';
+import { probeEphemeralToken } from '../../src/assistant/live/token-probe.js';
 import { report, test, testAsync } from './mock-socket.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -145,6 +145,15 @@ await testAsync('sem chave -> rejected, sem chamar a rede', async () => {
 
 console.log('\n▶ isolamento spike <-> produto (design D6)');
 
+/** Codigo sem comentarios: a varredura tem de julgar import, nao nota de rodape. */
+function semComentarios(file) {
+  return readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split(String.fromCharCode(10))
+    .map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1'))
+    .join(String.fromCharCode(10));
+}
+
 function walk(dir) {
   const out = [];
   for (const name of readdirSync(dir)) {
@@ -156,17 +165,25 @@ function walk(dir) {
 }
 
 test('nenhum arquivo de src/ referencia spike/', () => {
+  // Varre CODIGO, nao prosa: citar o spike num comentario de proveniencia ("medido no spike em
+  // 2026-11-10") e exatamente o que se quer que fique escrito. O que nao pode e o bundle de
+  // producao arrastar um arquivo de la.
   const guilty = walk(join(root, 'src'))
-    .filter((f) => /spike/i.test(readFileSync(f, 'utf8')))
+    .filter((f) => /spike/i.test(semComentarios(f)))
     .map((f) => f.slice(root.length + 1));
   assert.deepEqual(guilty, [], `produto nao pode depender do spike: ${guilty.join(', ')}`);
 });
 
-test('nenhum arquivo de spike/ importa de src/', () => {
-  const guilty = walk(join(root, 'spike'))
-    .filter((f) => /from\s+['"][^'"]*(\.\.\/)+src\//.test(readFileSync(f, 'utf8')))
-    .map((f) => f.slice(root.length + 1));
-  assert.deepEqual(guilty, [], `spike nao pode importar do produto: ${guilty.join(', ')}`);
+test('o spike usa os MODULOS DO PRODUTO, nao uma copia', () => {
+  // A direcao certa e esta: o spike e um harness SOBRE src/assistant/live. Manter duas copias
+  // dos mesmos modulos seria garantir que uma delas apodrece. O invariante que protege producao
+  // e o teste anterior (src/ nunca referencia spike/), nao este.
+  const usam = walk(join(root, 'spike'))
+    .filter((f) => /from\s+['"][^'"]*src\/assistant\/live\//.test(readFileSync(f, 'utf8')))
+    .length;
+  assert.ok(usam >= 3, `esperava o spike importando do produto, achei ${usam} arquivos`);
+  const copias = walk(join(root, 'spike')).filter((f) => /spike[\/]live[\/]/.test(f));
+  assert.deepEqual(copias, [], 'spike/live/ nao deve mais existir: os modulos moraram para src/');
 });
 
 test('a entry do spike no webpack e CONDICIONAL a BPMN_SPIKE', () => {

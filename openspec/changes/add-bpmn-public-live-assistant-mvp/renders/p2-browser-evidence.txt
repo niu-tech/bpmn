@@ -1,0 +1,118 @@
+P2 — evidencia do navegador, 2026-11-10
+Dev server do repositorio, Chrome 152 no painel do Claude. SEM credencial: nenhuma chave real foi
+usada nesta rodada, e nenhuma foi extraida de cofre nenhum.
+
+================================================================================
+1. BASELINE vs P2 — um defeito meu, achado por comparacao
+================================================================================
+O modelador passou a logar no console:
+  Erro ao abrir BPMN: TypeError: Failed to execute 'scale' on 'SVGMatrix':
+  The provided float value is non-finite.      (Canvas.zoom -> _fitViewport)
+
+Baseline do commit 0b29eeb (pre-P2), extraido com `git archive` e servido em porta propria:
+  console LIMPO, duas recargas, mesmo painel aquecido.
+
+Causa: `mountAssistant()` estava sendo chamado ANTES de `fitAndOffsetCanvas(modeler)`.
+Correcao: montar DEPOIS do diagrama e do fit. O ajudante e um overlay fixo e nao precisa existir
+antes do diagrama.
+
+Cadeia de prova (A/B/A), cada ponta com bundle novo:
+  baseline sem ajudante ............ 0 erros
+  P2 montando ANTES do fit ......... erro de escala nao-finita
+  P2 montando DEPOIS do fit ........ 0 erros
+
+⚠ Armadilha registrada: as duas tentativas intermediarias de diagnostico leram um BUNDLE VELHO —
+o socket de HMR do webpack-dev-server nao conecta neste painel, entao o navegador seguia com o
+bundle anterior. Foi o numero da linha no stack (498/550) nao batendo com o arquivo (532/542) que
+denunciou. A rodada final usou porta nova (8082) para garantir bundle fresco.
+
+================================================================================
+2. MODELADOR (/) — 0 erros de console
+================================================================================
+  canvas 1024 px, botao "Ajudante BPMN" presente no canto inferior direito
+  toolbar do modelador (.bz-toolbar) segue em baixo a esquerda: sem colisao em desktop
+
+Com o painel ABERTO, o elemento no centro da tela e `rect.djs-hit djs-hit-no-move`:
+o diagrama continua recebendo clique. O painel nao e modal de proposito.
+
+Arvore de acessibilidade (do DOM vivo):
+
+  button [expanded=true type=button]
+    span                                 <- ponto de estado (cor NUNCA e o unico sinal)
+    span "Ajudante BPMN"
+
+  div [role=dialog label=bpmn-assist-title]
+    div
+      h2 "Ajudante BPMN"
+      span "desligado"                   <- o mesmo estado em TEXTO
+      button [label=Fechar o ajudante]
+    div
+      div
+        p > strong "A chave e sua." + aviso de privacidade e custo
+        label > span "Sua chave do Google AI Studio" + input [type=password]
+        label > input [type=checkbox] + "Entendi que a minha chave vai direto para o Go..."
+        div > button "Usar esta chave" | button "Remover chave"
+      div [role=group label=Modo de conversa]
+        button [pressed=true]  "Texto"
+        button [pressed=false] "Voz"
+      div
+        button "Conectar" | button disabled "Encerrar" | button [pressed=false] disabled "Falar"
+      p "Pergunte sobre notacao BPMN: eventos, atividades..."
+      ul [label=Conversa com o ajudante live=polite]
+    div
+      textarea [label=Sua pergunta] disabled | button disabled "Enviar"
+    p [role=status live=polite] "A chave parece curta demais. Confira e tente de novo."
+
+================================================================================
+3. BYOK exercido na pagina (com valor sintetico, nao com chave de ninguem)
+================================================================================
+  sem chave ............... botao Conectar DESABILITADO, nenhum socket aberto
+  chave curta ............. recusada; campo LIMPO; aviso na regiao aria-live
+  chave sem consentimento . Conectar ainda DESABILITADO
+  chave + consentimento ... Conectar habilitado
+
+  Esc ..................... fecha o painel e devolve o foco ao botao
+  foco ao abrir ........... vai para o campo da chave (ou para a pergunta, se ja houver chave)
+
+PERSISTENCIA, medida na pagina depois de informar a chave:
+  localStorage.length ....... 0
+  sessionStorage.length ..... 0
+  document.cookie.length .... 0
+  chave em algum storage .... nao
+
+================================================================================
+4. VIEWER (/viewer.html) — 0 erros de console
+================================================================================
+  assistente presente, SVG do viewer renderizado
+  .sim-toolbar  em (604, 14)    <- cima a direita, da simulacao
+  .bpmn-assist  em (839, 714)   <- baixo a direita, do ajudante
+  sobreposicao entre os dois: NAO
+
+================================================================================
+5. VIEWPORT MOVEL (375 x 812) — 0 erros de console
+================================================================================
+  painel 349 x 505, dentro da tela, campo de digitar visivel
+  LIMITE REAL MEDIDO: com o painel aberto ele COBRE a `.bz-toolbar` do modelador (que fica em
+  baixo a esquerda). Em 375 px dois paineis de largura cheia nao cabem lado a lado. Os dois sao
+  dispensaveis — fechar o ajudante (Esc ou X) devolve a barra. Nao foi "resolvido" porque a saida
+  seria redesenhar a barra do modelador, que e do produto existente e esta fora do P2.
+
+================================================================================
+6. BUNDLE DE PRODUCAO
+================================================================================
+  npm run build .......... compila; bundle.js 3,33 MB, viewer.js 1,29 MB (modo development,
+                           que e o default do webpack.config; a imagem Docker builda com
+                           --mode production)
+  worklets ............... emitidos UMA vez como assets com hash, compartilhados pelas duas
+                           entries (auxiliary name: bundle, viewer) — sem duplicacao
+  varredura de credencial  nenhuma ocorrencia de AIza... nem de AQ.... nos arquivos emitidos
+                           (e o mesmo teste que o CI passou a rodar sobre a imagem)
+  dist/ versionado ....... intocado (build saiu para diretorio temporario)
+
+================================================================================
+NAO PROVADO NESTA RODADA
+================================================================================
+  - conversa real com o Gemini pelo widget (exige credencial; nenhuma foi usada)
+  - microfone fisico com fala humana
+  - barge-in ao vivo (o caminho existe e tem teste com duble; nunca foi exercido contra o servidor)
+  Roteiro para o dono fazer os tres com a propria chave: validation.md, secao "Teste manual".

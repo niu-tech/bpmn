@@ -11,6 +11,13 @@ Missão `mk-0310e432`. Para o TCC 1 o projeto precisa de duas coisas que hoje n�
 2. **Um ajudante de BPMN sobreposto ao diagrama**, que converse por **voz e texto** sobre BPMN
    usando **Gemini 3.8 Live** com a **chave do próprio aluno (BYOK)**.
 
+> **Decisão do dono (2026-11-10), acima de qualquer conveniência:** o site público **não tem
+> chave**. Cada aluno informa a sua ao entrar, ela vale só para a aba dele, não é pré-preenchida
+> nem compartilhada entre visitantes, e some ao recarregar. A chave do autor serve apenas para
+> teste local explícito — nunca como chave do produto. O risco residual (a chave viaja na query
+> do WebSocket do Google) é **declarado ao aluno e aceito por ele** antes de qualquer conexão,
+> nunca silenciado. Ver `design.md` D5.
+
 RAG, MCP, memória durável e edição de diagrama por IA ficam **fora** deste MVP.
 
 ## What Changes

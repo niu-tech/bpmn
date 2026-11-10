@@ -60,8 +60,16 @@ qualquer destino que não seja o endpoint oficial do Google.
 
 ### Requirement: Isolamento da credencial
 A credencial do aluno SHALL existir apenas em memória da aba enquanto a sessão durar, e SHALL NOT
-ser escrita em armazenamento do navegador, em log, em mensagem de erro, na URL da página, no
-bundle ou no repositório.
+ser escrita em armazenamento do navegador, em log, em mensagem de erro, **na URL da aplicação**,
+no bundle, na imagem publicada ou no repositório.
+
+> **Distinção que o requisito faz de propósito**, porque as duas coisas se chamam "URL":
+> a **URL da aplicação** é o endereço da página do aluno — ali a chave nunca entra, porque é
+> compartilhável, fica no histórico do navegador, vaza por `Referer` e é lida por qualquer
+> extensão. A **URL da requisição autenticada** é o endereço do WebSocket do Google, onde a chave
+> viaja por exigência do protocolo Live, dentro de TLS e para o destino dono da credencial.
+> O primeiro é proibido; o segundo é o contrato da API e está declarado como risco residual
+> (design D2). O critério de aceite de P3 passa a nomear a aplicação, não "qualquer URL".
 
 #### Scenario: Nenhuma persistência
 - **WHEN** a sessão está ativa e depois a página é recarregada
@@ -77,6 +85,36 @@ bundle ou no repositório.
 - **WHEN** o trabalho é commitado
 - **THEN** nenhum arquivo contém chave, e `.gitignore` cobre os arquivos de ambiente usados nos
   testes locais
+
+#### Scenario: Artefato publicado limpo
+- **WHEN** a imagem é construída e os arquivos servidos são inspecionados
+- **THEN** nenhum deles contém credencial em formato conhecido, e a verificação é parte do CI
+
+#### Scenario: A aplicação não escreve a própria URL
+- **WHEN** qualquer módulo do assistente é inspecionado
+- **THEN** nenhum deles altera o endereço da página nem o histórico de navegação
+
+### Requirement: Cada visitante usa a própria credencial
+O site SHALL NOT embutir, publicar, pré-preencher ou compartilhar credencial alguma, e cada
+visitante SHALL informar a sua por ação explícita, com aviso de privacidade e de custo antes de
+qualquer conexão.
+
+#### Scenario: Nenhuma chave do projeto
+- **WHEN** o site é servido
+- **THEN** não existe chave embutida, e sem o visitante informar a dele nada conecta
+
+#### Scenario: Consentimento antes da conexão
+- **WHEN** o visitante informou a chave mas não aceitou o aviso
+- **THEN** conectar permanece indisponível
+
+#### Scenario: Chave não atravessa visitantes
+- **WHEN** a aba é recarregada ou fechada
+- **THEN** a credencial deixa de existir e a próxima visita começa sem nenhuma
+
+#### Scenario: Trocar ou remover
+- **WHEN** o visitante remove ou substitui a chave
+- **THEN** a sessão em curso é encerrada, a credencial anterior deixa de ser conhecida, e nada
+  fica guardado
 
 ### Requirement: Modo de voz e modo de texto são exclusivos
 Declarar a função de entrega SHALL suprimir a fala do modelo, e omiti-la SHALL produzir fala com
@@ -216,3 +254,51 @@ substituir a tela, sem abrir aba nova e sem bloquear a interação com o canvas.
 - **WHEN** o painel é fechado
 - **THEN** microfone, worklets e socket são liberados conforme o requisito de captura, e reabrir
   parte de `idle`
+
+
+### Requirement: Helper sobreposto nas duas páginas sem alterar o BPMN
+O assistente SHALL ser montado uma única vez por página, no modelador e no viewer, SHALL NOT
+alterar o diagrama, a simulação, a importação ou a exportação, e SHALL falhar isolado.
+
+#### Scenario: Instância única
+- **WHEN** a montagem é pedida duas vezes na mesma página
+- **THEN** existe um só botão, um só painel e uma só sessão possível
+
+#### Scenario: Falha isolada
+- **WHEN** a montagem do assistente falha
+- **THEN** o modelador e o viewer continuam carregando normalmente
+
+#### Scenario: O diagrama não muda
+- **WHEN** o assistente é aberto, usado e fechado
+- **THEN** o XML do diagrama, o autosave e os resultados da simulação permanecem os mesmos
+
+#### Scenario: Sair da página encerra tudo
+- **WHEN** a aba é fechada, recarregada ou escondida
+- **THEN** microfone, reprodução e conexão são encerrados
+
+### Requirement: Acessibilidade do helper
+O botão e o painel SHALL ser operáveis por teclado e descritos para leitor de tela, e o estado
+SHALL NOT ser comunicado apenas por cor.
+
+#### Scenario: Teclado
+- **WHEN** o painel é aberto
+- **THEN** o foco vai para o primeiro campo útil, e Escape fecha devolvendo o foco ao botão
+
+#### Scenario: Estado anunciado
+- **WHEN** o estado muda
+- **THEN** a mudança é anunciada numa região viva e aparece como texto, além da cor
+
+#### Scenario: Resposta anunciada
+- **WHEN** uma resposta chega
+- **THEN** ela entra numa região viva para ser lida por leitor de tela
+
+### Requirement: Publicar é um ato explícito
+O pipeline SHALL validar em todo push e pull request, e SHALL NOT publicar como efeito de um push.
+
+#### Scenario: Push não publica
+- **WHEN** um commit é empurrado para qualquer branch
+- **THEN** o CI roda e nenhum passo de implantação é executado
+
+#### Scenario: Publicação deliberada
+- **WHEN** alguém aciona o fluxo manualmente pedindo a publicação
+- **THEN** a implantação ocorre depois do CI, sujeita à aprovação do ambiente quando configurada

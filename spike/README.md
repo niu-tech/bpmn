@@ -1,8 +1,12 @@
 # spike — Gemini 3.8 Live no navegador (dev-only)
 
-**Isto não é o ajudante.** É a prova do transporte: o corte vertical mínimo que responde se dá
-para falar com o Gemini Live direto do navegador, com a chave do próprio aluno, antes de escrever
-qualquer widget sobre o diagrama.
+**Isto não é o ajudante** — o ajudante vive em `src/assistant/**` e está montado nas duas
+páginas desde o P2. Isto é o **harness de prova do transporte**: a página e as sondas que
+exercitam, com uma chave local, o mesmo código que vai ao ar.
+
+Desde o P2 os módulos (`protocol.js`, `session.js`, `audio.js`, `pcm.js`, `redact.js` e os dois
+worklets) moram em **`src/assistant/live/**`** e o spike os importa de lá. Uma cópia só: a prova
+viva exercita exatamente o código do produto, e não um irmão que apodrece.
 
 Change: `openspec/changes/add-bpmn-public-live-assistant-mvp` (P1).
 
@@ -17,11 +21,13 @@ O modelador segue em `/` e o viewer em `/viewer.html` — o spike não encosta e
 ## Fora da produção, por construção
 
 A entry só existe com `BPMN_SPIKE=1` (`webpack.config.js`). `npm run build` e o `Dockerfile` não
-definem a variável, então nenhum byte daqui entra em `dist/bundle.js` nem em `dist/viewer.js`.
-Três testes em `__tests__/audio-and-safety.mjs` guardam isso: `src/` não referencia `spike/`,
-`spike/` não importa de `src/`, e o `Dockerfile` não menciona nenhum dos dois.
+definem a variável, então a **página** do spike nunca é servida. Os testes guardam a direção que
+protege produção: **`src/` nunca referencia `spike/`** (varrendo código, não comentários — citar
+a proveniência de uma medição é justamente o que se quer escrito), a entry é condicional, e o
+`Dockerfile` não menciona nenhum dos dois.
 
-Apagar este diretório inteiro não quebra o produto.
+Apagar este diretório inteiro não quebra o produto — o contrário não vale mais, e é de propósito:
+o spike depende do produto.
 
 ## As três provas
 

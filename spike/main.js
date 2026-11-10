@@ -3,10 +3,10 @@
 //
 // ponytail: DOM na mão, zero framework. São quatro botões e dois <pre>.
 
-import { createSession } from './live/session.js';
-import { startCapture, startPlayback } from './live/audio.js';
-import { probeEphemeralToken } from './live/token-probe.js';
-import { forgetSecrets, looksLikeSecret, redact, rememberSecret } from './live/redact.js';
+import { createSession } from '../src/assistant/live/session.js';
+import { startCapture, startPlayback } from '../src/assistant/live/audio.js';
+import { probeEphemeralToken } from '../src/assistant/live/token-probe.js';
+import { forgetSecrets, looksLikeSecret, redact, rememberSecret } from '../src/assistant/live/redact.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {

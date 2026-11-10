@@ -11,6 +11,8 @@ import "bpmn-js-token-simulation/assets/css/bpmn-js-token-simulation.css";
 import "./batchsim/batch-sim.css";
 import { bindSimulation } from "./batchsim/simulation-integration.js";
 
+import { mountAssistant } from "./assistant/mount.js";
+
 const DEFAULT_DIAGRAM_URL = "/pizza-collaboration.bpmn";
 const LOCAL_STORAGE_KEY = "bpmn.autosave.xml";
 
@@ -530,6 +532,16 @@ async function run() {
     fitAndOffsetCanvas(modeler);
   } catch (err) {
     console.error("Erro ao abrir BPMN:", err);
+  }
+
+  // Ajudante BPMN (canto inferior direito), montado DEPOIS do diagrama e do fit-viewport.
+  // Montar antes quebrava o `canvas.zoom("fit-viewport")` com escala nao-finita: medido contra o
+  // baseline pre-P2, que nao tem erro nenhum no console. O ajudante e um overlay fixo e nao
+  // precisa existir antes do diagrama. Falhar aqui nao pode levar o modelador junto.
+  try {
+    mountAssistant();
+  } catch (e) {
+    console.warn("Ajudante indisponivel:", e);
   }
 }
 

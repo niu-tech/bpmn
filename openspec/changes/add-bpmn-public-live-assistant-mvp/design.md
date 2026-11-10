@@ -99,16 +99,52 @@ lados. Desenho:
   `flush` para cancelamento/barge-in (E10). Underflow que não é contado é underflow que ninguém
   descobre.
 
-## D5. Isolamento da credencial (requisito duro)
+## D5. A chave é do visitante, e o risco residual tem nome
 
-- A chave entra por um campo `type="password"` **da sessão**, nunca de um arquivo versionado.
-- Vive em **variável de módulo** (memória da aba). **Proibido:** `localStorage`,
-  `sessionStorage`, cookie, bundle, URL, `console.log`, mensagem de erro, commit.
-- A URL do WS contém a chave; logs e telas de erro **mascaram** qualquer coisa que casa com
-  `key=` / `AIza[0-9A-Za-z_-]+` antes de exibir. O teste automatizado verifica isso no **texto da
-  mensagem de erro**, que é por onde a chave escapa de verdade.
-- `F5` perde a chave. É o comportamento desejado: o aluno reconhece que a sessão é efêmera.
-- `.gitignore` ganha `.env*` e `*.key` **antes** de qualquer teste com chave real.
+Decisão do dono (2026-11-10): **o site não tem chave.** Cada aluno informa a dele ao entrar, ela
+vale só para a aba dele, e nada é compartilhado entre visitantes. A chave do autor serve apenas
+para teste local explícito.
+
+Isso muda o problema. Não estamos protegendo um segredo nosso de um usuário: estamos cuidando do
+segredo **do usuário** dentro da máquina dele. O que sobra de risco é concreto:
+
+| Vetor | Tratamento |
+|---|---|
+| Persistir onde ele não espera | `localStorage`, `sessionStorage`, cookie, IndexedDB e cache estão fora **por desenho**. `credential.js` não tem `load()` — não há de onde carregar. Um teste varre o código (sem comentários) e reprova qualquer um deles |
+| Vazar em mensagem de erro | A chave viaja na query do socket, e todo erro de rede carrega a URL. Tudo passa por `redact`, e a chave é registrada em `rememberSecret` **antes** da primeira conexão, mascarada por igualdade exata — a regra por formato já falhou uma vez (só conhecia `AIza…`, e a chave medida era `AQ.`) |
+| Entrar no artefato publicado | O CI inspeciona os arquivos **servidos pela imagem** e falha se achar credencial. Produto BYOK não tem motivo para conter nenhuma |
+| Entrar na URL da aplicação | Nenhum módulo mexe em `location` ou no histórico; um teste garante |
+| Ficar entre visitantes | Recarregar ou fechar a aba apaga. Trocar a chave encerra a sessão aberta com a anterior |
+
+### O que NÃO é mitigado, e por quê
+
+**A chave do aluno vai na query string do WebSocket do Google.** É o contrato do Live, medido no
+P1. Fica dentro do TLS e vai para o dono da credencial, mas aparece em ferramentas de
+desenvolvedor, em proxies corporativos que terminam TLS, e num `console.error` que não tivesse
+passado pelo redator.
+
+Não dá para esconder sem backend — e o token efêmero, que seria a saída, **não serve hoje**:
+mintá-lo do navegador funciona (CORS 200), mas o token **não abre a sessão** em nenhuma das quatro
+formas testadas (1007/1008). Então a honestidade é dizer isso ao aluno: o painel traz o aviso e
+exige um aceite explícito **antes** de qualquer conexão. Nada conecta sem ele.
+
+**Para a versão pública**, se o risco não for aceitável, o caminho é um *broker* mínimo: um
+endpoint que recebe a chave do aluno uma vez, mintá o token efêmero e devolve só o token — e isso
+**só vale a pena quando o token passar a abrir a sessão**. Antes disso, um broker trocaria o
+problema por outro pior: nós passaríamos a ver a chave. Não há prova de que funcione, então não
+entra agora.
+
+### A contradição de "chave em URL", resolvida
+
+O critério de P3 dizia "nenhuma chave em URL". A implementação põe a chave na URL do socket. As
+duas coisas se chamam URL e são diferentes:
+
+- **URL da aplicação** — o endereço da página. É compartilhável, fica no histórico, vaza por
+  `Referer`, qualquer extensão lê. **Proibido**, e testado.
+- **URL da requisição autenticada** — o endereço do WebSocket do Google, dentro do TLS, para o
+  destino dono da chave. É o contrato da API, e é o risco residual acima.
+
+A spec passou a nomear "URL da aplicação". O que era contradição virou limite declarado.
 
 ## D6. Isolamento do spike em relação ao produto
 
@@ -180,3 +216,32 @@ com `error(reason)` alcançável de qualquer um, e `reason` **nomeado** (`mic-de
 
 O desenho não **impede** nenhum deles: o canal de tools de D3 é o mesmo por onde uma leitura de
 XML entraria depois, declarando mais uma função no mesmo `setup`.
+
+## D10. Trocar de modo é abrir outra sessão — e o modelo esquece
+
+A escolha "declara `entregar_resposta` ou não" vive no `setup`, que é imutável depois de aceito.
+Então não existe renegociar: `switchMode` fecha a sessão e abre outra.
+
+A consequência é que **o modelo perde o contexto**. O histórico que o aluno vê continua na tela
+porque é nosso, guardado em memória pelo gerente. O do modelo recomeça do zero.
+
+Afirmar continuidade sem reconstruir o contexto seria mentira, e reconstruir (semear o histórico
+por `clientContent`) é trabalho que o MVP não precisa e que nenhuma medição nossa validou ainda.
+Então o gerente **diz**: emite uma nota `context-reset` que a UI mostra em destaque —
+*"modo voz: sessão nova. O que já foi dito continua aqui na tela, mas o modelo recomeça sem esse
+contexto."* Um teste garante que a nota existe.
+
+## D11. Montar o ajudante DEPOIS do diagrama
+
+Medido em 2026-11-10 contra o baseline pré-P2: chamar `mountAssistant()` antes de
+`fitAndOffsetCanvas(modeler)` fazia o `canvas.zoom("fit-viewport")` do diagram-js falhar com
+escala não-finita, e o modelador logava `Erro ao abrir BPMN` no console. O baseline, sem o
+ajudante, não tinha erro nenhum.
+
+O ajudante é um overlay `position: fixed` e não precisa existir antes do diagrama. Montá-lo no
+fim de `run()` resolve, e é a ordem que faz sentido de qualquer forma: primeiro o produto, depois
+o acessório. No viewer não há `fit` equivalente, mas a montagem segue a mesma posição por
+simetria.
+
+A instância é única por página (marca em `document.documentElement.dataset`), e a montagem é
+embrulhada em `try/catch` nas duas páginas: **falhar o ajudante não pode levar o modelador junto.**

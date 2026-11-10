@@ -15,6 +15,8 @@ import { buildGraph } from './batchsim/graph.js';
 import { runBatch } from './batchsim/engine.js';
 import { applyHeatmap, clearHeatmap } from './batchsim/heatmap.js';
 
+import { mountAssistant } from './assistant/mount.js';
+
 const DEFAULT_DIAGRAM_URL = '/pizza-collaboration.bpmn';
 
 async function fetchDiagram(url) {
@@ -68,6 +70,13 @@ let last = { eventsRows: [], summaryRows: [], pathRows: [], proofRows: [], cases
 
   const toolbar = makeToolbar();
   document.body.appendChild(toolbar);
+
+  // Ajudante BPMN. A barra da simulacao vive em cima a direita; o ajudante, em baixo a direita.
+  try {
+    mountAssistant();
+  } catch (e) {
+    console.warn('Ajudante indisponivel:', e);
+  }
 
   const statusEl = toolbar;
 

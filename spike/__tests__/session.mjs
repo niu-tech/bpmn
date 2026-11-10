@@ -5,8 +5,8 @@
  * Run: node spike/__tests__/session.mjs
  */
 import assert from 'node:assert/strict';
-import { createSession } from '../live/session.js';
-import { DELIVERY_TOOL } from '../live/protocol.js';
+import { createSession } from '../../src/assistant/live/session.js';
+import { DELIVERY_TOOL } from '../../src/assistant/live/protocol.js';
 import { MockSocket, fakeClock, mockFactory, report, test } from './mock-socket.mjs';
 
 /** Sessao ja conectada e com setup aceito. */

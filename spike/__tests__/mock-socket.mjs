@@ -84,37 +84,6 @@ export function fakeClock() {
   };
 }
 
-// --- mini-harness, no mesmo estilo dos testes de `src/batchsim/__tests__` ---
-
-let passed = 0;
-const failures = [];
-
-export function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`  ✔ ${name}`);
-  } catch (err) {
-    failures.push({ name, err });
-    console.log(`  ✖ ${name}\n      ${err.message}`);
-  }
-}
-
-export async function testAsync(name, fn) {
-  try {
-    await fn();
-    passed++;
-    console.log(`  ✔ ${name}`);
-  } catch (err) {
-    failures.push({ name, err });
-    console.log(`  ✖ ${name}\n      ${err.message}`);
-  }
-}
-
-export function report(title) {
-  console.log('\n' + '='.repeat(40));
-  console.log(`${title}: ${passed} passed, ${failures.length} failed`);
-  console.log('='.repeat(40));
-  if (failures.length) process.exitCode = 1;
-  return failures.length === 0;
-}
+// O mini-harness mora em `tools/test-harness.mjs`: as duas areas do repositorio o usam, e nenhuma
+// deve depender da outra so por causa de um visto no console. Reexportado aqui por conveniencia.
+export { report, test, testAsync } from '../../tools/test-harness.mjs';

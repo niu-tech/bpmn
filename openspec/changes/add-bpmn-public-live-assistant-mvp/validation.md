@@ -1,6 +1,7 @@
 # Validação — o que foi provado, o que foi simulado, o que falta
 
-Atualizado: 2026-11-10, **depois** da rodada com a chave real.
+Atualizado: 2026-11-10, depois do **P2** (helper no produto). As seções do P1 ficam como
+estão: são medições, não mudam porque o código andou.
 Máquina: Windows 11, node v24.14.1, npm 11.11.0. Modelo: `gemini-3.8-live`.
 
 A distinção que importa: **mock que passa não é o Google dizendo sim.** Cada item diz em que
@@ -10,7 +11,7 @@ nível foi provado.
 
 | Nível | Significado |
 |---|---|
-| **REAL-LIVE** | Medido contra o servidor real do Gemini, com a chave do dono. |
+| **REAL-LIVE** | Medido contra o servidor real do Gemini, com a chave do dono (P1). |
 | **REAL-BROWSER** | Medido numa página real, no navegador, com a chave do dono. |
 | **REAL-LOCAL** | Executado nesta máquina, com o código do repositório. Determinístico. |
 | **MOCK** | Protocolo exercido contra um duplo que fala o shape do fio. Prova o NOSSO lado. |
@@ -142,3 +143,108 @@ npm run dev:spike        # http://localhost:8080/spike/
   `turnComplete`; o código trata o caso, mas por herança do outro projeto, não por medição.
 - **Custo**: `usageMetadata` chega (ex.: 729 + 42 = 771 tokens num turno de texto) e a sessão o
   expõe, mas nenhum teto de gasto foi implementado.
+
+---
+
+# P2 — helper no modelador e no viewer (2026-11-10)
+
+**Nenhuma credencial foi usada nesta rodada.** O dono determinou não reusar a chave do cofre
+DPAPI sem autorização nova, e nenhuma outra foi fornecida para teste. Então: MOCK e BROWSER até o
+limite verificável, e o que exige credencial está marcado **MANUAL PENDENTE**, com roteiro.
+
+## Suíte
+
+`npm test` exit **0** — 269 assertions:
+
+```
+test:sim         33 + 63 + 28 passed  ·  smoke OK      (as 124 de sempre, intactas)
+test:assistant   credential        15 passed, 0 failed
+                 session-manager   28 passed, 0 failed
+test:spike       protocol          33 passed, 0 failed
+                 session           29 passed, 0 failed
+                 worklets          19 passed, 0 failed
+                 audio-and-safety  21 passed, 0 failed
+```
+
+## O que foi provado, e em que nível
+
+| O quê | Nível | Resultado |
+|---|---|---|
+| Sem chave não conecta e nenhum socket é aberto | MOCK | ✔ |
+| Com chave e **sem consentimento** também não conecta | MOCK + BROWSER | ✔ fail closed nas duas camadas |
+| Chave curta recusada, campo limpo | BROWSER | ✔ |
+| Modo texto declara a função; modo voz não | MOCK | ✔ (é o que mantém a voz viva) |
+| Trocar de modo abre outra sessão e fecha a anterior | MOCK | ✔ |
+| Trocar de modo **avisa** que o modelo perde o contexto | MOCK | ✔ `context-reset` |
+| Histórico visual sobrevive à troca; o do modelo não | MOCK | ✔ |
+| Microfone só no modo voz | MOCK | ✔ |
+| Fechar o microfone manda `audioStreamEnd` | MOCK | ✔ |
+| Abrir o microfone duas vezes não abre dois | MOCK | ✔ |
+| Microfone negado vira razão nomeada sem derrubar a sessão | MOCK | ✔ |
+| `stop()` idempotente — três chamadas simultâneas, um teardown | MOCK | ✔ |
+| Interrupção descarta o áudio pendente (barge-in) | MOCK | ✔ caminho coberto; **ao vivo não** |
+| Erro com a URL do socket não vaza a chave na conversa | MOCK | ✔ |
+| Nenhum módulo toca storage do navegador | REAL-LOCAL | ✔ varredura de código, sem comentários |
+| `credential.js` não tem `load()` | REAL-LOCAL | ✔ |
+| Nenhum módulo mexe na URL da aplicação | REAL-LOCAL | ✔ |
+| Nenhuma credencial nos arquivos emitidos | REAL-LOCAL | ✔ e virou passo de CI sobre a imagem |
+| Modelador carrega com o helper, 0 erro de console | BROWSER | ✔ **depois** de corrigir D11 |
+| Viewer carrega com o helper, 0 erro de console | BROWSER | ✔ |
+| Helper não colide com as barras existentes (desktop) | BROWSER | ✔ (604,14) × (839,714) |
+| Canvas continua clicável com o painel aberto | BROWSER | ✔ `rect.djs-hit` no centro |
+| Teclado: foco ao abrir, Escape devolve ao botão | BROWSER | ✔ |
+| Estado em região viva **e** em texto | BROWSER | ✔ cor nunca sozinha |
+| Zero persistência depois de informar a chave | BROWSER | ✔ local/session/cookie = 0 |
+| 375×812 com campo de digitar visível | BROWSER | ✔ |
+| Push não publica; publicar exige acionamento manual | REAL-LOCAL | ✔ workflow conferido |
+
+## Defeito meu, achado por baseline
+
+O modelador passou a logar `Erro ao abrir BPMN: TypeError: ... 'scale' ... non-finite`.
+O baseline do commit `0b29eeb`, extraído com `git archive` e servido em porta própria, tinha
+console **limpo**. Causa: `mountAssistant()` antes de `fitAndOffsetCanvas`. Corrigido montando
+depois (design D11). Cadeia A/B/A em `renders/p2-browser-evidence.txt`.
+
+**Armadilha de diagnóstico registrada:** duas tentativas intermediárias leram um **bundle velho** —
+o socket de HMR não conecta neste painel. Foi o número de linha do stack não bater com o arquivo
+que denunciou. A rodada final usou porta nova para garantir bundle fresco.
+
+## Limite real medido (não "resolvido")
+
+Em **375 px**, com o painel aberto, ele **cobre** a `.bz-toolbar` do modelador (que fica em baixo
+à esquerda). Dois painéis de largura cheia não cabem lado a lado num telefone. Os dois são
+dispensáveis — fechar o ajudante devolve a barra. Não foi mexido porque a saída seria redesenhar
+a barra do produto existente, fora do P2.
+
+## Risco residual, declarado e não escondido
+
+A chave do aluno **vai na query string do WebSocket do Google**. Dentro do TLS e para o dono da
+credencial, mas visível em ferramentas de desenvolvedor e em proxy corporativo que termine TLS.
+
+Não dá para evitar sem backend, e o token efêmero **não resolve hoje**: mintá-lo do navegador
+funciona (CORS 200), mas ele **não abre a sessão** em nenhuma das 4 formas testadas (1007/1008).
+Por isso o painel **avisa e exige aceite explícito antes de qualquer conexão**. Para a versão
+pública, o caminho é um broker mínimo — e só quando o token passar a abrir a sessão; antes disso
+o broker nos faria ver a chave, o que é pior. Detalhe em `design.md` D5.
+
+## Teste manual — o que só o dono pode fazer
+
+Precisa da chave dele. Nada aqui é feito por mim.
+
+```bash
+npm run dev      # http://localhost:8080/  (modelador) e /viewer.html
+```
+
+1. **Ajudante BPMN** → cole a chave → marque o aviso → **Usar esta chave** → **Conectar**.
+2. **Texto**: pergunte *"qual a diferença entre gateway exclusivo e paralelo?"*.
+   Esperado: resposta escrita, sem áudio.
+3. **Voz** → **Conectar** → **Falar**, diga uma frase, **Parar de falar**.
+   Esperado: a sua frase aparece marcada *por voz*, o modelo responde falando com legenda.
+   → **é esta a prova de fala humana que continua pendente desde o P1.**
+4. **Barge-in**: fale por cima enquanto ele responde. Esperado: o áudio corta na hora.
+5. Negue o microfone no diálogo do navegador. Esperado: *"o microfone foi negado"*, texto segue.
+6. **Remover chave** → esperado: sessão encerrada e nada guardado.
+7. Recarregue (F5) → esperado: começa sem chave nenhuma.
+
+Se algo divergir, o console e o estado no cabeçalho do painel dizem o quê — e a chave não aparece
+em nenhum dos dois.

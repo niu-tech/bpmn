@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { report, test } from './mock-socket.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const liveDir = resolve(here, '../live');
+const liveDir = resolve(here, '../../src/assistant/live');
 
 /**
  * Carrega um worklet com os globais do escopo de worklet e devolve a classe registrada.

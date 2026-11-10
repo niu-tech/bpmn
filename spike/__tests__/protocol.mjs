@@ -9,7 +9,7 @@ import {
   CAPTURE_RATE, DELIVERY_INSTRUCTION, DELIVERY_TOOL, MODEL, SYSTEM_INSTRUCTION,
   buildAudioChunk, buildAudioStreamEnd, buildHistory, buildSetup, buildTextTurn,
   buildToolResponse, parseServerFrame, socketUrl,
-} from '../live/protocol.js';
+} from '../../src/assistant/live/protocol.js';
 import { test, report } from './mock-socket.mjs';
 
 console.log('\n▶ setup');

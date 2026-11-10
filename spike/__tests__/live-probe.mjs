@@ -26,10 +26,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createSession } from '../live/session.js';
-import { DELIVERY_TOOL, MODEL, buildSetup, buildTextTurn, socketUrl } from '../live/protocol.js';
-import { base64ToPcm16, pcm16ToBase64 } from '../live/pcm.js';
-import { redact, rememberSecret } from '../live/redact.js';
+import { createSession } from '../../src/assistant/live/session.js';
+import { DELIVERY_TOOL, MODEL, buildSetup, buildTextTurn, socketUrl } from '../../src/assistant/live/protocol.js';
+import { base64ToPcm16, pcm16ToBase64 } from '../../src/assistant/live/pcm.js';
+import { redact, rememberSecret } from '../../src/assistant/live/redact.js';
 
 const KEY = process.env.GEMINI_API_KEY;
 if (!KEY) {
@@ -39,7 +39,7 @@ if (!KEY) {
 }
 rememberSecret(KEY);
 
-const liveDir = resolve(dirname(fileURLToPath(import.meta.url)), '../live');
+const liveDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/assistant/live');
 const results = [];
 const say = (...a) => console.log(redact(a.join(' ')));
 

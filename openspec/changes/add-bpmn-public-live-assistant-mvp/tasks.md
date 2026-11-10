@@ -42,26 +42,48 @@
 - [ ] 1.15 **Microfone físico com fala humana** — o único item que exige alguém falando; roteiro
       em `validation.md`
 
-## 2. P2 — Widget no produto
+## 2. P2 — Helper no produto
 
-- [ ] 2.1 `src/assistant/mount.js` — botão + painel flutuante, montado em `app.js` e `viewer.js`
-      por uma linha cada, sem alterar o canvas
-- [ ] 2.2 Mover de `spike/live/**` para `src/assistant/live/**` só o que as provas validaram
-      (hoje: `protocol.js`, `session.js`, `audio.js`, `pcm.js`, `redact.js` e os dois worklets)
-- [ ] 2.8 Seletor de modo na UI: digitar usa o modo texto, o microfone usa o modo voz, e trocar
-      de modo reabre a sessão
-- [ ] 2.3 Entrada de chave BYOK da sessão, com aviso de custo e encerramento explícito
-- [ ] 2.4 Chat (texto) + voz na mesma superfície, com transcrição visível dos dois lados
-- [ ] 2.5 `systemInstruction` de domínio BPMN, versionada no repositório
-- [ ] 2.6 Teste de não-regressão: as duas páginas carregam, simulação roda, `dist/` sem spike
-- [ ] 2.7 Teto de sessão ociosa e liberação em `beforeunload`
+- [x] 2.1 `src/assistant/mount.js` — botão + painel flutuante no canto inferior direito, montado
+      por uma linha em `app.js` e outra em `viewer.js`, instância única por página, `try/catch`
+      em volta: falhar o ajudante não leva o modelador junto
+- [x] 2.2 Módulos validados MOVIDOS de `spike/live/**` para `src/assistant/live/**` (`git mv`,
+      histórico preservado). O spike virou harness **sobre** o produto — uma cópia só, e a prova
+      viva passa a exercitar o código que vai ao ar
+- [x] 2.3 BYOK: campo `password`, aviso de privacidade e custo, consentimento obrigatório antes
+      de conectar, trocar/remover, zero persistência (`credential.js`)
+- [x] 2.4 Chat e voz na mesma superfície, com transcrição dos dois lados e uma bolha por turno
+      que cresce conforme a legenda chega
+- [x] 2.5 `SYSTEM_INSTRUCTION` de domínio BPMN versionada em `live/protocol.js`
+- [x] 2.6 Não-regressão medida contra o baseline pré-P2: as duas páginas carregam, simulação
+      intacta, build de produção sem credencial, `dist/` versionado intocado
+- [x] 2.7 Encerramento em `beforeunload` **e** `pagehide` (bfcache do iOS), teardown idempotente
+- [x] 2.8 Seletor de modo: texto declara a função de entrega, voz não; trocar reabre a sessão e
+      **avisa** que o modelo perde o contexto (`context-reset`)
+- [x] 2.9 Acessibilidade: `aria-expanded`/`aria-controls`, `role="dialog"` não-modal, foco ao
+      abrir, Escape devolvendo o foco, estado em região viva **e** em texto (cor nunca sozinha),
+      conversa em `aria-live`
+- [x] 2.10 Responsivo: painel cabe em 375×812 com o campo de digitar visível
+- [x] 2.11 `AssistantSessionManager` com ciclo observável, correlação de turnos, histórico só em
+      memória, e `stop()` idempotente provado com três chamadas simultâneas
+- [x] 2.12 **Defeito meu, achado por baseline**: montar antes do `fit-viewport` quebrava o
+      modelador. Corrigido montando depois (design D11)
+- [ ] 2.13 Conversa real pelo widget contra o Gemini — **pendente**: exige credencial, e o dono
+      determinou não reusar a do cofre. Roteiro em `validation.md`
 
 ## 3. P3 — Integração, homologação e publicação
 
-- [ ] 3.1 Cenários manuais: negação de microfone, desconexão, expiração, isolamento de credencial
+- [x] 3.1a Isolamento de credencial exercido na página: sem chave não conecta, chave curta
+      recusada, sem consentimento não conecta, `localStorage`/`sessionStorage`/cookie em 0
+- [ ] 3.1b Cenários que precisam de credencial ou de hardware: negação de microfone ao vivo,
+      desconexão no meio do turno, expiração
 - [ ] 3.2 Desktop e mobile (iOS exige gesto e tem regra própria de `AudioContext`)
 - [ ] 3.3 Evidência de segurança: nenhuma chave em bundle, storage, log, URL ou commit
-- [ ] 3.4 CI com os testes novos; smoke test cobrindo a página do assistente
+- [x] 3.4 CI roda `npm test` e inspeciona os arquivos **servidos pela imagem** procurando
+      credencial (produto BYOK não tem motivo para conter nenhuma)
+- [x] 3.6 **Publicar virou ato explícito**: push e PR rodam só CI; a implantação exige
+      `workflow_dispatch` com `deploy: true` e o ambiente `production` (onde revisores
+      obrigatórios podem ser configurados). Documentado em `deploy/README.md`
 - [ ] 3.5 Publicar (gate do dono) e conferir o site no endereço real
 
 ## Futuro — fora do MVP
