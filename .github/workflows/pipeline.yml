@@ -1,0 +1,58 @@
+name: CI-CD Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    # ImproveSimulation é a branch de trabalho atual; tirar da lista quando tudo estiver na main.
+    branches: [main, ImproveSimulation]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: Validate and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose
+        run: docker compose -f docker-compose.yml config
+
+      - name: Build Docker image
+        run: docker build -t bpmn:ci .
+
+      # O erro mais provável é página/diagrama que o dev server serve mas o build não copia p/ a imagem.
+      - name: Smoke test
+        run: |
+          docker run -d --name bpmn-smoke -p 8080:80 bpmn:ci
+          for p in / /viewer.html /bundle.js /viewer.js /pizza-collaboration.bpmn; do
+            curl -fsS --retry 5 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:8080$p"
+          done
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Run remote deployment
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ vars.SSH_PORT != '' && vars.SSH_PORT || '22' }}
+          # ponytail: o build roda na própria VPS (como no javis.docker); se ela ficar apertada, buildar aqui e publicar a imagem num registry
+          script: |
+            set -e
+            APP_DIR="$HOME/github/bpmn"
+            [ -d "$APP_DIR/.git" ] || git clone "https://github.com/${{ github.repository }}.git" "$APP_DIR"
+            cd "$APP_DIR"
+            git fetch origin "${{ github.ref_name }}"
+            git checkout -f -B "${{ github.ref_name }}" "origin/${{ github.ref_name }}"
+            docker-compose up -d --build
+            docker-compose ps

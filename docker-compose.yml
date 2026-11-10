@@ -1,0 +1,9 @@
+services:
+  bpmn:
+    container_name: bpmn
+    build: .
+    ports:
+      # Só no loopback: quem publica na internet é o nginx do host (deploy/host-vhost.conf).
+      # Porta ocupada na VPS? Defina BPMN_PORT num .env ao lado deste arquivo e ajuste o proxy_pass.
+      - "127.0.0.1:${BPMN_PORT:-8880}:80"
+    restart: always
