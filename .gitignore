@@ -5,3 +5,11 @@ node_modules/
 .env
 .env.*
 *.key
+
+# Indices e estado do Visual Studio. Foram expurgados do historico em 2026-11-11: a pasta
+# carregava 1,4 MB de indices binarios e uma sessao de copilot-chat, e nada disso e do projeto.
+.vs/
+
+# Bundles compilados. O Dockerfile rebuilda do zero (`npm run build -- --mode production`), entao
+# o dist/ versionado nao era usado por nada e sujava o diff a cada build.
+dist/
