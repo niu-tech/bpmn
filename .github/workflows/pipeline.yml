@@ -62,11 +62,17 @@ jobs:
         run: docker build -t bpmn:ci .
 
       # O erro mais provável é página/diagrama que o dev server serve mas o build não copia p/ a imagem.
+      #
+      # ⚠ `--retry-all-errors` não é enfeite. `docker run -d` volta na hora e a porta publicada já
+      # ACEITA conexão, mas o nginx lá dentro ainda não subiu: o proxy aceita e RESETA. Reset não é
+      # recusa, então `--retry-connrefused` não cobre — e o curl morre com 56 ("Recv failure:
+      # Connection reset by peer") na primeira URL, sem tentar de novo. Medido no primeiro run
+      # deste repositório na organização; localmente passava porque havia uma espera antes do curl.
       - name: Smoke test
         run: |
           docker run -d --name bpmn-smoke -p 8080:80 bpmn:ci
           for p in / /viewer.html /bundle.js /viewer.js /pizza-collaboration.bpmn; do
-            curl -fsS --retry 5 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:8080$p"
+            curl -fsS --retry 10 --retry-all-errors --retry-delay 1 -o /dev/null "http://127.0.0.1:8080$p"
           done
 
       # Guarda de segredo na imagem: nenhuma chave do Google pode ter entrado no bundle servido.
