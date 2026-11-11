@@ -46,11 +46,10 @@ precisam de acesso que só o DevOps da niu-tech e o dono do domínio têm.
 2. **GitHub** (Settings → Secrets and variables → Actions), mesmos nomes do `javis.docker`:
    - variables: `SSH_HOST`, `SSH_USER`, `SSH_PORT` (opcional, padrão 22)
    - secrets: `SSH_KEY`, `SSH_PASSPHRASE` (só se a chave tiver senha)
-3. **⚠ O repositório é PRIVADO — prepare o acesso na VPS ANTES do primeiro deploy.** O passo remoto faz
-   `git clone https://github.com/<org>/<repo>.git` em `~/github/bpmn`, e num repositório privado esse clone
-   **falha sem credencial**. Clone à mão nesse caminho exato, uma vez, com uma *deploy key* de leitura (ou outro
-   acesso que a VPS tenha). Depois disso o workflow só faz `fetch`/`checkout` e não precisa de mais nada.
-   Confira também se a `8880` está livre (`ss -tlnp | grep 8880`); se não, crie `~/github/bpmn/.env` com
+3. **Porta livre na VPS.** O passo remoto faz `git clone https://github.com/niu-tech/bpmn.git` em
+   `~/github/bpmn`; o repositório é **público** desde 2026-11-11, então o clone não precisa de
+   credencial nenhuma (antes era privado e exigia *deploy key* — esse item deixou de existir).
+   Confira se a `8880` está livre (`ss -tlnp | grep 8880`); se não, crie `~/github/bpmn/.env` com
    `BPMN_PORT=<livre>` e use a mesma porta no passo 5.
 3b. **Criar o ambiente `production`** (Settings → Environments → *New environment* →
    `production`). **O job de deploy o exige** — sem ele a publicação não começa. Pôr *Required

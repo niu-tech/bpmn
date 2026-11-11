@@ -20,19 +20,23 @@
 - [x] 0.8 **Projeto na organização** — `niu-tech/bpmn` privado, `main` com tudo, 30 commits,
       histórico original preservado, CI verde (#2 52 s, #3 58 s), deploy nunca executado.
       `dist/` saiu do versionamento e `.vs/` foi expurgado do histórico (`git filter-branch`)
-- [ ] 0.9 **Rastro do `.vs` nos repositórios antigos** — medido: force-push **não apaga**; o
-      GitHub segue servindo o commit antigo por SHA. Apagar `kaiosmacedo/bpmn` (público; seu topo
-      é ancestral da `main` da org, nada exclusivo) e decidir sobre recriar o repo da org.
-      `devInfomarcas/bpmn` responde *not found* — não verificado (**gate do dono**)
+- [~] 0.9 **Rastro do `.vs`** — o repo da org foi **recriado limpo e público** (histórico com
+      zero `.vs` em 33 commits; `refs/original/*` apagados). Falta **apagar** os dois que ainda
+      servem o commit antigo por SHA: `kaiosmacedo/bpmn` (público) e `niu-tech/bpmn-legacy-private`.
+      Exige escopo `delete_repo`, que esta sessão não tem (**gate do dono**).
+      `devInfomarcas/bpmn` confirmado inexistente pelo dono — remote local removido
 - [x] 0.11 **URL provisória sem domínio** — site passou a usar caminhos **relativos** (4 linhas:
       as duas `<script src>` e as duas `DEFAULT_DIAGRAM_URL`), provado em navegador headless
       servido em `/bpmn/`: as duas páginas renderizam o diagrama e o ajudante monta. Job `pages`
       no workflow publica a cada push em `main`, extraindo o site **da própria imagem** que vai
       para a VPS, e liga o Pages sozinho (`enablement: true`). Falha nomeada e inofensiva se o
-      plano da organização não permitir
-- [ ] 0.10 **Ambiente `production` e leitura da VPS** — o ambiente não existe no repo da org e o
-      job o exige; e o `git clone` do passo remoto precisa de *deploy key* agora que o repo é
-      privado (**gate do dono**)
+      plano da organização não permitir — foi o que aconteceu enquanto o repositório era privado
+- [x] 0.12 **URL provisória NO AR**: <https://niu-tech.github.io/bpmn/>. CI 38 s, Pages 33 s,
+      deploy `skipped`. 5/5 URLs em 200, as duas páginas renderizam o diagrama e montam o ajudante
+      em navegador headless contra a URL pública, e `/spike/`, `/openspec/`, `/Dockerfile`,
+      `/package.json` em 404
+- [ ] 0.10 **Ambiente `production`** — não existe no repositório e o job de deploy o exige
+      (**gate do dono**). A *deploy key* deixou de ser necessária: o repositório é público de novo
 
 ## 1. P1 — Spike técnico isolado (primeiro bloco de execução)
 

@@ -1,5 +1,8 @@
 # bpmn — modelador, viewer com simulação e ajudante BPMN
 
+**No ar:** <https://niu-tech.github.io/bpmn/> — modelador em `/`, viewer com simulação em
+`/viewer.html`. URL provisória, enquanto não há domínio.
+
 Front-end **estático**: não há backend nem banco. Tudo roda no navegador.
 
 | Página | O que é | Entry do webpack |
@@ -78,11 +81,16 @@ Dois endereços, de propósitos diferentes:
 
 | Endereço | Como sai | Para quê |
 |---|---|---|
-| `https://niu-tech.github.io/bpmn/` | **a cada push em `main`** (job `pages`) | URL provisória: mandar para o orientador e os alunos enquanto não há domínio |
+| **`https://niu-tech.github.io/bpmn/`** — no ar desde 2026-11-11 | **a cada push em `main`** (job `pages`) | URL provisória: mandar para o orientador e os alunos enquanto não há domínio |
 | domínio próprio na VPS | só *Run workflow* com `deploy: true` | produção; configuração do DevOps |
 
 A prévia do Pages **não** toca a VPS, e o deploy de produção continua sendo ato explícito. O que
 falta para a produção está em [`deploy/README.md`](deploy/README.md) — é o handoff do DevOps.
+
+O repositório é **público** desde 2026-11-11: é o que o GitHub Pages exige no plano da
+organização, e o site é público de qualquer forma. Isso **não** expõe segredo nenhum — o produto é
+BYOK (a chave é do visitante, fica só na memória da aba dele) e o CI varre os arquivos servidos
+procurando credencial a cada push.
 
 ## Origem
 

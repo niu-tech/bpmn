@@ -33,27 +33,27 @@ virou GO e nasceu o item 24.
 | 20 | **Domínio e HTTPS** | **NO-GO para produção, contornado para a prévia** | `host-vhost.conf` tem placeholder; sem domínio, a URL provisória é o GitHub Pages (item 25) |
 | 21 | **Secrets/vars do Actions** | **NO-GO** | `SSH_HOST`, `SSH_USER`, `SSH_KEY` nunca configurados; não toquei |
 | 22 | **Ambiente `production`** | **NO-GO** | o ambiente **ainda não existe** no repo da org (*"There are no environments"*) e o job o exige — criar é obrigatório, pôr revisor é escolha |
-| 23 | **Repositório acessível ao DevOps** | **GO** | `niu-tech/bpmn` privado, 30 commits, CI verde (#2 52 s, #3 58 s), job de deploy nunca executado |
-| 24 | **Leitura da VPS no repo privado** | **NO-GO** | o passo remoto faz `git clone`; em repo privado isso falha sem *deploy key*. Nasceu da migração — não existia quando o repo era público |
-| 25 | **URL provisória (GitHub Pages)** | **GO condicional** | job `pages` publica a cada push em `main`, extraindo o site da própria imagem. Depende do plano da organização permitir Pages — ver abaixo |
+| 23 | **Repositório acessível ao DevOps** | **GO** | `niu-tech/bpmn` **público**, `main` com 33 commits e histórico limpo, CI verde, job de deploy pulado (`skipped`) |
+| 24 | ~~**Leitura da VPS no repo privado**~~ | **deixou de existir** | o repositório voltou a ser público, então o `git clone` do passo remoto não precisa de credencial |
+| 25 | **URL provisória (GitHub Pages)** | **GO — NO AR** | <https://niu-tech.github.io/bpmn/>: 5/5 URLs em 200, as duas páginas renderizam o diagrama e montam o ajudante (navegador headless contra a URL pública), e `/spike/`, `/openspec/`, `/Dockerfile`, `/package.json` em 404 |
 | 26 | **Site funciona sob prefixo de caminho** | **GO** | caminhos relativos; as duas páginas renderizam o diagrama servidas em `/bpmn/`, medido em navegador headless, e os worklets resolvem pelo `currentScript` |
 
 ## Impedimentos reais × sugestões futuras
 
-**Impedem a publicação na VPS (20, 21, 22, 24):** sem domínio e DNS não há endereço; sem os
-secrets o passo de SSH falha; sem o ambiente `production` criado o job nem começa; sem deploy key
-o `git clone` do repo privado falha na VPS. Os quatro são atos de configuração — do dono e do
-DevOps —, não de código, e nenhum leva mais de alguns minutos. Handoff: `deploy/README.md`.
+**Impedem a publicação na VPS (20, 21, 22):** sem domínio e DNS não há endereço; sem os secrets
+o passo de SSH falha; sem o ambiente `production` criado o job nem começa. Os três são atos de
+configuração — do dono e do DevOps —, não de código, e nenhum leva mais de alguns minutos.
+Handoff: `deploy/README.md`.
 
-**Não impedem a URL provisória (25, 26):** o GitHub Pages dispensa domínio, DNS, VPS e secrets.
-O único condicionante é o plano da organização: em plano **Free** o Pages exige repositório
-**público**; em **Team/Enterprise** funciona com o repositório privado e o site sai público.
-O job liga o Pages sozinho (`actions/configure-pages` com `enablement: true`) e, se não puder,
-**avisa e não derruba nada** — CI e deploy seguem intactos.
+**Nada disso impede a URL provisória**, que está no ar: o GitHub Pages dispensa domínio, DNS, VPS
+e secrets. A organização está em plano **Free**, onde o Pages exige repositório **público** —
+medido pela API (`plan.name = free`, `has_pages = false` depois da primeira tentativa), que foi
+exatamente por que o primeiro push não produziu URL.
 
-> ⚠ **Tornar o repositório público exige apagar antes o rastro do `.vs`** (seção final): o commit
-> `9ac6531` continua servido por SHA e carrega uma sessão de `copilot-chat`. Hoje o alcance é a
-> organização; num repositório público seria qualquer pessoa.
+> O repositório foi **recriado limpo e publicado** antes de virar público, justamente para que o
+> commit com a sessão de `copilot-chat` não fosse junto. O `main` público tem 33 commits e
+> **zero** arquivos `.vs` em qualquer um deles (varrido commit a commit), e a varredura de
+> segredo no histórico inteiro só acha fixtures sintéticos de teste.
 
 **Impedem declarar o produto validado (18, 19):** o transporte foi provado no P1 por sonda, mas a
 conversa **pelo widget** e a **fala humana** nunca aconteceram. Publicar antes disso é publicar
@@ -155,3 +155,29 @@ Consequência prática, por repositório:
 
 **Regra que fica:** `.vs/`, `.idea/`, `dist/` e afins entram no `.gitignore` **antes** do primeiro
 commit. Depois de empurrar, não existe desfazer de verdade.
+
+### 2026-11-11, parte 2 — repositório recriado limpo e URL no ar
+
+O plano Free da organização não publica Pages de repositório privado (medido: `plan.name = free`,
+e `has_pages` continuou `false` depois da primeira tentativa do job). Como o site é público de
+qualquer forma, o caminho foi tornar o repositório público — mas **nunca** por cima do histórico
+que carregava o `.vs`. A sequência, feita sem janela de indisponibilidade:
+
+1. **Varredura antes de qualquer coisa**: `.vs` em nenhum dos 33 commits de `main`; nenhum segredo
+   no histórico inteiro (só fixtures sintéticos, que se identificam no próprio nome).
+   `refs/original/*` — os backups do `filter-branch`, que ainda carregavam o `.vs` — apagados.
+2. **`niu-tech/bpmn` renomeado para `niu-tech/bpmn-legacy-private`**, ainda privado. Renomear em
+   vez de apagar primeiro significa que, se a criação do repositório novo falhasse, nada se
+   perderia.
+3. **`niu-tech/bpmn` criado público**, vazio, e `main` empurrada — só o histórico limpo.
+4. **Pages ligado** (`build_type=workflow`) e o pipeline rodou: CI 38 s, Pages 33 s, deploy
+   `skipped`. URL: <https://niu-tech.github.io/bpmn/>.
+5. **Prova contra a URL pública**: 5/5 em 200; as duas páginas, em navegador headless, renderizam
+   o diagrama e montam o ajudante; `/spike/`, `/openspec/`, `/Dockerfile` e `/package.json` em 404.
+
+**Sobrou, e depende de exclusão manual** (o token desta sessão não tem escopo `delete_repo`):
+
+| Repositório | Estado | Por que apagar |
+|---|---|---|
+| `kaiosmacedo/bpmn` | **público**, `cfcba83` servido por SHA | é o rastro exposto do `.vs`; o topo dele é ancestral da `main` da org, então não guarda nada exclusivo |
+| `niu-tech/bpmn-legacy-private` | privado, `9ac6531` servido por SHA | mesmo rastro, alcance limitado à organização |
