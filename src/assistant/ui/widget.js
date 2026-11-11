@@ -169,15 +169,19 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // aconteceu. O texto é o mesmo de `session.report()`, já redigido pelo diário.
   const diagText = el('pre', { className: 'bpmn-assist__diagtext', textContent: '(abra para ver)' });
   const copyBtn = el('button', { className: 'bpmn-assist__btn', type: 'button', textContent: 'Copiar' });
-  const copyState = el('span', { className: 'bpmn-assist__miclabel', textContent: '' });
+  const copyState = el('span', { className: 'bpmn-assist__copystate', textContent: '' });
   const diagBox = el('details', { className: 'bpmn-assist__diag' }, [
     el('summary', { textContent: 'Diagnóstico da sessão' }),
     diagText,
     el('div', { className: 'bpmn-assist__row' }, [copyBtn, copyState]),
   ]);
 
+  // ⚠ `talkRow` NÃO entra no corpo rolável. Entrava, e aí cada resposta empurrava o botão de
+  // falar para fora da tela: "a gente fala e aí tem que subir a conversa toda para falar de
+  // novo" (dono, 2026-11-11). Controle que se usa a cada turno mora no rodapé fixo; só a
+  // conversa rola.
   const body = el('div', { className: 'bpmn-assist__body' }, [
-    setupBlock, compacto, barraTopo, talkRow, hint, empty, log, diagBox,
+    setupBlock, compacto, barraTopo, hint, empty, log, diagBox,
   ]);
 
   // ------------------------------------------------------------------ composer
@@ -186,7 +190,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const sendBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--primary', type: 'button', textContent: 'Enviar' });
   const composer = el('div', { className: 'bpmn-assist__composer' }, [input, sendBtn]);
 
-  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, body, composer, liveRegion]);
+  const rodape = el('div', { className: 'bpmn-assist__footer' }, [talkRow, composer]);
+
+  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, body, rodape, liveRegion]);
   panel.hidden = true;
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'false');     // o diagrama continua utilizável de propósito
@@ -275,12 +281,21 @@ export function createWidget({ session, credentials, onClose } = {}) {
 
     // Falar só existe no modo voz e com sessão viva: esconder é mais honesto que desabilitar.
     talkRow.hidden = !(mode === 'voz' && canAsk);
-    talkBtn.textContent = micOn ? 'Parar' : 'Falar';
+    talkBtn.textContent = micOn ? 'Parar' : 'Ouvir';
     talkBtn.setAttribute('aria-pressed', String(micOn));
     talkBtn.classList.toggle('bpmn-assist__btn--talking', micOn);
-    micLabel.textContent = micOn
-      ? 'ouvindo você — clique em Parar quando terminar'
-      : (state === 'speaking' ? 'o ajudante está respondendo…' : 'clique para falar');
+    // Em escuta contínua o microfone fica aberto durante a resposta — e dizer isso em texto é o
+    // que faz o aluno descobrir que pode interromper. A rede de segurança muda a frase, porque
+    // aí NÃO dá para interromper.
+    if (micOn && state === 'speaking') {
+      micLabel.textContent = 'pode falar por cima para interromper';
+    } else if (micOn) {
+      micLabel.textContent = 'ouvindo — é só falar';
+    } else if (state === 'speaking') {
+      micLabel.textContent = session.meiaDuplex ? 'respondendo (microfone fechado)' : 'o ajudante está respondendo…';
+    } else {
+      micLabel.textContent = 'clique para o ajudante ouvir';
+    }
     renderMeter(level, micOn);
 
     const texto = dica(view);

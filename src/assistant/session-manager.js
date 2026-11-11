@@ -69,6 +69,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let micAutomatico = false;
   /** Abertura de microfone em voo: o automático e o clique do aluno compartilham a mesma. */
   let micEmVoo = null;
+
+  /**
+   * ESCUTA CONTÍNUA é o default (pedido do dono, 2026-11-11: "ele poderia ficar ouvindo e quando
+   * a gente falar, poder interromper ela"). O microfone fica aberto durante a resposta, e falar
+   * por cima interrompe o modelo — é o VAD do servidor que decide, como na MAIA.
+   *
+   * `meiaDuplex` é a REDE DE SEGURANÇA, não o default. Se o eco da própria resposta voltar pelo
+   * microfone, o servidor interrompe o modelo sem parar, e a conversa morre em silêncio — foi
+   * exatamente o defeito de hoje de manhã. Três interrupções seguidas SEM nenhuma transcrição de
+   * entrada no meio é a assinatura desse laço (fala de verdade produz transcrição; eco não).
+   * Ao reconhecê-la, o microfone volta a fechar durante a resposta e o aluno é avisado UMA vez.
+   */
+  let meiaDuplex = false;
+  let interrupcoesSeguidas = 0;
+  let relogioDeSom = null;
   let turnSeq = 0;
   let currentTurn = null;
   let teardownInFlight = null;
@@ -115,6 +130,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     const speakerRef = speaker;
     session = null; mic = null; speaker = null; speakerEmVoo = null;
     micOn = false; level = 0; currentTurn = null;
+
+    if (relogioDeSom) { clearInterval(relogioDeSom); relogioDeSom = null; }
 
     teardownInFlight = (async () => {
       // Ordem: microfone primeiro (apaga o indicador do navegador na hora), depois som, depois fio.
@@ -204,6 +221,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       onTranscript: ({ side, text }) => {
         if (!text) return;
         if (side === 'input') {
+          // Houve fala de verdade: o que veio antes não era laço de eco.
+          interrupcoesSeguidas = 0;
           push({ role: 'user', text, via: 'voz', turn: turnSeq });
           return;
         }
@@ -216,19 +235,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
       },
       onAudio: async (b64) => {
-        // ⚠ MEIA-DUPLEX POR DESENHO. O modelo começou a responder: o microfone fecha.
-        //
-        // Medido como sintoma em 2026-11-11 (dono, na URL pública): apertar "Falar", falar, e a
-        // única coisa que aparecia era "o modelo foi interrompido". Com o microfone aberto
-        // durante a resposta, o VAD do servidor ouve a própria resposta vazando pelo microfone
-        // (ou a respiração de quem espera) e CORTA o modelo — e o ciclo se repete, de modo que
-        // nenhuma resposta chega ao fim. O mesmo padrão já tinha mordido a MAIA ("corte de fala
-        // = mic cru no VAD do Gemini").
-        //
-        // Fechar o microfone aqui resolve na origem e não depende de o aluno lembrar de soltar o
-        // botão. Barge-in (interromper falando por cima) fica FORA do MVP de propósito: exige
-        // cancelamento de eco de verdade, não um palpite.
-        if (mic) fecharMicrofone('modelo comecou a responder');
+        // Em escuta contínua o microfone FICA ABERTO aqui — é o que permite interromper falando
+        // por cima. Só a rede de segurança fecha.
+        if (meiaDuplex && mic) fecharMicrofone('meia-duplex: modelo respondendo');
         try {
           const out = await ensureSpeaker();
           out.push(b64, ++audioSeq);
@@ -238,9 +247,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
       onInterrupted: () => {
         // Interrupção é EVENTO DE PROTOCOLO, não recado para o aluno: descarta o que estava na
-        // fila e segue. Antes disto virava uma frase no meio da conversa que não dizia nem quando
-        // nem por quê — o diário diz as duas coisas.
+        // fila e segue. Quando é o aluno falando por cima, isso É o barge-in funcionando.
         speaker?.flush();
+        interrupcoesSeguidas++;
+        diag.ws('interrompido-seguidas', String(interrupcoesSeguidas));
+        if (interrupcoesSeguidas >= 3 && !meiaDuplex) {
+          // Assinatura do laço de eco: ninguém interrompe três vezes seguidas sem dizer nada.
+          meiaDuplex = true;
+          diag.state('meia-duplex', 'laco de interrupcao detectado');
+          note(
+            'O ajudante estava sendo cortado sem parar — provavelmente o som dele voltando pelo '
+            + 'microfone. Passei a fechar o microfone enquanto ele responde; use fone de ouvido '
+            + 'para poder interromper falando por cima.',
+            'context-reset',
+          );
+          if (mic) fecharMicrofone('meia-duplex ligada');
+        }
       },
     });
     session.start();
@@ -259,6 +281,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     get lastUsage() { return session?.lastUsage ?? null; },
     get level() { return level; },
     get diagnostics() { return diag; },
+    /** `true` quando a rede de segurança assumiu: microfone fecha durante a resposta. */
+    get meiaDuplex() { return meiaDuplex; },
 
     /**
      * Relatório para COLAR em quem for depurar. Redigido pelo próprio diário — a chave não sai.
@@ -270,6 +294,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           modo: mode,
           estado: state + (reason ? `:${reason}` : ''),
           turnos: String(turnSeq),
+          escuta: meiaDuplex ? 'meia-duplex (rede de seguranca)' : 'continua',
           mensagens: String(messages.length),
           uso: session?.lastUsage ? JSON.stringify(session.lastUsage) : '(sem contagem)',
           som: lastStats ? JSON.stringify(lastStats) : '(sem reproducao)',
@@ -295,6 +320,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
       diag.reset();
       diag.state('connect', `modo=${targetMode}`);
+      interrupcoesSeguidas = 0;
+      // Saúde da reprodução no diário: é o que transforma "a fala trava" em um número
+      // (`underflows`) em vez de uma impressão.
+      if (relogioDeSom) clearInterval(relogioDeSom);
+      relogioDeSom = setInterval(() => {
+        if (!speaker) return;
+        speaker.stats?.();
+        if (lastStats) diag.record('som', 'buffer', `ms=${lastStats.bufferedMs} furos=${lastStats.underflows}`);
+      }, 3000);
       micAutomatico = targetMode === 'voz';
       await teardown();
       mode = targetMode;
@@ -363,9 +397,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         diag.mic('open');
         mic = await capture({
           onFrame: (b64) => {
-            // Rede de segurança do meia-duplex: se um quadro escapar enquanto o modelo fala, ele
-            // morre AQUI em vez de virar uma interrupção no servidor.
-            if (state === 'speaking') { diag.mic('gated'); return; }
+            // Em escuta contínua o quadro SOBE mesmo durante a resposta: é assim que o servidor
+            // percebe que o aluno começou a falar e interrompe o modelo.
+            if (meiaDuplex && state === 'speaking') { diag.mic('gated'); return; }
             session?.pushAudio(b64);
           },
           onLevel: (v) => {

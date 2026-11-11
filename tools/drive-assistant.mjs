@@ -15,6 +15,8 @@
  * Uso: node tools/drive-assistant.mjs [url] [--shot <prefixo>]
  *      (sem url, assume http://127.0.0.1:8124/)
  */
+import { existsSync } from 'node:fs';
+
 import { dirigir } from './drive-page.mjs';
 
 const CHAVE = 'AQ.CHAVE-SINTETICA-DO-DRIVE-NAO-E-DE-NINGUEM-012345';
@@ -67,34 +69,40 @@ window.__responde({ setupComplete: {} });
 await new Promise((r) => setTimeout(r, 1200));
 return {
   sockets: window.__sockets,
-  falar: document.querySelector('.bpmn-assist__btn--talk').textContent,
+  falar: document.querySelector(".bpmn-assist__btn--talk").textContent,
   legenda: document.querySelector('.bpmn-assist__miclabel').textContent,
   micOn: window.__bpmnAssist.estado.micOn,
 };
 `;
 
+// O medidor e a prova de que o audio CHEGA ao socket: ele e alimentado pelo mesmo PCM que sobe.
+// Com um WAV de fala no microfone, o pico tem de ficar MUITO acima do silencio.
 const MEDIDOR = `
-await new Promise((r) => setTimeout(r, 600));
-const barras = [...document.querySelectorAll('.bpmn-assist__bar')].map((b) => b.style.transform);
+let pico = 0;
+for (let i = 0; i < 24; i++) {
+  await new Promise((r) => setTimeout(r, 100));
+  pico = Math.max(pico, window.__bpmnAssist.estado.nivel);
+}
 const quadros = window.__frames.filter((f) => f.includes('"audio"')).length;
 return {
-  barrasMexeram: barras.some((t) => t && !t.includes('0.080')),
-  amostraBarras: barras.slice(0, 4),
+  picoDeNivel: Number(pico.toFixed(3)),
+  houveFala: pico > 0.15,
   quadrosDeMicEnviados: quadros,
-  nivel: window.__bpmnAssist.estado.nivel,
 };
 `;
 
 // Frame real de resposta do modelo: o mesmo formato medido no P1 (modelTurn com inlineData).
 const MODELO_RESPONDE = `
 const antes = window.__bpmnAssist.estado.micOn;
+window.__estadoFala = true;
 window.__responde({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'AAAAAAAA' } }] }, outputTranscription: { text: 'Um gateway exclusivo' } } });
 await new Promise((r) => setTimeout(r, 400));
 return {
   micAntes: antes,
   micDepois: window.__bpmnAssist.estado.micOn,
+  escutaContinua: window.__bpmnAssist.estado.micOn === true,
   mandouFimDeFala: window.__frames.some((f) => f.includes('audioStreamEnd')),
-  falar: document.querySelector('.bpmn-assist__btn--talk').textContent,
+  falar: document.querySelector(".bpmn-assist__btn--talk").textContent,
   legenda: document.querySelector('.bpmn-assist__miclabel').textContent,
   conversa: [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim()).slice(-2),
 };
@@ -109,11 +117,18 @@ return { vazouChave: texto.includes(${JSON.stringify(CHAVE)}), trecho: texto.spl
 `;
 
 const url = process.argv[2]?.startsWith('http') ? process.argv[2] : 'http://127.0.0.1:8124/';
+const micIdx = process.argv.indexOf('--mic');
+const micPedido = micIdx > 0 ? process.argv[micIdx + 1] : 'artifacts/voz/gateway.wav';
+// Sem os WAVs gerados, cai no tom sintetico do Chromium: o caminho do microfone ainda roda, mas
+// o medidor mal se mexe. Gere com: powershell -ExecutionPolicy Bypass -File tools/make-voice-fixtures.ps1
+const mic = existsSync(micPedido) ? micPedido : null;
+if (!mic) console.log(`! sem WAV em ${micPedido} - usando o tom sintetico do navegador`);
 const shotIdx = process.argv.indexOf('--shot');
 const prefixo = (shotIdx > 0 ? process.argv[shotIdx + 1] : 'artifacts/ui/voz').replace(/\.png$/i, '');
 
 const r = await dirigir({
   url,
+  mic,
   espera: 2500,
   passos: [DUBLAR_WS, INFORMAR_CHAVE, ACEITAR_SETUP, IR_PARA_VOZ, MEDIDOR, MODELO_RESPONDE, DIAGNOSTICO],
   shot: `${prefixo}.png`,

@@ -120,7 +120,9 @@ export async function startPlayback({ onAudible, onStats } = {}) {
     numberOfInputs: 0,
     numberOfOutputs: 1,
     outputChannelCount: [1],
-    processorOptions: { sourceRate: PLAYBACK_RATE, primeMs: 120 },
+    // 240 ms de partida / 120 ms de recuperação: ver o cabeçalho do worklet. A latência extra
+    // até a primeira palavra é o preço de não travar no meio da frase.
+    processorOptions: { sourceRate: PLAYBACK_RATE, primeMs: 240, rePrimeMs: 120 },
   });
   node.port.onmessage = (e) => {
     if (e.data?.type === 'audible') onAudible?.(e.data.id);

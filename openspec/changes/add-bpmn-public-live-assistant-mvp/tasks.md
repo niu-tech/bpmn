@@ -161,6 +161,35 @@
       `endAudio` rebaixando o estado para "ouvindo" no instante em que o modelo respondia
 - [ ] 4.10 **Conversa real pelo widget** — ainda pendente: exige a chave do dono na URL pública
 
+## 5. P5 — Escuta contínua, fala sem travar, teste autônomo (2026-11-11, 2ª rodada)
+
+- [x] 5.1 **A fala travava** ("para de falar durante um período, um segundo, ou um pouco mais").
+      Causa no `playback-worklet`: QUALQUER furo zerava `primed` e obrigava a encher outra vez o
+      buffer de PARTIDA inteiro — com a rajada do servidor, isso vira um buraco audível por furo.
+      Agora são DOIS limiares: partida 240 ms, recuperação 120 ms. Três testes novos, incluindo o
+      caso que reproduz o furo
+- [x] 5.2 **Escuta contínua virou o default** ("ele poderia ficar ouvindo e quando a gente falar,
+      poder interromper ela"): o microfone fica aberto durante a resposta e o quadro do aluno
+      SOBE — é o que faz o servidor interromper o modelo. O meia-duplex da rodada anterior deixou
+      de ser o comportamento e virou **rede de segurança**
+- [x] 5.3 **Rede de segurança com assinatura medível**: três interrupções seguidas SEM nenhuma
+      transcrição de entrada no meio é o laço de eco (fala de verdade produz transcrição; eco
+      não). Ao reconhecê-lo, o microfone volta a fechar durante a resposta e o aluno é avisado
+      uma vez, com a razão
+- [x] 5.4 **Controles saíram do corpo rolável** ("a gente fala e aí tem que subir a conversa toda
+      para falar de novo"): o botão de ouvir e o medidor moram no rodapé fixo; só a conversa rola
+- [x] 5.5 **Saúde da reprodução no diário**: `som.buffer ms=… furos=…` a cada 3 s, que é o que
+      transforma "a fala trava" em um número
+- [x] 5.6 **Voz de verdade em teste automatizado.** Técnica trazida do CopilotSpeaker
+      (`tools/live-first-m0/make-fixtures.ps1`): SAPI pt-BR gera WAV 16 kHz mono, e o Chromium o
+      usa **como microfone** (`--use-file-for-fake-audio-capture`). O caminho roda inteiro —
+      worklet, reamostragem, PCM16, socket. Medido: pico de nível **0,454** com fala contra
+      **0,01** com o tom sintético, 79 quadros no socket
+- [x] 5.7 **`tools/attach-edge.mjs`**: lê a aba já aberta no navegador do dono por CDP, só
+      leitura, e diz o comando exato quando a porta de depuração não está ligada
+- [ ] 5.8 **Barge-in com voz real contra o Gemini** — o drive prova que o quadro sobe durante a
+      resposta; se o servidor corta o modelo de fato só a chave do dono responde
+
 ## Futuro — fora do MVP
 
 - [ ] F.1 RAG sobre a norma BPMN

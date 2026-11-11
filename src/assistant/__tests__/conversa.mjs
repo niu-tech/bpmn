@@ -104,23 +104,25 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('o modelo comecar a responder FECHA o microfone', async () => {
+  test('ESCUTA CONTINUA: o modelo responder NAO fecha o microfone', async () => {
+    // Pedido do dono (2026-11-11): "ele poderia ficar ouvindo e quando a gente falar, poder
+    // interromper ela". Fechar o microfone na resposta impedia justamente isso.
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
     await new Promise((r) => setTimeout(r, 0));
     assert.equal(session.micOn, true);
 
-    live.ultima.audio('AAAA');                     // primeiro quadro da resposta
+    live.ultima.estado('speaking');
+    live.ultima.audio('AAAA');
     await new Promise((r) => setTimeout(r, 0));
 
-    assert.equal(audio.estado.micsFechados, 1, 'microfone aberto durante a resposta e o que corta o modelo');
-    assert.equal(session.micOn, false);
-    assert.equal(live.ultima.audioEncerrado, true, 'e o fim da fala tem de ser avisado');
+    assert.equal(session.micOn, true, 'microfone fechado = nao da para interromper');
+    assert.equal(audio.estado.micsFechados, 0);
     forgetSecrets();
   });
 
-  test('quadro que escapa enquanto o modelo fala morre no cliente', async () => {
+  test('ESCUTA CONTINUA: o quadro SOBE enquanto o modelo fala (e o que interrompe)', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -128,11 +130,68 @@ await (async () => {
 
     const antes = live.ultima.enviados.filter((e) => e.tipo === 'audio').length;
     live.ultima.estado('speaking');
-    audio.estado.emitir('QUADRO-ATRASADO');
-
+    audio.estado.emitir('EU-FALANDO-POR-CIMA');
     const depois = live.ultima.enviados.filter((e) => e.tipo === 'audio').length;
-    assert.equal(depois, antes, 'nenhum quadro pode subir enquanto o modelo responde');
-    assert.equal(session.diagnostics.count('mic.gated'), 1, 'e o diario registra que foi barrado');
+
+    assert.equal(depois, antes + 1, 'o servidor so interrompe se o audio do aluno chegar');
+    forgetSecrets();
+  });
+
+  test('REDE DE SEGURANCA: 3 interrupcoes sem fala nenhuma liga meia-duplex', async () => {
+    // Assinatura do laco de eco: o som do proprio ajudante volta pelo microfone, o servidor
+    // interrompe, e a conversa morre em silencio. Fala de verdade produz transcricao de
+    // entrada; eco nao - e e isso que separa os dois casos.
+    const { session, live, audio } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    await new Promise((r) => setTimeout(r, 0));
+
+    live.ultima.opts.onInterrupted();
+    live.ultima.opts.onInterrupted();
+    assert.equal(session.meiaDuplex, false, 'duas ainda pode ser o aluno mudando de ideia');
+
+    live.ultima.opts.onInterrupted();
+    await new Promise((r) => setTimeout(r, 0));
+
+    assert.equal(session.meiaDuplex, true);
+    assert.equal(audio.estado.micsFechados, 1, 'e o microfone fecha na hora');
+    const aviso = session.messages.find((m) => /microfone/i.test(m.text ?? ''));
+    assert.ok(aviso, 'o aluno precisa saber por que o comportamento mudou');
+    forgetSecrets();
+  });
+
+  test('falar de verdade ZERA o contador de interrupcoes', async () => {
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    await new Promise((r) => setTimeout(r, 0));
+
+    live.ultima.opts.onInterrupted();
+    live.ultima.opts.onInterrupted();
+    live.ultima.opts.onTranscript({ side: 'input', text: 'espera, me responde curto' });
+    live.ultima.opts.onInterrupted();
+    live.ultima.opts.onInterrupted();
+
+    assert.equal(session.meiaDuplex, false, 'interromper falando e o recurso, nao o defeito');
+    forgetSecrets();
+  });
+
+  test('em meia-duplex o quadro atrasado morre no cliente', async () => {
+    const { session, live, audio } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    await new Promise((r) => setTimeout(r, 0));
+    for (let i = 0; i < 3; i++) live.ultima.opts.onInterrupted();   // liga a rede de seguranca
+    await new Promise((r) => setTimeout(r, 0));
+    await session.startMic();                                      // o aluno reabre
+
+    const antes = live.ultima.enviados.filter((e) => e.tipo === 'audio').length;
+    live.ultima.estado('speaking');
+    audio.estado.emitir('QUADRO-ATRASADO');
+    const depois = live.ultima.enviados.filter((e) => e.tipo === 'audio').length;
+
+    assert.equal(depois, antes, 'com a rede ligada, nada sobe durante a resposta');
+    assert.equal(session.diagnostics.count('mic.gated'), 1);
     forgetSecrets();
   });
 

@@ -127,9 +127,9 @@ console.log('\n▶ playback-worklet (PROVA B)');
 const playback = loadWorklet('playback-worklet.js');
 
 /** Instancia e devolve o no + atalhos para empurrar e consumir. */
-function player({ sampleRate = 24000, primeMs = 120 } = {}) {
+function player({ sampleRate = 24000, primeMs = 120, rePrimeMs } = {}) {
   const { Ctor } = loadWorklet('playback-worklet.js', { sampleRate });
-  const node = new Ctor({ processorOptions: { sourceRate: 24000, primeMs } });
+  const node = new Ctor({ processorOptions: { sourceRate: 24000, primeMs, rePrimeMs } });
   const out = new Float32Array(128);
   return {
     node,
@@ -139,6 +139,43 @@ function player({ sampleRate = 24000, primeMs = 120 } = {}) {
     msgs: () => node.port.posted.map((m) => m.data),
   };
 }
+
+/**
+ * A FALA TRAVANDO (relato do dono, 2026-11-11: "para de falar durante um periodo, um segundo, ou
+ * um pouco mais"). Um furo no meio da frase zerava `primed` e obrigava a encher o buffer de
+ * PARTIDA inteiro de novo - com a rajada do servidor, isso vira um buraco audivel por furo.
+ * Agora recuperar tem limiar PROPRIO, mais curto.
+ */
+test('depois de um furo, recupera com o limiar CURTO (nao com o de partida)', () => {
+  const p = player({ primeMs: 240, rePrimeMs: 40 });   // 240ms=5760 amostras, 40ms=960
+  const quadro = (n, v = 1000) => { const a = new Int16Array(n); a.fill(v); return a; };
+
+  p.push(quadro(5760));                 // enche a partida
+  p.pull();                             // ja toca
+  for (let i = 0; i < 60; i++) p.pull();  // drena ate o furo
+  p.node.port.onmessage({ data: { type: 'stats' } });
+  assert.ok(p.msgs().at(-1).underflows > 0, 'o teste precisa MESMO passar por um furo');
+
+  // Chega 1 quadro de 100 ms: acima do limiar de recuperacao (40 ms) e MUITO abaixo do de
+  // partida (240 ms). Com um limiar so, isto ficaria mudo.
+  p.push(quadro(2400));
+  const saida = p.pull();
+  assert.ok(saida.some((v) => v !== 0), 'tinha de voltar a falar com 100 ms no buffer');
+});
+
+test('rePrimeMs default e metade da partida', () => {
+  const p = player({ primeMs: 200 });
+  assert.equal(p.node.rePrimeSamples, Math.round((100 * 24000) / 1000));
+});
+
+test('flush NAO deixa o estado de recuperacao ligado', () => {
+  const p = player({ primeMs: 40, rePrimeMs: 10 });
+  const a = new Int16Array(240); a.fill(900);
+  p.push(a);
+  for (let i = 0; i < 20; i++) p.pull();          // forca furo
+  p.node.port.onmessage({ data: { type: 'flush' } });
+  assert.equal(p.node.recuperando, false, 'interrupcao e comeco novo, nao continuacao de furo');
+});
 
 test('registra bpmn-playback', () => {
   assert.equal(playback.name, 'bpmn-playback');

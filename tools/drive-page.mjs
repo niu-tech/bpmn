@@ -22,7 +22,7 @@
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const NAVEGADORES = [
@@ -55,7 +55,7 @@ async function esperarDevTools(porta, prazoMs = 15000) {
 }
 
 /** Cliente CDP minúsculo: um socket, um contador de id, uma tabela de promessas. */
-function cdp(url) {
+export function cdp(url) {
   const ws = new WebSocket(url);
   const pendentes = new Map();
   const eventos = [];
@@ -94,21 +94,28 @@ function cdp(url) {
 }
 
 function parseArgs(argv) {
-  const out = { url: null, passos: [], shot: null, espera: 2500, largura: 1280, altura: 860 };
+  const out = { url: null, passos: [], shot: null, espera: 2500, largura: 1280, altura: 860, mic: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--passo') out.passos.push(argv[++i]);
     else if (a === '--shot') out.shot = argv[++i];
     else if (a === '--espera') out.espera = Number(argv[++i]);
     else if (a === '--janela') { const [w, h] = argv[++i].split('x').map(Number); out.largura = w; out.altura = h; }
+    else if (a === '--mic') out.mic = argv[++i];
     else if (!out.url) out.url = a;
   }
   if (!out.url) throw new Error('faltou a URL. Uso: node tools/drive-page.mjs <url> [--passo "<js>"]...');
   return out;
 }
 
-export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = 9335, largura = 1280, altura = 860 } = {}) {
+export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = 9335, largura = 1280, altura = 860, mic = null } = {}) {
   const exe = acharNavegador();
+  // WAV como MICROFONE. A flag faz o getUserMedia devolver o arquivo em vez do tom sintetico,
+  // entao o caminho do microfone roda inteiro (worklet, reamostragem, PCM16, socket) com fala
+  // de verdade. Os WAVs saem de `tools/make-voice-fixtures.ps1` (SAPI pt-BR, 16 kHz mono) — a
+  // mesma tecnica dos laboratorios de voz do CopilotSpeaker.
+  const micAbs = mic ? resolve(mic) : null;
+  if (micAbs && !existsSync(micAbs)) throw new Error(`WAV de microfone nao encontrado: ${micAbs}`);
   const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-drive-${porta}`;
   const filho = spawn(exe, [
     '--headless=new',
@@ -122,13 +129,14 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     '--use-fake-device-for-media-stream',
     '--use-fake-ui-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
+    ...(micAbs ? [`--use-file-for-fake-audio-capture=${micAbs}`] : []),
     `--window-size=${largura},${altura}`,
     `--remote-debugging-port=${porta}`,
     `--user-data-dir=${perfil}`,
     'about:blank',
   ], { stdio: 'ignore', detached: false });
 
-  const saida = { url, console: [], excecoes: [], passos: [], shot: null };
+  const saida = { url, mic: micAbs, console: [], excecoes: [], passos: [], shot: null };
 
   try {
     await esperarDevTools(porta);

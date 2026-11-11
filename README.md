@@ -18,13 +18,18 @@ Gemini Live. Ele não tem chave: **cada visitante informa a sua própria**.
 ```bash
 npm ci
 npm run dev      # http://localhost:8080  (modelador) e /viewer.html
-npm test         # 294 assertions, sem rede e sem credencial
+npm test         # 300 assertions, sem rede e sem credencial
 npm run build    # bundles em dist/
 
 # Dirigir a pagina num navegador de verdade, sem ninguem olhando (headless + CDP):
 node tools/drive-page.mjs http://127.0.0.1:8080/ --passo "return document.title" --shot artifacts/ui/a.png
-node tools/drive-assistant.mjs    # prova a conversa por voz inteira: WebSocket dublado,
-                                  # microfone sintetico do Chromium, meia-duplex, diagnostico
+# Voz de verdade em teste automatizado (tecnica trazida do CopilotSpeaker): SAPI pt-BR gera o
+# WAV, e o Chromium o usa COMO microfone - o caminho inteiro roda, so a fonte e sintetica.
+powershell -ExecutionPolicy Bypass -File tools/make-voice-fixtures.ps1
+node tools/drive-assistant.mjs --mic artifacts/voz/gateway.wav
+
+# Ler a aba que JA esta aberta no navegador (so leitura; exige --remote-debugging-port=9222)
+node tools/attach-edge.mjs
 ```
 
 ## ⚠ Para quem vai publicar — leia antes
@@ -64,6 +69,8 @@ src/batchsim/**       motor de simulação em lote  (testes em __tests__/)
 src/assistant/**      ajudante BPMN: live/ (protocolo Gemini), ui/, sessão, credencial,
                       diagnostics.js (diário da sessão, base do botão "Copiar diagnóstico")
 tools/drive-*.mjs     drive de página headless: clica, lê o DOM, tira print, sem dependência
+tools/attach-edge.mjs leitura da aba já aberta no navegador do dono (CDP, só leitura)
+tools/make-voice-fixtures.ps1  WAVs pt-BR (SAPI) usados COMO microfone nos testes
 spike/**              harness de prova do transporte, dev-only — NÃO entra no bundle
 openspec/**           a change que originou o ajudante: proposta, design, specs, evidências
 deploy/**             runbook e configuração de publicação

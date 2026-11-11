@@ -18,8 +18,18 @@ class BpmnPlayback extends AudioWorkletProcessor {
     this.ring = new Float32Array(this.srcRate * 8);   // ~8 s: teto, não fila infinita
     this.w = 0; this.r = 0; this.size = 0; this.pos = 0;
     this.written = 0; this.consumed = 0;
-    this.primeSamples = Math.round(((po.primeMs ?? 120) * this.srcRate) / 1000);
+    // ⚠ DOIS limiares, não um. O de PARTIDA (`primeMs`) é quanto esperar antes da primeira
+    // amostra; o de RECUPERAÇÃO (`rePrimeMs`) é quanto esperar depois de um furo no meio da fala.
+    //
+    // Com um só, a fala TRAVAVA (relato do dono, 2026-11-11: "para de falar durante um período,
+    // um segundo, ou um pouco mais"): qualquer furo zerava `primed` e exigia encher os 120 ms do
+    // começo de novo — e como o servidor manda em rajada, isso vira um buraco audível por furo.
+    // Partida mais folgada (240 ms) deixa a rajada chegar antes de começar; recuperação mais
+    // curta (120 ms) devolve a voz rápido quando o furo acontece.
+    this.primeSamples = Math.round(((po.primeMs ?? 240) * this.srcRate) / 1000);
+    this.rePrimeSamples = Math.round(((po.rePrimeMs ?? (po.primeMs ?? 240) / 2) * this.srcRate) / 1000);
     this.primed = false;
+    this.recuperando = false;      // o furo já aconteceu: usar o limiar curto
     this.underflows = 0;
     this.overflowDropped = 0;
     this.marks = [];
@@ -32,6 +42,7 @@ class BpmnPlayback extends AudioWorkletProcessor {
       else if (d.type === 'flush') {
         // Cancelamento: o que já estava no ar não pode sair depois da interrupção.
         this.size = 0; this.r = this.w; this.pos = 0; this.primed = false;
+        this.recuperando = false;     // interrupção é começo novo, não furo
         this.consumed = this.written; this.marks = [];
       } else if (d.type === 'stats') {
         this.port.postMessage({
@@ -40,6 +51,7 @@ class BpmnPlayback extends AudioWorkletProcessor {
           underflows: this.underflows,
           overflowDropped: this.overflowDropped,
           primed: this.primed,
+          recuperando: this.recuperando,
         });
       }
     };
@@ -63,7 +75,8 @@ class BpmnPlayback extends AudioWorkletProcessor {
     if (!out) return true;
 
     if (!this.primed) {
-      if (this.size >= this.primeSamples) this.primed = true;
+      const alvo = this.recuperando ? this.rePrimeSamples : this.primeSamples;
+      if (this.size >= alvo) { this.primed = true; this.recuperando = false; }
       else { out.fill(0); return true; }
     }
 
@@ -72,7 +85,8 @@ class BpmnPlayback extends AudioWorkletProcessor {
       if (this.size < 2) {
         for (let j = i; j < out.length; j++) out[j] = 0;
         this.underflows++;
-        this.primed = false;   // volta a esperar o buffer de partida
+        this.primed = false;
+        this.recuperando = true;   // volta a esperar, mas o limiar CURTO
         break;
       }
       const a = this.ring[this.r];

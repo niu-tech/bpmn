@@ -203,11 +203,21 @@
 
 /* ---------------------------------------------------------------- composer */
 
+/* Rodape FIXO: o que se usa a cada turno nao pode rolar junto com a conversa. */
+.bpmn-assist__footer {
+  flex: none;
+  border-top: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.bpmn-assist__footer .bpmn-assist__row--talk {
+  margin: 0;
+  padding: 8px 14px 0;
+}
+
 .bpmn-assist__composer {
   display: flex; gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid rgba(15, 23, 42, 0.10);
-  background: rgba(248, 250, 252, 0.9);
 }
 .bpmn-assist__composer textarea { resize: none; height: 38px; }
 
@@ -310,7 +320,8 @@
   .bpmn-assist__bar { transition: transform 70ms linear; }
 }
 
-.bpmn-assist__miclabel { font-size: 11px; color: #64748b; }
+.bpmn-assist__miclabel,
+.bpmn-assist__copystate { font-size: 11px; color: #64748b; }
 
 /* ---------------------------------------------------------------- dica derivada
  *
