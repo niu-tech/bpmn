@@ -40,6 +40,10 @@ export function createSession({
   onAudio,
   onInterrupted,
   onLog,
+  // Diário da sessão: um evento por frame que entra e por frame que sai. É o que transforma
+  // "o modelo foi interrompido" numa sequência (`out.audio x12 -> ws.interrupted`) que diz a
+  // CAUSA. Opcional: sem ele a sessão funciona igual.
+  onEvent,
   // ⚠ Envoltórios, NUNCA as referências cruas. No navegador `setTimeout` é método de `window`:
   // guardá-lo num objeto e chamar `clock.setTimeout(...)` perde o `this` e o browser lança
   // `TypeError: Illegal invocation`. No node a mesma linha funciona — então o defeito é
@@ -65,6 +69,19 @@ export function createSession({
   let lastUsage = null;        // contagem de tokens do último turno (custo é a cota do aluno)
 
   const log = (...parts) => onLog?.(parts.map((p) => redact(p)).join(' '));
+  const ev = (src, kind, detail) => { try { onEvent?.(src, kind, detail); } catch { /* diário nunca derruba a sessão */ } };
+
+  /** Nome curto do frame que sai, para o diário. Não serializa conteúdo — só a forma. */
+  function nomeDoEnvio(frame) {
+    if (frame.setup) return 'setup';
+    if (frame.toolResponse) return 'tool-response';
+    const r = frame.realtimeInput;
+    if (r?.audio) return 'audio';
+    if (r?.audioStreamEnd) return 'audio-end';
+    if (r?.text !== undefined) return 'text';
+    if (frame.clientContent) return 'history';
+    return 'outro';
+  }
 
   function setState(next, why = null) {
     if (state === next && reason === why) return;
@@ -75,6 +92,7 @@ export function createSession({
 
   function fail(why, detail) {
     clearTimers();
+    ev('state', 'error', detail ? `${why}: ${detail}` : why);
     if (detail) log('falha:', detail);
     setState('error', why);
   }
@@ -90,9 +108,10 @@ export function createSession({
   }
 
   function send(frame) {
-    if (!ready) { pending.push(frame); return false; }
+    if (!ready) { pending.push(frame); ev('out', 'enfileirado', nomeDoEnvio(frame)); return false; }
     try {
       ws.send(JSON.stringify(frame));
+      ev('out', nomeDoEnvio(frame));
       return true;
     } catch (err) {
       fail('ws-closed:send', err);
@@ -138,6 +157,12 @@ export function createSession({
 
   function handleFrame(raw) {
     const frame = parseServerFrame(raw);
+
+    // `noop` é frame vazio por definição (20 de 64 numa sessão medida): registrá-lo empurraria
+    // para fora do anel justamente o que explica o defeito.
+    if (frame.kind !== 'noop') {
+      ev('ws', frame.kind, frame.kind === 'turn-complete' ? `idle=${frame.idle}` : undefined);
+    }
 
     switch (frame.kind) {
       case 'ready':
@@ -229,9 +254,11 @@ export function createSession({
 
   function wire() {
     ws.onopen = () => {
+      ev('ws', 'open');
       // O setup é o primeiro frame SEMPRE. `ready` só depois do setupComplete.
       try {
         ws.send(JSON.stringify(buildSetup(setupOptions)));
+        ev('out', 'setup', setupOptions.withDeliveryTool ? 'modo=texto' : 'modo=voz');
       } catch (err) {
         fail('ws-closed:setup', err);
       }
@@ -249,11 +276,13 @@ export function createSession({
     };
     ws.onerror = (event) => {
       // `event` carrega a URL com a chave. NUNCA sair daqui sem redact.
+      ev('ws', 'error', event?.message ?? 'sem detalhe');
       log('erro de socket:', event?.message ?? 'sem detalhe');
     };
     ws.onclose = (event) => {
       const code = event?.code ?? 0;
       const texto = String(event?.reason ?? '');
+      ev('ws', 'close', `code=${code} ${texto}`.trim());
       ready = false;
       clearTimers();
       if (closedByUs) { setState('idle'); return; }
@@ -342,7 +371,12 @@ export function createSession({
      */
     endAudio() {
       send(buildAudioStreamEnd());
-      setState('listening');
+      // ⚠ NÃO rebaixar o estado quando o modelo já está falando. O fim de fala agora também é
+      // enviado pelo fecho automático do microfone (meia-duplex), que acontece JUNTO com o
+      // primeiro quadro de áudio da resposta: forçar `listening` ali fazia o selo piscar
+      // "ouvindo" no exato momento em que o ajudante respondia — e derrubava a guarda que
+      // descarta quadro de microfone enquanto o modelo fala.
+      if (state !== 'speaking') setState('listening');
     },
 
     /** Encerramento explícito: sem isto a cota do aluno continua correndo. */

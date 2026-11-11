@@ -19,6 +19,7 @@
 import { startCapture, startPlayback } from './live/audio.js';
 import { createSession } from './live/session.js';
 import { redact } from './live/redact.js';
+import { createDiagnostics } from './diagnostics.js';
 
 export const MODES = /** @type {const} */ (['texto', 'voz']);
 
@@ -63,15 +64,23 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let state = 'idle';
   let reason = null;
   let micOn = false;
+  let level = 0;
+  /** Abrir o microfone sozinho assim que a sessão de voz ficar pronta. Ver `connect`. */
+  let micAutomatico = false;
+  /** Abertura de microfone em voo: o automático e o clique do aluno compartilham a mesma. */
+  let micEmVoo = null;
   let turnSeq = 0;
   let currentTurn = null;
   let teardownInFlight = null;
+
+  /** Diário da sessão. Um relatório = uma conexão: `connect()` zera. */
+  const diag = deps.diagnostics ?? createDiagnostics();
 
   /** Histórico SÓ em memória. Morre com a aba — como a chave. */
   const messages = [];
 
   const publish = () => onUpdate?.({
-    state, reason, mode, micOn,
+    state, reason, mode, micOn, level,
     busy: state === 'connecting' || state === 'closing',
     canAsk: (state === 'ready' || state === 'listening' || state === 'speaking'),
     messages: messages.slice(),
@@ -104,8 +113,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     const sessionRef = session;
     const micRef = mic;
     const speakerRef = speaker;
-    session = null; mic = null; speaker = null;
-    micOn = false; currentTurn = null;
+    session = null; mic = null; speaker = null; speakerEmVoo = null;
+    micOn = false; level = 0; currentTurn = null;
 
     teardownInFlight = (async () => {
       // Ordem: microfone primeiro (apaga o indicador do navegador na hora), depois som, depois fio.
@@ -117,15 +126,43 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     return teardownInFlight;
   }
 
-  async function ensureSpeaker() {
-    if (speaker) return speaker;
-    speaker = await playbackFactory({
-      onStats: (s) => { lastStats = s; },
-    });
-    return speaker;
+  /**
+   * Fecha o microfone e avisa o fim da fala. Interno porque DOIS caminhos precisam dele: o botão
+   * do aluno e o fecho automático de quando o modelo começa a responder (ver `onAudio`).
+   */
+  async function fecharMicrofone(motivo) {
+    if (!mic) return false;
+    const ref = mic;
+    mic = null;
+    micOn = false;
+    level = 0;
+    diag.mic('close', motivo);
+    try { await ref.stop(); } catch { /* já parado */ }
+    session?.endAudio();
+    publish();
+    return true;
+  }
+
+  /**
+   * UM reprodutor, mesmo com dois pedidos ao mesmo tempo.
+   *
+   * ⚠ Sem a promessa compartilhada, duas chamadas concorrentes passam as duas pelo `if (speaker)`
+   * (que ainda e nulo) e abrem DOIS `AudioContext` de 24 kHz — o aluno ouve a resposta dobrada e
+   * so um deles e fechado no teardown. Virou possivel no mesmo dia em que o microfone passou a
+   * abrir sozinho no modo voz: o automatico e o clique do aluno disputam este trecho.
+   */
+  function ensureSpeaker() {
+    if (speaker) return Promise.resolve(speaker);
+    if (!speakerEmVoo) {
+      speakerEmVoo = Promise.resolve(playbackFactory({ onStats: (s) => { lastStats = s; } }))
+        .then((s) => { speaker = s; speakerEmVoo = null; return s; })
+        .catch((err) => { speakerEmVoo = null; throw err; });
+    }
+    return speakerEmVoo;
   }
 
   let lastStats = null;
+  let speakerEmVoo = null;
 
   function openSession(targetMode) {
     const apiKey = credentials.use();
@@ -135,6 +172,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
         setState(s, r);
+        // Pedido do dono (2026-11-11): "clicar em voz já poderia aparecer a parada de voz" — ou
+        // seja, escolher voz é começar a falar, não desbloquear mais um botão. Consome a marca
+        // UMA vez: `ready` também volta no fim de cada turno, e reabrir o microfone sozinho a
+        // cada resposta seria um microfone que o aluno não mandou abrir.
+        if (s === 'ready' && micAutomatico) {
+          micAutomatico = false;
+          api.startMic();
+        }
         if (s !== 'error') return;
         note(`não deu: ${describeError(r)}`, 'error');
         // Chave recusada tem conserto, e o conserto é do aluno: dizer o que fazer vale mais que
@@ -143,6 +188,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           note('confira a chave em aistudio.google.com e informe de novo em "Usar esta chave".', 'error');
         }
       },
+      onEvent: (src, kind, detail) => diag.record(src, kind, detail),
       onLog: (m) => { if (deps.debug) note(m, 'debug'); },
       onText: ({ text, fallback, complete }) => {
         if (complete && fallback) return;             // a legenda já foi aparecendo
@@ -170,6 +216,19 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
       },
       onAudio: async (b64) => {
+        // ⚠ MEIA-DUPLEX POR DESENHO. O modelo começou a responder: o microfone fecha.
+        //
+        // Medido como sintoma em 2026-11-11 (dono, na URL pública): apertar "Falar", falar, e a
+        // única coisa que aparecia era "o modelo foi interrompido". Com o microfone aberto
+        // durante a resposta, o VAD do servidor ouve a própria resposta vazando pelo microfone
+        // (ou a respiração de quem espera) e CORTA o modelo — e o ciclo se repete, de modo que
+        // nenhuma resposta chega ao fim. O mesmo padrão já tinha mordido a MAIA ("corte de fala
+        // = mic cru no VAD do Gemini").
+        //
+        // Fechar o microfone aqui resolve na origem e não depende de o aluno lembrar de soltar o
+        // botão. Barge-in (interromper falando por cima) fica FORA do MVP de propósito: exige
+        // cancelamento de eco de verdade, não um palpite.
+        if (mic) fecharMicrofone('modelo comecou a responder');
         try {
           const out = await ensureSpeaker();
           out.push(b64, ++audioSeq);
@@ -178,8 +237,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
       },
       onInterrupted: () => {
+        // Interrupção é EVENTO DE PROTOCOLO, não recado para o aluno: descarta o que estava na
+        // fila e segue. Antes disto virava uma frase no meio da conversa que não dizia nem quando
+        // nem por quê — o diário diz as duas coisas.
         speaker?.flush();
-        note('o modelo foi interrompido', 'info');
       },
     });
     session.start();
@@ -187,7 +248,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
   let audioSeq = 0;
 
-  return {
+  const api = {
     get state() { return state; },
     get reason() { return reason; },
     get mode() { return mode; },
@@ -196,13 +257,45 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     get stats() { return lastStats; },
     /** Só para teste e diagnóstico: a contagem de tokens que o servidor reportou. */
     get lastUsage() { return session?.lastUsage ?? null; },
+    get level() { return level; },
+    get diagnostics() { return diag; },
 
-    /** Conecta no modo pedido. Recusa sem chave ou sem consentimento — fail closed. */
+    /**
+     * Relatório para COLAR em quem for depurar. Redigido pelo próprio diário — a chave não sai.
+     * Também exposto em `window.__bpmnAssist.report()` pelo `mount.js`.
+     */
+    report() {
+      return diag.report({
+        header: {
+          modo: mode,
+          estado: state + (reason ? `:${reason}` : ''),
+          turnos: String(turnSeq),
+          mensagens: String(messages.length),
+          uso: session?.lastUsage ? JSON.stringify(session.lastUsage) : '(sem contagem)',
+          som: lastStats ? JSON.stringify(lastStats) : '(sem reproducao)',
+        },
+      });
+    },
+
+    /**
+     * Conecta no modo pedido. Recusa sem chave ou sem consentimento — fail closed.
+     *
+     * ⚠ A recusa NÃO vira mensagem na conversa. Virava, e o recado ficava preso para sempre:
+     * o dono marcou o aviso logo depois, conectou, e o painel continuou mostrando em vermelho
+     * "aceite o aviso sobre a chave antes de conectar" ao lado de "Conectado" (2026-11-11).
+     * O que falta é estado DERIVADO de `credentials` — a UI calcula e mostra, e some sozinho
+     * quando deixa de faltar.
+     */
     async connect(targetMode = mode) {
       if (!MODES.includes(targetMode)) throw new Error(`modo inválido: ${targetMode}`);
-      if (!credentials.hasKey) { note('informe a sua chave do Google AI Studio para começar.', 'error'); return false; }
-      if (!credentials.consented) { note('aceite o aviso sobre a chave antes de conectar.', 'error'); return false; }
+      if (!credentials.ready) {
+        diag.state('recusado', credentials.hasKey ? 'sem consentimento' : 'sem chave');
+        return false;
+      }
 
+      diag.reset();
+      diag.state('connect', `modo=${targetMode}`);
+      micAutomatico = targetMode === 'voz';
       await teardown();
       mode = targetMode;
       setState('connecting');
@@ -215,10 +308,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * O histórico na tela fica; o do modelo não — e isso é dito, não escondido.
      */
     async switchMode(targetMode) {
-      if (targetMode === mode && state !== 'idle' && state !== 'error') return false;
-      const estavaVivo = state !== 'idle';
+      if (!MODES.includes(targetMode)) throw new Error(`modo inválido: ${targetMode}`);
+      // Desligado, trocar de modo é só escolher: não gasta conexão nem cota, e deixa o aluno
+      // decidir antes de informar a chave.
+      if (state === 'idle' || state === 'error') {
+        if (mode === targetMode) return false;
+        mode = targetMode;
+        publish();
+        return true;
+      }
+      if (targetMode === mode) return false;
+      // O aviso de contexto perdido só vale se houve contexto. Trocar para voz logo depois de
+      // conectar não perde nada, e o aviso ali só confundia quem acabou de abrir o painel.
+      const haviaContexto = turnSeq > 0;
       const ok = await this.connect(targetMode);
-      if (ok && estavaVivo) {
+      if (ok && haviaContexto) {
         note(
           `modo ${targetMode}: sessão nova. O que já foi dito continua aqui na tela, mas o modelo recomeça sem esse contexto.`,
           'context-reset',
@@ -242,17 +346,32 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       return true;
     },
 
-    /** Abre o microfone. Só no modo voz, e só a partir de um gesto do aluno. */
+    /**
+     * Abre o microfone. Só no modo voz, e só a partir de um gesto do aluno — ou do automático de
+     * `connect('voz')`. Os dois podem chegar juntos, daí a promessa compartilhada.
+     */
     async startMic() {
       if (mode !== 'voz') { note('o microfone só funciona no modo voz.', 'error'); return false; }
       if (!session) { note('conecte antes de falar.', 'error'); return false; }
       if (mic) return true;
+      if (micEmVoo) return micEmVoo;
+      micEmVoo = (async () => {
       try {
         await (await ensureSpeaker()).resume();   // o mesmo gesto libera o alto-falante
         turnSeq++;
         currentTurn = null;
+        diag.mic('open');
         mic = await capture({
-          onFrame: (b64) => session?.pushAudio(b64),
+          onFrame: (b64) => {
+            // Rede de segurança do meia-duplex: se um quadro escapar enquanto o modelo fala, ele
+            // morre AQUI em vez de virar uma interrupção no servidor.
+            if (state === 'speaking') { diag.mic('gated'); return; }
+            session?.pushAudio(b64);
+          },
+          onLevel: (v) => {
+            level = v;
+            publish();
+          },
           onError: (err) => note(`microfone: ${err?.message ?? err}`, 'error'),
         });
         micOn = true;
@@ -260,11 +379,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         return true;
       } catch (err) {
         micOn = false;
+        level = 0;
+        diag.mic('falhou', err?.reason ?? err?.message);
         const motivo = err?.reason ?? 'unknown';
         setState('error', motivo);
         note(`microfone: ${describeError(motivo) ?? motivo}`, 'error');
         return false;
       }
+      })().finally(() => { micEmVoo = null; });
+      return micEmVoo;
     },
 
     /**
@@ -272,14 +395,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * nada — medido em 2026-11-10.
      */
     async stopMic() {
-      if (!mic) return false;
-      const ref = mic;
-      mic = null;
-      micOn = false;
-      try { await ref.stop(); } catch { /* já parado */ }
-      session?.endAudio();
-      publish();
-      return true;
+      return fecharMicrofone('aluno parou de falar');
     },
 
     /** Encerramento completo e idempotente. */
@@ -297,4 +413,6 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       note('chave removida desta aba.', 'info');
     },
   };
+
+  return api;
 }

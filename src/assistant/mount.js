@@ -64,6 +64,7 @@ export function mountAssistant({ container = document.body, debug = false } = {}
     reason: session.reason,
     mode: session.mode,
     micOn: session.micOn,
+    level: session.level,
     busy: session.state === 'connecting' || session.state === 'closing',
     canAsk: ['ready', 'listening', 'speaking'].includes(session.state),
     messages: session.messages,
@@ -74,6 +75,17 @@ export function mountAssistant({ container = document.body, debug = false } = {}
   widget.render(view());
 
   const pararDeMedir = reservarRodape(widget.root);
+
+  // Depuração pelo console, sem precisar abrir o painel: `__bpmnAssist.report()` devolve o mesmo
+  // texto redigido do botão "Copiar". Pedido do dono (2026-11-11): "precisamos ter uma forma de
+  // estruturar a saída e os logs de uma forma que a gente consiga ir debugando".
+  // Só leitura e diagnóstico — a chave não é exposta aqui (o store não tem getter de valor).
+  window.__bpmnAssist = {
+    report: () => session.report(),
+    get estado() { return { modo: session.mode, estado: session.state, micOn: session.micOn, nivel: session.level }; },
+    get eventos() { return session.diagnostics.events; },
+    get contagem() { return session.diagnostics.counts; },
+  };
 
   // Sair da página sem isto deixa o microfone aberto e a sessão consumindo cota. `pagehide`
   // cobre o caso que `beforeunload` não cobre em iOS/Safari (bfcache).
@@ -88,6 +100,8 @@ export function mountAssistant({ container = document.body, debug = false } = {}
     /** Desmonta de verdade: encerra a sessão, tira os listeners e libera a marca. */
     async destroy() {
       pararDeMedir();
+      widget.dispose?.();
+      if (window.__bpmnAssist) delete window.__bpmnAssist;
       window.removeEventListener('beforeunload', bye);
       window.removeEventListener('pagehide', bye);
       await session.stop();

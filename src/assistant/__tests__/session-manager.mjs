@@ -81,13 +81,16 @@ function montar() {
 console.log('\n▶ fail closed');
 
 await (async () => {
-  test('sem chave nao conecta, e diz por que', async () => {
+  test('sem chave nao conecta, e NAO deixa recado preso', async () => {
     const credentials = createCredentialStore();
     const live = fakeLive();
     const s = createAssistantSession({ credentials, deps: { createSession: live.factory } });
     assert.equal(await s.connect('texto'), false);
     assert.equal(live.criadas.length, 0, 'nenhum socket pode ser aberto');
-    assert.match(s.messages.at(-1).text, /chave/i);
+    // A recusa e DERIVADA na UI (a dica), nao uma mensagem guardada: mensagem guardada nao some
+    // quando o aluno resolve o que faltava. Incidente 2026-11-11.
+    assert.equal(s.messages.length, 0, 'recusa nao vira mensagem na conversa');
+    assert.equal(s.diagnostics.count('state.recusado'), 1, 'mas fica registrada no diario');
   });
 
   test('com chave mas SEM consentimento tambem nao conecta', async () => {
@@ -97,7 +100,39 @@ await (async () => {
     const s = createAssistantSession({ credentials, deps: { createSession: live.factory } });
     assert.equal(await s.connect('texto'), false);
     assert.equal(live.criadas.length, 0);
-    assert.match(s.messages.at(-1).text, /aviso/i);
+    assert.equal(s.messages.length, 0);
+    forgetSecrets();
+  });
+
+  test('REGRESSAO: aceitar o aviso depois da recusa conecta e nao sobra erro antigo', async () => {
+    // O que o dono viu na URL publica: marcou o aviso, conectou, e o painel seguia mostrando em
+    // vermelho "aceite o aviso sobre a chave antes de conectar" ao lado de "Conectado".
+    const credentials = createCredentialStore();
+    credentials.set(CHAVE);
+    const live = fakeLive();
+    const s = createAssistantSession({ credentials, deps: { createSession: live.factory } });
+
+    assert.equal(await s.connect('texto'), false);
+    credentials.setConsent(true);
+    assert.equal(await s.connect('texto'), true);
+
+    assert.equal(live.criadas.length, 1);
+    assert.equal(
+      s.messages.filter((m) => m.kind === 'error').length,
+      0,
+      'nenhum erro pode sobreviver ao conserto do que faltava',
+    );
+    forgetSecrets();
+  });
+
+  test('trocar de modo SEM nada dito nao avisa nada', async () => {
+    // Escolher voz logo depois de conectar nao perde contexto nenhum: o aviso ali so confunde
+    // quem acabou de abrir o painel (visto no drive de UI, 2026-11-11).
+    const { session, live } = montar();
+    await session.connect('texto');
+    live.ultima.pronta();
+    await session.switchMode('voz');
+    assert.equal(session.messages.filter((m) => m.kind === 'context-reset').length, 0);
     forgetSecrets();
   });
 
@@ -166,6 +201,7 @@ await (async () => {
     const { session, live } = montar();
     await session.connect('texto');
     live.ultima.pronta();
+    session.ask('o que e um gateway?');            // agora existe contexto a perder
     await session.switchMode('voz');
     const aviso = session.messages.find((m) => m.kind === 'context-reset');
     assert.ok(aviso, 'afirmar continuidade sem reconstruir contexto seria mentira');

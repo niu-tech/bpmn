@@ -18,8 +18,13 @@ Gemini Live. Ele não tem chave: **cada visitante informa a sua própria**.
 ```bash
 npm ci
 npm run dev      # http://localhost:8080  (modelador) e /viewer.html
-npm test         # 279 assertions, sem rede e sem credencial
+npm test         # 294 assertions, sem rede e sem credencial
 npm run build    # bundles em dist/
+
+# Dirigir a pagina num navegador de verdade, sem ninguem olhando (headless + CDP):
+node tools/drive-page.mjs http://127.0.0.1:8080/ --passo "return document.title" --shot artifacts/ui/a.png
+node tools/drive-assistant.mjs    # prova a conversa por voz inteira: WebSocket dublado,
+                                  # microfone sintetico do Chromium, meia-duplex, diagnostico
 ```
 
 ## ⚠ Para quem vai publicar — leia antes
@@ -56,7 +61,9 @@ npm run build    # bundles em dist/
 src/app.js            modelador
 src/viewer.js         viewer + simulação
 src/batchsim/**       motor de simulação em lote  (testes em __tests__/)
-src/assistant/**      ajudante BPMN: live/ (protocolo Gemini), ui/, sessão, credencial
+src/assistant/**      ajudante BPMN: live/ (protocolo Gemini), ui/, sessão, credencial,
+                      diagnostics.js (diário da sessão, base do botão "Copiar diagnóstico")
+tools/drive-*.mjs     drive de página headless: clica, lê o DOM, tira print, sem dependência
 spike/**              harness de prova do transporte, dev-only — NÃO entra no bundle
 openspec/**           a change que originou o ajudante: proposta, design, specs, evidências
 deploy/**             runbook e configuração de publicação

@@ -129,6 +129,38 @@
 - [x] 3.12 Checklist GO/NO-GO e roteiro da primeira publicação: `release-checklist.md`
 - [ ] 3.5 Publicar (gate do dono) e conferir o site no endereço real
 
+## 4. P4 — A conversa no ar (primeiro uso real do dono, 2026-11-11)
+
+- [x] 4.1 **Defeito: a voz nunca respondia.** Apertar "Falar" e falar produzia só "o modelo foi
+      interrompido". Causa: microfone aberto DURANTE a resposta — o VAD do servidor ouve a
+      própria resposta (ou a respiração de quem espera) e corta o modelo, em ciclo. Agora é
+      **meia-duplex por desenho**: o primeiro quadro de áudio da resposta fecha o microfone e
+      manda `audioStreamEnd`; quadro atrasado morre no cliente (`mic.gated`). Barge-in fica fora
+      do MVP de propósito — exige cancelamento de eco de verdade
+- [x] 4.2 **Defeito: recado preso.** "aceite o aviso sobre a chave antes de conectar" ficava em
+      vermelho na conversa mesmo depois do aviso aceito e da sessão conectada. A recusa deixou de
+      virar mensagem: o que falta é **derivado** de `credentials` a cada render
+- [x] 4.3 **Interrupção deixou de ser recado.** É evento de protocolo: descarta a fila de áudio e
+      entra no diário, com relógio e contagem
+- [x] 4.4 **UI: de 8 botões para 5.** Um único botão de ação ("Começar" guarda a chave E conecta;
+      vira "Encerrar"), bloco da chave encolhe para uma linha depois de resolvido, aviso longo em
+      `<details>`, campo de pergunta some quando não dá para perguntar
+- [x] 4.5 **Escolher voz é começar a falar**: o microfone abre sozinho ao entrar no modo voz, uma
+      vez por conexão (não reabre a cada turno)
+- [x] 4.6 **Indicador de escuta**: medidor de 9 barras alimentado pelo MESMO PCM que sai para o
+      Gemini — barra parada com microfone aberto significa que nada está chegando lá
+- [x] 4.7 **Diário da sessão** (`diagnostics.js`): anel limitado, agrupamento de repetição,
+      tudo redigido. Botão "Copiar diagnóstico" no painel e `window.__bpmnAssist.report()` no
+      console
+- [x] 4.8 **Drive de página** (`tools/drive-page.mjs`, `tools/drive-assistant.mjs`): dirige o
+      site num Chromium headless por CDP, sem nenhuma dependência nova. O segundo prova a
+      conversa de voz inteira com `WebSocket` dublado e microfone sintético do navegador — é como
+      os defeitos acima foram verificados sem gastar chave nem pedir ao dono que olhasse
+- [x] 4.9 **Defeitos achados pelo próprio drive**: dois `AudioContext` de reprodução abertos
+      quando o microfone automático e o clique do aluno corriam juntos (resposta dobrada), e
+      `endAudio` rebaixando o estado para "ouvindo" no instante em que o modelo respondia
+- [ ] 4.10 **Conversa real pelo widget** — ainda pendente: exige a chave do dono na URL pública
+
 ## Futuro — fora do MVP
 
 - [ ] F.1 RAG sobre a norma BPMN

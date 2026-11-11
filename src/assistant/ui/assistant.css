@@ -143,6 +143,10 @@
   margin: 0 0 10px;
 }
 .bpmn-assist__privacy strong { color: #92400e; }
+.bpmn-assist__privacy summary { cursor: pointer; }
+.bpmn-assist__privacy p { margin: 8px 0 0; }
+
+.bpmn-assist__composer[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- ações */
 
@@ -163,7 +167,7 @@
   background: #1f6feb; border-color: #1f6feb; color: #fff;
 }
 .bpmn-assist button.bpmn-assist__btn--primary:hover:not(:disabled) { background: #1a60cf; }
-.bpmn-assist button.bpmn-assist__btn[aria-pressed="true"] {
+.bpmn-assist button.bpmn-assist__seg[aria-pressed="true"] {
   background: #0f172a; border-color: #0f172a; color: #fff;
 }
 
@@ -233,4 +237,106 @@
   position: absolute; width: 1px; height: 1px;
   padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------------------------------------------------------------- chave compacta
+ *
+ * Resolvido para de ocupar tela: o bloco inteiro da chave vira uma linha assim que chave e aviso
+ * estao prontos (redesenho 2026-11-11). */
+
+.bpmn-assist__compact {
+  font-size: 11.5px; color: #64748b;
+  margin: 0 0 8px;
+}
+.bpmn-assist__compact[hidden], .bpmn-assist__setup[hidden] { display: none; }
+
+.bpmn-assist button.bpmn-assist__link {
+  border: 0; background: none; padding: 0;
+  font: inherit; font-size: 11.5px;
+  color: #1f6feb; text-decoration: underline; cursor: pointer;
+}
+.bpmn-assist button.bpmn-assist__link:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------------------------------------------------------------- modo (segmentado) */
+
+.bpmn-assist__segs {
+  display: inline-flex;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+  flex: none;
+}
+.bpmn-assist button.bpmn-assist__seg {
+  padding: 7px 14px;
+  border: 0;
+  border-right: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.bpmn-assist button.bpmn-assist__seg:last-child { border-right: 0; }
+.bpmn-assist button.bpmn-assist__seg:hover:not(:disabled) { background: #f1f5f9; }
+.bpmn-assist button.bpmn-assist__seg:focus-visible { outline: 2px solid #1f6feb; outline-offset: -2px; }
+.bpmn-assist button.bpmn-assist__seg:disabled { opacity: .5; cursor: not-allowed; }
+
+.bpmn-assist__row { align-items: center; }
+.bpmn-assist__row--talk[hidden] { display: none; }
+
+/* ---------------------------------------------------------------- falar + medidor
+ *
+ * O medidor nao e enfeite: ele e alimentado pelo MESMO PCM que sai para o Gemini. Barra parada
+ * com microfone aberto significa que nada esta chegando la — o dono via "ouvindo" e nao tinha
+ * como saber (2026-11-11). */
+
+.bpmn-assist button.bpmn-assist__btn--talk { min-width: 86px; font-weight: 600; }
+.bpmn-assist button.bpmn-assist__btn--talking {
+  background: #b91c1c; border-color: #b91c1c; color: #fff;
+}
+.bpmn-assist button.bpmn-assist__btn--talking:hover:not(:disabled) { background: #991b1b; }
+
+.bpmn-assist__meter {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 26px; flex: none;
+}
+.bpmn-assist__bar {
+  display: block;
+  width: 3px; height: 22px;
+  border-radius: 2px;
+  background: #1f6feb;
+  transform: scaleY(0.08);
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bpmn-assist__bar { transition: transform 70ms linear; }
+}
+
+.bpmn-assist__miclabel { font-size: 11px; color: #64748b; }
+
+/* ---------------------------------------------------------------- dica derivada
+ *
+ * Calculada a cada render a partir de `credentials`; nunca guardada. Era um recado que ficava
+ * preso na conversa mesmo depois de resolvido. */
+
+.bpmn-assist__hint {
+  margin: 8px 0 0;
+  font-size: 12px; line-height: 1.45;
+  color: #92400e;
+  background: rgba(210, 153, 34, 0.12);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+.bpmn-assist__hint[hidden] { display: none; }
+
+/* ---------------------------------------------------------------- diagnostico */
+
+.bpmn-assist__diag { margin-top: 12px; border-top: 1px solid rgba(15, 23, 42, 0.10); padding-top: 8px; }
+.bpmn-assist__diag summary { font-size: 11.5px; color: #64748b; cursor: pointer; }
+.bpmn-assist__diagtext {
+  margin: 8px 0 0;
+  max-height: 180px; overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10.5px; line-height: 1.4;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  background: #0f172a; color: #e2e8f0;
+  border-radius: 8px; padding: 8px 10px;
 }

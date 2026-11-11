@@ -32,10 +32,29 @@ export function assertSecureContext(win = globalThis) {
 }
 
 /**
+ * Nível do quadro, 0..1, para o indicador de escuta.
+ *
+ * RMS, não pico: pico pisca com um estalo e fica pregado em 1; RMS acompanha a voz. A raiz no
+ * fim é o que faz a barra ter movimento visível na faixa em que a fala realmente vive — sem ela
+ * a conversa normal mal sai do chão da barra.
+ */
+export function nivelDoQuadro(pcm) {
+  if (!pcm?.length) return 0;
+  let soma = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    const v = pcm[i] / 32768;
+    soma += v * v;
+  }
+  return Math.min(1, Math.sqrt(Math.sqrt(soma / pcm.length)));
+}
+
+/**
  * Abre o microfone e chama `onFrame(base64, frames)` a cada 40 ms de PCM16 16 kHz.
+ * `onLevel(0..1)` acompanha cada quadro: é o que a UI usa para provar ao aluno que ESTÁ ouvindo
+ * — sem isso, microfone aberto e microfone mudo são a mesma tela.
  * Só chamar a partir de um handler de gesto do usuário.
  */
-export async function startCapture({ onFrame, onError } = {}) {
+export async function startCapture({ onFrame, onLevel, onError } = {}) {
   assertSecureContext();
 
   let stream = null;
@@ -75,7 +94,9 @@ export async function startCapture({ onFrame, onError } = {}) {
     node.port.onmessage = (e) => {
       if (e.data?.type !== 'pcm') return;
       try {
-        onFrame?.(pcm16ToBase64(new Int16Array(e.data.pcm)), e.data.frames);
+        const pcm = new Int16Array(e.data.pcm);
+        onLevel?.(nivelDoQuadro(pcm));
+        onFrame?.(pcm16ToBase64(pcm), e.data.frames);
       } catch (err) {
         onError?.(err);
       }

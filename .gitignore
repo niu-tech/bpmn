@@ -13,3 +13,7 @@ node_modules/
 # Bundles compilados. O Dockerfile rebuilda do zero (`npm run build -- --mode production`), entao
 # o dist/ versionado nao era usado por nada e sujava o diff a cada build.
 dist/
+
+# Provas geradas pelo drive de pagina (screenshots, relatorios). Reproduzir e um comando:
+# `node tools/drive-assistant.mjs`.
+artifacts/
