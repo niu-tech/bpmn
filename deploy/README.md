@@ -6,16 +6,25 @@ termina o TLS e faz `proxy_pass` para o container, que só fala HTTP.
 
 ```
 push / PR → Actions CI: npm test + valida compose + build da imagem + smoke test
-            + guarda de credencial nos arquivos servidos        (NÃO publica)
+            + guarda de credencial nos arquivos servidos   (NÃO publica em producao)
+
+push em main → job `pages`: extrai o site DA IMAGEM e publica a URL provisoria
+            → https://niu-tech.github.io/bpmn/            (nao toca a VPS)
 
 Run workflow + deploy:true → CI, e então, com o ambiente `production` aprovado:
             SSH na VPS → git fetch/checkout → docker-compose up -d --build
             → container nginx :80 → 127.0.0.1:8880 → nginx do host (TLS) → https://<dominio>
 ```
 
-> **Publicar é um ato explícito.** Push nunca publica. Até 2026-11-10 o deploy rodava em todo
-> push em `main`/`ImproveSimulation` — quem empurra um commit de trabalho não está pedindo um
-> deploy, e o primeiro push depois de versionar o workflow publicaria sem ninguém decidir.
+> **Publicar em PRODUÇÃO é um ato explícito.** Push nunca toca a VPS. Até 2026-11-10 o deploy
+> rodava em todo push em `main`/`ImproveSimulation` — quem empurra um commit de trabalho não está
+> pedindo um deploy, e o primeiro push depois de versionar o workflow publicaria sem ninguém
+> decidir.
+>
+> A **URL provisória do GitHub Pages** é outra coisa: ela atualiza a cada push em `main`, de
+> propósito, porque é uma prévia para o orientador e os alunos enquanto não existe domínio. Ela
+> sai da **mesma imagem** que vai para a VPS (o job extrai `/usr/share/nginx/html` do container),
+> então não há duas listas de "o que compõe o site" para divergirem.
 
 | Arquivo | Para quê |
 |---|---|
@@ -25,10 +34,15 @@ Run workflow + deploy:true → CI, e então, com o ambiente `production` aprovad
 | `.github/workflows/pipeline.yml` | CI (compose + build + smoke test) e CD (SSH na VPS) |
 | `deploy/host-vhost.conf` | vhost de referência para o nginx **do host** (aplicado à mão) |
 
-## Setup único
+## Handoff — o que falta para a produção (setup único)
 
-1. **DNS** — registro A do (sub)domínio → IP da VPS. Tem que ser um host próprio (ex.: `bpmn.seudominio.com`): as páginas
-   usam caminhos absolutos (`/bundle.js`, `/pizza-collaboration.bpmn`) e não funcionam sob `seudominio.com/bpmn/`.
+Estado em 2026-11-11: o código está homologado, o CI roda verde no repositório da organização e a
+imagem Docker foi construída e auditada. **Nenhum dos passos abaixo foi executado** — todos
+precisam de acesso que só o DevOps da niu-tech e o dono do domínio têm.
+
+1. **DNS** — registro A do domínio ou subdomínio → IP da VPS. Desde 2026-11-11 o site serve por
+   caminho relativo, então **um sufixo de caminho também funciona** (`exemplo.com/bpmn/`); um host
+   próprio (`bpmn.exemplo.com`) continua sendo o mais limpo.
 2. **GitHub** (Settings → Secrets and variables → Actions), mesmos nomes do `javis.docker`:
    - variables: `SSH_HOST`, `SSH_USER`, `SSH_PORT` (opcional, padrão 22)
    - secrets: `SSH_KEY`, `SSH_PASSPHRASE` (só se a chave tiver senha)
@@ -38,8 +52,11 @@ Run workflow + deploy:true → CI, e então, com o ambiente `production` aprovad
    acesso que a VPS tenha). Depois disso o workflow só faz `fetch`/`checkout` e não precisa de mais nada.
    Confira também se a `8880` está livre (`ss -tlnp | grep 8880`); se não, crie `~/github/bpmn/.env` com
    `BPMN_PORT=<livre>` e use a mesma porta no passo 5.
+3b. **Criar o ambiente `production`** (Settings → Environments → *New environment* →
+   `production`). **O job de deploy o exige** — sem ele a publicação não começa. Pôr *Required
+   reviewers* nele é opcional e serve para a publicação esperar aprovação.
 4. **Primeiro deploy** — Actions → *CI-CD Pipeline* → *Run workflow* → `deploy: true`.
-   **Push não publica**: em push e PR roda só o CI.
+   **Push não publica em produção**: em push e PR roda só o CI (e, em `main`, a prévia do Pages).
 5. **nginx do host** (uma vez, depois do primeiro deploy):
    ```bash
    sudo cp ~/github/bpmn/deploy/host-vhost.conf /etc/nginx/sites-available/bpmn   # edite server_name (e a porta, se mudou)

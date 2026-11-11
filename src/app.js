@@ -13,7 +13,7 @@ import { bindSimulation } from "./batchsim/simulation-integration.js";
 
 import { mountAssistant } from "./assistant/mount.js";
 
-const DEFAULT_DIAGRAM_URL = "/pizza-collaboration.bpmn";
+const DEFAULT_DIAGRAM_URL = "pizza-collaboration.bpmn";
 const LOCAL_STORAGE_KEY = "bpmn.autosave.xml";
 
 /* =====================================================

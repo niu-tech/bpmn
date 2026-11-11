@@ -11,7 +11,13 @@ name: CI-CD Pipeline
 # DEFAULT do repositorio. Hoje este arquivo existe so em `ImproveSimulation`. Enquanto nao estiver
 # tambem na default, o CI roda em push normalmente, mas NAO ha como disparar o deploy pela UI.
 #
-# Como publicar: Actions -> "CI-CD Pipeline" -> Run workflow -> `deploy: true`.
+# DOIS destinos, com regras DIFERENTES de proposito:
+#   - GitHub Pages (URL provisoria, `https://<org>.github.io/<repo>/`): publica a cada push em
+#     `main`. E o endereco para mandar ao orientador enquanto nao ha dominio. Nao toca a VPS.
+#   - VPS (producao, com dominio): SO por acionamento manual com `deploy: true`.
+# Push continua NAO publicando em producao. O que muda com Pages e que o push atualiza a previa.
+#
+# Como publicar em producao: Actions -> "CI-CD Pipeline" -> Run workflow -> `deploy: true`.
 # O job ainda exige o ambiente `production`, então, se o repositório tiver revisores configurados
 # nele (Settings -> Environments -> production -> Required reviewers), a publicação só sai depois
 # da aprovação. Sem revisores configurados, o `workflow_dispatch` com `deploy: true` já é o ato
@@ -86,6 +92,63 @@ jobs:
             exit 1
           fi
           echo "nenhuma credencial nos arquivos servidos"
+
+  pages:
+    name: Publish provisional URL (GitHub Pages)
+    runs-on: ubuntu-latest
+    needs: ci
+    # Previa publica para o orientador e os alunos enquanto nao existe dominio. So de `main`.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # O site publicado e EXTRAIDO DA IMAGEM que vai para a VPS, nao montado de novo aqui.
+      # Assim nao existem duas listas de "o que compoe o site" para divergirem: o Dockerfile e a
+      # unica. Se um arquivo falta na imagem, falta na previa tambem - e o smoke do CI acusa.
+      - name: Extract the site from the image
+        run: |
+          docker build -t bpmn:pages .
+          cid=$(docker create bpmn:pages)
+          docker cp "$cid:/usr/share/nginx/html" ./_site
+          docker rm "$cid"
+          ls -1 ./_site
+
+      # `enablement: true` LIGA o Pages pela API com o proprio token do job, sem ninguem abrir
+      # Settings. Em organizacao no plano Free o Pages exige repositorio PUBLICO: ai este passo
+      # falha nomeado, e o CI e o deploy da VPS seguem intactos (`continue-on-error` abaixo).
+      - name: Configure Pages
+        id: config
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        if: steps.config.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      - name: Deploy to Pages
+        id: deployment
+        if: steps.config.outcome == 'success'
+        uses: actions/deploy-pages@v4
+
+      - name: Say what happened
+        run: |
+          if [ "${{ steps.config.outcome }}" = "success" ]; then
+            echo "Pages publicado em: ${{ steps.deployment.outputs.page_url }}"
+          else
+            echo "::warning::Pages nao pode ser ligado neste repositorio. Em organizacao no plano Free o Pages exige repo publico; em Team/Enterprise, confira Settings -> Pages. A producao na VPS nao depende disto."
+          fi
 
   deploy:
     name: Deploy to Server (manual)

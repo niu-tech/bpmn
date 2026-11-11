@@ -30,18 +30,30 @@ virou GO e nasceu o item 24.
 | 17 | **Botão de deploy disponível** | **GO** | `main` do `niu-tech/bpmn` é a default e tem o workflow; *Run workflow* aparece na UI |
 | 18 | **Conversa real pelo widget** | **NO-GO** | exige a chave do aluno; nunca executado |
 | 19 | **Fala humana + barge-in** | **NO-GO** | exige alguém falando |
-| 20 | **Domínio e HTTPS** | **NO-GO** | `host-vhost.conf` tem placeholder; DNS e domínio são decisão do dono |
+| 20 | **Domínio e HTTPS** | **NO-GO para produção, contornado para a prévia** | `host-vhost.conf` tem placeholder; sem domínio, a URL provisória é o GitHub Pages (item 25) |
 | 21 | **Secrets/vars do Actions** | **NO-GO** | `SSH_HOST`, `SSH_USER`, `SSH_KEY` nunca configurados; não toquei |
 | 22 | **Ambiente `production`** | **NO-GO** | o ambiente **ainda não existe** no repo da org (*"There are no environments"*) e o job o exige — criar é obrigatório, pôr revisor é escolha |
 | 23 | **Repositório acessível ao DevOps** | **GO** | `niu-tech/bpmn` privado, 30 commits, CI verde (#2 52 s, #3 58 s), job de deploy nunca executado |
 | 24 | **Leitura da VPS no repo privado** | **NO-GO** | o passo remoto faz `git clone`; em repo privado isso falha sem *deploy key*. Nasceu da migração — não existia quando o repo era público |
+| 25 | **URL provisória (GitHub Pages)** | **GO condicional** | job `pages` publica a cada push em `main`, extraindo o site da própria imagem. Depende do plano da organização permitir Pages — ver abaixo |
+| 26 | **Site funciona sob prefixo de caminho** | **GO** | caminhos relativos; as duas páginas renderizam o diagrama servidas em `/bpmn/`, medido em navegador headless, e os worklets resolvem pelo `currentScript` |
 
 ## Impedimentos reais × sugestões futuras
 
-**Impedem a primeira publicação (20, 21, 22, 24):** sem domínio e DNS não há endereço; sem os
+**Impedem a publicação na VPS (20, 21, 22, 24):** sem domínio e DNS não há endereço; sem os
 secrets o passo de SSH falha; sem o ambiente `production` criado o job nem começa; sem deploy key
-o `git clone` do repo privado falha na VPS. Os quatro são atos do dono, não de código — e nenhum
-leva mais de alguns minutos.
+o `git clone` do repo privado falha na VPS. Os quatro são atos de configuração — do dono e do
+DevOps —, não de código, e nenhum leva mais de alguns minutos. Handoff: `deploy/README.md`.
+
+**Não impedem a URL provisória (25, 26):** o GitHub Pages dispensa domínio, DNS, VPS e secrets.
+O único condicionante é o plano da organização: em plano **Free** o Pages exige repositório
+**público**; em **Team/Enterprise** funciona com o repositório privado e o site sai público.
+O job liga o Pages sozinho (`actions/configure-pages` com `enablement: true`) e, se não puder,
+**avisa e não derruba nada** — CI e deploy seguem intactos.
+
+> ⚠ **Tornar o repositório público exige apagar antes o rastro do `.vs`** (seção final): o commit
+> `9ac6531` continua servido por SHA e carrega uma sessão de `copilot-chat`. Hoje o alcance é a
+> organização; num repositório público seria qualquer pessoa.
 
 **Impedem declarar o produto validado (18, 19):** o transporte foi provado no P1 por sonda, mas a
 conversa **pelo widget** e a **fala humana** nunca aconteceram. Publicar antes disso é publicar

@@ -12,8 +12,9 @@
       bundles, `spike/` e `openspec/` em 404, nenhuma credencial em nenhum caminho)
 - [x] 0.5 Runbook de rollback em `deploy/README.md`: o que caracteriza falha, volta por checkout
       do commit bom + rebuild, e a saída rápida pela imagem anterior já no host
-- [ ] 0.6 Decidir host/HTTPS e o (sub)domínio; registrar o valor real em `deploy/host-vhost.conf`
-      (**gate do dono**: envolve DNS, fora deste bloco)
+- [ ] 0.6 Decidir host/HTTPS e o domínio; registrar o valor real em `deploy/host-vhost.conf`
+      (**gate do dono**: envolve DNS). Deixou de ser bloqueio de endereço: a URL provisória do
+      Pages (0.11) não precisa de domínio, e o site passou a servir sob prefixo de caminho
 - [x] 0.7 **Workflow na branch default** — resolvido em 2026-11-11 pela migração: `main` do
       `niu-tech/bpmn` é a default e tem o `pipeline.yml`. O botão *Run workflow* existe
 - [x] 0.8 **Projeto na organização** — `niu-tech/bpmn` privado, `main` com tudo, 30 commits,
@@ -23,6 +24,12 @@
       GitHub segue servindo o commit antigo por SHA. Apagar `kaiosmacedo/bpmn` (público; seu topo
       é ancestral da `main` da org, nada exclusivo) e decidir sobre recriar o repo da org.
       `devInfomarcas/bpmn` responde *not found* — não verificado (**gate do dono**)
+- [x] 0.11 **URL provisória sem domínio** — site passou a usar caminhos **relativos** (4 linhas:
+      as duas `<script src>` e as duas `DEFAULT_DIAGRAM_URL`), provado em navegador headless
+      servido em `/bpmn/`: as duas páginas renderizam o diagrama e o ajudante monta. Job `pages`
+      no workflow publica a cada push em `main`, extraindo o site **da própria imagem** que vai
+      para a VPS, e liga o Pages sozinho (`enablement: true`). Falha nomeada e inofensiva se o
+      plano da organização não permitir
 - [ ] 0.10 **Ambiente `production` e leitura da VPS** — o ambiente não existe no repo da org e o
       job o exige; e o `git clone` do passo remoto precisa de *deploy key* agora que o repo é
       privado (**gate do dono**)

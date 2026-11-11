@@ -17,7 +17,7 @@ import { applyHeatmap, clearHeatmap } from './batchsim/heatmap.js';
 
 import { mountAssistant } from './assistant/mount.js';
 
-const DEFAULT_DIAGRAM_URL = '/pizza-collaboration.bpmn';
+const DEFAULT_DIAGRAM_URL = 'pizza-collaboration.bpmn';
 
 async function fetchDiagram(url) {
   const res = await fetch(url);

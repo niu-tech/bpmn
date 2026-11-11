@@ -30,9 +30,9 @@ npm run build    # bundles em dist/
    fica só na memória da aba dele e não é compartilhada entre visitantes. Se alguém pedir "a
    chave do Gemini do projeto", a resposta é que ela não existe — e não deve passar a existir.
    Os únicos segredos do pipeline são os de **acesso SSH à VPS** (ver runbook).
-3. **Precisa de um (sub)domínio próprio.** As páginas usam caminhos absolutos (`/bundle.js`,
-   `/pizza-collaboration.bpmn`) e **não** funcionam sob um sufixo de caminho
-   (`exemplo.com/bpmn/` não serve).
+3. **Funciona em qualquer caminho.** Desde 2026-11-11 as páginas referenciam os assets por
+   caminho **relativo**, então o site serve igual na raiz de um domínio (`exemplo.com/`) e sob um
+   sufixo (`exemplo.com/bpmn/`, `org.github.io/bpmn/`). Não exige subdomínio próprio.
 4. **Tudo em `diagrams/` fica público na URL**, inclusive `simulations/*.sim.json`.
 
 ### Qual arquivo é qual
@@ -72,10 +72,17 @@ físico** — isso exige alguém com a própria chave, e está no roteiro de
 Veredito de release item a item:
 [`release-checklist.md`](openspec/changes/add-bpmn-public-live-assistant-mvp/release-checklist.md).
 
-Onde vive: **`niu-tech/bpmn`**, privado, branch default `main`. O CI roda verde lá; o deploy nunca
-foi executado. Para publicar faltam quatro atos de configuração (domínio/DNS, secrets de SSH,
-criar o ambiente `production`, deploy key de leitura na VPS) — detalhe item a item no
-checklist acima.
+Onde vive: **`niu-tech/bpmn`**, privado, branch default `main`.
+
+Dois endereços, de propósitos diferentes:
+
+| Endereço | Como sai | Para quê |
+|---|---|---|
+| `https://niu-tech.github.io/bpmn/` | **a cada push em `main`** (job `pages`) | URL provisória: mandar para o orientador e os alunos enquanto não há domínio |
+| domínio próprio na VPS | só *Run workflow* com `deploy: true` | produção; configuração do DevOps |
+
+A prévia do Pages **não** toca a VPS, e o deploy de produção continua sendo ato explícito. O que
+falta para a produção está em [`deploy/README.md`](deploy/README.md) — é o handoff do DevOps.
 
 ## Origem
 
