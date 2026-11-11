@@ -1,0 +1,78 @@
+# bpmn — modelador, viewer com simulação e ajudante BPMN
+
+Front-end **estático**: não há backend nem banco. Tudo roda no navegador.
+
+| Página | O que é | Entry do webpack |
+|---|---|---|
+| `/` | Modelador bpmn-js (edição, autosave, token simulation) | `src/app.js` → `dist/bundle.js` |
+| `/viewer.html` | Visualização + simulação em lote com heatmap | `src/viewer.js` → `dist/viewer.js` |
+
+Sobre as duas, um **ajudante de BPMN** por voz e texto (`src/assistant/**`), ligado ao
+Gemini Live. Ele não tem chave: **cada visitante informa a sua própria**.
+
+## Rodar local
+
+```bash
+npm ci
+npm run dev      # http://localhost:8080  (modelador) e /viewer.html
+npm test         # 279 assertions, sem rede e sem credencial
+npm run build    # bundles em dist/
+```
+
+## ⚠ Para quem vai publicar — leia antes
+
+**O runbook é [`deploy/README.md`](deploy/README.md).** O essencial:
+
+1. **Push NÃO publica.** O CI roda em push e PR (teste, build da imagem, smoke, varredura de
+   credencial). Publicar é ato explícito: Actions → *CI-CD Pipeline* → *Run workflow* →
+   `deploy: true`, com o ambiente `production`.
+2. **Não existe segredo de aplicação para configurar.** O site é BYOK: a chave é do visitante,
+   fica só na memória da aba dele e não é compartilhada entre visitantes. Se alguém pedir "a
+   chave do Gemini do projeto", a resposta é que ela não existe — e não deve passar a existir.
+   Os únicos segredos do pipeline são os de **acesso SSH à VPS** (ver runbook).
+3. **Precisa de um (sub)domínio próprio.** As páginas usam caminhos absolutos (`/bundle.js`,
+   `/pizza-collaboration.bpmn`) e **não** funcionam sob um sufixo de caminho
+   (`exemplo.com/bpmn/` não serve).
+4. **Tudo em `diagrams/` fica público na URL**, inclusive `simulations/*.sim.json`.
+
+### Qual arquivo é qual
+
+| Arquivo | Para quê |
+|---|---|
+| `Dockerfile` | build do webpack (`--mode production`) + nginx servindo o resultado |
+| `docker-compose.yml` | **é este**: sobe o container em `127.0.0.1:${BPMN_PORT:-8880}` |
+| `deploy/nginx.conf` | nginx **dentro** do container |
+| `deploy/host-vhost.conf` | vhost de referência para o nginx **do host** (TLS); aplicado à mão |
+| `.github/workflows/pipeline.yml` | CI em push/PR; deploy só manual |
+| `docker-composer.yaml` | ⚠ **não é deste projeto** — sobe Camunda na 8080, nada o usa. Ignorar |
+| `compose.txt` | ⚠ idem, resquício |
+
+## Estrutura
+
+```
+src/app.js            modelador
+src/viewer.js         viewer + simulação
+src/batchsim/**       motor de simulação em lote  (testes em __tests__/)
+src/assistant/**      ajudante BPMN: live/ (protocolo Gemini), ui/, sessão, credencial
+spike/**              harness de prova do transporte, dev-only — NÃO entra no bundle
+openspec/**           a change que originou o ajudante: proposta, design, specs, evidências
+deploy/**             runbook e configuração de publicação
+```
+
+`spike/` e `openspec/` ficam **fora** da imagem (`.dockerignore` + `COPY` seletivo no
+`Dockerfile`), e um teste guarda que `src/` nunca depende de `spike/`.
+
+## Estado
+
+O ajudante está implementado e homologado localmente (testes, navegador, imagem Docker,
+auditoria de credencial). **Ainda não houve conversa real pelo widget nem fala por microfone
+físico** — isso exige alguém com a própria chave, e está no roteiro de
+`openspec/changes/add-bpmn-public-live-assistant-mvp/validation.md`.
+
+Veredito de release item a item:
+[`release-checklist.md`](openspec/changes/add-bpmn-public-live-assistant-mvp/release-checklist.md).
+
+## Origem
+
+Baseado em [`flavioluizseixas/bpmn`](https://github.com/flavioluizseixas/bpmn); a simulação em
+lote e o ajudante foram acrescentados neste fork. O histórico preserva os commits originais.
