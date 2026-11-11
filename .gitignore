@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 *.key
+# ... menos o MODELO, que nao tem segredo nenhum e e como se descobre o nome da variavel.
+!.env.example
 
 # Indices e estado do Visual Studio. Foram expurgados do historico em 2026-11-11: a pasta
 # carregava 1,4 MB de indices binarios e uma sessao de copilot-chat, e nada disso e do projeto.

@@ -18,9 +18,29 @@
  *   node tools/battery.mjs https://niu-tech.github.io/bpmn/
  *   node tools/battery.mjs --ver                   # janela VISÍVEL, para acompanhar
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { dirigir } from './drive-page.mjs';
+
+/**
+ * Chave do Gemini para o cenário AO VIVO, lida de um `.env` que o git ignora.
+ *
+ * ⚠ O valor nunca passa por um prompt, por um log, por um argumento de linha de comando nem por
+ * este console: é lido aqui dentro, interpolado no passo que roda NA PÁGINA, e o cenário termina
+ * conferindo que ele não aparece em lugar nenhum. É o mesmo contrato do produto (a chave é do
+ * dono dela), aplicado ao teste.
+ *
+ * Sem `.env`, o cenário ao vivo simplesmente não entra na bateria — os outros nove continuam
+ * provando tudo o que não depende do Google.
+ */
+function chaveDoEnv() {
+  if (!existsSync('.env')) return null;
+  for (const linha of readFileSync('.env', 'utf8').split(/\r?\n/)) {
+    const m = /^\s*(GEMINI_API_KEY|GOOGLE_API_KEY)\s*=\s*(.+?)\s*$/.exec(linha);
+    if (m) return m[2].replace(/^["']|["']$/g, '');
+  }
+  return null;
+}
 
 const ALVO = process.argv.find((a) => a.startsWith('http')) ?? 'http://127.0.0.1:8126/';
 const VISIVEL = process.argv.includes('--ver');
@@ -223,6 +243,52 @@ const CENARIOS = [
   },
 ];
 
+// ---------------------------------------------------------------- ao vivo (opcional)
+const chaveViva = chaveDoEnv();
+if (chaveViva) {
+  CENARIOS.push({
+    nome: 'AO VIVO: conversa de verdade contra o Gemini',
+    url: ALVO,
+    espera: 3000,
+    passos: [
+      // Sem dublê nenhum aqui: é o socket real do Google.
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto', status: document.querySelector('.bpmn-assist__status').textContent };`,
+      `const ta = document.querySelector('.bpmn-assist__composer textarea');
+       ta.value = 'Em uma frase: qual a diferenca entre gateway exclusivo e paralelo?';
+       window.__btn('Enviar').click();
+       let resposta = '';
+       for (let i = 0; i < 60; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         const b = [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+         if (b.length && b.at(-1).length > 20) { resposta = b.at(-1); break; }
+       }
+       const rel = window.__bpmnAssist.report();
+       const vazou = rel.includes(${JSON.stringify(chaveViva)})
+         || document.documentElement.outerHTML.includes(${JSON.stringify(chaveViva)})
+         || JSON.stringify(Object.entries(localStorage)).includes(${JSON.stringify(chaveViva)});
+       return {
+         ok: resposta.length > 20 && !vazou,
+         respondeu: resposta.slice(0, 160),
+         caracteres: resposta.length,
+         vazouAChave: vazou,
+         contagem: (rel.split('\n').find((l) => l.startsWith('contagem:')) ?? '').slice(0, 220),
+       };`,
+    ],
+  });
+  console.log('(cenario AO VIVO habilitado: .env com chave encontrado)\n');
+} else {
+  console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
+}
+
 mkdirSync('artifacts/bateria', { recursive: true });
 
 const resultados = [];
@@ -231,7 +297,7 @@ for (const c of CENARIOS) {
     url: c.url,
     mic: c.mic ?? null,
     passos: c.passos,
-    espera: 2600,
+    espera: c.espera ?? 2600,
     largura: c.janela?.[0] ?? 1280,
     altura: c.janela?.[1] ?? 860,
     shot: `artifacts/bateria/${c.nome.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.png`,
