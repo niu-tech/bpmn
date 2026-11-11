@@ -32,11 +32,15 @@ Run workflow + deploy:true → CI, e então, com o ambiente `production` aprovad
 2. **GitHub** (Settings → Secrets and variables → Actions), mesmos nomes do `javis.docker`:
    - variables: `SSH_HOST`, `SSH_USER`, `SSH_PORT` (opcional, padrão 22)
    - secrets: `SSH_KEY`, `SSH_PASSPHRASE` (só se a chave tiver senha)
-3. **Primeiro deploy** — push em `main`/`ImproveSimulation` (ou Actions → *Run workflow*). O workflow clona o repo em
-   `~/github/bpmn` na VPS via HTTPS; se o repo for privado, clone antes à mão (deploy key) nesse mesmo caminho.
-   Confira se a `8880` está livre (`ss -tlnp | grep 8880`); se não, crie `~/github/bpmn/.env` com `BPMN_PORT=<livre>`
-   e use a mesma porta no passo 4.
-4. **nginx do host** (uma vez, depois do primeiro deploy):
+3. **⚠ O repositório é PRIVADO — prepare o acesso na VPS ANTES do primeiro deploy.** O passo remoto faz
+   `git clone https://github.com/<org>/<repo>.git` em `~/github/bpmn`, e num repositório privado esse clone
+   **falha sem credencial**. Clone à mão nesse caminho exato, uma vez, com uma *deploy key* de leitura (ou outro
+   acesso que a VPS tenha). Depois disso o workflow só faz `fetch`/`checkout` e não precisa de mais nada.
+   Confira também se a `8880` está livre (`ss -tlnp | grep 8880`); se não, crie `~/github/bpmn/.env` com
+   `BPMN_PORT=<livre>` e use a mesma porta no passo 5.
+4. **Primeiro deploy** — Actions → *CI-CD Pipeline* → *Run workflow* → `deploy: true`.
+   **Push não publica**: em push e PR roda só o CI.
+5. **nginx do host** (uma vez, depois do primeiro deploy):
    ```bash
    sudo cp ~/github/bpmn/deploy/host-vhost.conf /etc/nginx/sites-available/bpmn   # edite server_name (e a porta, se mudou)
    sudo ln -s /etc/nginx/sites-available/bpmn /etc/nginx/sites-enabled/bpmn
