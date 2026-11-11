@@ -30,6 +30,12 @@ node tools/drive-assistant.mjs --mic artifacts/voz/gateway.wav
 
 # Ler a aba que JA esta aberta no navegador (so leitura; exige --remote-debugging-port=9222)
 node tools/attach-edge.mjs
+
+# BATERIA AUTONOMA: abre o navegador, dirige, verifica e da veredito. 9 cenarios, zero
+# intervencao humana, zero chave do Gemini (o socket e dublado com frames reais do protocolo).
+npm run bateria                              # contra o build local servido em :8126
+node tools/battery.mjs https://niu-tech.github.io/bpmn/
+node tools/battery.mjs --ver                 # janela VISIVEL, para acompanhar
 ```
 
 ## ⚠ Para quem vai publicar — leia antes

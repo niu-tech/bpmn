@@ -108,7 +108,7 @@ function parseArgs(argv) {
   return out;
 }
 
-export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = 9335, largura = 1280, altura = 860, mic = null } = {}) {
+export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = 9335, largura = 1280, altura = 860, mic = null, headless = true } = {}) {
   const exe = acharNavegador();
   // WAV como MICROFONE. A flag faz o getUserMedia devolver o arquivo em vez do tom sintetico,
   // entao o caminho do microfone roda inteiro (worklet, reamostragem, PCM16, socket) com fala
@@ -118,7 +118,7 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
   if (micAbs && !existsSync(micAbs)) throw new Error(`WAV de microfone nao encontrado: ${micAbs}`);
   const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-drive-${porta}`;
   const filho = spawn(exe, [
-    '--headless=new',
+    ...(headless ? ['--headless=new'] : []),
     '--disable-gpu',
     '--no-first-run',
     '--no-default-browser-check',
@@ -149,6 +149,11 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     await c.envia('Runtime.enable');
     await c.envia('Page.enable');
     await c.envia('Log.enable');
+    // Viewport por EMULACAO, nao por --window-size: a flag inclui a moldura do navegador, entao
+    // pedir 375 dava ~466 de viewport e o teste de celular media a tela errada.
+    await c.envia('Emulation.setDeviceMetricsOverride', {
+      width: largura, height: altura, deviceScaleFactor: 1, mobile: largura < 768,
+    });
 
     await c.envia('Page.navigate', { url });
     // Espera fixa em vez de `Page.loadEventFired`: a página monta o ajudante DEPOIS do load, e
