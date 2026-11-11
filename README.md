@@ -72,6 +72,11 @@ físico** — isso exige alguém com a própria chave, e está no roteiro de
 Veredito de release item a item:
 [`release-checklist.md`](openspec/changes/add-bpmn-public-live-assistant-mvp/release-checklist.md).
 
+Onde vive: **`niu-tech/bpmn`**, privado, branch default `main`. O CI roda verde lá; o deploy nunca
+foi executado. Para publicar faltam quatro atos de configuração (domínio/DNS, secrets de SSH,
+criar o ambiente `production`, deploy key de leitura na VPS) — detalhe item a item no
+checklist acima.
+
 ## Origem
 
 Baseado em [`flavioluizseixas/bpmn`](https://github.com/flavioluizseixas/bpmn); a simulação em

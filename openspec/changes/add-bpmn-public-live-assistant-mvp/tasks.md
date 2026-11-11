@@ -14,9 +14,18 @@
       do commit bom + rebuild, e a saída rápida pela imagem anterior já no host
 - [ ] 0.6 Decidir host/HTTPS e o (sub)domínio; registrar o valor real em `deploy/host-vhost.conf`
       (**gate do dono**: envolve DNS, fora deste bloco)
-- [ ] 0.7 **Levar o workflow para a branch default** — o GitHub só oferece *Run workflow* para
-      workflow presente nela, e hoje o arquivo existe só em `ImproveSimulation`. Sem isso o único
-      caminho de deploy não aparece na UI (gate do dono: exige push/merge)
+- [x] 0.7 **Workflow na branch default** — resolvido em 2026-11-11 pela migração: `main` do
+      `niu-tech/bpmn` é a default e tem o `pipeline.yml`. O botão *Run workflow* existe
+- [x] 0.8 **Projeto na organização** — `niu-tech/bpmn` privado, `main` com tudo, 30 commits,
+      histórico original preservado, CI verde (#2 52 s, #3 58 s), deploy nunca executado.
+      `dist/` saiu do versionamento e `.vs/` foi expurgado do histórico (`git filter-branch`)
+- [ ] 0.9 **Rastro do `.vs` nos repositórios antigos** — medido: force-push **não apaga**; o
+      GitHub segue servindo o commit antigo por SHA. Apagar `kaiosmacedo/bpmn` (público; seu topo
+      é ancestral da `main` da org, nada exclusivo) e decidir sobre recriar o repo da org.
+      `devInfomarcas/bpmn` responde *not found* — não verificado (**gate do dono**)
+- [ ] 0.10 **Ambiente `production` e leitura da VPS** — o ambiente não existe no repo da org e o
+      job o exige; e o `git clone` do passo remoto precisa de *deploy key* agora que o repo é
+      privado (**gate do dono**)
 
 ## 1. P1 — Spike técnico isolado (primeiro bloco de execução)
 
@@ -100,7 +109,8 @@
       "API key not valid", e 1008 para cota E para credencial. A mensagem mandava o aluno procurar
       defeito no lugar errado; agora o texto do fechamento decide
 - [x] 3.10 **Defeito na ferramenta de auditoria corrigido**: o removedor de comentários das
-      varreduras quebrava com CRLF (em JS, `.` não casa ``), então comentários sobreviviam e a
+      varreduras quebrava com CRLF (em JS, `.` não casa `
+`), então comentários sobreviviam e a
       varredura podia deixar de acusar código real
 - [x] 3.11 **Compose v1 × v2**: o passo de deploy usava o nome do binário v1, aposentado. Agora
       detecta qual existe e falha nomeado se nenhum estiver presente

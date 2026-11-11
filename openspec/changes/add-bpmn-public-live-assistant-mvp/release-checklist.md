@@ -1,7 +1,11 @@
 # Checklist de release — GO / NO-GO
 
-Estado em 2026-11-10, depois do P3. **Código implementado não é hospedagem efetiva**: nada foi
-publicado, nenhuma VPS foi tocada, nenhum workflow foi disparado.
+Estado em 2026-11-11. **Código implementado não é hospedagem efetiva**: nada foi publicado,
+nenhuma VPS foi tocada, nenhum workflow foi disparado.
+
+**Mudou em 2026-11-11** (ver *Migração para a organização*, no fim): o repositório passou a viver
+em `niu-tech/bpmn` (privado), a branch default é `main` e o workflow já está nela — o item 17
+virou GO e nasceu o item 24.
 
 ## Veredito por item
 
@@ -23,18 +27,21 @@ publicado, nenhuma VPS foi tocada, nenhum workflow foi disparado.
 | 14 | **Workflow: push não publica** | **GO** | CI em push/PR; deploy exige `workflow_dispatch` + `deploy: true` |
 | 15 | **Compose v1 × v2 no deploy** | **GO** | o script detecta qual existe; antes quebraria no último passo |
 | 16 | **Rollback documentado** | **GO (não ensaiado)** | runbook existe; nunca foi executado contra servidor real |
-| 17 | **Botão de deploy disponível** | **NO-GO** | o workflow só existe em `ImproveSimulation`; o GitHub só oferece *Run workflow* na branch **default** |
+| 17 | **Botão de deploy disponível** | **GO** | `main` do `niu-tech/bpmn` é a default e tem o workflow; *Run workflow* aparece na UI |
 | 18 | **Conversa real pelo widget** | **NO-GO** | exige a chave do aluno; nunca executado |
 | 19 | **Fala humana + barge-in** | **NO-GO** | exige alguém falando |
 | 20 | **Domínio e HTTPS** | **NO-GO** | `host-vhost.conf` tem placeholder; DNS e domínio são decisão do dono |
 | 21 | **Secrets/vars do Actions** | **NO-GO** | `SSH_HOST`, `SSH_USER`, `SSH_KEY` nunca configurados; não toquei |
-| 22 | **Revisor do ambiente** | **pendente, opcional** | `environment: production` cria o portão; a exigência de aprovação só existe se configurada |
+| 22 | **Ambiente `production`** | **NO-GO** | o ambiente **ainda não existe** no repo da org (*"There are no environments"*) e o job o exige — criar é obrigatório, pôr revisor é escolha |
+| 23 | **Repositório acessível ao DevOps** | **GO** | `niu-tech/bpmn` privado, 30 commits, CI verde (#2 52 s, #3 58 s), job de deploy nunca executado |
+| 24 | **Leitura da VPS no repo privado** | **NO-GO** | o passo remoto faz `git clone`; em repo privado isso falha sem *deploy key*. Nasceu da migração — não existia quando o repo era público |
 
 ## Impedimentos reais × sugestões futuras
 
-**Impedem a primeira publicação (17, 20, 21):** sem o workflow na branch default não há botão de
-deploy; sem domínio e DNS não há endereço; sem os secrets o passo de SSH falha. Os três são atos
-do dono, não de código.
+**Impedem a primeira publicação (20, 21, 22, 24):** sem domínio e DNS não há endereço; sem os
+secrets o passo de SSH falha; sem o ambiente `production` criado o job nem começa; sem deploy key
+o `git clone` do repo privado falha na VPS. Os quatro são atos do dono, não de código — e nenhum
+leva mais de alguns minutos.
 
 **Impedem declarar o produto validado (18, 19):** o transporte foi provado no P1 por sonda, mas a
 conversa **pelo widget** e a **fala humana** nunca aconteceram. Publicar antes disso é publicar
@@ -74,11 +81,12 @@ Tudo abaixo é do dono. Nada aqui foi executado.
 2. **Escolher o host**: um (sub)domínio próprio — as páginas usam caminhos absolutos
    (`/bundle.js`, `/pizza-collaboration.bpmn`) e **não** funcionam sob um sufixo de caminho.
    Registro A apontando para a VPS.
-3. **Levar o workflow para a branch default** (merge de `ImproveSimulation` → `main`, ou mudar a
-   default). Sem isso o botão *Run workflow* não existe — item 17.
-4. **Configurar no GitHub**: variables `SSH_HOST`, `SSH_USER`, `SSH_PORT`; secrets `SSH_KEY` e,
-   se a chave tiver senha, `SSH_PASSPHRASE`. Opcional: revisores em
-   Settings → Environments → `production`.
+3. ~~**Levar o workflow para a branch default**~~ — **feito em 2026-11-11**: `main` do
+   `niu-tech/bpmn` é a default e tem o workflow. O botão *Run workflow* existe.
+4. **Configurar no GitHub** (Settings → Secrets and variables → Actions): variables `SSH_HOST`,
+   `SSH_USER`, `SSH_PORT`; secrets `SSH_KEY` e, se a chave tiver senha, `SSH_PASSPHRASE`.
+   **Criar o ambiente `production`** (Settings → Environments) — o job o exige; revisores nele são
+   opcionais. E **dar leitura da VPS ao repo privado** (deploy key) — item 24.
 5. **Push** → o CI roda sozinho e **não publica**. Conferir que passou antes de seguir.
 6. **Publicar**: Actions → *CI-CD Pipeline* → *Run workflow* → `deploy: true`.
 7. **Na VPS, uma vez**: conferir que a `8880` está livre (`ss -tlnp | grep 8880`; se não, criar
@@ -90,3 +98,48 @@ Tudo abaixo é do dono. Nada aqui foi executado.
 
 **Nota de custo para os alunos:** cada sessão consome a cota da chave de quem a informou. Vale
 dizer isso na apresentação, não só no painel.
+
+## Migração para a organização (2026-11-11)
+
+O projeto saiu do fork pessoal e passou a viver em **`niu-tech/bpmn`**, privado, para o DevOps da
+organização poder publicar. O que foi feito, na ordem:
+
+1. **Repositório criado na org** pela UI do GitHub, privado, com a sessão do dono no navegador.
+2. **Branch default `main`** com tudo (modelador, viewer, simulação, ajudante, deploy, openspec),
+   30 commits, histórico original do `flavioluizseixas/bpmn` preservado.
+3. **`dist/` deixou de ser versionado** (`.gitignore`): artefato de build que a imagem gera.
+4. **`.vs/` expurgado do histórico** com `git filter-branch`. Eram 14 arquivos do Visual Studio,
+   entre eles uma sessão de `copilot-chat` — conteúdo de máquina, nunca deveria ter sido commitado.
+   Os 42 arquivos de projeto são idênticos antes e depois do histórico reescrito.
+5. **CI verde na org**: run #2 em 52 s, #3 em 58 s. O job de deploy marcou 0 s nas três corridas —
+   ele **não roda em push**, por desenho.
+
+### Achado: force-push não apaga nada no GitHub
+
+Medido, não suposto. Depois de reescrever o histórico e empurrar à força:
+
+| Verificação | Resultado |
+|---|---|
+| Branch aponta para o commit limpo, `.vs` fora da listagem | sim |
+| Página do commit antigo ainda renderiza | **sim** |
+| `git fetch <remote> <sha-antigo>` | **exit 0** |
+| `.vs/.../copilot-chat/sessions/` navegável naquele SHA | **sim** |
+
+O próprio GitHub avisa na página: *"This commit does not belong to any branch on this
+repository"* — está fora das refs e continua servido. **Reescrever histórico só limpa clones
+novos; o que já subiu precisa de exclusão do repositório ou de chamado no Suporte do GitHub.**
+
+Consequência prática, por repositório:
+
+- **`kaiosmacedo/bpmn`** (fork pessoal, **público**): o commit `cfcba83` continua servido por SHA,
+  com a sessão de `copilot-chat` navegável. O topo do fork é ancestral da `main` da org, então o
+  fork **não guarda nada exclusivo** — apagá-lo é seguro e é a única saída imediata.
+- **`niu-tech/bpmn`** (org, **privado**): `9ac6531` também continua buscável e contém `.vs`. Como o
+  repo é privado e novo, o alcance é a org; a página de **Actions** aponta para esses commits nos
+  runs #1 e #2. Recriar o repo elimina o rastro, e custa pouco **enquanto ninguém além de nós
+  clonou**.
+- **`devInfomarcas/bpmn`** (remote `origin` herdado): responde *"Repository not found"* — apagado
+  ou fora do alcance da credencial atual. **Não verificado nem limpo.**
+
+**Regra que fica:** `.vs/`, `.idea/`, `dist/` e afins entram no `.gitignore` **antes** do primeiro
+commit. Depois de empurrar, não existe desfazer de verdade.
