@@ -175,9 +175,24 @@ que carregava o `.vs`. A sequência, feita sem janela de indisponibilidade:
 5. **Prova contra a URL pública**: 5/5 em 200; as duas páginas, em navegador headless, renderizam
    o diagrama e montam o ajudante; `/spike/`, `/openspec/`, `/Dockerfile` e `/package.json` em 404.
 
-**Sobrou, e depende de exclusão manual** (o token desta sessão não tem escopo `delete_repo`):
+### O rastro do `.vs` foi fechado no mesmo dia
 
-| Repositório | Estado | Por que apagar |
+Antes de apagar, confirmei que nenhum dos dois guardava algo que o repositório novo não tivesse:
+**toda ponta de branch dos dois era ancestral da `main` nova** (`git merge-base --is-ancestor`).
+Então os dois foram apagados — `gh repo delete`, com um login de escopo `delete_repo` feito pelo
+dono no terminal dele.
+
+Verificação depois, exatamente o mesmo teste que antes provava que o conteúdo continuava vivo:
+
+| Verificação | Antes | Agora |
 |---|---|---|
-| `kaiosmacedo/bpmn` | **público**, `cfcba83` servido por SHA | é o rastro exposto do `.vs`; o topo dele é ancestral da `main` da org, então não guarda nada exclusivo |
-| `niu-tech/bpmn-legacy-private` | privado, `9ac6531` servido por SHA | mesmo rastro, alcance limitado à organização |
+| `github.com/kaiosmacedo/bpmn` | 200 | **404** |
+| `github.com/niu-tech/bpmn-legacy-private` | 200 | **404** |
+| página do commit `cfcba83` (o do `copilot-chat`) | renderizava | **404** |
+| página do commit `9ac6531` | renderizava | **404** |
+| `git fetch` dos dois SHAs no repositório novo | — | `couldn't find remote ref` |
+| arquivos `.vs` em qualquer ref local | 22 commits | **0** |
+
+**A lição continua valendo, e é o motivo de isto ter custado uma volta inteira:** force-push não
+apaga; só a exclusão do repositório apaga. `.vs/`, `.idea/`, `dist/` e afins entram no
+`.gitignore` **antes** do primeiro commit.

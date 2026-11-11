@@ -20,10 +20,11 @@
 - [x] 0.8 **Projeto na organização** — `niu-tech/bpmn` privado, `main` com tudo, 30 commits,
       histórico original preservado, CI verde (#2 52 s, #3 58 s), deploy nunca executado.
       `dist/` saiu do versionamento e `.vs/` foi expurgado do histórico (`git filter-branch`)
-- [~] 0.9 **Rastro do `.vs`** — o repo da org foi **recriado limpo e público** (histórico com
-      zero `.vs` em 33 commits; `refs/original/*` apagados). Falta **apagar** os dois que ainda
-      servem o commit antigo por SHA: `kaiosmacedo/bpmn` (público) e `niu-tech/bpmn-legacy-private`.
-      Exige escopo `delete_repo`, que esta sessão não tem (**gate do dono**).
+- [x] 0.9 **Rastro do `.vs` — FECHADO**. O repo da org foi recriado limpo e público (zero `.vs`
+      em 33 commits; `refs/original/*` apagados) e os dois que ainda serviam o commit antigo por
+      SHA foram **apagados**: `kaiosmacedo/bpmn` e `niu-tech/bpmn-legacy-private`, os dois agora
+      em 404, com as páginas dos commits `cfcba83`/`9ac6531` também em 404 e `git fetch` dos SHAs
+      recusado. Nenhuma ponta de branch deles era exclusiva (todas ancestrais da `main` nova).
       `devInfomarcas/bpmn` confirmado inexistente pelo dono — remote local removido
 - [x] 0.11 **URL provisória sem domínio** — site passou a usar caminhos **relativos** (4 linhas:
       as duas `<script src>` e as duas `DEFAULT_DIAGRAM_URL`), provado em navegador headless
