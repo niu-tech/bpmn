@@ -110,7 +110,7 @@ return { vazouChave: texto.includes(${JSON.stringify(CHAVE)}), trecho: texto.spl
 
 const url = process.argv[2]?.startsWith('http') ? process.argv[2] : 'http://127.0.0.1:8124/';
 const shotIdx = process.argv.indexOf('--shot');
-const prefixo = shotIdx > 0 ? process.argv[shotIdx + 1] : 'artifacts/ui/voz';
+const prefixo = (shotIdx > 0 ? process.argv[shotIdx + 1] : 'artifacts/ui/voz').replace(/\.png$/i, '');
 
 const r = await dirigir({
   url,
