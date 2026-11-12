@@ -3,6 +3,8 @@
 //
 // ponytail: DOM na mão, zero framework. São quatro botões e dois <pre>.
 
+import { promptDoPerfil } from '../src/assistant/agent/render.js';
+import { resolverContexto } from '../src/assistant/agent/resolve.js';
 import { createSession } from '../src/assistant/live/session.js';
 import { startCapture, startPlayback } from '../src/assistant/live/audio.js';
 import { probeEphemeralToken } from '../src/assistant/live/token-probe.js';
@@ -109,7 +111,8 @@ function conectarComo(novoModo) {
   session?.close();
   log(`conectando no modo ${novoModo}`,
     novoModo === 'texto' ? '(função declarada: o modelo não fala)' : '(sem função: o modelo fala e legenda)');
-  connect({ withDeliveryTool: novoModo === 'texto' });
+  // O perfil decide a prosa E a declaracao da funcao (F2: agent/render.js).
+  connect(promptDoPerfil(resolverContexto({ modo: novoModo })));
 }
 
 els.connectText.onclick = () => conectarComo('texto');
@@ -175,7 +178,11 @@ els.probeText.onclick = () => {
   log('abrindo sessão de diagnóstico pedindo responseModalities=TEXT…');
   session?.close();
   modo = 'diagnostico';
-  connect({ modalities: ['TEXT'], withDeliveryTool: false });
+  connect({
+    ...promptDoPerfil(resolverContexto({ modo: 'voz' })),
+    modalities: ['TEXT'],
+    withDeliveryTool: false,
+  });
   setTimeout(() => session?.ask('O que e um gateway paralelo?'), 1500);
 };
 

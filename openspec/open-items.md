@@ -31,26 +31,34 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |
 
-## 3. Barge-in: o que a medição mostrou
+## 3. Barge-in: o que a medição mostrou — e o achado que ela trouxe
 
-Cenário `AO VIVO: interromper o modelo falando por cima`, contra a URL pública, com um WAV de
-9 s de silêncio + a frase *"Espera, chega, responde só em uma frase"*.
+Cenário `AO VIVO: interromper o modelo falando por cima`, contra a URL pública.
 
-Linha do tempo medida (diário da sessão):
+**Primeira rodada** (pergunta DIGITADA, WAV de 9 s de silêncio + *"Espera, chega, responde só em
+uma frase"*): o corte chegou aos 9 s e o modelo só começou a falar aos **15 s** — não havia
+resposta para cortar. `ws.interrupted` = 0 era o teste medindo cedo, não defeito do produto.
+
+**Segunda rodada**, com 16 s de silêncio: o modelo passou a falar aos **22,6 s**. O atraso
+acompanhou o silêncio, e é isso que revela a causa:
+
+> **Em modo voz com o microfone aberto, uma pergunta DIGITADA só é respondida depois de o
+> servidor ver fim de fala no fluxo de áudio.** O áudio governa o turno.
+
+Ou seja, era impossível fazer o modelo falar enquanto o WAV ainda tocava: a própria pergunta
+digitada ficava na fila. A forma que funciona é a pergunta vir **pela voz**, com a frase de corte
+num segundo trecho do mesmo arquivo (`tools/wav-pad.mjs juntar`).
+
+**Terceira rodada — PROVADO** (`artifacts/voz/barge.wav` = `[longa][2 s][interrompe]`):
 
 ```
-15,0s  ws.input-text        o Gemini transcreveu a fala
-15,0s  ws.audio   (12x)     começou a responder
-19,2s  ws.turn-complete     terminou
+12,9s  ws.input-text     "me explique... todos os tipos de evento"
+13,4s  ws.audio          o modelo começa a responder
+16,1s  ws.interrupted    "espera, chega, responde só em uma frase"
 ```
 
-O corte chegou aos **9 s** — quando ainda não havia resposta para cortar, porque o modelo só
-começou a falar aos 15 s. **`ws.interrupted` = 0 não é defeito do produto: é o teste medindo
-cedo.** O Gemini ouviu a frase de corte (transcrita: *"espera chega responde sua em uma frase"*),
-o que prova que o microfone continua chegando ao servidor durante a sessão.
-
-**O que falta:** refazer com silêncio de ~17 s (ou disparar a pergunta e só então abrir o
-microfone) para que a fala caia dentro da janela 15–19 s. É ajuste de fixture, não de produto.
+O corte caiu **dentro** da fala. O que isso deixa como regra para o próximo teste de voz: medir
+turno digitado em sessão de voz é medir a fila do áudio, não a latência do modelo.
 
 ## 4. Dívidas que eu mesmo deixei
 
@@ -61,6 +69,8 @@ microfone) para que a fala caia dentro da janela 15–19 s. É ajuste de fixture
 | T3 | Sem cenário para o **viewer** na bateria além de carregar | `tools/battery.mjs` | a simulação em lote com o painel aberto só foi verificada à mão, no P2 |
 | T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | o roteiro continua válido para humano, mas a bateria cobre o essencial |
 | T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | o runner tem Chrome; falta decidir se o custo de minutos compensa |
+| T6 | Em F2 o contexto do diagrama viaja **dentro do `setup`** | `agent/render.js` (`promptDoPerfil`) | o `setup` é imutável depois de aceito, então o agente vê o retrato do momento em que a sessão abriu: editar o diagrama no meio da conversa não chega ao modelo. É o que F3 conserta com `clientContent`; o filtro de camada do renderizador já existe para a troca ser uma linha |
+| T7 | A projeção do diagrama ainda não tem fonte | `session-manager.definirContexto` | em F2 quem alimenta é o teste/bateria; em F3 passa a ser o `elementRegistry` pelo `eventBus`. Até lá, na página o diagrama chega VAZIO ao prompt — a fronteira existe e o dado não |
 
 ## 4b. Achados da pesquisa de arquitetura (2026-11-12)
 

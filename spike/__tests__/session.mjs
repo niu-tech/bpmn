@@ -8,6 +8,11 @@ import assert from 'node:assert/strict';
 import { createSession } from '../../src/assistant/live/session.js';
 import { DELIVERY_TOOL } from '../../src/assistant/live/protocol.js';
 import { MockSocket, fakeClock, mockFactory, report, test, testAsync } from './mock-socket.mjs';
+import { promptDoPerfil } from '../../src/assistant/agent/render.js';
+import { resolverContexto } from '../../src/assistant/agent/resolve.js';
+
+/** O prompt e OBRIGATORIO desde a F2 (`buildSetup` recusa sem ele). Aqui vem do perfil texto. */
+const SETUP = promptDoPerfil(resolverContexto({ modo: 'texto' }));
 
 /** Sessao ja conectada e com setup aceito. */
 function ready(opts = {}) {
@@ -19,6 +24,7 @@ function ready(opts = {}) {
   const session = createSession({
     apiKey: 'AIzaCHAVEFALSADETESTE123456',
     socketFactory: mockFactory(),
+    setupOptions: SETUP,
     clock,
     onState: (s) => states.push(s.reason ? `${s.state}(${s.reason})` : s.state),
     onText: (t) => texts.push(t),
@@ -255,7 +261,7 @@ test('o relogio injetado e chamado como METODO do proprio objeto', () => {
     setTimeout(fn, ms) { if (this?.marca !== 'eu') throw new TypeError('Illegal invocation'); return setTimeout(fn, ms); },
     clearTimeout(id) { if (this?.marca !== 'eu') throw new TypeError('Illegal invocation'); clearTimeout(id); },
   };
-  const s = createSession({ apiKey: 'AIzaCHAVEFALSADETESTE123456', socketFactory: mockFactory(), clock });
+  const s = createSession({ apiKey: 'AIzaCHAVEFALSADETESTE123456', socketFactory: mockFactory(), setupOptions: SETUP, clock });
   s.start();
   const ws = MockSocket.instances.at(-1);
   ws.open();

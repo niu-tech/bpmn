@@ -6,38 +6,44 @@
  */
 import assert from 'node:assert/strict';
 import {
-  CAPTURE_RATE, DELIVERY_INSTRUCTION, DELIVERY_TOOL, MODEL, SYSTEM_INSTRUCTION,
+  CAPTURE_RATE, DELIVERY_TOOL, MODEL,
   buildAudioChunk, buildAudioStreamEnd, buildHistory, buildSetup, buildTextTurn,
   buildToolResponse, parseServerFrame, socketUrl,
 } from '../../src/assistant/live/protocol.js';
+// O prompt saiu do protocolo e virou contrato de secoes (F2). Aqui ele e so um argumento.
+import { promptDoPerfil } from '../../src/assistant/agent/render.js';
+import { resolverContexto } from '../../src/assistant/agent/resolve.js';
+
+const TEXTO = promptDoPerfil(resolverContexto({ modo: 'texto' }));
+const VOZ = promptDoPerfil(resolverContexto({ modo: 'voz' }));
 import { test, report } from './mock-socket.mjs';
 
 console.log('\n▶ setup');
 
 test('pede AUDIO e nunca TEXT por default (o 3.8 recusa TEXT com 1007)', () => {
-  const { setup } = buildSetup();
+  const { setup } = buildSetup(TEXTO);
   assert.deepEqual(setup.generationConfig.responseModalities, ['AUDIO']);
 });
 
 test('modelo e voz corretos', () => {
-  const { setup } = buildSetup();
+  const { setup } = buildSetup(TEXTO);
   assert.equal(setup.model, `models/${MODEL}`);
   assert.equal(setup.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Aoede');
 });
 
 test('languageCode OMITIDO (mandar locale enviesa a resposta para o ingles)', () => {
-  const { setup } = buildSetup();
+  const { setup } = buildSetup(TEXTO);
   assert.equal(setup.generationConfig.speechConfig.languageCode, undefined);
 });
 
 test('as duas transcricoes ligadas: entrada e saida', () => {
-  const { setup } = buildSetup();
+  const { setup } = buildSetup(TEXTO);
   assert.ok(setup.inputAudioTranscription);
   assert.ok(setup.outputAudioTranscription);
 });
 
 test('declara entregar_resposta com campo texto obrigatorio', () => {
-  const { setup } = buildSetup();
+  const { setup } = buildSetup(TEXTO);
   const decl = setup.tools[0].functionDeclarations[0];
   assert.equal(decl.name, DELIVERY_TOOL);
   assert.deepEqual(decl.parameters.required, ['texto']);
@@ -45,17 +51,24 @@ test('declara entregar_resposta com campo texto obrigatorio', () => {
 });
 
 test('modo TEXTO: declara a funcao E manda chamar', () => {
-  const text = buildSetup().setup.systemInstruction.parts[0].text;
+  const text = buildSetup(TEXTO).setup.systemInstruction.parts[0].text;
   assert.match(text, /BPMN/);
   assert.match(text, new RegExp(DELIVERY_TOOL));
+});
+
+test('sem prompt o setup RECUSA abrir (antes ele inventava um)', () => {
+  // Era aqui que a armadilha vivia: o default era uma constante do proprio protocolo, e a
+  // instrucao de entrega so era anexada quando o prompt recebido era IDENTICO a ela.
+  assert.throws(() => buildSetup({ withDeliveryTool: true }), /sem prompt/);
+  assert.throws(() => buildSetup({ systemInstruction: '   ' }), /sem prompt/);
 });
 
 test('modo VOZ: sem funcao e SEM a instrucao de entrega (senao o modelo fica mudo)', () => {
   // Medido em 2026-11-10: com a funcao declarada o modelo nao fala (0 frames de audio); sem ela
   // fala e manda outputTranscription junto. Nao da para ter os dois no mesmo turno.
-  const { setup } = buildSetup({ withDeliveryTool: false });
+  const { setup } = buildSetup(VOZ);
   assert.equal(setup.tools, undefined);
-  assert.equal(setup.systemInstruction.parts[0].text, SYSTEM_INSTRUCTION);
+  assert.equal(setup.systemInstruction.parts[0].text, VOZ.systemInstruction);
   assert.ok(!setup.systemInstruction.parts[0].text.includes(DELIVERY_TOOL),
     'mandar chamar uma funcao nao declarada e pedir alucinacao');
 });
@@ -65,12 +78,8 @@ test('instrucao propria do chamador e respeitada, sem anexo surpresa', () => {
   assert.equal(setup.systemInstruction.parts[0].text, 'instrucao minha');
 });
 
-test('DELIVERY_INSTRUCTION manda NAO falar', () => {
-  assert.match(DELIVERY_INSTRUCTION, /n[aã]o fale/i);
-});
-
 test('modo diagnostico consegue pedir TEXT de proposito (para medir o 1007)', () => {
-  const { setup } = buildSetup({ modalities: ['TEXT'], withDeliveryTool: false });
+  const { setup } = buildSetup({ ...VOZ, modalities: ['TEXT'] });
   assert.deepEqual(setup.generationConfig.responseModalities, ['TEXT']);
   assert.equal(setup.tools, undefined);
 });

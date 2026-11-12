@@ -28,6 +28,11 @@ import { fileURLToPath } from 'node:url';
 
 import { createSession } from '../../src/assistant/live/session.js';
 import { DELIVERY_TOOL, MODEL, buildSetup, buildTextTurn, socketUrl } from '../../src/assistant/live/protocol.js';
+import { promptDoPerfil } from '../../src/assistant/agent/render.js';
+import { resolverContexto } from '../../src/assistant/agent/resolve.js';
+
+/** O prompt agora vem do contrato de secoes (F2); o perfil sai do proprio modo da prova. */
+const prompt = (modo) => promptDoPerfil(resolverContexto({ modo }));
 import { base64ToPcm16, pcm16ToBase64 } from '../../src/assistant/live/pcm.js';
 import { redact, rememberSecret } from '../../src/assistant/live/redact.js';
 
@@ -74,6 +79,8 @@ function loadWorklet(file, sampleRate) {
 
 /** Abre a sessao e espera `ready`. Rejeita com a razao nomeada. */
 function connect(setupOptions = {}, opts = {}) {
+  // Perfil derivado do modo da prova; o chamador ainda pode sobrescrever qualquer campo.
+  setupOptions = { ...prompt(setupOptions.withDeliveryTool === false ? 'voz' : 'texto'), ...setupOptions };
   return new Promise((resolve, reject) => {
     const audio = [];
     const transcripts = [];
@@ -242,7 +249,7 @@ try {
       record('text-recusado', false, 'nem aceitou nem recusou em 30 s');
       resolve();
     }, 30000);
-    ws.onopen = () => ws.send(JSON.stringify(buildSetup({ modalities: ['TEXT'], withDeliveryTool: false })));
+    ws.onopen = () => ws.send(JSON.stringify(buildSetup({ ...prompt('voz'), modalities: ['TEXT'] })));
     ws.onmessage = async (ev) => {
       const raw = typeof ev.data === 'string' ? ev.data : await ev.data.text();
       if (JSON.parse(raw).setupComplete) {
@@ -304,7 +311,7 @@ if (tokenName) {
     const fim = await new Promise((resolve) => {
       const ws = new WebSocket(url);
       const t = setTimeout(() => { try { ws.close(); } catch { /* ja fechada */ } resolve('sem resposta'); }, 20000);
-      ws.onopen = () => ws.send(JSON.stringify(buildSetup({ withDeliveryTool: false })));
+      ws.onopen = () => ws.send(JSON.stringify(buildSetup(prompt('voz'))));
       ws.onmessage = async (ev) => {
         const raw = typeof ev.data === 'string' ? ev.data : await ev.data.text();
         if (JSON.parse(raw).setupComplete) { clearTimeout(t); try { ws.close(1000); } catch { /* ja fechada */ } resolve('OK'); }

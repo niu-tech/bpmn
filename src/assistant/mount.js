@@ -85,6 +85,9 @@ export function mountAssistant({ container = document.body, debug = false } = {}
     get estado() { return { modo: session.mode, estado: session.state, micOn: session.micOn, nivel: session.level }; },
     get eventos() { return session.diagnostics.events; },
     get contagem() { return session.diagnostics.counts; },
+    /** O contexto como o prompt o vê — e por onde a prova de injeção pelo diagrama entra (F2). */
+    get contexto() { return session.contexto; },
+    definirContexto: (c) => session.definirContexto(c),
   };
 
   // Sair da página sem isto deixa o microfone aberto e a sessão consumindo cota. `pagehide`

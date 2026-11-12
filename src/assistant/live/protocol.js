@@ -27,20 +27,12 @@ export const DELIVERY_TOOL = 'entregar_resposta';
 export const CAPTURE_RATE = 16000;   // aba -> Live
 export const PLAYBACK_RATE = 24000;  // Live -> aba
 
-/** O domínio. Vale para os dois modos. */
-export const SYSTEM_INSTRUCTION = [
-  'Você é um assistente especialista em BPMN 2.0 embutido num modelador e visualizador de',
-  'diagramas. Responda em português do Brasil, de forma curta e direta, sobre notação BPMN:',
-  'eventos, atividades, gateways, pools, lanes, fluxo de mensagem, fluxo de sequência e boas',
-  'práticas de modelagem. Se a pergunta não for sobre BPMN nem sobre o diagrama, diga isso em',
-  'uma frase.',
-].join(' ');
-
-/** Acrescentado SÓ no modo texto, junto com a declaração da função. Ver {@link buildSetup}. */
-export const DELIVERY_INSTRUCTION = [
-  `IMPORTANTE: não fale. Responda chamando a função ${DELIVERY_TOOL} com o texto completo da sua`,
-  'resposta no campo "texto".',
-].join(' ');
+// ⚠ O PROMPT NÃO MORA MAIS AQUI. Até 2026-11-12 este arquivo tinha `SYSTEM_INSTRUCTION` e
+// `DELIVERY_INSTRUCTION`, e `buildSetup` anexava a segunda quando o prompt recebido era
+// **exatamente** igual à primeira. Era uma comparação por identidade de constante: qualquer
+// prompt novo perdia a instrução de entrega em silêncio, e o sintoma é o ajudante mudo no modo
+// texto. O prompt virou contrato de seções em `agent/sections.js` + `agent/render.js`; este
+// arquivo volta a ser só protocolo (openspec design H1, fase F2).
 
 /** URL do socket. A chave vai na query string — é o contrato do Live, não escolha nossa. */
 export function socketUrl(apiKey, base = WS_BASE) {
@@ -66,18 +58,20 @@ export function socketUrl(apiKey, base = WS_BASE) {
  *
  * `modalities` existe SÓ para a prova de incompatibilidade: pedir `['TEXT']` de propósito e
  * registrar o 1007 com medição própria. Em uso normal não se passa nada.
+ *
+ * `systemInstruction` é OBRIGATÓRIO e usado verbatim — sem default e sem anexo surpresa. Quem
+ * monta o prompt é `agent/render.js` (`promptDoPerfil`), que decide o perfil e a declaração da
+ * função na MESMA chamada. Protocolo não opina sobre prosa.
  */
 export function buildSetup({
   model = MODEL,
-  systemInstruction = SYSTEM_INSTRUCTION,
+  systemInstruction,
   voiceName = 'Aoede',
   modalities = ['AUDIO'],
   withDeliveryTool = true,
 } = {}) {
-  // A instrução de entrega só existe quando a função existe — senão o modelo é mandado chamar
-  // algo que não foi declarado.
-  if (withDeliveryTool && systemInstruction === SYSTEM_INSTRUCTION) {
-    systemInstruction = `${SYSTEM_INSTRUCTION}\n\n${DELIVERY_INSTRUCTION}`;
+  if (typeof systemInstruction !== 'string' || !systemInstruction.trim()) {
+    throw new Error('sem prompt: monte com agent/render.js (promptDoPerfil) antes de abrir a sessão');
   }
   const setup = {
     model: `models/${model}`,

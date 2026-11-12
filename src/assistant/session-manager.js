@@ -16,6 +16,8 @@
 //
 // ponytail: uma fábrica com callbacks, não uma classe com EventEmitter. São seis eventos.
 
+import { promptDoPerfil } from './agent/render.js';
+import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback } from './live/audio.js';
 import { createSession } from './live/session.js';
 import { redact } from './live/redact.js';
@@ -87,6 +89,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let turnSeq = 0;
   let currentTurn = null;
   let teardownInFlight = null;
+
+  /**
+   * O que o agente sabe do mundo fora da conversa: diagrama aberto e memória da aba. Entra por
+   * `definirContexto` e é lido no `setup` de cada sessão (fase F2). Em F3 quem alimenta é o
+   * `eventBus` do bpmn-js, e o contexto passa a viajar por `clientContent` a cada turno — por
+   * isso mora aqui e não dentro de `openSession`.
+   */
+  let contexto = {};
 
   /** Diário da sessão. Um relatório = uma conexão: `connect()` zera. */
   const diag = deps.diagnostics ?? createDiagnostics();
@@ -185,7 +195,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     const apiKey = credentials.use();
     session = sessionFactory({
       apiKey,
-      setupOptions: { withDeliveryTool: targetMode === 'texto' },
+      // O perfil decide a prosa E a declaração da função, numa chamada só (ver render.js).
+      setupOptions: promptDoPerfil(resolverContexto({
+        modo: targetMode,
+        pagina: deps.pagina ?? contexto.pagina,
+        diagrama: contexto.diagrama,
+        memoria: contexto.memoria,
+      })),
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
         setState(s, r);
@@ -283,6 +299,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     get diagnostics() { return diag; },
     /** `true` quando a rede de segurança assumiu: microfone fecha durante a resposta. */
     get meiaDuplex() { return meiaDuplex; },
+
+    /**
+     * O que o agente deve saber do diagrama e da conversa. Vale a partir da PRÓXIMA sessão: o
+     * `setup` é imutável depois de aceito, então mudar o contexto no meio não alcança o modelo
+     * — é exatamente o que F3 conserta, mandando o contexto por fora do `setup`.
+     */
+    definirContexto(novo = {}) {
+      contexto = { ...contexto, ...novo };
+      return api.contexto;
+    },
+
+    /** O contexto resolvido como o prompt o vê. Para teste e diagnóstico. */
+    get contexto() {
+      return resolverContexto({ ...contexto, modo: mode, pagina: deps.pagina ?? contexto.pagina });
+    },
 
     /**
      * Relatório para COLAR em quem for depurar. Redigido pelo próprio diário — a chave não sai.
