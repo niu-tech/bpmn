@@ -185,6 +185,53 @@ await (async () => {
     forgetSecrets();
   });
 
+  test('o contexto declarado CHEGA ao prompt da sessao', async () => {
+    const { session, live } = montar();
+    session.definirContexto({
+      diagrama: {
+        total: 2,
+        amostra: [
+          { id: 'Task_1', tipo: 'bpmn:Task', nome: 'Assar a pizza' },
+          { id: 'Task_2', tipo: 'bpmn:Task', nome: 'Entregar' },
+        ],
+      },
+    });
+    await session.connect('texto');
+    const prompt = live.ultima.opts.setupOptions.systemInstruction;
+    assert.match(prompt, /Assar a pizza/);
+    assert.match(prompt, /DADOS_DO_ALUNO/);
+    forgetSecrets();
+  });
+
+  test('mudar o contexto no MEIO da sessao nao alcanca o modelo (limitacao da F2)', async () => {
+    // O `setup` e imutavel depois de aceito. Dizer que o agente "ja sabe" do elemento novo seria
+    // mentira: ele sabe do retrato do momento em que a sessao abriu. E o que a F3 conserta,
+    // mandando o contexto por `clientContent`; registrado como T6 em open-items.md.
+    const { session, live } = montar();
+    await session.connect('texto');
+    const antes = live.ultima.opts.setupOptions.systemInstruction;
+    session.definirContexto({ diagrama: { total: 1, amostra: [{ id: 'X', tipo: 'bpmn:Task', nome: 'tarefa nova' }] } });
+    assert.equal(live.ultima.opts.setupOptions.systemInstruction, antes);
+    assert.ok(!antes.includes('tarefa nova'));
+    // Mas a PROXIMA sessao ja nasce com ele.
+    await session.switchMode('voz');
+    assert.match(live.ultima.opts.setupOptions.systemInstruction, /tarefa nova/);
+    forgetSecrets();
+  });
+
+  test('a prosa do prompt e a MESMA nos dois modos, tirando a instrucao de entrega', async () => {
+    const { session, live } = montar();
+    await session.connect('texto');
+    const texto = live.ultima.opts.setupOptions.systemInstruction;
+    await session.switchMode('voz');
+    const voz = live.ultima.opts.setupOptions.systemInstruction;
+    assert.notEqual(texto, voz);
+    assert.ok(texto.includes('## Como responder') && !voz.includes('## Como responder'));
+    // Tirada a secao de entrega, o que vem antes dela e identico - caracter por caracter.
+    assert.equal(texto.split('## Como responder')[0].trim(), voz.split('## Como responder')[0].trim());
+    forgetSecrets();
+  });
+
   test('trocar de modo abre OUTRA sessao e fecha a anterior', async () => {
     const { session, live } = montar();
     await session.connect('texto');

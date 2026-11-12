@@ -72,7 +72,12 @@ const CONECTAR = `
 document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(CHAVE)};
 const c = document.querySelector('#bpmn-assist-consent');
 c.checked = true; c.dispatchEvent(new Event('change'));
-window.__btn('Começar').click();
+// Espera o botao aparecer. Sem isto o passo dependia da velocidade da rede: contra a URL
+// publica o cenario da chave reportou FALHOU em 2026-11-12 por timing, nao por vazamento.
+for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+const comecar = window.__btn('Começar');
+if (!comecar) return { ok: false, erro: 'o botao Começar nao apareceu' };
+comecar.click();
 await new Promise((r) => setTimeout(r, 150));
 window.__responde({ setupComplete: {} });
 await new Promise((r) => setTimeout(r, 200));
