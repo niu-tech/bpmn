@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Ajudante BPMN — do transporte ao tutor</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html { font-size: 10.5pt; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", -apple-system, Inter, Helvetica, Arial, sans-serif;
+    color: #15161a; line-height: 1.55;
+  }
+  .pg {
+    width: 210mm; min-height: 297mm; padding: 18mm 20mm 16mm;
+    page-break-after: always; position: relative; background: #fff;
+  }
+  .pg:last-child { page-break-after: auto; }
+
+  /* ---------- capa ---------- */
+  .capa { padding-top: 62mm; }
+  .capa .tag { font-size: 9pt; letter-spacing: .14em; text-transform: uppercase; color: #5b53d6; font-weight: 600; }
+  .capa h1 { font-size: 34pt; line-height: 1.1; margin: 10mm 0 6mm; font-weight: 600; letter-spacing: -.02em; }
+  .capa .sub { font-size: 13pt; color: #52535c; max-width: 140mm; line-height: 1.5; }
+  .capa .meta { position: absolute; bottom: 20mm; left: 20mm; right: 20mm;
+    display: flex; justify-content: space-between; font-size: 9pt; color: #76777f;
+    border-top: 1px solid #e3e3e8; padding-top: 4mm; }
+  .rule { width: 26mm; height: 3px; background: #5b53d6; border-radius: 2px; }
+
+  /* ---------- cabeçalho de seção ---------- */
+  .sec { display: flex; align-items: baseline; gap: 5mm; border-bottom: 1px solid #e3e3e8;
+         padding-bottom: 3mm; margin-bottom: 7mm; }
+  .sec .n { font-size: 10pt; font-weight: 600; color: #5b53d6; letter-spacing: .08em; }
+  .sec h2 { font-size: 17pt; margin: 0; font-weight: 600; letter-spacing: -.01em; }
+  h3 { font-size: 11.5pt; margin: 7mm 0 2.5mm; font-weight: 600; }
+  p { margin: 0 0 3mm; }
+  .lead { font-size: 11.5pt; color: #3d3e46; margin-bottom: 6mm; }
+  .muted { color: #6b6c75; }
+  strong { font-weight: 600; }
+  code { font-family: Consolas, "SF Mono", monospace; font-size: .88em;
+         background: #f3f3f7; padding: 1px 4px; border-radius: 3px; }
+
+  /* ---------- blocos ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 3mm 0 5mm; }
+  th { text-align: left; font-weight: 600; font-size: 8.5pt; letter-spacing: .05em;
+       text-transform: uppercase; color: #76777f; padding: 0 3mm 2mm 0;
+       border-bottom: 1px solid #e3e3e8; }
+  td { padding: 2.6mm 3mm 2.6mm 0; border-bottom: 1px solid #f0f0f4; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .card { border: 1px solid #e3e3e8; border-radius: 4mm; padding: 5mm 5.5mm; background: #fff; }
+  .card h4 { margin: 0 0 2mm; font-size: 11pt; font-weight: 600; }
+  .card p { font-size: 9.5pt; margin: 0 0 2.5mm; color: #45464f; }
+  .card .custo { font-size: 8.8pt; color: #8a4b12; background: #fdf4e7;
+                 border-radius: 2mm; padding: 2mm 3mm; margin: 0; }
+
+  .kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin: 5mm 0 7mm; }
+  .kpi div { background: #f7f7fa; border-radius: 3mm; padding: 4mm; }
+  .kpi .v { font-size: 19pt; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+  .kpi .l { font-size: 8.5pt; color: #6b6c75; margin-top: 1.5mm; }
+
+  /* ---------- fases ---------- */
+  .fase { display: grid; grid-template-columns: 30mm 1fr; gap: 5mm; align-items: start;
+          padding: 4.5mm 0; border-bottom: 1px solid #f0f0f4; }
+  .fase:last-child { border-bottom: none; }
+  .fase .cod { font-size: 8.5pt; font-weight: 600; color: #5b53d6; letter-spacing: .06em;
+               background: #eeedfb; border-radius: 2mm; padding: 2mm 3mm; text-align: center; }
+  .fase .cod.ok { color: #3f6b2e; background: #eef5e7; }
+  .fase h4 { margin: 0 0 1.5mm; font-size: 11pt; font-weight: 600; }
+  .fase p { margin: 0 0 2mm; font-size: 9.5pt; color: #45464f; }
+  .portao { font-size: 9pt; color: #2c4a66; background: #eef3f9;
+            border-left: 2px solid #5b84ad; border-radius: 0 2mm 2mm 0; padding: 2.5mm 3.5mm; margin: 0; }
+  .portao b { color: #1d3a56; }
+
+  .nota { border-left: 2px solid #5b53d6; background: #f7f7fc; padding: 4mm 5mm;
+          border-radius: 0 3mm 3mm 0; font-size: 9.8pt; margin: 5mm 0; }
+  .alerta { border-left-color: #c08318; background: #fdf7ec; }
+
+  ul { margin: 0 0 4mm; padding-left: 5mm; }
+  li { margin-bottom: 1.8mm; font-size: 10pt; }
+
+  .pe { position: absolute; bottom: 12mm; left: 20mm; right: 20mm;
+        display: flex; justify-content: space-between; font-size: 8pt; color: #9a9ba2;
+        border-top: 1px solid #f0f0f4; padding-top: 2.5mm; }
+</style>
+</head>
+<body>
+
+<!-- ================= CAPA ================= -->
+<section class="pg capa">
+  <div class="rule"></div>
+  <div class="tag" style="margin-top:6mm">Resumo executivo para validação</div>
+  <h1>Ajudante BPMN:<br>do transporte ao tutor</h1>
+  <p class="sub">O que a pesquisa na arquitetura da MAIA encontrou, o que ela derrubou do
+  nosso plano, o caminho em quatro etapas — e as quatro decisões que dependem de você
+  antes de a primeira linha ser escrita.</p>
+  <div class="meta">
+    <span>niu-tech/bpmn · TCC</span>
+    <span>12 de novembro de 2026</span>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">01</span><h2>Em uma página</h2></div>
+
+  <p class="lead">O site está no ar e a voz funciona. O que não existe é o <strong>agente</strong>:
+  hoje o ajudante tem um prompt de cinco linhas, não sabe que existe um diagrama na tela, não
+  lembra de nada e não tem nenhuma ferramenta.</p>
+
+  <div class="kpi">
+    <div><div class="v">11/11</div><div class="l">bateria contra a URL pública</div></div>
+    <div><div class="v">300</div><div class="l">asserções determinísticas</div></div>
+    <div><div class="v">37</div><div class="l">requisitos já escritos</div></div>
+    <div><div class="v">0</div><div class="l">deles sobre ensinar</div></div>
+  </div>
+
+  <h3>O que mudou desde a última conversa</h3>
+  <p>Mandei uma pesquisa profunda à arquitetura da MAIA pelo conector, em modo leitura. Ela
+  <strong>acertou três afirmações verificáveis sobre o nosso próprio código</strong> — conferi as
+  três no disco — e com isso derrubou quatro decisões que eu já tinha escrito como certas.</p>
+
+  <p>Revisando as specs com esse material, apareceu o buraco que importava: <strong>37 requisitos
+  escritos e nenhum sobre ensinar, sugerir representação ou montar junto</strong> — exatamente o
+  produto que você descreveu. Tudo o que eu tinha especificado era infraestrutura.</p>
+
+  <h3>O que preciso de você</h3>
+  <p>Quatro decisões, na página 06. Elas definem ordem de trabalho, limite de memória, quanto o
+  agente decide sozinho e o que fica de fora. Cada uma vem com o que custa — não só o que ganha.</p>
+
+  <div class="nota">
+    <strong>Nada foi implementado.</strong> Este documento é o plano. O código das fases começa
+    depois do seu aval, e a primeira fase não produz nada visível na tela — conserta a fundação.
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>01</span></div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">02</span><h2>Onde estamos hoje</h2></div>
+
+  <p class="lead">O transporte está provado de ponta a ponta, contra o Gemini real, sem nenhum
+  passo humano no teste.</p>
+
+  <table>
+    <tr><th style="width:38mm">Frente</th><th>Estado</th></tr>
+    <tr><td><strong>Publicação</strong></td><td>No ar em <code>niu-tech.github.io/bpmn/</code>, publicado a cada push em <code>main</code>. A VPS com domínio continua sendo ato explícito.</td></tr>
+    <tr><td><strong>Voz</strong></td><td>Escuta contínua, fala sem travar, microfone aberto durante a resposta. O Gemini transcreveu a frase exata e respondeu falando.</td></tr>
+    <tr><td><strong>Texto</strong></td><td>Pergunta digitada volta respondida pela função de entrega, 187 caracteres corretos sobre gateways.</td></tr>
+    <tr><td><strong>Prova</strong></td><td>Bateria de 11 cenários que abre o navegador, dirige e dá veredito — incluindo dois AO VIVO contra o Gemini.</td></tr>
+    <tr><td><strong>Credencial</strong></td><td>BYOK: a chave é do visitante, vive só na memória da aba. Varredura confirma que não vaza em DOM, storage, cookie, URL nem diagnóstico.</td></tr>
+    <tr><td><strong>Agente</strong></td><td class="muted"><strong>Não existe.</strong> Prompt de 5 linhas, sem contexto do diagrama, sem memória, sem guardrail verificado, sem ferramenta.</td></tr>
+  </table>
+
+  <h3>O que o aluno consegue fazer hoje</h3>
+  <p>Perguntar sobre notação BPMN em abstrato, por voz ou texto, com a própria chave. Nada mais:
+  o ajudante não enxerga o diagrama aberto, não sabe qual elemento está selecionado e não pode
+  tocar em nada.</p>
+
+  <div class="nota alerta">
+    <strong>O que ainda não foi medido.</strong> Voz humana em microfone físico (o teste usa fala
+    sintética pelo caminho real). Barge-in contra o Gemini — o cenário existe, mas mede cedo
+    demais: o modelo só começou a falar aos 15&nbsp;s e o corte entrou aos 9&nbsp;s. É ajuste de
+    fixture, não defeito do produto.
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>02</span></div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">03</span><h2>A pesquisa: o que ela derrubou</h2></div>
+
+  <p class="lead">A pesquisa ganhou crédito do jeito certo: fez três afirmações verificáveis sobre
+  o nosso código, e as três conferem.</p>
+
+  <table>
+    <tr><th style="width:62%">Afirmação sobre o nosso código</th><th>Veredito</th></tr>
+    <tr><td>A resposta de ferramenta devolve <code>{ok:true}</code> para <strong>toda</strong> chamada</td><td><strong>confirmado</strong></td></tr>
+    <tr><td>A resposta sai <strong>antes</strong> de existir qualquer executor</td><td><strong>confirmado</strong></td></tr>
+    <tr><td>A instrução de entrega só é anexada se o prompt for a constante antiga</td><td><strong>confirmado</strong></td></tr>
+  </table>
+
+  <p>A terceira é a mais traiçoeira: eu ia trocar o prompt por um renderizador novo e o modo texto
+  perderia a instrução de entrega <strong>em silêncio</strong>.</p>
+
+  <h3>Quatro decisões minhas que estavam erradas</h3>
+
+  <table>
+    <tr><th style="width:36%">Eu tinha escrito</th><th>A correção</th></tr>
+    <tr><td>Declarar ferramenta emudece o modelo na voz</td><td>Generalização indevida. A MAIA executa ferramenta em turno de voz e o Gemini segue falando. O que medimos foi a função de entrega <em>mais</em> a instrução que manda usá-la. Virou portão com função de leitura real.</td></tr>
+    <tr><td>Seção estável é cacheável</td><td>Sem prova. A classificação equivalente na MAIA nasceu informativa. A razão de separar continua sendo ordem e orçamento — a promessa de cache saiu.</td></tr>
+    <tr><td>Elemento inexistente é reportado como ausente</td><td>O contexto manda uma <strong>amostra</strong> com teto. Assim o agente negaria — com confiança — a existência de algo que ele só não recebeu. Agora afirmar inexistência exige varrer o registro inteiro.</td></tr>
+    <tr><td>Memória durável faz parte desta etapa</td><td>Contradição entre dois documentos meus. Persistência entre visitas virou trabalho próprio, com consentimento próprio.</td></tr>
+  </table>
+
+  <div class="nota alerta">
+    <strong>O que eu não tinha considerado: o diagrama é entrada não confiável.</strong>
+    O produto abre arquivo <code>.bpmn</code> do disco. Um arquivo com uma tarefa chamada
+    <em>“ignore as instruções anteriores e…”</em> entra direto no contexto do modelo. Virou
+    requisito e portão. O limite também ficou escrito: delimitar reduz, não elimina — a contenção
+    real é o agente não ter autoridade para nada destrutivo sem confirmação.
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>03</span></div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">04</span><h2>O buraco: faltava o tutor</h2></div>
+
+  <p class="lead">Trinta e sete requisitos escritos, e nenhum deles sobre o comportamento que você
+  descreveu. Tudo era infraestrutura.</p>
+
+  <p>Você pediu um agente que <strong>ensine</strong> BPMN, <strong>sugira</strong> a melhor forma
+  de representar um processo, saiba <strong>de qual bloco</strong> se está falando e ajude a
+  <strong>montar</strong> conversando. Sem isso especificado, o resultado no fim seria um chatbot
+  com ferramentas — tecnicamente correto e sem o produto dentro.</p>
+
+  <h3>A spec que passou a existir</h3>
+
+  <table>
+    <tr><th style="width:42%">Requisito</th><th>O que ele obriga</th></tr>
+    <tr><td><strong>Ensina com o diagrama como exemplo</strong></td><td>Pergunta sobre gateway exclusivo com a pizzaria aberta cita <em>aquele</em> gateway, nomeando-o. Com diagrama vazio, explica em abstrato e diz por quê.</td></tr>
+    <tr><td><strong>Propõe a representação</strong></td><td>Descrição em linguagem natural vira proposta nomeada — elementos, tipo de cada um, razão da escolha — <strong>antes</strong> de alterar o diagrama.</td></tr>
+    <tr><td><strong>Recomenda com posição</strong></td><td>Havendo mais de uma representação razoável, diz qual recomenda e por quê, em vez de listar opções. Erro de modelagem é apontado com a correção.</td></tr>
+    <tr><td><strong>Monta em passos aceitáveis</strong></td><td>Propor, aplicar o aceito, confirmar. O aluno pode parar no meio e corrigir — e o agente ajusta o que já criou, sem recomeçar.</td></tr>
+    <tr><td><strong>Propõe; o aluno decide</strong></td><td>Não mexe no que não foi pedido. Observação fora do escopo é oferta de uma frase, nunca ação.</td></tr>
+    <tr><td><strong>Curto por padrão</strong></td><td>Uma ou duas frases para pergunta simples; aprofunda quando pedem detalhe; mais curto ainda na voz.</td></tr>
+  </table>
+
+  <div class="nota">
+    O requisito <strong>“propõe; o aluno decide”</strong> é uma escolha de produto, não de
+    engenharia: é um TCC, e um agente que monta tudo sozinho tira do aluno exatamente o que o
+    trabalho deveria exercitar. Está na página 06 para você confirmar ou derrubar.
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>04</span></div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">05</span><h2>O caminho, em quatro etapas</h2></div>
+
+  <p class="lead">Oito fases agrupadas em quatro etapas. Cada etapa tem um <strong>portão</strong>,
+  e portão é medição — não opinião. Fase cujo portão falhar vira registro escrito, não silêncio.</p>
+
+  <div class="fase">
+    <div class="cod ok">concluído</div>
+    <div>
+      <h4>Hoje — transporte provado</h4>
+      <p>Site no ar, voz e texto contra o Gemini real, bateria de 11 cenários passando.</p>
+    </div>
+  </div>
+
+  <div class="fase">
+    <div class="cod">F1 · F2</div>
+    <div>
+      <h4>1. Fundação</h4>
+      <p>Despacho de ferramenta honesto — assíncrono, correlacionado, com resultado real — e o
+      prompt em camadas, com o texto do diagrama entrando delimitado como dado do aluno.</p>
+      <p class="portao"><b>Portão:</b> ferramenta de teste que falha devolve <code>ok:false</code>;
+      ferramenta que demora devolve tempo esgotado sem pendurar o turno; e um diagrama com uma
+      tarefa chamada “ignore as instruções anteriores” não muda o comportamento do agente.</p>
+    </div>
+  </div>
+
+  <div class="fase">
+    <div class="cod">F3 · F4</div>
+    <div>
+      <h4>2. Consciência</h4>
+      <p>O agente passa a enxergar a tela — processo, contagem por tipo, raias, elemento
+      selecionado — e a lembrar da conversa ao trocar entre voz e texto.</p>
+      <p class="portao"><b>Portão:</b> ao vivo, <em>“quantas tarefas tem este diagrama?”</em>
+      responde o número real; com um elemento selecionado, <em>“o que é isto?”</em> responde sobre
+      aquele elemento; e trocar de modo preserva o assunto da conversa.</p>
+    </div>
+  </div>
+
+  <div class="fase">
+    <div class="cod">F5 · F6 · F7</div>
+    <div>
+      <h4>3. Ferramentas</h4>
+      <p>Guardrails verificados, depois leitura do diagrama e da simulação, e só então escrita —
+      criar, conectar, renomear e remover, tudo entrando no Ctrl+Z do aluno.</p>
+      <p class="portao"><b>Portão:</b> ao vivo <strong>em voz</strong>, o modelo chama a ferramenta
+      de leitura, recebe o resultado e continua falando; e no modelador, criar uma tarefa funciona
+      de verdade, com Ctrl+Z desfazendo.</p>
+    </div>
+  </div>
+
+  <div class="fase">
+    <div class="cod">F8</div>
+    <div>
+      <h4>4. Tutor</h4>
+      <p>O comportamento da página anterior: ensinar ancorado no diagrama, propor a representação,
+      recomendar com posição, montar junto em passos.</p>
+      <p class="portao"><b>Portão:</b> descrever um processo em três frases produz uma proposta
+      nomeada; ao aceitar, o diagrama ganha início, tarefas e fim ligados; e nada fora do que foi
+      pedido é alterado.</p>
+    </div>
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>05</span></div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">06</span><h2>As quatro decisões</h2></div>
+
+  <p class="lead">São estas que mudam o plano. Cada uma vem com o que custa — se o custo não valer
+  a pena para você, diga qual e eu refaço o caminho.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>1 · Despacho antes de tudo</h4>
+      <p>Hoje toda chamada de ferramenta responde sucesso antes de existir executor. Começar pelas
+      ferramentas significaria construí-las sobre uma base que mente o resultado ao modelo — e
+      refazê-las depois.</p>
+      <p class="custo"><strong>Custo:</strong> a primeira etapa não entrega nada visível na tela.</p>
+    </div>
+
+    <div class="card">
+      <h4>2 · A memória morre com a aba</h4>
+      <p>O painel promete hoje, em texto, que nada fica depois de fechar. Lembrar entre visitas
+      exige reescrever esse aviso, pedir consentimento próprio e assumir guarda de dado do aluno.</p>
+      <p class="custo"><strong>Custo:</strong> o aluno recomeça a cada visita.</p>
+    </div>
+
+    <div class="card">
+      <h4>3 · O agente propõe; o aluno decide</h4>
+      <p>Nada é criado sem aceite, e o agente não “melhora” parte do diagrama que não foi
+      discutida. É um TCC: o aluno precisa continuar sendo o autor do que entrega.</p>
+      <p class="custo"><strong>Custo:</strong> mais idas e vindas que um “faça tudo para mim”.</p>
+    </div>
+
+    <div class="card">
+      <h4>4 · Fora: RAG, MCP, skills</h4>
+      <p>Avaliados na pesquisa e cortados por não pagarem o custo agora: RAG precisa de corpus e
+      hospedagem, MCP precisa de servidor, e um motor de skills só se paga com fluxo repetido real.</p>
+      <p class="custo"><strong>Custo:</strong> o agente sabe BPMN pelo modelo, não pela norma.</p>
+    </div>
+  </div>
+
+  <div class="nota alerta" style="margin-top:7mm">
+    <strong>A única em que eu não tenho convicção é a quarta.</strong> Cortar o RAG significa que o
+    agente responde a partir do conhecimento do modelo, não do texto da norma BPMN 2.0. Para um TCC
+    isso pode ser suficiente — ou pode ser exatamente a pergunta que o orientador vai fazer na
+    banca. Você conhece esse risco melhor do que eu.
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>06</span></div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="pg">
+  <div class="sec"><span class="n">07</span><h2>Limites e próximo passo</h2></div>
+
+  <h3>O que fica de fora, e quando reavaliar</h3>
+  <table>
+    <tr><th style="width:34%">Fora</th><th>Razão</th><th style="width:26%">Reavaliar</th></tr>
+    <tr><td>Memória entre visitas</td><td>Reescrever o aviso de privacidade e pedir consentimento</td><td>Depois da etapa 4</td></tr>
+    <tr><td>RAG sobre a norma BPMN</td><td>Exige corpus confiável e onde hospedá-lo</td><td>Quando houver corpus</td></tr>
+    <tr><td>MCP</td><td>Não há servidor nosso; as ferramentas são locais à aba</td><td>Se surgir backend</td></tr>
+    <tr><td>Motor de skills</td><td>Procedimento reutilizável só se paga com fluxo repetido</td><td>Depois de ver o uso</td></tr>
+    <tr><td>Multiagentes</td><td>O produto tem um tutor só</td><td>Não previsto</td></tr>
+  </table>
+
+  <h3>Pendências que não dependem do código</h3>
+  <p>O site está no ar no endereço provisório, então nada disso bloqueia as etapas. É a diferença
+  entre publicado e publicado no endereço definitivo: <strong>domínio e DNS</strong>,
+  <strong>secrets de SSH</strong>, <strong>criar o ambiente de produção</strong> no repositório e
+  <strong>ensaiar o rollback</strong> pelo menos uma vez.</p>
+
+  <h3>Como responder a este documento</h3>
+  <ul>
+    <li><strong>Aprovar o caminho</strong> — eu começo pela fundação (etapa 1) e volto com o portão medido.</li>
+    <li><strong>Mudar uma decisão</strong> — diga qual das quatro e o que prefere; eu refaço o roadmap antes de codar.</li>
+    <li><strong>Mudar a ordem</strong> — é possível, mas a fundação antes das ferramentas não é preferência minha: é o que evita refazer a etapa 3 inteira.</li>
+  </ul>
+
+  <div class="nota">
+    <strong>Tudo isto está versionado</strong> em <code>openspec/</code>: a constituição do
+    projeto, o roadmap com as oito fases, as pendências honestas, a pesquisa com a procedência, e
+    as duas mudanças com specs e tarefas. Este PDF é gerado do mesmo material — se algo aqui
+    mudar, muda lá junto.
+  </div>
+
+  <div class="pe"><span>Ajudante BPMN — resumo executivo</span><span>07</span></div>
+</section>
+
+</body>
+</html>
