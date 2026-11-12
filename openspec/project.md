@@ -8,6 +8,9 @@
 > Criada em 2026-11-12, depois que o MVP do ajudante entrou no ar e o trabalho passou a ser
 > **o agente**, não mais o transporte.
 
+> **Caminho atual:** `openspec/roadmap.md` (fases F1-F8, cada uma com portao de medicao).
+> **Pendencias honestas:** `openspec/open-items.md`.
+
 ## I. Especificação antes de implementação
 
 Toda mudança estrutural nasce em `openspec/changes/<nome>/` com **proposal** (por quê),

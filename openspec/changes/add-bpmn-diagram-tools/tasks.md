@@ -1,3 +1,6 @@
+> Fases do `openspec/roadmap.md`: bloco 2 = **F6** (leitura), bloco 3 = **F7** (escrita).
+> O portao de F6 e o gate de voz com ferramenta read-only.
+
 ## 0. Pré-requisito
 
 - [ ] 0.1 `give-bpmn-assistant-an-agent-harness` implementada: catálogo, política default-deny,

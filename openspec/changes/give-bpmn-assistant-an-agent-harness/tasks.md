@@ -1,3 +1,6 @@
+> Fases do `openspec/roadmap.md`: bloco 5 = **F1**, bloco 1 = **F2**, blocos 2-3 = **F3**,
+> bloco 4 = **F4**, bloco 6 = **F5**, bloco 8 = **F8**. Fase nao avanca sem o portao passar.
+
 ## 1. Contrato de prompt
 
 - [ ] 1.1 `src/assistant/agent/sections.js` — registro ordenado de seções com `{id, titulo, tier,
@@ -73,6 +76,18 @@
       obedece. O produto **abre arquivo do disco**, então a entrada é de terceiro de fato
 - [ ] 6.7 A seção do diagrama se declara **amostra** e diz quantos ficaram de fora; o agente não
       afirma inexistência a partir dela
+
+## 8. Tutor (F8 — depende das ferramentas de escrita da change irma)
+
+- [ ] 8.1 Secoes de ensino no prompt: explicar ancorado no diagrama aberto; recomendar com
+      razao quando ha escolha; apontar erro de modelagem com a correcao
+- [ ] 8.2 Montagem guiada: propor -> aceitar -> aplicar -> confirmar, em passos pequenos;
+      ajustar o que ja foi criado quando o aluno corrige no meio
+- [ ] 8.3 O agente propoe e NAO decide pelo aluno: nao mexe no que nao foi pedido; observacao
+      fora do escopo e oferta de uma frase
+- [ ] 8.4 Resposta curta por padrao, funda quando pedida, mais curta ainda na voz
+- [ ] 8.5 **Portao F8** na bateria AO VIVO: descrever um processo em tres frases produz
+      proposta nomeada; aceitar constroi inicio, tarefas e fim ligados; nada fora do pedido
 
 ## 7. Prova
 
