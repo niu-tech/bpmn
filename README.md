@@ -87,10 +87,10 @@ deploy/**             runbook e configuração de publicação
 
 ## Estado
 
-O ajudante está implementado e homologado localmente (testes, navegador, imagem Docker,
-auditoria de credencial). **Ainda não houve conversa real pelo widget nem fala por microfone
-físico** — isso exige alguém com a própria chave, e está no roteiro de
-`openspec/changes/add-bpmn-public-live-assistant-mvp/validation.md`.
+O ajudante está implementado, homologado e **provado contra o Gemini real na URL pública**
+(2026-11-12): conversa por texto e por voz, dentro da bateria automática, sem nenhum passo
+humano. A única variante sem medição é voz humana num microfone físico — o teste usa fala
+sintética pt-BR entrando pelo caminho real do microfone.
 
 Veredito de release item a item:
 [`release-checklist.md`](openspec/changes/add-bpmn-public-live-assistant-mvp/release-checklist.md).

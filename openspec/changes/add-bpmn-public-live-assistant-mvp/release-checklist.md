@@ -28,8 +28,9 @@ virou GO e nasceu o item 24.
 | 15 | **Compose v1 × v2 no deploy** | **GO** | o script detecta qual existe; antes quebraria no último passo |
 | 16 | **Rollback documentado** | **GO (não ensaiado)** | runbook existe; nunca foi executado contra servidor real |
 | 17 | **Botão de deploy disponível** | **GO** | `main` do `niu-tech/bpmn` é a default e tem o workflow; *Run workflow* aparece na UI |
-| 18 | **Conversa real pelo widget** | **NO-GO** | exige a chave do aluno; nunca executado |
-| 19 | **Fala humana + barge-in** | **NO-GO** | exige alguém falando |
+| 18 | **Conversa real pelo widget** | **GO** | 2026-11-12: texto e voz contra o Gemini real, na URL pública, dentro da bateria automática |
+| 19 | **Fala pelo microfone** | **GO com ressalva** | fala SINTÉTICA pt-BR pelo caminho real do microfone: o Gemini transcreveu a frase exata e respondeu falando. Voz humana em microfone físico continua sem medição |
+| 27 | **Bateria automática** | **GO** | 11 cenários, 11 passando contra `niu-tech.github.io/bpmn/`, sem nenhum passo humano |
 | 20 | **Domínio e HTTPS** | **NO-GO para produção, contornado para a prévia** | `host-vhost.conf` tem placeholder; sem domínio, a URL provisória é o GitHub Pages (item 25) |
 | 21 | **Secrets/vars do Actions** | **NO-GO** | `SSH_HOST`, `SSH_USER`, `SSH_KEY` nunca configurados; não toquei |
 | 22 | **Ambiente `production`** | **NO-GO** | o ambiente **ainda não existe** no repo da org (*"There are no environments"*) e o job o exige — criar é obrigatório, pôr revisor é escolha |
@@ -55,9 +56,9 @@ exatamente por que o primeiro push não produziu URL.
 > **zero** arquivos `.vs` em qualquer um deles (varrido commit a commit), e a varredura de
 > segredo no histórico inteiro só acha fixtures sintéticos de teste.
 
-**Impedem declarar o produto validado (18, 19):** o transporte foi provado no P1 por sonda, mas a
-conversa **pelo widget** e a **fala humana** nunca aconteceram. Publicar antes disso é publicar
-algo que ninguém usou de ponta a ponta.
+~~**Impedem declarar o produto validado (18, 19)**~~ — **fechado em 2026-11-12**: a conversa pelo
+widget aconteceu, por texto e por voz, contra o Gemini real e na URL pública. O que resta é a
+variante com voz humana num microfone físico, que mede a pessoa, não o produto.
 
 **Não impedem nada (sugestões):** ensaiar o rollback de verdade; configurar revisores no ambiente;
 broker de token efêmero quando o token passar a abrir a sessão.

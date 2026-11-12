@@ -65,8 +65,10 @@
 - [x] 1.14 Correções que vieram da medição: modo voz × modo texto, `realtimeInput.audio`,
       `audioStreamEnd`, frames vazios/retomada/`generationComplete`/`usageMetadata`, e o
       relógio que quebrava só no navegador
-- [ ] 1.15 **Microfone físico com fala humana** — o único item que exige alguém falando; roteiro
-      em `validation.md`
+- [~] 1.15 **Fala pelo microfone** — provado com fala SINTÉTICA pt-BR (SAPI) entrando pelo
+      caminho real do microfone (`--use-file-for-fake-audio-capture`): o Gemini transcreveu a
+      frase exata e respondeu falando. Falta só a variante com **voz humana num microfone
+      físico**, que depende de alguém falar e deixou de ser bloqueio de produto
 
 ## 2. P2 — Helper no produto
 
@@ -94,8 +96,11 @@
       memória, e `stop()` idempotente provado com três chamadas simultâneas
 - [x] 2.12 **Defeito meu, achado por baseline**: montar antes do `fit-viewport` quebrava o
       modelador. Corrigido montando depois (design D11)
-- [ ] 2.13 Conversa real pelo widget contra o Gemini — **pendente**: exige credencial, e o dono
-      determinou não reusar a do cofre. Roteiro em `validation.md`
+- [x] 2.13 **Conversa real pelo widget contra o Gemini — FEITA** (2026-11-12, com a chave do
+      cofre liberada pelo dono). Texto: pergunta digitada → socket real → `entregar_resposta` →
+      bolha, 187 caracteres corretos sobre gateways. Voz: o Gemini transcreveu *"Qual a diferença
+      entre um gateway exclusivo e um gateway paralelo?"* e respondeu falando. Os dois rodam na
+      bateria, contra a URL pública, sem nenhum passo humano
 
 ## 3. P3 — Homologação e preparação de release
 
@@ -187,6 +192,13 @@
       **0,01** com o tom sintético, 79 quadros no socket
 - [x] 5.7 **`tools/attach-edge.mjs`**: lê a aba já aberta no navegador do dono por CDP, só
       leitura, e diz o comando exato quando a porta de depuração não está ligada
+- [x] 5.9 **Bateria de 11 cenários contra a URL pública**: 11 de 11, incluindo os dois AO VIVO.
+      A chave sai do `.env` (git-ignored) em tempo de execução e cada cenário confere que ela não
+      aparece no relatório, no DOM nem no storage
+- [x] 5.10 **Publicação destravada**: o Actions da organização ficou ~7 h sem despachar (run
+      criado 2026-11-11 20:46 UTC, zero jobs, `updated_at == created_at`). Voltou sozinho; a
+      publicação saiu por `workflow_dispatch` e o bundle novo está no ar. A branch `gh-pages`
+      criada como contorno foi apagada e o Pages voltou para `build_type=workflow`
 - [ ] 5.8 **Barge-in com voz real contra o Gemini** — o drive prova que o quadro sobe durante a
       resposta; se o servidor corta o modelo de fato só a chave do dono responde
 
