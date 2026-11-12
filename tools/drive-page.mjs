@@ -116,7 +116,10 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
   // mesma tecnica dos laboratorios de voz do CopilotSpeaker.
   const micAbs = mic ? resolve(mic) : null;
   if (micAbs && !existsSync(micAbs)) throw new Error(`WAV de microfone nao encontrado: ${micAbs}`);
-  const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-drive-${porta}`;
+  // Perfil NOVO a cada corrida: um perfil compartilhado que ficou travado por uma corrida
+  // anterior faz o Edge anexar na instancia velha e sair sem abrir a porta - e o sintoma e
+  // "o navegador nao abriu a porta", que parece problema de rede e e lixo de disco.
+  const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-drive-${porta}-${process.pid}-${Date.now()}`;
   const filho = spawn(exe, [
     ...(headless ? ['--headless=new'] : []),
     '--disable-gpu',
@@ -129,7 +132,9 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     '--use-fake-device-for-media-stream',
     '--use-fake-ui-for-media-stream',
     '--autoplay-policy=no-user-gesture-required',
-    ...(micAbs ? [`--use-file-for-fake-audio-capture=${micAbs}`] : []),
+    // `%noloop`: sem ele o Chromium repete o WAV sem parar, e o VAD do servidor nunca ve o
+    // silencio que FECHA o turno — a fala ficaria eternamente "em andamento".
+    ...(micAbs ? [`--use-file-for-fake-audio-capture=${micAbs}%noloop`] : []),
     `--window-size=${largura},${altura}`,
     `--remote-debugging-port=${porta}`,
     `--user-data-dir=${perfil}`,

@@ -280,11 +280,51 @@ if (chaveViva) {
          respondeu: resposta.slice(0, 160),
          caracteres: resposta.length,
          vazouAChave: vazou,
-         contagem: (rel.split('\n').find((l) => l.startsWith('contagem:')) ?? '').slice(0, 220),
+         contagem: (rel.split(String.fromCharCode(10)).find((l) => l.startsWith('contagem:')) ?? '').slice(0, 220),
        };`,
     ],
   });
-  console.log('(cenario AO VIVO habilitado: .env com chave encontrado)\n');
+  CENARIOS.push({
+    nome: 'AO VIVO: voz de verdade contra o Gemini',
+    url: ALVO,
+    mic,
+    espera: 3000,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Voz').click();
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent === 'desligado'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       return { ok: document.querySelector('.bpmn-assist__status').textContent !== 'desligado', status: document.querySelector('.bpmn-assist__status').textContent };`,
+      // O WAV pt-BR toca como microfone; o VAD do servidor fecha o turno no silencio que vem
+      // depois (por isso `%noloop`). Esperamos a transcricao de ENTRADA (prova de que o Gemini
+      // ouviu) e o audio de SAIDA (prova de que respondeu falando).
+      `let pico = 0;
+       for (let i = 0; i < 70; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         pico = Math.max(pico, window.__bpmnAssist.estado.nivel);
+         const c = window.__bpmnAssist.contagem;
+         if ((c['ws.audio'] ?? 0) > 3 && (c['ws.input-text'] ?? 0) > 0) break;
+       }
+       const c = window.__bpmnAssist.contagem;
+       const falas = [...document.querySelectorAll('.bpmn-assist__msg--user')].map((m) => m.textContent.trim());
+       const respostas = [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+       return {
+         ok: (c['ws.input-text'] ?? 0) > 0 && (c['ws.audio'] ?? 0) > 0,
+         ouviu: falas.at(-1)?.slice(0, 120) ?? '(sem transcricao de entrada)',
+         respondeu: respostas.at(-1)?.slice(0, 140) ?? '(sem legenda)',
+         quadrosDeAudioDoModelo: c['ws.audio'] ?? 0,
+         picoDoMicrofone: Number(pico.toFixed(3)),
+         furosNaReproducao: (window.__bpmnAssist.report().match(/furos=(\d+)/g) ?? []).at(-1) ?? 'n/d',
+       };`,
+    ],
+  });
+  console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
 }
