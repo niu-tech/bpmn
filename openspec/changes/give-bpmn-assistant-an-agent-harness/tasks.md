@@ -39,7 +39,13 @@
       contagem por tipo, raias/pools, amostra com teto, selecionado
 - [ ] 3.2 `mount.js` assina `selection.changed` e `elements.changed` do `eventBus` e mantém a
       projeção fresca, sem recalcular a cada frame
-- [ ] 3.3 Perfil `viewer`: `somenteLeitura: true` e nenhuma ferramenta de escrita declarada
+- [~] 3.3 Perfil `viewer`: `somenteLeitura: true` **feito e provado** na F2 — `mountAssistant`
+      recebe `pagina` ('modelador' | 'viewer'), explícito em vez de adivinhado pela URL, e o
+      cenário do viewer na bateria confere `ctx.somenteLeitura === true` na página publicada.
+      ⚠ O defeito que isto corrigiu apareceu **lendo o prompt renderizado**, não num teste:
+      `src/viewer.js` chamava `mountAssistant()` sem identificar a página, então a regra existia
+      em `resolve.js` e nunca chegava ao produto. Falta a outra metade — nenhuma ferramenta de
+      escrita declarada —, que só é verificável quando elas existirem (F7)
 - [ ] 3.4 Guarda: nenhum frame enviado contém `<bpmn:definitions`
 
 ## 4. Memória da aba
