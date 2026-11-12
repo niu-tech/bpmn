@@ -101,5 +101,5 @@ O que estava em "Futuro" na change do MVP deixou de ser ideia e virou o próximo
 | F.3 Tools read-only de XML e métricas | change `add-bpmn-diagram-tools` |
 | F.4 Edição de diagrama por agente | change `add-bpmn-diagram-tools` |
 | F.5 Memória durável entre sessões | **change própria, ainda não escrita** — o harness decidiu que a memória morre com a aba, e persistir exige reescrever o aviso de privacidade e pedir consentimento. Divergência apontada pela pesquisa de 2026-11-12 |
-| F.1 RAG sobre a norma BPMN | continua fora: exige corpus e um lugar para hospedá-lo |
+| F.1 RAG sobre a norma BPMN | **substituido** por base OKF citavel + function calling: change `add-bpmn-norm-knowledge-base` (decisao do dono, 2026-11-12) |
 | F.2 MCP | continua fora: não há servidor nosso para falar MCP |

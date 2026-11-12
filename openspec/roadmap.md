@@ -6,6 +6,42 @@
 > **Regra do roadmap:** fase não avança sem o portão passar. Portão é medição, não opinião — e
 > fase cujo portão falhar vira registro em `open-items.md`, não silêncio.
 
+## Decisões validadas pelo dono (2026-11-12)
+
+As quatro decisões do resumo executivo foram respondidas. O que mudou:
+
+| # | Decisão | Resposta |
+|---|---|---|
+| 1 | Fundação antes de tudo, sem entrega visível na etapa 1 | **Aceita.** "Não é problema não entregar nada na primeira etapa, contanto que ao final tenhamos." |
+| 2 | Memória morre com a aba | **Aceita por ora**, com a ressalva de que entra no radar do **próximo checkpoint**, depois destas etapas |
+| 3 | O agente propõe; quem usa decide | **Aceita, com a premissa corrigida** — ver abaixo |
+| 4 | Cortar RAG | **Rejeitada.** O agente vai conhecer a norma, por base OKF + function calling — ver abaixo |
+
+### Correção da premissa 3 — de quem é o TCC
+
+Eu tinha escrito que o agente propõe em vez de decidir **porque é um TCC e o aluno precisa ser o
+autor**. Errado: o TCC é **do dono deste repositório**; este site é a parte física e funcional
+dele. Quem abre o site é **usuário**, não alguém entregando um trabalho acadêmico.
+
+A regra continua valendo — o agente valida antes de criar e não mexe no que não foi pedido —, mas
+a razão é outra: **o diagrama é o trabalho de quem está usando**, e perder trabalho por iniciativa
+de um agente é o defeito mais caro que este produto pode ter.
+
+### Nova frente — o TCC como entrega acadêmica
+
+Referências, padrão de monografia, fundamentação e metodologia passam a ser trabalho declarado,
+não subproduto. A base é o que já existe no CopilotSpeaker: o acervo da **Alexandria TCC**
+(`docs/wiki/tcc/`, 15 artigos em páginas OKF com citação, localizador e limite de evidência) e a
+conferência de normas da **UFF** (`uff-tcc-guidance.md`). Antes de escrever a change, uma rodada
+de pesquisa dirigida — `pesquisa-tcc-prompt.md`.
+
+### Substituição da decisão 4 — a norma entra por OKF, não por RAG
+
+RAG clássico (embeddings, vetor, servidor) continua fora. No lugar entra o padrão já usado na
+Alexandria: **páginas OKF com trecho citável** + **function calling** para consultar. O agente
+passa a responder sobre BPMN 2.0 **citando a fonte**, em vez de depender da memória do modelo.
+Change: `add-bpmn-norm-knowledge-base` (rascunho, aguardando a rodada de pesquisa).
+
 ## Onde queremos chegar
 
 Um **tutor de BPMN** dentro do modelador: o aluno descreve o processo em palavras, o agente
@@ -112,8 +148,8 @@ demonstrável com as ferramentas de escrita (tools). Por isso o portão dele é 
 
 | Fora | Razão | Quando reavaliar |
 |---|---|---|
-| Memória durável entre visitas | exige reescrever o aviso de privacidade e pedir consentimento | change própria, depois de F8 |
-| RAG sobre a norma BPMN | exige corpus e onde hospedá-lo | quando houver um corpus confiável |
+| Memória durável entre visitas | exige reescrever o aviso de privacidade e pedir consentimento | **no radar do próximo checkpoint**, depois destas etapas |
+| ~~RAG sobre a norma BPMN~~ | **substituído** por base OKF + function calling (decisão do dono, 2026-11-12) | vira `add-bpmn-norm-knowledge-base` |
 | MCP | não há servidor nosso; as ferramentas são locais à aba | se surgir backend |
 | Motor de skills | procedimento reutilizável só se paga com fluxos repetidos reais | depois de ver o uso |
 | Multiagentes | o produto tem um tutor só | não previsto |

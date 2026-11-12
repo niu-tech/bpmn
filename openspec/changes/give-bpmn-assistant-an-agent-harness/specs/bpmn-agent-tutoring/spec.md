@@ -56,17 +56,23 @@ sem passo intermediário.
 - **WHEN** o aluno diz "não, essa tarefa é da cozinha, não do atendente" depois de uma etapa
 - **THEN** o agente ajusta o que já foi criado em vez de recomeçar
 
-### Requirement: O agente propõe; o aluno decide
-O agente SHALL tratar o aluno como autor do diagrama: propõe, explica e executa o que foi aceito,
-e SHALL NOT tomar decisões de modelagem não pedidas nem "melhorar" partes que não foram discutidas.
+### Requirement: O agente propõe; quem usa decide
+O agente SHALL tratar quem está usando como autor do diagrama: propõe, explica e executa o que foi
+aceito, e SHALL NOT tomar decisões de modelagem não pedidas nem "melhorar" partes que não foram
+discutidas.
+
+> **Premissa corrigida pelo dono (2026-11-12).** A razão não é acadêmica — o TCC é do autor deste
+> repositório, e quem abre o site é usuário, não alguém entregando trabalho. A razão é mais
+> simples e mais dura: **o diagrama é o trabalho de quem está usando**, e perder trabalho por
+> iniciativa de um agente é o defeito mais caro que este produto pode ter.
 
 #### Scenario: Não mexe no que não foi pedido
-- **WHEN** o aluno pede para acrescentar uma tarefa no fim do processo
+- **WHEN** quem está usando pede para acrescentar uma tarefa no fim do processo
 - **THEN** só isso é feito, mesmo que o agente ache que outra parte do diagrama está ruim
 
 #### Scenario: Observação fora do pedido é oferta, não ação
 - **WHEN** o agente nota um problema em outra parte do diagrama
-- **THEN** ele menciona em uma frase e pergunta se o aluno quer tratar, sem alterar nada
+- **THEN** ele menciona em uma frase e pergunta se quer tratar, sem alterar nada
 
 ### Requirement: Resposta curta por padrão, fundo quando pedido
 O agente SHALL responder de forma curta e direta por padrão, e SHALL aprofundar quando o aluno
