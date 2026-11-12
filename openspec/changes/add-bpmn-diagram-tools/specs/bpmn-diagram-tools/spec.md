@@ -16,6 +16,10 @@ modelador quanto no viewer, e elas SHALL responder a partir do estado real da p�
 - **WHEN** o modelo chama `buscar_elemento` com um nome que não existe
 - **THEN** a resposta é uma lista vazia e o agente diz ao aluno que não encontrou
 
+#### Scenario: Busca varre o registro inteiro, não a amostra
+- **WHEN** `buscar_elemento` procura um elemento que não está na amostra do contexto
+- **THEN** ele é encontrado, porque a busca consulta o `elementRegistry` completo
+
 #### Scenario: Resumo de simulação só existe depois de uma corrida
 - **WHEN** `resumir_simulacao` é chamada antes de qualquer corrida
 - **THEN** a resposta diz que não há corrida, sem inventar métrica
@@ -51,6 +55,18 @@ remover nada enquanto a confirmação não for dada.
 #### Scenario: Com confirmação, remove e diz o que removeu
 - **WHEN** o aluno confirma
 - **THEN** o elemento sai do registro e a resposta ao modelo nomeia o que saiu
+
+#### Scenario: Confirmação velha não vale para diagrama novo
+- **WHEN** o diagrama muda entre o pedido de remoção e a confirmação do aluno
+- **THEN** a remoção é recusada com `diagrama_mudou` e nada é removido
+
+### Requirement: Métrica de simulação declara a que diagrama pertence
+`resumir_simulacao` SHALL informar se o diagrama foi alterado depois da corrida, para que o agente
+não apresente métrica velha como estado atual.
+
+#### Scenario: Diagrama editado depois da corrida
+- **WHEN** o aluno roda a simulação e depois altera o diagrama
+- **THEN** o resumo diz que as métricas são de uma versão anterior do diagrama
 
 ### Requirement: Conectar valida os dois lados
 O sistema SHALL recusar `conectar` quando qualquer um dos identificadores não existir, ou quando

@@ -3,6 +3,11 @@
 - [ ] 0.1 `give-bpmn-assistant-an-agent-harness` implementada: catálogo, política default-deny,
       despacho com erro nomeado e contexto do diagrama. Sem isso, cada ferramenta aqui nasceria
       sem portão
+- [ ] 0.2 **Despacho assíncrono correlacionado** (tarefa 5.0 do harness) de pé. Com o despacho de
+      hoje, que responde `{ok:true}` antes de executar, toda ferramenta desta change mentiria o
+      resultado ao modelo
+- [ ] 0.3 **Gate de voz com ferramenta read-only** (tarefa 4.3 do harness) decidido. Se a voz não
+      suportar ferramenta, esta change entrega só o perfil de texto e diz isso na UI
 
 ## 1. Acesso à página
 
@@ -19,8 +24,10 @@
       com teto e diz quando cortou
 - [ ] 2.3 `detalhar_elemento` — tipo, nome, entradas e saídas de um `id`
 - [ ] 2.4 `resumir_simulacao` — última corrida: tempo médio, gargalo, utilização por raia; diz
-      "sem corrida" quando não houver
-- [ ] 2.5 Testes com dublê de `elementRegistry`, incluindo busca sem resultado
+      "sem corrida" quando não houver **e avisa quando o diagrama mudou depois da corrida**, para
+      não apresentar métrica velha como estado atual
+- [ ] 2.5 Testes com dublê de `elementRegistry`, incluindo busca sem resultado e a busca que
+      varre o registro INTEIRO (não a amostra do contexto) — é o que permite afirmar inexistência
 
 ## 3. Escrita (só modelador)
 
@@ -28,7 +35,8 @@
 - [ ] 3.2 `conectar` — sequência ou mensagem; valida existência dos dois lados e a regra de pools
 - [ ] 3.3 `renomear`
 - [ ] 3.4 `remover` — **confirmação na interface** antes de executar; recusa devolve resposta ao
-      modelo
+      modelo. A confirmação carrega `id` **e versão do diagrama**: se o diagrama mudou entre o
+      pedido e o clique, recusa com `diagrama_mudou` (H14)
 - [ ] 3.5 Toda escrita por `modeling`; guarda que falha se alguma ferramenta tocar XML
 - [ ] 3.6 Toda escrita devolve o que mudou, para o agente narrar ao aluno
 

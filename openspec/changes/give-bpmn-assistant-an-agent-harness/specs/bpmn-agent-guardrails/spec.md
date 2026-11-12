@@ -52,10 +52,24 @@ dispare ou roteie uma ferramenta.
 - **THEN** nenhuma ocorrência de comparação de texto do aluno contra lista de verbos decide
   chamada de ferramenta
 
-### Requirement: Toda chamada de ferramenta é respondida
-O sistema SHALL enviar `toolResponse` para toda `toolCall` recebida, inclusive para chamada
-recusada pela política ou repetida.
+### Requirement: Toda chamada de ferramenta é respondida com o resultado REAL
+O sistema SHALL enviar `toolResponse` para toda `toolCall` recebida — inclusive recusada, falha ou
+repetida — e o corpo SHALL refletir o que de fato aconteceu: `{ok:true, …}` apenas quando a
+execução concluiu, e `{ok:false, erro:'<nome>'}` em qualquer outro caso.
 
-#### Scenario: Chamada recusada ainda recebe resposta
-- **WHEN** o modelo chama uma ferramenta não permitida
-- **THEN** um `toolResponse` com o erro nomeado é enviado antes do turno seguinte
+#### Scenario: Chamada recusada responde falha, não sucesso
+- **WHEN** o modelo chama uma ferramenta não permitida pela política
+- **THEN** o `toolResponse` traz `ok:false` com o erro nomeado, e nunca `ok:true`
+
+#### Scenario: A resposta sai depois da execução, não antes
+- **WHEN** uma ferramenta leva tempo para concluir
+- **THEN** o `toolResponse` daquela chamada é enviado somente após o resultado, correlacionado
+  pelo `id` da chamada
+
+#### Scenario: Ferramenta que estoura o tempo responde falha nomeada
+- **WHEN** a execução de uma ferramenta passa do teto próprio dela
+- **THEN** o modelo recebe `{ok:false, erro:'tempo_esgotado'}` e o turno não fica pendurado
+
+#### Scenario: O relógio do turno não corre durante a ferramenta
+- **WHEN** uma ferramenta está em execução
+- **THEN** o temporizador de silêncio do turno não dispara por causa dessa espera

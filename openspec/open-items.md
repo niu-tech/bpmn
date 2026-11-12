@@ -62,6 +62,21 @@ microfone) para que a fala caia dentro da janela 15–19 s. É ajuste de fixture
 | T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | o roteiro continua válido para humano, mas a bateria cobre o essencial |
 | T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | o runner tem Chrome; falta decidir se o custo de minutos compensa |
 
+## 4b. Achados da pesquisa de arquitetura (2026-11-12)
+
+Levantados pela pesquisa profunda na MAIA (`changes/give-bpmn-assistant-an-agent-harness/research.md`)
+e **confirmados no nosso código**. Viraram tarefa; ficam aqui até fecharem.
+
+| # | Achado | Onde | Virou |
+|---|---|---|---|
+| P1 | `toolResponse` responde `{ok:true}` para toda chamada | `src/assistant/live/protocol.js:164` | tarefa 5.0 do harness |
+| P2 | A resposta sai **antes** de qualquer executor | `src/assistant/live/session.js:217` | tarefa 5.0a |
+| P3 | A instrução de entrega só entra se o prompt for a constante antiga | `src/assistant/live/protocol.js:79` | tarefa 1.4 |
+| P4 | Texto do diagrama entra no contexto sem fronteira — e o produto **abre arquivo do disco** | `src/app.js` (`#bz-file-input`) | H11 + tarefa 6.6 |
+| P5 | Um relógio só para turno e ferramenta derruba o cliente com a ferramenta ainda rodando | `src/assistant/live/session.js` | H15 + tarefa 5.0c |
+| P6 | "Declarar ferramenta emudece a voz" era generalização indevida de uma medição estreita | `design.md` H9 | gate 4.3 reescrito |
+| P7 | Recusa de domínio nunca foi testada contra entrada adversarial | — | aberto, sem tarefa ainda |
+
 ## 5. Decisões conscientes que continuam valendo
 
 Não são dívidas — são escolhas, registradas para ninguém "consertar" por engano.
@@ -85,6 +100,6 @@ O que estava em "Futuro" na change do MVP deixou de ser ideia e virou o próximo
 |---|---|
 | F.3 Tools read-only de XML e métricas | change `add-bpmn-diagram-tools` |
 | F.4 Edição de diagrama por agente | change `add-bpmn-diagram-tools` |
-| F.5 Memória durável entre sessões | change `give-bpmn-assistant-an-agent-harness` |
+| F.5 Memória durável entre sessões | **change própria, ainda não escrita** — o harness decidiu que a memória morre com a aba, e persistir exige reescrever o aviso de privacidade e pedir consentimento. Divergência apontada pela pesquisa de 2026-11-12 |
 | F.1 RAG sobre a norma BPMN | continua fora: exige corpus e um lugar para hospedá-lo |
 | F.2 MCP | continua fora: não há servidor nosso para falar MCP |
