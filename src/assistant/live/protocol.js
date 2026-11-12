@@ -154,17 +154,33 @@ export function buildHistory(turns) {
   };
 }
 
-/** Resposta obrigatória a um `toolCall` (fato 3). */
-export function buildToolResponse(calls) {
+/**
+ * Resposta obrigatória a um `toolCall` (fato 3).
+ *
+ * ⚠ Recebe RESULTADOS, não chamadas. A versão anterior recebia `calls` e respondia
+ * `{ok:true}` para todas — o que é verdade só para a função de entrega textual, que não tem
+ * efeito a reportar, e mentira para qualquer ferramenta de verdade: uma remoção recusada
+ * respondia sucesso e o modelo seguia achando que apagou algo. Quem produz o resultado é o
+ * despachante (`agent/dispatch.js`).
+ *
+ * `resultados` = `[{ id, name, response }]`, com `response` já no formato
+ * `{ok:true, resultado}` ou `{ok:false, erro}`.
+ */
+export function buildToolResponse(resultados) {
   return {
     toolResponse: {
-      functionResponses: calls.map((c) => ({
-        id: c.id,
-        name: c.name,
-        response: { ok: true },
+      functionResponses: resultados.map((r) => ({
+        id: r.id,
+        name: r.name,
+        response: r.response,
       })),
     },
   };
+}
+
+/** Resposta de efeito nulo — a entrega textual, que não executa nada. */
+export function respostaDeEntrega(call) {
+  return { id: call.id, name: call.name, response: { ok: true } };
 }
 
 /**

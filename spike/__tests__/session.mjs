@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { createSession } from '../../src/assistant/live/session.js';
 import { DELIVERY_TOOL } from '../../src/assistant/live/protocol.js';
-import { MockSocket, fakeClock, mockFactory, report, test } from './mock-socket.mjs';
+import { MockSocket, fakeClock, mockFactory, report, test, testAsync } from './mock-socket.mjs';
 
 /** Sessao ja conectada e com setup aceito. */
 function ready(opts = {}) {
@@ -98,11 +98,22 @@ test('toda chamada de tool recebe toolResponse (sem isso o turno pendura)', () =
   assert.equal(resp[0].toolResponse.functionResponses[0].id, 'c1');
 });
 
-test('tool que NAO e a entrega tambem e respondida', () => {
+await testAsync('tool que NAO e a entrega e respondida - com o resultado REAL, nao ok:true', async () => {
+  // O despacho virou ASSINCRONO (fase F1): a resposta sai DEPOIS da execucao, nao antes. Sem
+  // despachante registrado, a verdade e `ferramenta_nao_roteada` - e nao sucesso inventado.
   const { session, ws } = ready();
   session.ask('p');
   ws.emit({ toolCall: { functionCalls: [{ id: 'z', name: 'outra_coisa', args: {} }] } });
-  assert.equal(ws.framesOf('toolResponse').length, 1);
+  assert.equal(ws.framesOf('toolResponse').length, 0, 'nada pode ser respondido antes de executar');
+
+  await new Promise((r) => setTimeout(r, 0));
+
+  const frames = ws.framesOf('toolResponse');
+  assert.equal(frames.length, 1);
+  const resposta = frames[0].toolResponse.functionResponses[0];
+  assert.equal(resposta.id, 'z');
+  assert.equal(resposta.response.ok, false);
+  assert.equal(resposta.response.erro, 'ferramenta_nao_roteada');
 });
 
 test('entrega repetida no mesmo turno e respondida e descartada (texto nao duplica)', () => {

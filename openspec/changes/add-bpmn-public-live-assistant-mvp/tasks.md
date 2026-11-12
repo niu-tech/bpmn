@@ -201,11 +201,15 @@
       criado 2026-11-11 20:46 UTC, zero jobs, `updated_at == created_at`). Voltou sozinho; a
       publicação saiu por `workflow_dispatch` e o bundle novo está no ar. A branch `gh-pages`
       criada como contorno foi apagada e o Pages voltou para `build_type=workflow`
-- [~] 5.8 **Barge-in com voz real contra o Gemini** — cenário construído e executado; resultado
-      **inconclusivo por timing do teste**, não por defeito do produto: o modelo só começou a
-      falar aos 15 s e terminou aos 19,2 s, enquanto o corte entrou aos 9 s, no silêncio. O
-      Gemini ouviu e transcreveu a frase de corte. Falta refazer com ~17 s de silêncio —
-      ajuste de fixture. Linha do tempo em `openspec/open-items.md` §3
+- [x] 5.8 **Barge-in com voz real contra o Gemini — PROVADO** (2026-11-12). Duas medições
+      corrigiram o teste antes de o produto ser julgado:
+      (a) o corte caía no silêncio, antes de haver o que cortar;
+      (b) **em modo voz com o microfone aberto, pergunta DIGITADA só é respondida depois de o
+      servidor ver fim de fala no áudio** — com 9 s de silêncio o modelo falou aos 15 s; com
+      16 s, aos 22,6 s. O fluxo de áudio governa o turno.
+      A forma que funciona: pergunta **pela voz**, 2 s de pausa, frase de corte — tudo num WAV só
+      (`tools/wav-pad.mjs juntar`). Resultado: `ws.input-text` 12,9 s → modelo fala 13,4 s →
+      **`ws.interrupted` 16,1 s**. Cenário na bateria, 12 de 12
 
 ## Futuro — fora do MVP
 

@@ -15,7 +15,7 @@
 import { redact, rememberSecret } from './redact.js';
 import {
   buildAudioChunk, buildAudioStreamEnd, buildSetup, buildTextTurn, buildToolResponse,
-  parseServerFrame, socketUrl,
+  parseServerFrame, respostaDeEntrega, socketUrl, DELIVERY_TOOL,
 } from './protocol.js';
 
 export const STATES = ['idle', 'connecting', 'ready', 'listening', 'speaking', 'closing', 'error'];
@@ -44,6 +44,11 @@ export function createSession({
   // "o modelo foi interrompido" numa sequência (`out.audio x12 -> ws.interrupted`) que diz a
   // CAUSA. Opcional: sem ele a sessão funciona igual.
   onEvent,
+  /**
+   * Quem executa ferramenta (`agent/dispatch.js`). Sem ele, chamada que não seja a entrega
+   * textual é respondida `ferramenta_nao_roteada` — que é a verdade, e não `{ok:true}`.
+   */
+  dispatcher,
   // ⚠ Envoltórios, NUNCA as referências cruas. No navegador `setTimeout` é método de `window`:
   // guardá-lo num objeto e chamar `clock.setTimeout(...)` perde o `this` e o browser lança
   // `TypeError: Illegal invocation`. No node a mesma linha funciona — então o defeito é
@@ -102,9 +107,28 @@ export function createSession({
     if (turnTimer) { clock.clearTimeout(turnTimer); turnTimer = null; }
   }
 
+  /**
+   * ⚠ O relógio de silêncio do turno NÃO corre enquanto uma ferramenta executa. Com um relógio
+   * só, o cliente desiste no meio da execução e o turno morre por "servidor calado" — o mesmo
+   * defeito registrado na cadeia de orçamento de turno do CopilotSpeaker.
+   */
+  let ferramentasEmVoo = 0;
+
   function armTurnTimer() {
     if (turnTimer) clock.clearTimeout(turnTimer);
+    turnTimer = null;
+    if (ferramentasEmVoo > 0) return;
     turnTimer = clock.setTimeout(() => fail('timeout', 'servidor calado após o setup'), cfg.idleTurnTimeoutMs);
+  }
+
+  function pausarRelogioDoTurno() {
+    ferramentasEmVoo++;
+    if (turnTimer) { clock.clearTimeout(turnTimer); turnTimer = null; }
+  }
+
+  function retomarRelogioDoTurno() {
+    ferramentasEmVoo = Math.max(0, ferramentasEmVoo - 1);
+    if (ferramentasEmVoo === 0) armTurnTimer();
   }
 
   function send(frame) {
@@ -212,9 +236,9 @@ export function createSession({
         return;
 
       case 'tool-call': {
-        // Responder é OBRIGATÓRIO, inclusive para chamada repetida: responder e descartar.
-        // Sem a resposta o turno fica pendurado e o pedido seguinte cai no meio dele.
-        send(buildToolResponse(frame.calls));
+        // Responder é OBRIGATÓRIO, inclusive para chamada recusada ou repetida: sem a resposta o
+        // turno fica pendurado e o pedido seguinte cai no meio dele. O que mudou é QUANDO e COM
+        // O QUÊ — a resposta agora carrega o resultado real.
         if (frame.delivery !== null && frame.delivery !== undefined) {
           if (turn?.delivered) {
             log('entrega repetida ignorada');
@@ -224,7 +248,37 @@ export function createSession({
             onText?.({ text: frame.delivery, fallback: false, complete: false });
           }
         }
-        armTurnTimer();
+
+        const entregas = frame.calls.filter((c) => c.name === DELIVERY_TOOL);
+        const acoes = frame.calls.filter((c) => c.name !== DELIVERY_TOOL);
+
+        // Entrega textual não executa nada: responde na hora, como sempre fez.
+        if (!acoes.length) {
+          send(buildToolResponse(entregas.map(respostaDeEntrega)));
+          armTurnTimer();
+          return;
+        }
+
+        // Ação de verdade: despacho ASSÍNCRONO. `handleFrame` volta já — travar aqui travaria o
+        // laço de recepção do socket, que é o deadlock que os invariantes de voz proíbem.
+        pausarRelogioDoTurno();
+        const despacho = dispatcher
+          ? dispatcher.despachar(acoes)
+          : Promise.resolve(acoes.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_nao_roteada' } })));
+
+        Promise.resolve(despacho)
+          .then((resultados) => {
+            if (closedByUs) return;
+            send(buildToolResponse([...entregas.map(respostaDeEntrega), ...resultados]));
+          })
+          .catch((err) => {
+            // O despachante não deveria lançar; se lançar, o modelo ainda precisa de resposta.
+            log('despacho lancou:', err?.message ?? String(err));
+            if (!closedByUs) {
+              send(buildToolResponse(acoes.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_falhou' } }))));
+            }
+          })
+          .finally(() => { retomarRelogioDoTurno(); });
         return;
       }
 
@@ -382,6 +436,7 @@ export function createSession({
     /** Encerramento explícito: sem isto a cota do aluno continua correndo. */
     close() {
       closedByUs = true;
+      try { dispatcher?.encerrar?.(); } catch { /* já encerrado */ }
       setState('closing');
       clearTimers();
       pending = [];

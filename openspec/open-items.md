@@ -26,7 +26,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | # | Item | Estado | Por quê |
 |---|---|---|---|
 | M1 | Voz **humana** em microfone físico | aberto | o teste usa fala sintética pt-BR (SAPI) entrando pelo caminho real do microfone. Mede o produto, não a pessoa — mas é diferença real, e fica dita |
-| M2 | Barge-in contra o Gemini | **medido, inconclusivo** | ver §3 |
+| M2 | Barge-in contra o Gemini | **PROVADO** (2026-11-12) | ver §3 — e o achado maior: o fluxo de audio governa o turno digitado |
 | M3 | Negação de microfone ao vivo | aberto | o teste cobre o caminho de erro em unidade; falta o cenário no navegador (é um `--passo` que recusa `getUserMedia`) |
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |

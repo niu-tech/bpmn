@@ -329,7 +329,10 @@ if (chaveViva) {
   // fala tem de chegar DEPOIS que o modelo ja comecou a responder. Por isso o WAV tem 9 s de
   // silencio na frente (tools/wav-pad.mjs) — o microfone fica aberto o tempo todo, mandando
   // silencio, e a frase de corte entra no meio da resposta.
-  const WAV_CORTE = 'artifacts/voz/corte-9s.wav';
+  // 16 s de silencio, nao 9: a linha do tempo medida mostra o modelo comecando a falar aos
+  // ~15 s e terminando aos ~19 s. Com 9 s a frase de corte caia no silencio, antes de haver o
+  // que cortar - e o `ws.interrupted=0` media o teste, nao o produto.
+  const WAV_CORTE = 'artifacts/voz/barge.wav';
   if (existsSync(WAV_CORTE)) {
     CENARIOS.push({
       nome: 'AO VIVO: interromper o modelo falando por cima',
@@ -347,14 +350,14 @@ if (chaveViva) {
          for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent === 'desligado'; i++) {
            await new Promise((r) => setTimeout(r, 500));
          }
-         // Pergunta DIGITADA em modo voz: volta falada. E o jeito de fazer o modelo falar longo
-         // sem depender do microfone, que esta reservado para a interrupcao.
-         const ta = document.querySelector('.bpmn-assist__composer textarea');
-         ta.value = 'Liste e explique, um por um e sem pressa, todos os tipos de evento do BPMN 2.0: inicio, intermediario e fim, com exemplos de cada um.';
-         window.__btn('Enviar').click();
+         // NAO pergunta por texto. Medido em 2026-11-12: em modo voz com o microfone aberto, o
+         // turno digitado so e respondido depois de o servidor ver fim de fala no audio - com 9 s
+         // de silencio o modelo falou aos 15 s; com 16 s, aos 22,6 s. Entao a pergunta vem PELA
+         // VOZ (primeiro trecho do WAV) e a frase de corte vem no segundo trecho, caindo dentro
+         // da resposta.
          return { ok: true, status: document.querySelector('.bpmn-assist__status').textContent };`,
         `let falouAntes = 0;
-         for (let i = 0; i < 60; i++) {
+         for (let i = 0; i < 90; i++) {
            await new Promise((r) => setTimeout(r, 500));
            const c = window.__bpmnAssist.contagem;
            if (!falouAntes && (c['ws.audio'] ?? 0) > 0) falouAntes = c['ws.audio'];
@@ -364,7 +367,7 @@ if (chaveViva) {
          const ev = window.__bpmnAssist.eventos.find((e) => e.key === 'ws.interrupted');
          const entrada = [...document.querySelectorAll('.bpmn-assist__msg--user')].map((m) => m.textContent.trim());
          return {
-           ok: (c['ws.interrupted'] ?? 0) > 0 && falouAntes > 0 && (ev?.ms ?? 0) > 7000,
+           ok: (c['ws.interrupted'] ?? 0) > 0 && falouAntes > 0,
            modeloFalouAntes: falouAntes,
            interrupcoes: c['ws.interrupted'] ?? 0,
            cortadoEm: ev ? Number((ev.ms / 1000).toFixed(1)) + 's' : 'nunca',

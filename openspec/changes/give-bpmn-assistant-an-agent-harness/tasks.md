@@ -52,15 +52,19 @@
 
 ## 5. Despacho de ferramenta (pré-requisito das ferramentas de verdade)
 
-- [ ] 5.0 **Reescrever o caminho da `toolCall`.** Hoje `buildToolResponse` responde `{ok:true}`
+- [x] 5.0 **Reescrever o caminho da `toolCall`.** Hoje `buildToolResponse` responde `{ok:true}`
       para toda chamada (`protocol.js:164`) e `session.js` responde **antes** de qualquer
       executor (`session.js:217`). Serve para a entrega textual e mente para qualquer ferramenta
       real
-- [ ] 5.0a Despacho assíncrono correlacionado por `id`: autorização → execução → `toolResponse`
+- [x] 5.0a Despacho assíncrono correlacionado por `id`: autorização → execução → `toolResponse`
       com o resultado REAL (`{ok:false, erro}` quando recusada, falha ou cancelada)
-- [ ] 5.0b Teto próprio por ferramenta; `tempo_esgotado` em vez de turno pendurado
-- [ ] 5.0c O relógio de silêncio do turno **não** corre enquanto uma ferramenta executa
-- [ ] 5.0d Execução não bloqueia o laço de recepção do socket
+- [x] 5.0b Teto próprio por ferramenta; `tempo_esgotado` em vez de turno pendurado
+- [x] 5.0c O relógio de silêncio do turno **não** corre enquanto uma ferramenta executa
+- [x] 5.0d Execução não bloqueia o laço de recepção do socket — `handleFrame` volta já; o
+      despacho resolve depois. Fechar a sessão no meio não envia em socket morto
+- [x] 5.0e **Portão F1 provado**: `src/assistant/__tests__/despacho.mjs`, 13 de 13 — falha vira
+      `ok:false`, teto vira `tempo_esgotado`, o relógio do turno fica desarmado durante a
+      execução, e a chave não vaza pela mensagem de erro da ferramenta
 
 ## 6. Guardrails e catálogo
 
