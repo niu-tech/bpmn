@@ -43,7 +43,13 @@ function reservarRodape(root) {
   return () => { ro.disconnect(); window.removeEventListener('resize', aplicar); };
 }
 
-export function mountAssistant({ container = document.body, debug = false } = {}) {
+/**
+ * `pagina` diz QUAL das duas entries montou o ajudante: `'modelador'` ou `'viewer'`. Não é
+ * cosmético — é o que faz o contexto nascer `somenteLeitura` e, quando as ferramentas de escrita
+ * existirem (F7), o que impede que elas sejam declaradas ao modelo numa página que não edita.
+ * Explícito em vez de adivinhado pela URL: o viewer pode ser servido em qualquer caminho.
+ */
+export function mountAssistant({ container = document.body, debug = false, pagina = 'modelador' } = {}) {
   if (document.documentElement.dataset[MARK] === '1') return null;
   document.documentElement.dataset[MARK] = '1';
 
@@ -55,7 +61,7 @@ export function mountAssistant({ container = document.body, debug = false } = {}
 
   const session = createAssistantSession({
     credentials,
-    deps: { debug },
+    deps: { debug, pagina },
     onUpdate: () => widget?.render(view()),
   });
 

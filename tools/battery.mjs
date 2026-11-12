@@ -100,7 +100,15 @@ const CENARIOS = [
     url: new URL('viewer.html', ALVO).href,
     passos: [`
       const svg = document.querySelectorAll('.djs-visual').length;
-      return { ok: svg > 10 && !!document.querySelector('.bpmn-assist__toggle'), formas: svg };
+      const ctx = window.__bpmnAssist.contexto;
+      // O viewer nao edita: o contexto tem de nascer somente-leitura, senao as ferramentas de
+      // escrita da F7 seriam declaradas numa pagina que nao tem como aplicar nada.
+      return {
+        ok: svg > 10 && !!document.querySelector('.bpmn-assist__toggle') && ctx.somenteLeitura === true,
+        formas: svg,
+        perfilDaPagina: ctx.pagina,
+        somenteLeitura: ctx.somenteLeitura,
+      };
     `],
   },
   {
