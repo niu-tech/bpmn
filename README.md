@@ -78,7 +78,9 @@ tools/drive-*.mjs     drive de página headless: clica, lê o DOM, tira print, s
 tools/attach-edge.mjs leitura da aba já aberta no navegador do dono (CDP, só leitura)
 tools/make-voice-fixtures.ps1  WAVs pt-BR (SAPI) usados COMO microfone nos testes
 spike/**              harness de prova do transporte, dev-only — NÃO entra no bundle
-openspec/**           a change que originou o ajudante: proposta, design, specs, evidências
+openspec/project.md   a constituição: princípios que valem para toda change
+openspec/open-items.md  o que está em aberto, honesto (portões do dono, medições, dívidas)
+openspec/changes/**   uma pasta por change: proposal, design, specs/<capacidade>, tasks
 deploy/**             runbook e configuração de publicação
 ```
 

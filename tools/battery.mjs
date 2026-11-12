@@ -324,6 +324,59 @@ if (chaveViva) {
        };`,
     ],
   });
+  // ---------------------------------------------------------------- barge-in
+  // O recurso que o dono pediu ("poder interromper ela"). Provar exige TEMPO, nao so audio: a
+  // fala tem de chegar DEPOIS que o modelo ja comecou a responder. Por isso o WAV tem 9 s de
+  // silencio na frente (tools/wav-pad.mjs) — o microfone fica aberto o tempo todo, mandando
+  // silencio, e a frase de corte entra no meio da resposta.
+  const WAV_CORTE = 'artifacts/voz/corte-9s.wav';
+  if (existsSync(WAV_CORTE)) {
+    CENARIOS.push({
+      nome: 'AO VIVO: interromper o modelo falando por cima',
+      url: ALVO,
+      mic: WAV_CORTE,
+      espera: 3000,
+      passos: [
+        `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+         document.querySelector('.bpmn-assist__toggle').click();
+         document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+         const c = document.querySelector('#bpmn-assist-consent');
+         c.checked = true; c.dispatchEvent(new Event('change'));
+         window.__btn('Voz').click();
+         window.__btn('Começar').click();
+         for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent === 'desligado'; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+         }
+         // Pergunta DIGITADA em modo voz: volta falada. E o jeito de fazer o modelo falar longo
+         // sem depender do microfone, que esta reservado para a interrupcao.
+         const ta = document.querySelector('.bpmn-assist__composer textarea');
+         ta.value = 'Liste e explique, um por um e sem pressa, todos os tipos de evento do BPMN 2.0: inicio, intermediario e fim, com exemplos de cada um.';
+         window.__btn('Enviar').click();
+         return { ok: true, status: document.querySelector('.bpmn-assist__status').textContent };`,
+        `let falouAntes = 0;
+         for (let i = 0; i < 60; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+           const c = window.__bpmnAssist.contagem;
+           if (!falouAntes && (c['ws.audio'] ?? 0) > 0) falouAntes = c['ws.audio'];
+           if ((c['ws.interrupted'] ?? 0) > 0) break;
+         }
+         const c = window.__bpmnAssist.contagem;
+         const ev = window.__bpmnAssist.eventos.find((e) => e.key === 'ws.interrupted');
+         const entrada = [...document.querySelectorAll('.bpmn-assist__msg--user')].map((m) => m.textContent.trim());
+         return {
+           ok: (c['ws.interrupted'] ?? 0) > 0 && falouAntes > 0 && (ev?.ms ?? 0) > 7000,
+           modeloFalouAntes: falouAntes,
+           interrupcoes: c['ws.interrupted'] ?? 0,
+           cortadoEm: ev ? Number((ev.ms / 1000).toFixed(1)) + 's' : 'nunca',
+           ouviuOCorte: entrada.at(-1)?.slice(0, 90) ?? '(sem transcricao)',
+           linhaDoTempo: window.__bpmnAssist.eventos
+             .filter((e) => ['ws.audio', 'ws.turn-complete', 'ws.input-text', 'ws.interrupted', 'out.text'].includes(e.key))
+             .map((e) => Number((e.ms / 1000).toFixed(1)) + 's ' + e.key + (e.n > 1 ? ' x' + e.n : '')),
+         };`,
+      ],
+    });
+  }
+
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
@@ -331,8 +384,11 @@ if (chaveViva) {
 
 mkdirSync('artifacts/bateria', { recursive: true });
 
+const soEsses = (() => { const i = process.argv.indexOf('--so'); return i > 0 ? process.argv[i + 1] : null; })();
+const aRodar = soEsses ? CENARIOS.filter((c) => c.nome.toLowerCase().includes(soEsses.toLowerCase())) : CENARIOS;
+
 const resultados = [];
-for (const c of CENARIOS) {
+for (const c of aRodar) {
   const r = await dirigir({
     url: c.url,
     mic: c.mic ?? null,

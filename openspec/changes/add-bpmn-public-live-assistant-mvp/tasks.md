@@ -164,7 +164,9 @@
 - [x] 4.9 **Defeitos achados pelo próprio drive**: dois `AudioContext` de reprodução abertos
       quando o microfone automático e o clique do aluno corriam juntos (resposta dobrada), e
       `endAudio` rebaixando o estado para "ouvindo" no instante em que o modelo respondia
-- [ ] 4.10 **Conversa real pelo widget** — ainda pendente: exige a chave do dono na URL pública
+- [x] 4.10 **Conversa real pelo widget** — mesma prova da caixa 2.13 (2026-11-12): texto e voz
+      contra o Gemini real, na URL pública, dentro da bateria. Esta linha duplicava 2.13 e ficou
+      dizendo "pendente" depois de fechada — registrado em `openspec/open-items.md` (T1)
 
 ## 5. P5 — Escuta contínua, fala sem travar, teste autônomo (2026-11-11, 2ª rodada)
 
@@ -199,8 +201,11 @@
       criado 2026-11-11 20:46 UTC, zero jobs, `updated_at == created_at`). Voltou sozinho; a
       publicação saiu por `workflow_dispatch` e o bundle novo está no ar. A branch `gh-pages`
       criada como contorno foi apagada e o Pages voltou para `build_type=workflow`
-- [ ] 5.8 **Barge-in com voz real contra o Gemini** — o drive prova que o quadro sobe durante a
-      resposta; se o servidor corta o modelo de fato só a chave do dono responde
+- [~] 5.8 **Barge-in com voz real contra o Gemini** — cenário construído e executado; resultado
+      **inconclusivo por timing do teste**, não por defeito do produto: o modelo só começou a
+      falar aos 15 s e terminou aos 19,2 s, enquanto o corte entrou aos 9 s, no silêncio. O
+      Gemini ouviu e transcreveu a frase de corte. Falta refazer com ~17 s de silêncio —
+      ajuste de fixture. Linha do tempo em `openspec/open-items.md` §3
 
 ## Futuro — fora do MVP
 

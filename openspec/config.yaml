@@ -1,11 +1,20 @@
 schema: spec-driven
 
+# Constituicao do projeto: openspec/project.md (principios que valem para toda change).
+# O que esta em aberto no caminho ja percorrido: openspec/open-items.md.
+
 context: |
   bpmn — front-end estático (sem backend, sem banco). Modelador bpmn-js em `/index.html`
   (entry `src/app.js` → `dist/bundle.js`), viewer + simulação em lote em `/viewer.html`
-  (entry `src/viewer.js` → `dist/viewer.js`). Build: webpack 5. Testes: scripts `.mjs`
-  rodados por `node` direto (sem runner), em `src/batchsim/__tests__/`.
-  Deploy: Dockerfile (webpack --mode production + nginx) → docker-compose no loopback →
-  nginx do host termina TLS. CI/CD em `.github/workflows/pipeline.yml`.
-  Branch de trabalho: `ImproveSimulation`. Remotes: `bpmn` (kaiosmacedo), `origin`
-  (devInfomarcas), `upstream` (flavioluizseixas — projeto base).
+  (entry `src/viewer.js` → `dist/viewer.js`), e um ajudante de BPMN por voz e texto em
+  `src/assistant/**` (Gemini Live, BYOK — a chave é do visitante e morre com a aba).
+
+  Build: webpack 5. Testes determinísticos: scripts `.mjs` rodados por `node` direto, sem
+  runner (`npm test`, 300 asserções, sem rede e sem credencial). Testes de tela: bateria
+  autônoma em `tools/battery.mjs` (abre o navegador por CDP, dirige, verifica); os cenários
+  AO VIVO contra o Gemini só entram quando há `.env` com `GEMINI_API_KEY`.
+
+  Publicação: GitHub Pages em https://niu-tech.github.io/bpmn/ a cada push em `main`
+  (job `pages`); a VPS é ato explícito (`workflow_dispatch` com `deploy: true`).
+  Repositório: `niu-tech/bpmn`, público, branch default `main`, remote `origin`.
+  `upstream` = flavioluizseixas/bpmn (projeto base).
