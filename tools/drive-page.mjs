@@ -108,7 +108,15 @@ function parseArgs(argv) {
   return out;
 }
 
-export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = 9335, largura = 1280, altura = 860, mic = null, headless = true } = {}) {
+/**
+ * Porta de depuracao DIFERENTE por processo. Com porta fixa, duas baterias ao mesmo tempo
+ * (aconteceu em 2026-11-12: uma contra a URL publica, outra local) disputam a mesma instancia e
+ * a segunda derruba a primeira - o sintoma e `Inspected target navigated or closed (-32000)` no
+ * meio de um cenario, que parece defeito do produto e e colisao de porta.
+ */
+const PORTA_PADRAO = 9335 + (process.pid % 400);
+
+export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, headless = true } = {}) {
   const exe = acharNavegador();
   // WAV como MICROFONE. A flag faz o getUserMedia devolver o arquivo em vez do tom sintetico,
   // entao o caminho do microfone roda inteiro (worklet, reamostragem, PCM16, socket) com fala
