@@ -64,7 +64,16 @@ window.WebSocket = function (url) {
 };
 window.__responde = (o) => window.__ws.onmessage({ data: JSON.stringify(o) });
 window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
-document.querySelector('.bpmn-assist__toggle').click();
+// Espera a MONTAGEM. Este passo supunha o ajudante ja montado, e contra a URL publica (rede
+// mais lenta que o disco) ele as vezes nao estava: dois cenarios reportaram FALHOU em
+// 2026-11-12 com "Cannot read properties of null (reading click)" nesta linha - uma vez o da
+// chave, outra o da rede de seguranca. Nao era o produto; era o passo chegando antes.
+for (let i = 0; i < 40 && !document.querySelector('.bpmn-assist__toggle'); i++) {
+  await new Promise((r) => setTimeout(r, 250));
+}
+const alavanca = document.querySelector('.bpmn-assist__toggle');
+if (!alavanca) return { ok: false, erro: 'o ajudante nao montou em 10s' };
+alavanca.click();
 return { ok: true };
 `;
 
