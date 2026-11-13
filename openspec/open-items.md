@@ -184,7 +184,7 @@ e **confirmados no nosso código**. Viraram tarefa; ficam aqui até fecharem.
 | P4 | Texto do diagrama entra no contexto sem fronteira — e o produto **abre arquivo do disco** | `src/app.js` (`#bz-file-input`) | H11 + tarefa 6.6 |
 | P5 | Um relógio só para turno e ferramenta derruba o cliente com a ferramenta ainda rodando | `src/assistant/live/session.js` | H15 + tarefa 5.0c |
 | P6 | "Declarar ferramenta emudece a voz" era generalização indevida de uma medição estreita | `design.md` H9 | **FECHADO (2026-11-13)**: gate 4.3 medido ao vivo — a voz chamou `descrever_diagrama` e voltou a falar (20 frames de áudio depois da ferramenta). O que emudece é a função de ENTREGA, só ela |
-| P7 | Recusa de domínio nunca foi testada contra entrada adversarial | — | aberto, sem tarefa ainda |
+| P7 | Recusa de domínio nunca foi testada contra entrada adversarial | — | **parcial (2026-11-13)**: o portão F5 cobre a recusa normal E o lado oposto (BPMN aplicado a outro assunto NÃO recusado), e o portão F2 cobre injeção pelo DIAGRAMA. Falta o caso do aluno colando instrução no PRÓPRIO chat ("ignore suas instruções") — que é entrada dele, não de terceiro, e por isso tem resposta diferente |
 
 ## 4c. Achados da pesquisa OKF/TCC (2026-11-12)
 
