@@ -18,6 +18,7 @@
 
 import { permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
+import { linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
 import { criarExecutoresDeLeitura } from './tools/leitura.js';
@@ -38,6 +39,9 @@ export const STATE_LABELS = {
   ready: 'pronto',
   listening: 'ouvindo',
   speaking: 'falando',
+  // Ferramenta rodando é um estado PRÓPRIO: dizer 'pronto' enquanto se varre o diagrama é mentir
+  // para quem está esperando, e foi por falta deste selo que a espera parecia travamento.
+  tool: 'consultando',
   closing: 'encerrando',
   error: 'erro',
 };
@@ -103,6 +107,16 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let session = null;
   let mic = null;
   let speaker = null;
+  /**
+   * A linha de ATIVIDADE da ferramenta que está rodando agora (H3).
+   *
+   * Uma por vez e a mesma bolha: começa com "procurando no diagrama…" e vira o resultado. Empurrar
+   * uma bolha nova no fim deixaria duas linhas para um evento só.
+   */
+  let atividade = null;
+  /** Para onde o selo volta quando a ferramenta termina. */
+  let estadoAntesDaFerramenta = null;
+
   /** Detector de fala por cima da resposta (barge-in local, H4). Vive a sessão inteira. */
   const detectorDeFala = criarDetectorDeFala();
   let mode = 'texto';
@@ -418,6 +432,27 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // numa página que só lê.
       permitido: (nome) => permitida(nome, contextoAtual()),
       onEvent: (src, kind, detail) => diag.record(src, kind, detail),
+      // O aluno PRECISA ver o que foi consultado — a resposta sozinha não diz de onde veio.
+      onAtividade: ({ nome, fase, entrada, resultado }) => {
+        if (fase === 'inicio') {
+          // `push` carimba id e hora como em qualquer mensagem — a linha da ferramenta é uma
+          // mensagem da conversa, não um enfeite paralelo.
+          estadoAntesDaFerramenta = state;
+          atividade = push({ role: 'tool', text: linhaDeInicio(nome), rodando: true, turn: turnSeq });
+          // Estado próprio: 'pronto' durante uma busca é mentira, e 'falando' também.
+          setState('tool', nome);
+          return;
+        }
+        if (atividade) {
+          atividade.text = linhaDeFim(nome, entrada, resultado);
+          atividade.rodando = false;
+          atividade = null;
+        }
+        // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
+        // ferramenta terminar — e selo preso é pior que selo nenhum: mente com confiança.
+        if (state === 'tool') setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
+        publish();
+      },
       executores: {
         lembrar: async ({ categoria, texto }) => {
           const r = memoria.lembrar({ categoria, texto, turno: turnSeq });

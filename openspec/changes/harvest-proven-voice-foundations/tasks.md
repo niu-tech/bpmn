@@ -43,14 +43,27 @@
 
 ## 2. Honestidade do que aparece
 
-- [ ] 2.1 **H2 · canais separados**: o que soa como máquina vai para a tela. Guard: nenhuma resposta
-      falada contém id de elemento, caminho ou chave de citação
-- [ ] 2.2 **H3 · apresentador de resultado**: `content` completo para o modelo, `details` redigido no
-      cliente, `render` em uma linha. `buscar_elemento` vira "procurei no diagrama inteiro — 3 de 47"
-- [ ] 2.3 **H6 · estado tipado + medidor**: estados nomeados com guardas, selo na UI e o nível
-      desenhando no compositor
-- [ ] 2.4 **H7 · contrato na interface**: a tela diz o que o agente pode e o que depende do aluno.
-      Entra **junto** da F7, não depois
+- [x] 2.1 **H2 · canais separados** — `agent/fala.js` (formas de máquina, nunca vocabulário) +
+      seção `canais` no prompt, só no perfil de VOZ. A medição é sobre a legenda, que espelha o que
+      foi falado, e **zero é o contrato**. Ao vivo: `citacoesFaladas: []`.
+      ⚠ Aqui não dá para "limpar a fala": o modelo fala direto pelo Live, não há texto nosso no
+      meio. Então o lever é a prosa do prompt e o papel do código é **medir**, não esconder
+- [x] 2.2 **H3 · apresentador de resultado** — `tools/apresentador.js` + evento `onAtividade` no
+      despachante. A linha começa em "procurando no diagrama…" e **vira o resultado** na mesma
+      bolha. Ao vivo: `procurei "pizza order" no diagrama inteiro — 1 resultado`.
+      ⚠ Um defeito achado AO VIVO com os testes verdes: o despachante entrega `{ok, resultado}` e
+      eu lia o envelope como se fosse o resultado — a busca dizia "na amostra" quando varre o
+      diagrama inteiro. As fixtures dos testes usavam a forma crua, que nunca chega ali; foram
+      corrigidas para o envelope real
+- [x] 2.3 **H6 · estado tipado + medidor** — o selo e o medidor já existiam; o que faltava era o
+      estado da FERRAMENTA. Dizer "pronto" enquanto se varre o diagrama é mentir para quem espera,
+      e foi por isso que a espera parecia travamento. Agora há `tool: 'consultando'`, e o selo
+      **volta** de onde veio quando a ferramenta termina — selo preso mente com confiança
+- [x] 2.4 **H7 · contrato na interface** — linha sob o compositor: *"Ele lê o seu diagrama para
+      explicar — não altera nada. O que muda no desenho é você que faz."* Confirmada na tela ao
+      vivo. Quando a F7 entrar, é esta linha que passa a dizer que ele PROPÕE e o aluno confirma —
+      e entra **junto** da escrita, porque poder sem contrato na tela é o aluno descobrindo por
+      acidente
 
 ## 3. Fundação do prompt e da memória
 

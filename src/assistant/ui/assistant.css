@@ -351,3 +351,33 @@
   background: #0f172a; color: #e2e8f0;
   border-radius: 8px; padding: 8px 10px;
 }
+
+/* ---- linha de ATIVIDADE da ferramenta (H3) -------------------------------------------------
+   Não é fala de ninguém: é o ajudante mostrando o que foi consultar. Por isso não tem bolha,
+   tem recuo e cor fraca — presente para quem procura, discreta para quem só quer a resposta. */
+.bpmn-assist__msg--tool {
+  align-self: stretch;
+  background: none;
+  border: none;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid rgba(255, 255, 255, .16);
+  font-size: .82rem;
+  color: rgba(255, 255, 255, .62);
+  font-style: italic;
+}
+.bpmn-assist__msg--tool .bpmn-assist__text { white-space: normal; }
+
+/* Enquanto roda, pulsa de leve: o aluno precisa ver que ALGO acontece durante a espera. */
+.bpmn-assist__msg--rodando { animation: bpmn-assist-pulso 1.4s ease-in-out infinite; }
+@keyframes bpmn-assist-pulso {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: 1; }
+}
+
+/* ---- o CONTRATO, embaixo do compositor (H7) ------------------------------------------------ */
+.bpmn-assist__contrato {
+  margin: 6px 2px 0;
+  font-size: .74rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, .5);
+}

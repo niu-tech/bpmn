@@ -44,22 +44,34 @@ const ctxVoz = resolverContexto({ modo: 'voz', diagrama: diagramaEnvenenado });
 
 console.log('\n▶ a mesma prosa nos dois perfis');
 
+/**
+ * As secoes que sao DO MODO, declaradas aqui de proposito.
+ *
+ * O contrato nao e "os prompts sao iguais" - e "nao ha prosa divergente POR ACASO". Cada excecao
+ * entra nesta lista com motivo, e qualquer outra divergencia reprova:
+ *   entrega -> so no TEXTO: chamar a funcao de entrega em vez de falar
+ *   canais  -> so na VOZ:   id e caminho sao da tela, nao do ouvido (H2)
+ */
+const SO_DO_TEXTO = ['entrega'];
+const SO_DA_VOZ = ['canais'];
+
 test('toda secao comum tem texto IDENTICO em voz e em texto', () => {
   const porId = (secoes) => new Map(secoes.map((s) => [s.id, s.texto]));
   const t = porId(renderizarSecoes(ctxTexto));
   const v = porId(renderizarSecoes(ctxVoz));
   for (const [id, texto] of v) {
+    if (SO_DA_VOZ.includes(id)) continue;
     assert.ok(t.has(id), `secao ${id} existe na voz e nao no texto`);
     assert.equal(t.get(id), texto, `secao ${id} divergiu entre os perfis`);
   }
 });
 
-test('a UNICA diferenca entre os perfis e a secao que o perfil liga', () => {
+test('as UNICAS diferencas entre os perfis sao as declaradas como do modo', () => {
   const ids = (ctx) => renderizarSecoes(ctx).map((s) => s.id);
   const soNoTexto = ids(ctxTexto).filter((id) => !ids(ctxVoz).includes(id));
   const soNaVoz = ids(ctxVoz).filter((id) => !ids(ctxTexto).includes(id));
-  assert.deepEqual(soNoTexto, ['entrega']);
-  assert.deepEqual(soNaVoz, []);
+  assert.deepEqual(soNoTexto, SO_DO_TEXTO);
+  assert.deepEqual(soNaVoz, SO_DA_VOZ);
 });
 
 test('perfil decide a prosa E a declaracao da funcao — nunca uma sem a outra', () => {

@@ -14,6 +14,7 @@ import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
 import { createWidget } from './ui/widget.js';
+import { citacoesFaladas } from './agent/fala.js';
 import { startCapture } from './live/audio.js';
 
 const MARK = 'bpmnAssistantMounted';
@@ -150,6 +151,12 @@ export function mountAssistant({ container = document.body, debug = false, pagin
      * dispositivo falso do navegador despeja o tom dele JUNTO da fala injetada, e a prova mede os
      * dois misturados.
      */
+    /**
+     * O que, numa fala, soaria como máquina (H2). MEDIÇÃO, nunca filtro: serve para a bateria
+     * reprovar a prosa do prompt quando ela não segura o modelo — não para esconder o que ele
+     * disse. Zero é o contrato.
+     */
+    citacoesFaladas: (texto) => citacoesFaladas(texto),
     pararMicrofone: () => session.stopMic(),
     /**
      * Abre o microfone pelo diagnóstico — é o que torna o barge-in provável SEM calibração: com a

@@ -21,6 +21,7 @@
 // ponytail: um array exportado, sem registry class, sem register(). Ordem = ordem do array.
 
 import { DELIVERY_TOOL } from '../live/protocol.js';
+import { instrucaoDeCanais } from './fala.js';
 
 /**
  * A marca que delimita CONTEÚDO DO ALUNO. O nome é `DADOS_DO_ALUNO`, e não `DADOS_DO_DIAGRAMA`,
@@ -143,6 +144,16 @@ export const SECOES = Object.freeze([
       'não consegue ver a tela e não peça para ele descrever o que já chegou até você. Sem essa',
       'linha, aí sim pergunte de qual elemento ele está falando.',
     ].join(' '),
+  },
+
+  {
+    // H2 — fala e tela são canais diferentes. Só no perfil de VOZ: no texto a tela É o canal, e
+    // ali o id ao lado do nome ajuda em vez de atrapalhar.
+    id: 'canais',
+    titulo: 'O que não se diz em voz alta',
+    tier: 'estavel',
+    perfis: ['voz'],
+    render: () => instrucaoDeCanais(),
   },
 
   {

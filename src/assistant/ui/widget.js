@@ -190,7 +190,20 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const sendBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--primary', type: 'button', textContent: 'Enviar' });
   const composer = el('div', { className: 'bpmn-assist__composer' }, [input, sendBtn]);
 
-  const rodape = el('div', { className: 'bpmn-assist__footer' }, [talkRow, composer]);
+  /**
+   * O CONTRATO, escrito para o aluno (H7).
+   *
+   * Vem do painel do Orbit, que diz embaixo do compositor o que o agente faz e o que depende da
+   * pessoa. Enquanto só lemos, o texto é "ele lê, não altera"; quando a escrita entrar (F7), esta
+   * é a linha que passa a dizer que ele PROPÕE e o aluno confirma — e ela entra JUNTO da escrita,
+   * não depois, porque poder sem contrato na tela é o aluno descobrindo por acidente.
+   */
+  const contrato = el('p', {
+    className: 'bpmn-assist__contrato',
+    textContent: 'Ele lê o seu diagrama para explicar — não altera nada. O que muda no desenho é você que faz.',
+  });
+
+  const rodape = el('div', { className: 'bpmn-assist__footer' }, [talkRow, composer, contrato]);
 
   const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, body, rodape, liveRegion]);
   panel.hidden = true;
@@ -212,16 +225,21 @@ export function createWidget({ session, credentials, onClose } = {}) {
       const m = messages[i];
       const li = el('li', { className: `bpmn-assist__msg bpmn-assist__msg--${m.role}` });
       if (m.kind) li.classList.add(`bpmn-assist__msg--${m.kind}`);
+      if (m.rodando) li.classList.add('bpmn-assist__msg--rodando');
       li.dataset.id = String(m.id);
       if (m.via) li.append(el('span', { className: 'bpmn-assist__via', textContent: m.via === 'voz' ? 'por voz' : 'digitado' }));
       li.append(el('span', { className: 'bpmn-assist__text', textContent: m.text }));
       log.append(li);
     }
-    // A última bolha pode CRESCER (legenda chegando em pedaços): atualiza no lugar.
-    const last = messages.at(-1);
-    if (last && renderedUpTo >= messages.length) {
-      const li = log.querySelector(`[data-id="${last.id}"] .bpmn-assist__text`);
-      if (li && li.textContent !== last.text) li.textContent = last.text;
+    // Bolhas CRESCEM no lugar: a legenda chega em pedaços, e a linha da ferramenta começa em
+    // "procurando…" e vira o resultado. ⚠ A da ferramenta nem sempre é a última — a resposta do
+    // modelo pode chegar depois dela —, então não dá para atualizar só o fim da lista.
+    for (let i = Math.max(0, messages.length - 6); i < messages.length; i++) {
+      const m = messages[i];
+      const alvo = log.querySelector(`[data-id="${m.id}"] .bpmn-assist__text`);
+      if (alvo && alvo.textContent !== m.text) alvo.textContent = m.text;
+      const li = log.querySelector(`[data-id="${m.id}"]`);
+      if (li) li.classList.toggle('bpmn-assist__msg--rodando', Boolean(m.rodando));
     }
     renderedUpTo = messages.length;
     empty.hidden = messages.length > 0;
@@ -305,6 +323,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // Campo de pergunta desligado ocupa a mesma altura e não serve para nada: sumir devolve
     // espaço justamente na tela pequena, onde o problema aparece.
     composer.hidden = !canAsk;
+    contrato.hidden = !canAsk;
     sendBtn.disabled = !canAsk;
     input.disabled = !canAsk;
 

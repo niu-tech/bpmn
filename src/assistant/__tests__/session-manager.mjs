@@ -239,16 +239,29 @@ await (async () => {
     forgetSecrets();
   });
 
-  await testAsync('a prosa do prompt e a MESMA nos dois modos, tirando a instrucao de entrega', async () => {
+  await testAsync('a prosa do prompt so difere no que E DO MODO: entrega no texto, canais na voz', async () => {
+    // O contrato continua sendo "nada de prosa divergente por acaso" - o que mudou e que agora ha
+    // DUAS diferencas legitimas, e as duas sao do modo:
+    //   texto -> "Como responder" (chamar a funcao de entrega, nao falar)
+    //   voz   -> "O que nao se diz em voz alta" (id e caminho sao da tela, H2)
     const { session, live } = montar();
     await session.connect('texto');
     const texto = live.ultima.opts.setupOptions.systemInstruction;
     await session.switchMode('voz');
     const voz = live.ultima.opts.setupOptions.systemInstruction;
     assert.notEqual(texto, voz);
-    assert.ok(texto.includes('## Como responder') && !voz.includes('## Como responder'));
-    // Tirada a secao de entrega, o que vem antes dela e identico - caracter por caracter.
-    assert.equal(texto.split('## Como responder')[0].trim(), voz.split('## Como responder')[0].trim());
+
+    assert.ok(texto.includes('## Como responder'), 'a entrega e do texto');
+    assert.ok(!voz.includes('## Como responder'), 'a entrega NAO aparece na voz');
+    assert.ok(voz.includes('## O que não se diz em voz alta'), 'os canais sao da voz');
+    assert.ok(!texto.includes('## O que não se diz em voz alta'), 'os canais NAO aparecem no texto');
+
+    // Tirando as duas secoes que sao do modo, o resto e identico - caracter por caracter.
+    const semAsDoModo = (p) => p
+      .split('## Como responder')[0]
+      .split('## O que não se diz em voz alta')[0]
+      .trim();
+    assert.equal(semAsDoModo(texto), semAsDoModo(voz));
     forgetSecrets();
   });
 
@@ -325,6 +338,40 @@ await (async () => {
     const doAssistente = session.messages.filter((m) => m.role === 'assistant');
     assert.equal(doAssistente.length, 1, 'uma bolha por turno');
     assert.equal(doAssistente[0].text, 'Uma raia serve para organizar.');
+    forgetSecrets();
+  });
+
+  await testAsync('ferramenta rodando VIRA LINHA na conversa, e a linha vira o resultado', async () => {
+    // O aluno via a resposta e nao via o que foi consultado: a ferramenta rodava invisivel, e
+    // quando demorava ele nao sabia se o ajudante pensava, travou, ou se a cota acabou (H3).
+    let soltar;
+    const { session, live } = montar({
+      acesso: {
+        disponivel: () => true,
+        elementos: () => [],
+        porId: () => null,
+        selecionado: () => null,
+        entradasESaidas: () => ({ entradas: [], saidas: [] }),
+        assinar: () => () => {},
+      },
+    });
+    await session.connect('voz');
+    live.ultima.pronta();
+    session.ask('quantos elementos?');
+    const d = live.ultima.opts.dispatcher;
+    const espera = d.despachar([{ id: 'c1', name: 'descrever_diagrama', args: {} }]);
+    // Enquanto roda: a linha existe e o selo NAO diz 'pronto'.
+    const rodando = session.messages.filter((m) => m.role === 'tool');
+    assert.equal(rodando.length, 1, 'uma linha de ferramenta');
+    assert.ok(/olhando o diagrama/.test(rodando[0].text), rodando[0].text);
+    assert.equal(rodando[0].rodando, true);
+    assert.equal(session.state, 'tool', `o selo deveria dizer consultando, e diz ${session.state}`);
+    await espera;
+    const depois = session.messages.filter((m) => m.role === 'tool');
+    assert.equal(depois.length, 1, 'a MESMA linha vira o resultado, nao uma linha nova');
+    assert.equal(depois[0].rodando, false);
+    assert.ok(!/olhando o diagrama…/.test(depois[0].text), `a linha nao virou resultado: ${depois[0].text}`);
+    assert.notEqual(session.state, 'tool', 'o selo volta quando a ferramenta termina');
     forgetSecrets();
   });
 

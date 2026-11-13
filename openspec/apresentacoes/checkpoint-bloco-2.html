@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint · Bloco 2</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:62ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+
+  .feito { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .f { display:grid; grid-template-columns:42px 1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .f:last-child { border-bottom:none; }
+  .cod { font-size:11.5px; font-weight:700; color:var(--verde); background:var(--verde-fraco);
+    border-radius:7px; padding:4px 0; text-align:center; }
+  .f p { margin:0; font-size:14.5px; }
+  .f p b { font-weight:600; }
+  .f p span { display:block; color:var(--fraco); font-size:13px; margin-top:2px; }
+  .prova { font-size:12.5px; color:var(--verde); font-weight:600; white-space:nowrap; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .f{grid-template-columns:42px 1fr;} .prova{grid-column:2;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Checkpoint · 13 nov 2026</div>
+  <h1>Bloco 2 fechado:<br>honestidade do que aparece</h1>
+  <p class="sub">O aluno via a resposta e não via <b>de onde ela veio</b> — nem o que o ajudante
+  pode ou não pode fazer. Quatro caixas sobre isso.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>4 / 4</b><span>caixas do bloco 2</span></div>
+    <div class="num"><b>19</b><span>suítes, zero falhas</span></div>
+    <div class="num ok"><b>3 / 3</b><span>cenários ao vivo</span></div>
+  </div>
+
+  <section>
+    <h2>O que foi feito</h2>
+    <div class="feito">
+      <div class="f"><span class="cod">H2</span>
+        <p><b>Id não se diz em voz alta</b>
+        <span>ninguém anota <code>[_6-638]</code> ouvindo; o id vai para a tela e a voz explica pelo nome</span></p>
+        <span class="prova">citações: 0</span></div>
+
+      <div class="f"><span class="cod">H3</span>
+        <p><b>O aluno vê o que foi consultado</b>
+        <span>a linha começa em "procurando no diagrama…" e vira o resultado, na mesma bolha</span></p>
+        <span class="prova">1 resultado</span></div>
+
+      <div class="f"><span class="cod">H6</span>
+        <p><b>"Consultando" virou um estado de verdade</b>
+        <span>dizer "pronto" durante uma busca é mentir para quem espera — era por isso que a espera parecia travamento</span></p>
+        <span class="prova">selo volta sozinho</span></div>
+
+      <div class="f"><span class="cod">H7</span>
+        <p><b>O contrato está escrito na tela</b>
+        <span>"ele lê o seu diagrama para explicar — não altera nada"</span></p>
+        <span class="prova">confirmado ao vivo</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Um defeito que só a tela pegou</h2>
+    <div class="aberto">
+      <b>A busca dizia "na amostra" quando varre o diagrama inteiro</b> — e é justamente essa
+      diferença que separa "não achei" de "não existe". Eu lia o envelope do despachante
+      (<code>{ok, resultado}</code>) como se fosse o resultado. <b>Os testes estavam verdes</b>,
+      porque as fixtures usavam a forma crua, que nunca chega ali. Corrigido, e as fixtures agora
+      usam o envelope real.
+    </div>
+  </section>
+
+  <section>
+    <h2>Dois pontos para você</h2>
+    <div class="proximo">
+      <div class="p"><b>Heurística por palavra: achei uma</b>
+      <span>a falha do servidor é classificada casando palavras em inglês no texto de fechamento
+      (<code>api key</code>, <code>unregistered</code>). Google muda a redação e a gente erra calado.
+      Tirar é fácil; o custo é o aluno deixar de ver "a chave foi recusada" na falha mais comum do BYOK</span></div>
+      <div class="p"><b>"Ouvindo" no modo texto</b>
+      <span>o selo mostra "ouvindo" numa sessão sem microfone. É anterior a este bloco, e não mexi —
+      mas é exatamente o tipo de coisa que o bloco trata</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que vem agora — Bloco 3: prompt e memória</h2>
+    <div class="proximo">
+      <div class="p"><b>H8 · Orçamento do prompt</b><span>e com ele o teto do quadro de contexto, que nunca foi medido</span></div>
+      <div class="p"><b>H9 · Idioma por preferência</b><span>tirar o idioma da prosa e pôr na estrutura</span></div>
+      <div class="p"><b>H10 · Memória com escopo</b><span>pré-requisito do tutor da F8</span></div>
+      <div class="p"><b>Depois</b><span>bloco 4 (evidência) e então a F7, com H1 e H7 no lugar</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>harvest-proven-voice-foundations</code> · bloco 2 de 5</span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>

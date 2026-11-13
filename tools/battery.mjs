@@ -446,6 +446,11 @@ if (chaveViva) {
          ouviu: falas.at(-1)?.slice(0, 120) ?? '(sem transcricao de entrada)',
          // DIVIDA H1: a pergunta falada tem de ser UMA bolha que cresce, nao uma por fragmento.
          bolhasDeFala: falas.length,
+         // H2 — id de elemento nao se diz em voz alta. Zero e o contrato; o que vazar aparece aqui
+         // para o conserto ser na PROSA do prompt, e nao um filtro que esconde o sintoma.
+         citacoesFaladas: window.__bpmnAssist.citacoesFaladas(respostas.at(-1) ?? ''),
+         // H3 — o aluno viu o que foi consultado?
+         linhasDeFerramenta: [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim()),
          respondeu: respostas.at(-1)?.slice(0, 140) ?? '(sem legenda)',
          quadrosDeAudioDoModelo: c['ws.audio'] ?? 0,
          picoDoMicrofone: Number(pico.toFixed(3)),

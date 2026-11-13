@@ -54,6 +54,15 @@ export function createToolDispatcher({
   tetoMs = 8000,
   clock = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) },
   onEvent,
+  /**
+   * Avisa a camada de cima que uma ferramenta COMEÇOU e TERMINOU, com entrada e resultado.
+   *
+   * Existe porque o aluno via a resposta e não via o que foi consultado: a ferramenta rodava
+   * invisível e, quando demorava, ele não sabia se o ajudante pensava, travou ou acabou a cota.
+   * O diário já registrava `tool.executando`, mas diário é para quem investiga depois — isto é
+   * para quem está olhando agora.
+   */
+  onAtividade,
 } = {}) {
   let encerrado = false;
   let emVoo = 0;
@@ -98,8 +107,12 @@ export function createToolDispatcher({
       const executor = executores[nome];
       if (typeof executor !== 'function') { ev('nao-roteada', nome); return { ok: false, erro: ERROS.NAO_ROTEADA }; }
       ev('executando', nome);
-      return comTeto(executor(call.args ?? {}), nome);
+      const entrada = call.args ?? {};
+      try { onAtividade?.({ nome, fase: 'inicio', entrada }); } catch { /* tela nunca derruba */ }
+      return comTeto(executor(entrada), nome);
     })();
+    try { onAtividade?.({ nome, fase: 'fim', entrada: call?.args ?? {}, resultado: resposta }); }
+    catch { /* tela nunca derruba */ }
     return { id: call?.id ?? null, name: nome, response: resposta };
   }
 
