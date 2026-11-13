@@ -10,7 +10,7 @@
     "test:sim": "node src/batchsim/__tests__/validate.mjs && node src/batchsim/__tests__/validate-deterministic.mjs && node src/batchsim/__tests__/validate-pizza.mjs && node src/batchsim/__tests__/smoke-refactor.mjs",
     "test:spike": "node spike/__tests__/protocol.mjs && node spike/__tests__/session.mjs && node spike/__tests__/worklets.mjs && node spike/__tests__/audio-and-safety.mjs",
     "dev:spike": "node spike/dev.mjs",
-    "test:assistant": "node src/assistant/__tests__/credential.mjs && node src/assistant/__tests__/session-manager.mjs && node src/assistant/__tests__/conversa.mjs && node src/assistant/__tests__/despacho.mjs && node src/assistant/__tests__/prompt.mjs && node src/assistant/__tests__/diagrama.mjs && node src/assistant/__tests__/memoria.mjs && node src/assistant/__tests__/guardrails.mjs && node src/assistant/__tests__/leitura.mjs && node src/assistant/__tests__/turnos.mjs",
+    "test:assistant": "node src/assistant/__tests__/credential.mjs && node src/assistant/__tests__/session-manager.mjs && node src/assistant/__tests__/conversa.mjs && node src/assistant/__tests__/despacho.mjs && node src/assistant/__tests__/prompt.mjs && node src/assistant/__tests__/diagrama.mjs && node src/assistant/__tests__/memoria.mjs && node src/assistant/__tests__/guardrails.mjs && node src/assistant/__tests__/leitura.mjs && node src/assistant/__tests__/turnos.mjs && node src/assistant/__tests__/barge-in.mjs",
     "bateria": "node tools/battery.mjs",
     "voz": "powershell -ExecutionPolicy Bypass -File tools/make-voice-fixtures.ps1"
   },

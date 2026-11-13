@@ -151,6 +151,12 @@ export function mountAssistant({ container = document.body, debug = false, pagin
      * dois misturados.
      */
     pararMicrofone: () => session.stopMic(),
+    /**
+     * Abre o microfone pelo diagnóstico — é o que torna o barge-in provável SEM calibração: com a
+     * pergunta injetada e o microfone aberto no instante em que o modelo começa a falar, a frase de
+     * corte toca do começo, e os 16 s de silêncio na frente da fixture deixam de ser necessários.
+     */
+    abrirMicrofone: () => session.startMic(),
     /** Injeta fala sem microfone (H11). Ver `session-manager.js::injetarFala`. */
     injetarFala: (quadros, opcoes) => session.injetarFala(quadros, opcoes),
     async provarCaptura(segundos = 8) {

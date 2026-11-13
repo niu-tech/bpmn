@@ -24,8 +24,16 @@
       ⚠ A primeira corrida saiu suja (injetou com status `conectando`, o microfone automático abriu
       depois e o servidor transcreveu o tom como *"mhm"*): o passo agora espera `pronto`, fecha o
       microfone e **recusa injetar** se ele continuar aberto. Mantém-se um cenário no caminho real
-- [ ] 1.6 **H4 · barge-in por nível local** enquanto o modelo fala, tirando o teste da calibração de
-      silêncio da fixture (que já envelheceu: 16 s calibrados, modelo falando aos 12,3 s)
+- [x] 1.6 **H4 · barge-in por nível local** — `criarDetectorDeFala` (puro, em `live/audio.js`,
+      limiar 900 na escala PCM16 como na cápsula, 3 quadros seguidos) + `rmsDoQuadro`, a energia
+      CRUA ao lado do nível da barra. 7 testes determinísticos: ruído de sala não corta, estalo não
+      corta, fala sustentada corta UMA vez, e volta a cortar depois de calar.
+      **A calibração morreu**: a pergunta agora é injetada com o microfone fechado e o microfone
+      abre no instante em que o modelo começa a falar, então a fixture de corte toca do primeiro
+      quadro (`tools/provar-barge-in.mjs`). Ao vivo: `cortouAqui: true`, `rms=0.1391` (5× o
+      limiar), modelo falando aos **7,6 s** — número que a fixture antiga jamais acertaria.
+      ⚠ `servidorTambemViu: false` nessa corrida: o corte local funcionou onde o `interrupted` do
+      servidor não chegou na janela observada. Os dois somam; nenhum substitui o outro
 
 ## 2. Honestidade do que aparece
 

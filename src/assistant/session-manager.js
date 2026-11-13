@@ -23,7 +23,7 @@ import { criarMemoria } from './agent/memory.js';
 import { criarExecutoresDeLeitura } from './tools/leitura.js';
 import { promptDoPerfil } from './agent/render.js';
 import { resolverContexto } from './agent/resolve.js';
-import { startCapture, startPlayback } from './live/audio.js';
+import { startCapture, startPlayback, criarDetectorDeFala } from './live/audio.js';
 import { createSession } from './live/session.js';
 import { EventoDeFala, RastreadorDeTurnos } from './live/turn-tracker.js';
 import { redact } from './live/redact.js';
@@ -103,6 +103,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let session = null;
   let mic = null;
   let speaker = null;
+  /** Detector de fala por cima da resposta (barge-in local, H4). Vive a sessão inteira. */
+  const detectorDeFala = criarDetectorDeFala();
   let mode = 'texto';
   let state = 'idle';
   let reason = null;
@@ -201,6 +203,18 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     if (nDaSessao === null || nDaSessao === undefined) return turnSeq;
     if (!turnoDaSessao.has(nDaSessao)) turnoDaSessao.set(nDaSessao, ++turnSeq);
     return turnoDaSessao.get(nDaSessao);
+  }
+
+  /**
+   * Barge-in decidido AQUI: o aluno falou por cima, então o que está na fila morre agora, sem
+   * esperar o `interrupted` voltar do servidor. A decisão é do detector (puro, em `live/audio.js`);
+   * este lugar só age.
+   */
+  function bargeInLocal(rms) {
+    if (!detectorDeFala.quadro(rms)) return false;
+    speaker?.flush();
+    diag.state('barge-in-local', `rms=${rms.toFixed(4)}`);
+    return true;
   }
 
   /**
@@ -769,7 +783,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         atualizarContexto();
         diag.mic('open');
         mic = await capture({
-          onFrame: (b64) => {
+          onFrame: (b64, _n, rms) => {
+            // ⚠ BARGE-IN LOCAL (H4). O aluno falando por cima derruba o que está na fila AQUI, sem
+            // esperar o `interrupted` voltar do servidor. Dois ganhos: a fala dele para de ser
+            // atropelada na hora, e o teste deixa de depender do VAD do outro lado.
+            //
+            // O servidor continua mandando `interrupted`, e continua sendo tratado — isto é um
+            // SOMADO, não um substituto: quem só confia no local erra quando o microfone está
+            // baixo, quem só confia no remoto espera a ida e volta.
+            if (state === 'speaking') bargeInLocal(rms);
             // Em escuta contínua o quadro SOBE mesmo durante a resposta: é assim que o servidor
             // percebe que o aluno começou a falar e interrompe o modelo.
             if (meiaDuplex && state === 'speaking') { diag.mic('gated'); return; }
@@ -804,6 +826,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * 2026-11-13 falsificou) — é o fim de fala explícito, que não depende do VAD do servidor.
      */
     async stopMic() {
+      detectorDeFala.reiniciar();
       return fecharMicrofone('aluno parou de falar');
     },
 

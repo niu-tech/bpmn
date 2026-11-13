@@ -49,7 +49,55 @@ export function nivelDoQuadro(pcm) {
 }
 
 /**
- * Abre o microfone e chama `onFrame(base64, frames)` a cada 40 ms de PCM16 16 kHz.
+ * RMS do quadro, 0..1 — a energia CRUA, sem a raiz cosmética do indicador.
+ *
+ * Existe separado de `nivelDoQuadro` porque servem a coisas diferentes: aquele é para a BARRA
+ * (tem duas raízes para dar movimento visível), este é para DECIDIR. Comparar limiar contra um
+ * número maquiado para a vista é como a dívida M6 começou — medir uma coisa e concluir outra.
+ */
+export function rmsDoQuadro(pcm) {
+  if (!pcm?.length) return 0;
+  let soma = 0;
+  for (let i = 0; i < pcm.length; i++) { const v = pcm[i] / 32768; soma += v * v; }
+  return Math.sqrt(soma / pcm.length);
+}
+
+/**
+ * Limiar de FALA sobre a resposta do modelo, em RMS normalizado.
+ *
+ * 900 na escala PCM16 (≈ 0,0275 aqui) é o valor que a `WikiAgentCapsule` usa há meses para separar
+ * voz de ruído de sala enquanto o modelo fala. Baixo demais e o ventilador corta o ajudante; alto
+ * demais e o aluno precisa gritar para ser ouvido por cima.
+ */
+export const RMS_DE_FALA = 900 / 32768;
+
+/**
+ * Decide se o aluno está falando POR CIMA — a decisão de barge-in, isolada e pura.
+ *
+ * Mora aqui, e não dentro do consumidor, porque limiar é coisa que se prova com números e não com
+ * sessão ao vivo: `quadro(rms)` devolve `true` UMA vez, no quadro em que a fala se confirma.
+ *
+ * Exige quadros SEGUIDOS acima do limiar porque um estalo não é uma interrupção — e porque o
+ * caminho de captura tem supressão de ruído, que deixa picos curtos passarem.
+ */
+export function criarDetectorDeFala({ limiar = RMS_DE_FALA, quadros = 3 } = {}) {
+  let acima = 0;
+  return {
+    /** `true` no quadro em que a fala se confirma; depois disso, só de novo após um silêncio. */
+    quadro(rms) {
+      if (!(rms > limiar)) { acima = 0; return false; }
+      acima++;
+      if (acima !== quadros) return false;
+      return true;
+    },
+    /** Zera a contagem — ao fechar o microfone ou ao trocar de turno. */
+    reiniciar() { acima = 0; },
+    get quadrosAcima() { return acima; },
+  };
+}
+
+/**
+ * Abre o microfone e chama `onFrame(base64, frames, rms)` a cada 40 ms de PCM16 16 kHz.
  * `onLevel(0..1)` acompanha cada quadro: é o que a UI usa para provar ao aluno que ESTÁ ouvindo
  * — sem isso, microfone aberto e microfone mudo são a mesma tela.
  * Só chamar a partir de um handler de gesto do usuário.
@@ -96,7 +144,8 @@ export async function startCapture({ onFrame, onLevel, onError } = {}) {
       try {
         const pcm = new Int16Array(e.data.pcm);
         onLevel?.(nivelDoQuadro(pcm));
-        onFrame?.(pcm16ToBase64(pcm), e.data.frames);
+        // O RMS cru vai JUNTO do quadro: quem decide barge-in precisa da energia, não da barra.
+        onFrame?.(pcm16ToBase64(pcm), e.data.frames, rmsDoQuadro(pcm));
       } catch (err) {
         onError?.(err);
       }
