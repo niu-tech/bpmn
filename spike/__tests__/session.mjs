@@ -144,6 +144,20 @@ test('turno sem entrega usa a transcricao como FALLBACK, e diz que e fallback', 
   assert.equal(session.turns.at(-1).fallback, true);
 });
 
+test('turno que EXECUTOU ferramenta e fechou calado NAO e turno vazio', () => {
+  // Medido no gate 4.3 (2026-11-13): a voz chamou `descrever_diagrama`, o turno fechou sem fala
+  // e a resposta veio no turno SEGUINTE. O aviso de "encerrou sem responder" no meio disso e
+  // mentira - e mentira que assusta o aluno no momento em que tudo esta funcionando.
+  const { session, ws, texts } = ready({
+    dispatcher: { despachar: async (calls) => calls.map((c) => ({ id: c.id, name: c.name, response: { ok: true } })) },
+  });
+  session.ask('quantas raias?');
+  ws.emit({ toolCall: { functionCalls: [{ id: 't1', name: 'descrever_diagrama', args: {} }] } });
+  ws.emit({ serverContent: { turnComplete: true } });
+  assert.equal(texts.length, 0, 'o passo do meio nao anuncia nada');
+  assert.equal(session.turns.at(-1).empty, true);
+});
+
 test('turno vazio AVISA, e nao inventa resposta', () => {
   // Mudou em 2026-11-13: antes o turno vazio era silencio total, e o aluno via a propria
   // pergunta e mais nada. Agora sai um aviso com texto VAZIO e a marca `vazio` - quem escuta

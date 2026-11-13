@@ -604,6 +604,126 @@ if (chaveViva) {
     ],
   });
 
+  // ------------------------------------------------------------ portao F4 (continuidade entre modos)
+  // O aluno conversa no texto, troca para voz e pergunta "sobre o que a gente estava falando?".
+  // A sessao de voz e OUTRA sessao (o setup e imutavel), entao a unica forma de ela saber e o
+  // historico que o semeador leva junto. Ate a F3 isso nao existia: o aviso dizia, com razao,
+  // que o modelo recomecava do zero.
+  CENARIOS.push({
+    nome: 'AO VIVO: troca de modo e o agente lembra do assunto (portao F4)',
+    url: ALVO,
+    espera: 3500,
+    mic: existsSync('artifacts/voz/continuidade.wav') ? 'artifacts/voz/continuidade.wav' : null,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       // Um assunto que NAO esta no diagrama aberto: tem de vir da conversa, nao do contexto.
+       const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+       const antes = bolhas().length;
+       const ta = document.querySelector('.bpmn-assist__composer textarea');
+       ta.value = 'Estou modelando o processo de uma locadora de caiaques. Qual evento representa o aluguel comecando?';
+       window.__btn('Enviar').click();
+       let resposta = '';
+       for (let i = 0; i < 100; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         const b = bolhas();
+         if (b.length > antes && b.at(-1).length > 10) { resposta = b.at(-1); break; }
+       }
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && resposta.length > 10,
+         status: document.querySelector('.bpmn-assist__status').textContent,
+         conversouNoTexto: resposta.slice(0, 160),
+       };`,
+
+      `// Troca para VOZ: sessao nova, com o resumo da conversa indo junto.
+       const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+       const antes = bolhas().length;
+       window.__btn('Voz').click();
+       for (let i = 0; i < 60 && !['pronto', 'ouvindo', 'falando'].includes(document.querySelector('.bpmn-assist__status').textContent); i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       // O WAV ja esta tocando como microfone: "Sobre o que a gente estava falando?".
+       let resposta = '';
+       let anterior = null;
+       let estavel = 0;
+       for (let i = 0; i < 140; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         const b = bolhas();
+         if (b.length <= antes) continue;
+         const atual = b.at(-1) ?? '';
+         if (!atual) continue;
+         if (atual === anterior) { if (++estavel >= 2) { resposta = atual; break; } }
+         else { anterior = atual; estavel = 0; }
+       }
+       const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+       const citou = /caiaque|locadora|aluguel/.test(limpo(resposta));
+       const eventos = window.__bpmnAssist.eventos.map((e) => e.key);
+       return {
+         ok: resposta.length > 10 && citou,
+         modo: window.__bpmnAssist.estado.modo,
+         levouHistorico: eventos.filter((k) => k === 'out.history').length,
+         citouOAssunto: citou,
+         respondeu: resposta.slice(0, 220),
+         naTela: resposta ? undefined : window.__naTela?.() ?? [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim().slice(0, 110)),
+       };`,
+    ],
+  });
+
+  // ------------------------------------------------------------ gate 4.3 (ferramenta na VOZ)
+  // A pergunta que o P1 deixou em aberto: declarar funcao emudece o modelo? A medicao de
+  // 2026-11-10 valia para a funcao de ENTREGA; virou, por generalizacao, "qualquer declaracao".
+  // Aqui a voz declara ferramenta de LEITURA e o criterio e falar DEPOIS de executar.
+  CENARIOS.push({
+    nome: 'AO VIVO: voz chama ferramenta e CONTINUA falando (gate 4.3)',
+    url: ALVO,
+    espera: 3500,
+    mic: existsSync('artifacts/voz/ferramenta.wav') ? 'artifacts/voz/ferramenta.wav' : null,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Voz').click();
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 60 && !['pronto', 'ouvindo', 'falando'].includes(document.querySelector('.bpmn-assist__status').textContent); i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       // 35s: a fala entra pelo WAV, o modelo chama a ferramenta e (a pergunta desta medicao)
+       // volta a falar depois do resultado.
+       await new Promise((r) => setTimeout(r, 35000));
+       const ev = window.__bpmnAssist.eventos;
+       const idx = (k) => ev.findIndex((e) => e.key === k);
+       const iTool = idx('ws.tool-call');
+       const audioDepois = iTool >= 0 ? ev.slice(iTool + 1).filter((e) => e.key === 'ws.audio').reduce((n, e) => n + e.n, 0) : 0;
+       const legenda = [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim()).at(-1) ?? '';
+       return {
+         ok: iTool >= 0 && audioDepois > 0,
+         status: document.querySelector('.bpmn-assist__status').textContent,
+         modo: window.__bpmnAssist.estado.modo,
+         micOn: window.__bpmnAssist.estado.micOn,
+         nivel: window.__bpmnAssist.estado.nivel,
+         todosOsEventos: ev.map((e) => e.key + (e.n > 1 ? ' x' + e.n : '')),
+         naTela: [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim().slice(0, 110)),
+         chamouFerramenta: iTool >= 0,
+         executou: ev.filter((e) => e.key.startsWith('tool.')).map((e) => e.key + (e.detalhe ? ' ' + e.detalhe : '')),
+         framesDeAudioDEPOISDaFerramenta: audioDepois,
+         legenda: legenda.slice(0, 200),
+         linhaDoTempo: ev.filter((e) => /ws\.(audio|tool-call|turn-complete|input-text)|out\.tool-response|tool\./.test(e.key))
+           .map((e) => Number((e.ms / 1000).toFixed(1)) + 's ' + e.key + (e.n > 1 ? ' x' + e.n : '')),
+       };`,
+    ],
+  });
+
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');

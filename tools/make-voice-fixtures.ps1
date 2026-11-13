@@ -49,6 +49,12 @@ $fixtures = [ordered]@{
     'interrompe'  = 'Espera, chega, responde so em uma frase.'
     # Fora do dominio: a instrucao de sistema manda recusar em uma frase.
     'fora'        = 'Qual a receita de bolo de cenoura?'
+    # F4: continuidade ao trocar de modo. A pergunta nao diz o assunto - quem tem de
+    # saber e o modelo, pelo historico que a sessao nova levou junto.
+    'continuidade' = 'Sobre o que a gente estava falando?'
+    # Gate 4.3: ferramenta de leitura numa sessao de VOZ. Pedir a ferramenta pelo nome e
+    # do ALUNO; quem decide chamar continua sendo o modelo.
+    'ferramenta'   = 'Chame a ferramenta descrever diagrama e me diga quantas raias o diagrama tem.'
 }
 
 $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(

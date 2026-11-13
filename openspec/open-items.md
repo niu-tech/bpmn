@@ -183,7 +183,7 @@ e **confirmados no nosso código**. Viraram tarefa; ficam aqui até fecharem.
 | P3 | A instrução de entrega só entra se o prompt for a constante antiga | `src/assistant/live/protocol.js:79` | tarefa 1.4 |
 | P4 | Texto do diagrama entra no contexto sem fronteira — e o produto **abre arquivo do disco** | `src/app.js` (`#bz-file-input`) | H11 + tarefa 6.6 |
 | P5 | Um relógio só para turno e ferramenta derruba o cliente com a ferramenta ainda rodando | `src/assistant/live/session.js` | H15 + tarefa 5.0c |
-| P6 | "Declarar ferramenta emudece a voz" era generalização indevida de uma medição estreita | `design.md` H9 | gate 4.3 reescrito |
+| P6 | "Declarar ferramenta emudece a voz" era generalização indevida de uma medição estreita | `design.md` H9 | **FECHADO (2026-11-13)**: gate 4.3 medido ao vivo — a voz chamou `descrever_diagrama` e voltou a falar (20 frames de áudio depois da ferramenta). O que emudece é a função de ENTREGA, só ela |
 | P7 | Recusa de domínio nunca foi testada contra entrada adversarial | — | aberto, sem tarefa ainda |
 
 ## 4c. Achados da pesquisa OKF/TCC (2026-11-12)

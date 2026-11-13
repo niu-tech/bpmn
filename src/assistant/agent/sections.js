@@ -101,6 +101,23 @@ export const SECOES = Object.freeze([
   },
 
   {
+    // A memória é escrita pelo MODELO, chamando `lembrar` (design H6 + constituição §III). Esta
+    // seção diz O QUE vale guardar; QUANDO guardar é decisão dele, turno a turno. Nenhuma
+    // palavra-chave no nosso código olha o texto do aluno para guardar nada.
+    id: 'lembrar',
+    titulo: 'O que vale a pena guardar',
+    tier: 'estavel',
+    render: () => [
+      'Quando o aluno disser algo que muda as suas próximas respostas — como é o processo dele,',
+      'uma decisão de modelagem que vocês fecharam, ou um pedido sobre o jeito de responder —',
+      'chame a função lembrar com a categoria certa e uma frase curta. Não guarde o que já está',
+      'no diagrama: ele chega a você a cada turno. Não guarde a pergunta do aluno nem a sua',
+      'própria resposta. O que você guardar volta na seção "O que você já sabe desta conversa",',
+      'e some quando o aluno fechar a aba — então não prometa lembrar para sempre.',
+    ].join(' '),
+  },
+
+  {
     // ⚠ Nasceu de um portão F3 reprovado (2026-11-13). A linha `SELECIONADO pelo aluno` já
     // chegava no contexto, e o modelo respondia *"como não consigo ver qual elemento você
     // selecionou, você poderia descrevê-lo?"* — o prior dele ("não vejo sua tela") vencia um

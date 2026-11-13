@@ -126,12 +126,21 @@ quadro de contexto semeado por `clientContent` · delta por turno · nunca o XML
 Fecha as dívidas **T6** (o diagrama viajava dentro do `setup` imutável) e **T7** (na página, o
 diagrama chegava vazio ao prompt). Fica aberta a tarefa 2.4: medir o teto do `clientContent`.
 
-### F4 — Continuidade e memória da aba
+### F4 — Continuidade e memória da aba  ✅ 2026-11-13
 Histórico reconstruído ao trocar de modo · memória em `fato`/`decisao`/`preferencia` com teto ·
 morre com a aba.
 
-> **Portão F4** — AO VIVO: conversa no texto, troca para voz, pergunta *"sobre o que a gente
-> estava falando?"* e a resposta cita o assunto anterior.
+> **Portão F4 — PASSOU (2026-11-13).** AO VIVO: conversa digitada sobre *"o processo de uma
+> locadora de caiaques"* (assunto que não está no diagrama aberto, então só pode vir da
+> conversa), troca para voz, e a pergunta **falada** *"sobre o que a gente estava falando?"* —
+> resposta: *"Estávamos falando sobre como representar o início do processo em um diagrama de
+> locadora de caiaques usando um Evento de Início."*
+>
+> ✅ **E o gate 4.3 foi respondido junto, com SIM:** numa sessão de VOZ, o modelo chamou
+> `descrever_diagrama`, recebeu o resultado e **continuou falando** (20 frames de áudio depois
+> da ferramenta), acertando as cinco raias do diagrama. A hipótese de que declarar função
+> emudece o modelo valia para a função de ENTREGA e foi generalizada indevidamente — agora está
+> medida. **É a mesma pergunta do portão F6**, respondida antes da hora.
 
 ### F5 — Guardrails provados
 Recusa de domínio declarada e verificada · não inventar o que não está no diagrama · catálogo com

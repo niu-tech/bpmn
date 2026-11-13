@@ -69,6 +69,12 @@ export function buildSetup({
   voiceName = 'Aoede',
   modalities = ['AUDIO'],
   withDeliveryTool = true,
+  /**
+   * Declarações de ferramenta do catálogo (`agent/catalog.js`). Entram no MESMO bloco
+   * `functionDeclarations` da entrega — o Live aceita uma lista, e separá-las em dois objetos
+   * `tools` faria o servidor considerar só o primeiro.
+   */
+  ferramentas = [],
 } = {}) {
   if (typeof systemInstruction !== 'string' || !systemInstruction.trim()) {
     throw new Error('sem prompt: monte com agent/render.js (promptDoPerfil) antes de abrir a sessão');
@@ -88,19 +94,20 @@ export function buildSetup({
     outputAudioTranscription: {},
   };
 
+  const declaracoes = [];
   if (withDeliveryTool) {
-    setup.tools = [{
-      functionDeclarations: [{
-        name: DELIVERY_TOOL,
-        description: 'Entrega a resposta final em texto, para exibir ao aluno.',
-        parameters: {
-          type: 'object',
-          properties: { texto: { type: 'string', description: 'A resposta completa, em texto.' } },
-          required: ['texto'],
-        },
-      }],
-    }];
+    declaracoes.push({
+      name: DELIVERY_TOOL,
+      description: 'Entrega a resposta final em texto, para exibir ao aluno.',
+      parameters: {
+        type: 'object',
+        properties: { texto: { type: 'string', description: 'A resposta completa, em texto.' } },
+        required: ['texto'],
+      },
+    });
   }
+  for (const f of ferramentas) if (f?.name) declaracoes.push(f);
+  if (declaracoes.length) setup.tools = [{ functionDeclarations: declaracoes }];
 
   return { setup };
 }

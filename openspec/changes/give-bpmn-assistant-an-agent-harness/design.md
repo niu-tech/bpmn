@@ -127,6 +127,12 @@ entrega): o modelo chama, recebe o resultado e **continua falando**? É o gate d
 **Se o gate falhar:** voz fica sem ferramenta nesta rodada, o fato vai para `open-items.md` com a
 medição, e a UI diz que para editar é preciso digitar.
 
+**Medido em 2026-11-13 (gate 4.3) — a hipótese estava certa.** Sessão de voz declarando
+`lembrar` e `descrever_diagrama`, pergunta entrando pelo microfone: o modelo chamou a ferramenta,
+o despachante executou, e o modelo **voltou a falar** 1,2 s depois, com a resposta correta sobre
+o diagrama. A medição do P1 ("declarar a função emudece") vale para a função de ENTREGA — e só
+para ela. Isto é também a resposta do portão F6.
+
 ## H10 — Nada disso roda no viewer
 
 **Decisão.** O quadro de contexto do viewer declara `somenteLeitura: true`, e a política do perfil

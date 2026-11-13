@@ -186,7 +186,7 @@ export function createSession({
       // bolha nenhuma. Silêncio é pior que resposta feia: o aluno não sabe se perguntou errado,
       // se travou, ou se a cota acabou.
       turn.empty = true;
-      onText?.({ text: '', fallback: true, complete: true, vazio: true });
+      if (!turn.usouFerramenta) onText?.({ text: '', fallback: true, complete: true, vazio: true });
     }
     turn.idle = idle;
     turn.usage = lastUsage;
@@ -284,6 +284,11 @@ export function createSession({
         // Ação de verdade: despacho ASSÍNCRONO. `handleFrame` volta já — travar aqui travaria o
         // laço de recepção do socket, que é o deadlock que os invariantes de voz proíbem.
         pausarRelogioDoTurno();
+        // ⚠ Turno que EXECUTOU ferramenta e fechou sem falar não é turno vazio: é o passo do
+        // meio. Medido no gate 4.3 (2026-11-13): a voz chamou `descrever_diagrama`, o turno
+        // fechou em 7,8 s, e a resposta falada veio no turno seguinte, aos 9 s — com o aviso de
+        // "o modelo encerrou sem responder" plantado no meio, assustando à toa.
+        if (turn) turn.usouFerramenta = true;
         const despacho = dispatcher
           ? dispatcher.despachar(acoes)
           : Promise.resolve(acoes.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_nao_roteada' } })));

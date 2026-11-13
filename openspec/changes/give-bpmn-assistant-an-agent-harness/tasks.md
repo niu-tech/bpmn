@@ -68,16 +68,31 @@
 
 ## 4. Memória da aba
 
-- [ ] 4.1 `src/assistant/agent/memory.js` — `fato` | `decisao` | `preferencia`, com origem,
-      carimbo, teto por categoria e descarte do mais antigo
-- [ ] 4.2 Entrada na memória vem de ferramenta declarada (`lembrar`), não de heurística sobre o
-      texto do aluno
-- [ ] 4.3 **GATE: voz com ferramenta read-only.** Sessão de voz declarando `descrever_diagrama`
-      (leitura pura, sem instrução de entrega): o modelo chama, recebe o resultado e **continua
-      falando**? A pesquisa de 2026-11-12 derrubou a generalização de que qualquer declaração
-      emudece — o CopilotSpeaker executa ferramenta em turno de voz e o Gemini segue falando.
-      Resultado negativo vira registro em `open-items.md`, não suposição
-- [ ] 4.4 Testes: preferência vale no turno seguinte; teto respeitado; recarregar zera
+- [x] 4.1 `src/assistant/agent/memory.js` — `fato` | `decisao` | `preferencia`, com origem,
+      carimbo, teto por categoria e descarte do mais antigo. O teto é POR categoria de
+      propósito: preferência demais não pode comer os fatos. Item repetido não vira duas linhas,
+      texto gigante é cortado antes de entrar, e não há `localStorage` nem rede no módulo —
+      provado por varredura no próprio teste
+- [x] 4.2 Entrada na memória vem de ferramenta declarada (`lembrar`), não de heurística sobre o
+      texto do aluno. `agent/catalog.js` declara a função com as três categorias num `enum`, e a
+      política do despachante é default-deny pelo mesmo catálogo — declaração e política nascem
+      da MESMA lista, senão divergem e o aluno vê `ferramenta_nao_roteada` no meio da conversa.
+      Um teste varre `memory.js` e `session-manager.js` atrás de classificação por palavra-chave
+- [x] 4.3 **GATE: voz com ferramenta read-only — RESPONDIDO, e a resposta é SIM** (2026-11-13,
+      cenário `gate 4.3` da bateria, contra o Gemini real). A fala entrou pelo microfone (WAV
+      pt-BR), e a linha do tempo do diário é a prova:
+      `7,8s ws.input-text → ws.tool-call → tool.executando → out.tool-response → ws.turn-complete`
+      e então **`9,0s–10,1s: 20 frames de ws.audio`** — o modelo chamou `descrever_diagrama`,
+      recebeu o resultado e **voltou a falar**, dizendo *"O diagrama tem 5 raias: Pizza Customer,
+      Pizza vendor, clerk, pizza chef e delivery boy"* — as cinco raias reais do diagrama.
+      ⚠ Duas coisas que a medição ensinou: a resposta falada veio no turno SEGUINTE ao da
+      ferramenta (o turno da chamada fecha calado, e isso não é turno vazio — virou guarda em
+      `session.js`); e a transcrição entendeu *"ferramenta de escrever diagrama"*, com o modelo
+      acertando a função mesmo assim. **Isto desbloqueia o portão F6**, que é a mesma pergunta
+- [x] 4.4 Testes: `src/assistant/__tests__/memoria.mjs` (15 casos) — categorias, origem e
+      carimbo, categoria inválida recusada DIZENDO as aceitas, teto por categoria, corte de
+      texto, a memória entrando no prompt com a categoria na frente, e ela sendo volátil (viaja
+      no quadro, não no `setup` — senão congelaria na abertura da sessão)
 
 ## 5. Despacho de ferramenta (pré-requisito das ferramentas de verdade)
 

@@ -16,6 +16,7 @@
 //
 // ponytail: `join('\n\n')` e um `sort` estável. Sem template engine, sem AST de prompt.
 
+import { ferramentasDoPerfil } from './catalog.js';
 import { MARCA_DADOS, SECOES } from './sections.js';
 
 const ABRE = `<<<${MARCA_DADOS}`;
@@ -97,5 +98,11 @@ export function promptDoPerfil(ctx) {
   return {
     systemInstruction: renderizar(ctx, { tier: 'estavel' }),
     withDeliveryTool: ctx.perfil === 'texto',
+    // ⚠ As ferramentas são declaradas nos DOIS perfis, inclusive na voz. A hipótese de que
+    // declarar função emudece o modelo valia para a função de ENTREGA (medida no P1), e foi
+    // generalizada indevidamente para qualquer declaração (achado P6 da pesquisa de
+    // 2026-11-12). O gate 4.3 mede isso ao vivo: se a voz emudecer, o registro é que vira
+    // regra — não a suposição.
+    ferramentas: ferramentasDoPerfil(ctx.perfil),
   };
 }

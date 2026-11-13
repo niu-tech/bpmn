@@ -16,7 +16,10 @@
 //
 // ponytail: uma fábrica com callbacks, não uma classe com EventEmitter. São seis eventos.
 
+import { permitida } from './agent/catalog.js';
+import { createToolDispatcher } from './agent/dispatch.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
+import { criarMemoria } from './agent/memory.js';
 import { promptDoPerfil } from './agent/render.js';
 import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback } from './live/audio.js';
@@ -121,6 +124,12 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    */
   let contextoEnviado = null;
 
+  /**
+   * Memória da aba (fase F4). Quem escreve nela é o MODELO, chamando `lembrar` — por isso ela
+   * mora aqui, ao lado do despachante, e não dentro do contexto declarado pelo chamador.
+   */
+  const memoria = deps.memoria ?? criarMemoria();
+
   /** Diário da sessão. Um relatório = uma conexão: `connect()` zera. */
   const diag = deps.diagnostics ?? createDiagnostics();
 
@@ -224,7 +233,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       modo,
       pagina: deps.pagina ?? contexto.pagina,
       diagrama: contexto.diagrama ?? deps.lerDiagrama?.() ?? null,
-      memoria: contexto.memoria,
+      // O que o modelo mandou guardar + o que o chamador declarou (teste e bateria).
+      memoria: [...memoria.paraOPrompt, ...(contexto.memoria ?? [])],
     });
   }
 
@@ -293,11 +303,51 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       }));
   }
 
+  /**
+   * O despachante desta sessão. Os executores são locais à aba — não há servidor nosso para
+   * falar, e não vai haver (design: MCP está fora enquanto não existir backend).
+   *
+   * ⚠ `permitida` é default-deny: nome fora do catálogo não executa e volta como erro NOMEADO.
+   * O que decide CHAMAR é o modelo; o que decide DEIXAR é esta política.
+   */
+  function criarDespachante() {
+    return createToolDispatcher({
+      permitido: permitida,
+      onEvent: (src, kind, detail) => diag.record(src, kind, detail),
+      executores: {
+        lembrar: async ({ categoria, texto }) => {
+          const r = memoria.lembrar({ categoria, texto, turno: turnSeq });
+          // Erro de uso volta ao modelo com o nome do problema e as categorias aceitas: é assim
+          // que ele corrige a chamada em vez de repetir a mesma.
+          if (!r.ok) throw new Error(`${r.erro}${r.aceitas ? ` (use: ${r.aceitas.join(', ')})` : ''}`);
+          publish();
+          return { guardado: true, categoria, total: memoria.total };
+        },
+        descrever_diagrama: async () => {
+          const d = contextoAtual().diagrama;
+          if (!d) return { diagrama: null, aviso: 'nenhum diagrama aberto nesta página' };
+          return {
+            processo: d.processo,
+            total: d.total,
+            contagem: d.contagem,
+            raias: d.raias,
+            selecionado: d.selecionado,
+            amostra: d.amostra.length,
+            aviso: d.amostra.length < (d.total ?? 0)
+              ? `a amostra tem ${d.amostra.length} de ${d.total} elementos`
+              : undefined,
+          };
+        },
+      },
+    });
+  }
+
   function openSession(targetMode) {
     const apiKey = credentials.use();
     const ctxInicial = contextoAtual(targetMode);
     session = sessionFactory({
       apiKey,
+      dispatcher: criarDespachante(),
       // O perfil decide a prosa E a declaração da função, numa chamada só (ver render.js).
       // Só o tier ESTÁVEL vai aqui: o volátil viaja por `clientContent` (design H3).
       setupOptions: promptDoPerfil(ctxInicial),
@@ -443,6 +493,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       contexto = { ...contexto, ...novo };
       return api.contexto;
     },
+
+    /** O que o modelo mandou guardar nesta aba. Só leitura — escrever é pela ferramenta. */
+    get memoria() { return memoria.estado; },
 
     /** O contexto resolvido como o prompt o vê. Para teste e diagnóstico. */
     get contexto() {
