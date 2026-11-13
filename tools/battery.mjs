@@ -407,22 +407,51 @@ if (chaveViva) {
       // O WAV pt-BR toca como microfone; o VAD do servidor fecha o turno no silencio que vem
       // depois (por isso `%noloop`). Esperamos a transcricao de ENTRADA (prova de que o Gemini
       // ouviu) e o audio de SAIDA (prova de que respondeu falando).
-      `let pico = 0;
+      // ⚠ O relatorio deste passo ja foi "pico + nada". Com so o pico, falha de MICROFONE e falha
+       // de SERVIDOR sao a mesma linha — e foi assim que a divida M6 passou dias sendo lida como
+       // cota (2026-11-13). Agora sai a linha do tempo inteira e a energia POR SEGUNDO: da pra ver
+       // se a fala chegou, e quando.
+       `let pico = 0;
+       const nivelPorSegundo = [];
        for (let i = 0; i < 70; i++) {
          await new Promise((r) => setTimeout(r, 500));
-         pico = Math.max(pico, window.__bpmnAssist.estado.nivel);
+         const n = window.__bpmnAssist.estado.nivel;
+         pico = Math.max(pico, n);
+         if (i % 2 === 0) nivelPorSegundo.push(Number(n.toFixed(2)));
          const c = window.__bpmnAssist.contagem;
          if ((c['ws.audio'] ?? 0) > 3 && (c['ws.input-text'] ?? 0) > 0) break;
        }
        const c = window.__bpmnAssist.contagem;
+       const ev = window.__bpmnAssist.eventos;
        const falas = [...document.querySelectorAll('.bpmn-assist__msg--user')].map((m) => m.textContent.trim());
        const respostas = [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+       const subiuAudio = ev.filter((e) => e.key === 'out.audio').reduce((n, e) => n + e.n, 0);
+       const calou = nivelPorSegundo.slice(3).some((n) => n < 0.03);
        return {
          ok: (c['ws.input-text'] ?? 0) > 0 && (c['ws.audio'] ?? 0) > 0,
+         // Falha do HARNESS, nomeada: audio subindo sem transcricao E microfone que nunca calou e
+         // a assinatura do tom sintetico, nao de servidor mudo. Nunca mais reportar uma como outra.
+         culpa: (c['ws.input-text'] ?? 0) === 0 && subiuAudio > 50 && !calou
+           ? '[HARNESS] o microfone falso nao tocou a fixture (tom sintetico) -- veja tools/provar-captura.mjs'
+           : null,
          ouviu: falas.at(-1)?.slice(0, 120) ?? '(sem transcricao de entrada)',
          respondeu: respostas.at(-1)?.slice(0, 140) ?? '(sem legenda)',
          quadrosDeAudioDoModelo: c['ws.audio'] ?? 0,
          picoDoMicrofone: Number(pico.toFixed(3)),
+         // Sem isto nao da pra distinguir "o microfone nunca ouviu" de "ouviu e nao foi transcrito".
+         abriuOMicrofone: (c['mic.open'] ?? 0) > 0,
+         quadrosDeMicrofoneQueSubiram: ev.filter((e) => e.key === 'out.audio').reduce((n, e) => n + e.n, 0),
+         nivelPorSegundo,
+         // VEREDITO SOBRE O PROPRIO MICROFONE, antes de julgar o servidor.
+         //
+         // O microfone falso do Chromium troca a fixture pelo TOM SINTETICO quando nao consegue
+         // le-la, e nao avisa (divida M6, 2026-11-13). O tom tem energia de verdade, entao um
+         // relatorio que so olha nivel diz "o microfone ouviu" e a culpa sobra para o servidor --
+         // foi assim que a divida sobreviveu tres dias. A fixture reescrita e fala E DEPOIS
+         // silencio de verdade; o tom nunca cala. Entao: nivel que nunca desce = nao era a fala.
+         // Diagnostico de verdade (cruzamentos de zero): tools/provar-captura.mjs.
+         microfoneCalouDepoisDaFala: nivelPorSegundo.slice(3).some((n) => n < 0.03),
+         todosOsEventos: ev.map((e) => e.key + (e.n > 1 ? ' x' + e.n : '')),
          furosNaReproducao: (window.__bpmnAssist.report().match(/furos=(\d+)/g) ?? []).at(-1) ?? 'n/d',
        };`,
     ],

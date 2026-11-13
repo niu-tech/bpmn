@@ -20,10 +20,89 @@
  * ponytail: nenhuma dependência. `WebSocket` é global no Node 22+, e o CDP é JSON por um socket.
  * Instalar Playwright para clicar em dois botões seria 300 MB para uma coisa de 120 linhas.
  */
-import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { juntarComSilencio } from './wav-pad.mjs';
+
+/**
+ * Segundos de silêncio colados ATRÁS de toda fixture de microfone. 3 s já bastaram para o
+ * servidor transcrever na medição de 2026-11-13 (`tools/medir-voz.mjs`); 4 dá folga para o
+ * reamostrador e para o atraso da rede.
+ */
+const CAUDA_MUDA_S = 4;
+
+/**
+ * Chunk `fmt ` do WAV, lido andando pela lista de chunks (não por posição fixa).
+ *
+ * Existe por causa da dívida M6: o leitor de WAV do Chromium quer o `fmt ` PCM **canônico de 16
+ * bytes**, e o SAPI (`tools/make-voice-fixtures.ps1`) escreve **18** — PCM com o `cbSize` da
+ * extensão, que é válido e é recusado assim mesmo. Medido em 2026-11-13: `gateway.wav` tem
+ * `fmt (18)`, a cópia reescrita tem `fmt (16)`.
+ */
+function formatoDoWav(buf) {
+  let pos = 12;
+  while (pos + 8 <= buf.length) {
+    const id = buf.toString('ascii', pos, pos + 4);
+    const tam = buf.readUInt32LE(pos + 4);
+    if (id === 'fmt ') {
+      return {
+        tamanhoDoFmt: tam,
+        codigo: buf.readUInt16LE(pos + 8),
+        canais: buf.readUInt16LE(pos + 10),
+        taxa: buf.readUInt32LE(pos + 12),
+        bits: buf.readUInt16LE(pos + 22),
+      };
+    }
+    pos += 8 + tam + (tam % 2);
+  }
+  return null;
+}
+
+/**
+ * Fixture pronta para o microfone falso: cabeçalho CANÔNICO + cauda de silêncio.
+ *
+ * ⚠ As duas coisas são a correção da dívida M6, e a primeira é a que importa. Quando o Chromium
+ * não consegue ler o arquivo ele **não reclama**: troca pelo TOM SINTÉTICO do dispositivo falso e
+ * segue. Medido em 2026-11-13 com `tools/medir-microfone.mjs`, comparando o braço sem arquivo
+ * nenhum com o braço com a fixture:
+ *
+ *   • sem arquivo (tom):   0.41 0.40 0.08 0.39 0.05 0.26 0.40 … — energia alta que NUNCA cala
+ *   • com a fixture lida:  0.33 0.16 0.16 0.14 0.16 0.01 0 0 0 … — fala e depois silêncio
+ *
+ * O tom tem energia de verdade, então todo medidor que olha só o nível diz "o microfone ouviu" —
+ * foi assim que o pico 0,574 da bateria virou "o servidor está mudo" por três dias. E o Gemini
+ * não transcreve tom nem vê fim de fala: a sessão sobe 879 quadros para um turno que não fecha.
+ *
+ * Reescrever pelo nosso próprio escritor resolve pela raiz (o `fmt ` sai com 16 bytes) e ainda
+ * dá a pausa que o VAD do servidor usa para fechar o turno. Mora aqui, e não em cada cenário,
+ * porque quem tem o contrato do microfone falso é esta função.
+ */
+function fixtureDoMicrofone(wavAbs, segundos) {
+  const destino = `${process.env.TEMP ?? '/tmp'}/bpmn-mic-${segundos}s-${wavAbs.replace(/[^a-zA-Z0-9]/g, '_')}.wav`;
+  if (!existsSync(destino)) writeFileSync(destino, juntarComSilencio([wavAbs, segundos]).wav);
+  return destino;
+}
+
+/**
+ * Recusa NOMEADA em vez de medição silenciosa em cima do tom sintético. Chamado sempre, inclusive
+ * quando alguém passar um caminho cru por atalho: o modo de falha que esta dívida custou foi
+ * exatamente "parece que funcionou".
+ */
+function exigirFixtureLegivel(wavAbs) {
+  const f = formatoDoWav(readFileSync(wavAbs));
+  if (!f) throw new Error(`${wavAbs}: sem chunk fmt — o Chromium cairia no tom sintetico`);
+  if (f.tamanhoDoFmt !== 16 || f.codigo !== 1 || f.bits !== 16) {
+    throw new Error(
+      `${wavAbs}: fmt(${f.tamanhoDoFmt}) codigo=${f.codigo} bits=${f.bits} — o microfone falso do `
+      + 'Chromium recusa isto e troca pelo TOM SINTETICO sem avisar (divida M6). Reescreva pelo '
+      + 'juntarComSilencio (fmt canonico de 16 bytes) antes de passar para --use-file-for-fake-audio-capture.',
+    );
+  }
+  return f;
+}
 
 const NAVEGADORES = [
   process.env.BPMN_BROWSER,
@@ -116,7 +195,31 @@ function parseArgs(argv) {
  */
 const PORTA_PADRAO = 9335 + (process.pid % 400);
 
-export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, headless = true } = {}) {
+/**
+ * Mata o navegador DESTA corrida, pelo caminho do perfil (que é único por lançamento).
+ *
+ * `filho.kill()` sozinho não basta: o Edge re-executa e deixa um enxame de processos vivos que
+ * não são filhos do que lançamos. Medido em 2026-11-13, no meio da dívida M6: **1305 `msedge.exe`
+ * vivos** com a marca `bpmn-drive-` neste PC, acumulados corrida após corrida. Isso não é só lixo
+ * — é o principal suspeito da intermitência que sustentou a dívida: com o PC nesse estado, três
+ * capturas idênticas seguidas deram TOM, FALA, FALA (`tools/provar-captura.mjs`), ou seja, o
+ * microfone falso às vezes simplesmente não toca o arquivo.
+ *
+ * O filtro é o PERFIL, nunca o nome do processo: o dono tem o Edge dele aberto (41 processos na
+ * mesma medição) e matar por nome fecharia o navegador dele.
+ */
+function encerrarNavegador(perfil) {
+  if (process.platform !== 'win32') return;
+  const alvo = perfil.replace(/\\/g, '/');
+  spawnSync('powershell', [
+    '-NoProfile', '-Command',
+    'Get-CimInstance Win32_Process -Filter "Name=\'msedge.exe\' or Name=\'chrome.exe\'" '
+    + `| Where-Object { $_.CommandLine -like '*${alvo.split('/').pop()}*' } `
+    + '| ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue } catch { } }',
+  ], { stdio: 'ignore', timeout: 20000 });
+}
+
+export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, micEmLaco = false, micSemCauda = false, headless = true } = {}) {
   const exe = acharNavegador();
   // WAV como MICROFONE. A flag faz o getUserMedia devolver o arquivo em vez do tom sintetico,
   // entao o caminho do microfone roda inteiro (worklet, reamostragem, PCM16, socket) com fala
@@ -124,6 +227,20 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
   // mesma tecnica dos laboratorios de voz do CopilotSpeaker.
   const micAbs = mic ? resolve(mic) : null;
   if (micAbs && !existsSync(micAbs)) throw new Error(`WAV de microfone nao encontrado: ${micAbs}`);
+  // CAUDA DE SILENCIO — a correção da dívida M6, medida em 2026-11-13.
+  //
+  // `%noloop` NÃO é honrado por este navegador: medido com `tools/medir-microfone.mjs`, um WAV de
+  // 5,9 s produziu 20 s de energia contínua COM o sufixo aplicado, repetindo o mesmo padrão. E
+  // microfone que nunca cala é turno que o VAD do servidor nunca fecha: a sessão sobe 879 quadros
+  // e o servidor não transcreve nada — exatamente o sintoma que passou dias sendo lido como cota.
+  // O `tools/medir-voz.mjs` provou o outro lado no mesmo dia: a MESMA fala, com 3 s de silêncio
+  // atrás, foi transcrita nos quatro braços do 2×2.
+  //
+  // Então o silêncio não vem da flag, vem do ARQUIVO: toda fixture roda com uma cauda muda, e o
+  // seam do laço vira uma pausa de verdade. Fica aqui, e não em cada cenário, porque quem tem o
+  // contrato do microfone falso é esta função — cenário novo não pode precisar lembrar disto.
+  const micParaOChromium = micAbs && !micSemCauda ? fixtureDoMicrofone(micAbs, CAUDA_MUDA_S) : micAbs;
+  if (micParaOChromium) exigirFixtureLegivel(micParaOChromium);
   // Perfil NOVO a cada corrida: um perfil compartilhado que ficou travado por uma corrida
   // anterior faz o Edge anexar na instancia velha e sair sem abrir a porta - e o sintoma e
   // "o navegador nao abriu a porta", que parece problema de rede e e lixo de disco.
@@ -142,7 +259,7 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     '--autoplay-policy=no-user-gesture-required',
     // `%noloop`: sem ele o Chromium repete o WAV sem parar, e o VAD do servidor nunca ve o
     // silencio que FECHA o turno — a fala ficaria eternamente "em andamento".
-    ...(micAbs ? [`--use-file-for-fake-audio-capture=${micAbs}%noloop`] : []),
+    ...(micParaOChromium ? [`--use-file-for-fake-audio-capture=${micParaOChromium}${micEmLaco ? '' : '%noloop'}`] : []),
     `--window-size=${largura},${altura}`,
     `--remote-debugging-port=${porta}`,
     `--user-data-dir=${perfil}`,
@@ -209,6 +326,7 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     c.fecha();
   } finally {
     try { filho.kill(); } catch { /* já morreu */ }
+    encerrarNavegador(perfil);
   }
 
   return saida;

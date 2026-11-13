@@ -596,8 +596,10 @@ export function createSession({
     },
 
     /**
-     * O aluno parou de falar. **Obrigatório** — sem isto o servidor não transcreve (medido).
-     * Chamar ao fechar o microfone, não a cada pausa.
+     * O aluno parou de falar. Chamar ao fechar o microfone, não a cada pausa.
+     *
+     * ⚠ NÃO é o que destrava a transcrição — a medição de 2026-11-13 (`tools/medir-voz.mjs`)
+     * mostrou o servidor transcrevendo sem isto, pela cauda de silêncio. Ver `buildAudioStreamEnd`.
      */
     endAudio() {
       send(buildAudioStreamEnd());

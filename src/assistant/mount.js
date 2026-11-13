@@ -14,6 +14,7 @@ import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
 import { createWidget } from './ui/widget.js';
+import { startCapture } from './live/audio.js';
 
 const MARK = 'bpmnAssistantMounted';
 
@@ -132,6 +133,35 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     get simulacao() { return simulacao; },
     sincronizarContexto: () => session.sincronizarContexto(),
     definirContexto: (c) => session.definirContexto(c),
+    /**
+     * PROVA DA CAPTURA — grava o que o microfone produziria e devolve o PCM, SEM abrir sessão.
+     *
+     * Existe porque faltava exatamente isto para fechar a dívida M6 (2026-11-13): o relatório
+     * sabia dizer o NÍVEL do que sai (`estado.nivel`) e não sabia devolver o ÁUDIO. Com nível
+     * sozinho, "o microfone capturou ruído de fundo", "capturou um tom de teste" e "capturou a
+     * fala" são a mesma linha — e foi assim que um tom sintético passou dias sendo lido como
+     * "o servidor está mudo". O que se mede agora é o conteúdo: o PCM volta e pode ser ouvido,
+     * medido ou mandado ao servidor de verdade por `tools/medir-voz.mjs`.
+     *
+     * Não gasta cota: roda `startCapture` direto, sem socket. Só diagnóstico, só leitura.
+     */
+    async provarCaptura(segundos = 8) {
+      const quadros = [];
+      let niveis = [];
+      const cap = await startCapture({
+        onFrame: (base64) => { if (quadros.length < 2000) quadros.push(base64); },
+        onLevel: (n) => { if (niveis.length < 4000) niveis.push(Number(n.toFixed(3))); },
+      });
+      await new Promise((r) => setTimeout(r, Math.max(1, segundos) * 1000));
+      await cap.stop();
+      return {
+        taxaDoDispositivo: cap.sampleRate,
+        quadros: quadros.length,
+        // Base64 de cada quadro, na ordem. Quem chama remonta o WAV (PCM16 16 kHz mono).
+        pcmBase64: quadros,
+        nivelMaximo: niveis.length ? Math.max(...niveis) : 0,
+      };
+    },
   };
 
   // Sair da página sem isto deixa o microfone aberto e a sessão consumindo cota. `pagehide`

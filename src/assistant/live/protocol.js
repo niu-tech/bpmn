@@ -135,11 +135,22 @@ export function buildAudioChunk(pcm16Base64) {
 }
 
 /**
- * Fim da fala. **Obrigatório**: sem ele o servidor não transcreve nada.
+ * Fim da fala. Anuncia que o aluno parou de falar.
  *
- * Medido em 2026-11-10 com a MESMA fala e o MESMO formato: com `audioStreamEnd`, a transcrição
- * de entrada chegou exata; sem ele, nada, e o turno nunca fechou. Quem para de falar tem de
- * avisar — o VAD automático do servidor sozinho não bastou nesta medição.
+ * ⚠ CORRIGIDO em 2026-11-13. A versão anterior deste bloco dizia **"obrigatório: sem ele o
+ * servidor não transcreve nada"**, com base na medição de 2026-11-10. A medição de 2026-11-13
+ * (`tools/medir-voz.mjs`, 2×2 de sessões reais, mesma fala e mesmo formato) **falsifica** isso:
+ * o braço SEM `audioStreamEnd` transcreveu a entrada exata e o modelo respondeu falando. O que
+ * fecha o turno é o SILÊNCIO — o VAD automático do servidor funciona, desde que ele receba
+ * quadros silenciosos depois da fala.
+ *
+ * O que a medição de 2026-11-10 provavelmente mediu: parar de MANDAR quadro não é o mesmo que
+ * mandar silêncio. Microfone que simplesmente para deixa o servidor esperando, e aí o
+ * `audioStreamEnd` é a única saída. Com o microfone aberto (o caso real), a cauda de silêncio
+ * já basta.
+ *
+ * Continua certo mandá-lo ao FECHAR o microfone: é o fim de fala explícito, e não depende de o
+ * servidor ouvir silêncio suficiente. Só não é ele que destrava a transcrição.
  */
 export function buildAudioStreamEnd() {
   return { realtimeInput: { audioStreamEnd: true } };

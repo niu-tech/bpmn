@@ -382,7 +382,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  await testAsync('fechar o microfone manda audioStreamEnd (sem ele nao ha transcricao)', async () => {
+  await testAsync('fechar o microfone manda audioStreamEnd (fim de fala explicito)', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();

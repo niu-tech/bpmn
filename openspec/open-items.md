@@ -30,7 +30,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | M3 | Negação de microfone ao vivo | aberto | o teste cobre o caminho de erro em unidade; falta o cenário no navegador (é um `--passo` que recusa `getUserMedia`) |
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |
-| M6 | Os cenários de VOZ ao vivo não são confiáveis **em sequência** | aberto (2026-11-13) | sozinho, o cenário passa (22 frames de áudio, legenda inteira). Rodando depois de outra sessão ao vivo, falha sempre no mesmo ponto: **sem transcrição de entrada**, com o microfone capturando. Um descanso de 25 s entre sessões não resolveu. ⚠ A suspeita inicial era a fixture (o WAV-como-microfone chegando pela metade), mas o pico do microfone na falha de 2026-11-13 foi **0,574** — áudio alto chegou à captura, e mesmo assim nada foi transcrito. Isso aponta para o SERVIDOR, não para o arquivo: é a mesma assinatura do aviso que o app mostrou noutra rodada (*"a cota da sua chave acabou ou há sessões demais"*). Até medir a causa, **o veredito de voz vale sozinho** (`--so "voz de verdade"`), e a bateria inteira reporta o que de fato aconteceu. Em 2026-11-13 o mesmo padrão derrubou a metade de voz do portão F4 numa corrida com quatro sessões ao vivo, e o F4 passou limpo quando rodou sozinho. Na corrida só-ao-vivo do fim do dia (9 cenários), **4 das 6 falhas eram esta assinatura** — incluindo o gate 4.3, que mostrou `out.audio x879` subindo sem um único `ws.input-text`. As outras 2 foram timeout de silêncio em modo texto, que o app nomeia na tela |
+| M6 | Os cenários de VOZ ao vivo não eram confiáveis | **causa encontrada, conserto no ar (2026-11-13)** | não era cota nem o servidor: **o microfone do teste não tocava a fala**. Duas causas somadas. (1) As fixtures do SAPI têm o chunk `fmt ` com **18 bytes** e o leitor de WAV do Chromium quer os **16** canônicos — arquivo recusado, e o Chromium troca pelo **tom sintético** do dispositivo falso **sem avisar**. (2) O harness vazava navegador: **1305 `msedge.exe`** vivos com a marca `bpmn-drive-` nesta máquina, e nesse estado o microfone falso ignorava o arquivo de forma intermitente. O tom tem energia de verdade — era o pico **0,574** que eu lia como "a fala chegou" — e o Gemini não transcreve tom nem vê fim de fala: 879 quadros subindo para um turno que nunca fecha, socket saudável e mudo. Consertado em `tools/drive-page.mjs` (fixture reescrita com `fmt ` canônico + 4 s de cauda muda; recusa nomeada para fixture ilegível; navegador encerrado por perfil ao fim de cada corrida). Ver §3f |
 
 ## 3. Barge-in: o que a medição mostrou — e o achado que ela trouxe
 
@@ -168,7 +168,7 @@ Rodar os 17 cenários de uma vez — depois de cada portão ter passado isolado 
 
 | Falhou | O que era |
 |---|---|
-| voz de verdade · interromper · gate 4.3 · portão F4 (2ª metade) | **o mesmo problema**: em sequência, o áudio do microfone sobe (881 frames num caso, pico 0,574 noutro) e o servidor **não transcreve nada**. Sem `ws.input-text`, não há turno. É o M6, agora com mais evidência |
+| voz de verdade · interromper · gate 4.3 · portão F4 (2ª metade) | **o mesmo problema**: o áudio do microfone sobe (881 frames num caso, pico 0,574 noutro) e o servidor **não transcreve nada**. Sem `ws.input-text`, não há turno. ⚠ Lido na época como limitação de ambiente; em 2026-11-13 a medição mostrou que **o microfone do teste nunca tocou a fala** — era o tom sintético do Chromium. Ver §3f |
 | portão F3 (3ª pergunta) | **critério meu**: uma entrega ATRASADA do turno anterior criou bolha nova depois que o passo seguinte já tinha perguntado, e o teste leu *"9 tarefas."* como resposta a *"o que é isto?"* |
 | portão F5 (3ª pergunta) | **critério meu, ao contrário**: o agente respondeu *"não encontrei o elemento na amostra… eu precisaria investigar mais para confirmar"* — que é EXATAMENTE o contrato do H13 — e o regex o classificou como negação |
 
@@ -185,7 +185,7 @@ E o critério da amostra passou a reprovar só a **negação categórica**: dize
 amostra, admitindo que ela é parcial, é o comportamento pedido — reprová-lo era o teste cobrando
 o contrário do design.
 
-> **O que fica:** das seis falhas, quatro são a mesma limitação de ambiente (M6) e duas eram o
+> **O que fica:** das seis falhas, quatro eram o microfone do teste (M6, §3f) e duas eram o
 > medidor. Nenhuma era comportamento errado do agente. Isso não torna o 11 de 17 um 17 de 17 —
 > torna o número legível, que é o mínimo que um relatório precisa ser.
 
@@ -271,6 +271,123 @@ não fecha o turno do aluno, re-arma o relógio e espera a geração seguinte. P
 O turno sobreviveu porque frames vazios renovam o relógio de silêncio. Isso é lentidão do
 serviço, não defeito nosso — mas é bom saber que o teto de 45 s não é o que manda quando o
 servidor continua mandando sinal de vida.
+
+## 3f. M6: o microfone do teste nunca tocou a fala (2026-11-13)
+
+Três dias de "o servidor não transcreveu" eram **o tom de teste do Chromium**. E o que sustentou o
+erro foi a minha própria medição.
+
+### A cadeia, do fim para o começo
+
+1. `tools/make-voice-fixtures.ps1` usa o SAPI, que escreve o chunk `fmt ` com **18 bytes** — PCM
+   mais o `cbSize` da extensão. É um WAV válido; o leitor do `--use-file-for-fake-audio-capture`
+   quer os **16** canônicos. Medido: `gateway.wav` → `fmt (18)`; a cópia reescrita → `fmt (16)`.
+2. Arquivo recusado, o Chromium **troca pelo tom sintético do dispositivo falso e não escreve uma
+   linha de log**. Esse é o modo de falha que custou os três dias: não é um erro, é uma troca.
+3. A página captura o tom, reamostra e sobe: **879 quadros, 35 s, nunca em silêncio**.
+4. O Gemini não tem o que transcrever e nunca vê fim de fala. Sem `ws.input-text` não há turno, e
+   sem turno não há resposta — com o socket saudável o tempo todo (`ws.ready` **e** `ws.resumption`
+   na linha do tempo do gate 4.3, e nenhum `ws.close`).
+5. A bateria reportou "sem transcrição de entrada", e eu li isso como cota.
+
+### As três impressões digitais
+
+`tools/provar-captura.mjs` grava o que o microfone produz e classifica por **cruzamentos de zero**,
+que é o que separa fala de tom — nível não separa:
+
+| o que tocou | cruzamentos/s por segundo |
+|---|---|
+| `gateway.wav`, a referência | `1538 874 2917 1157 1016` — variável, alto |
+| captura boa | `1996 1214 3462 1393 1192 45 0 0` — acompanha a referência **e depois cala** |
+| tom sintético | `78 148 144 146 146 150 146 144` — ~146, teimosamente estável |
+
+O braço rotulado "sem arquivo nenhum" fecha a prova: RMS **0,0923**, exatamente o mesmo das três
+leituras que eu tinha chamado de "o WAV está repetindo" (0,0921 · 0,0915 · 0,0921). Não havia laço.
+Era o tom, e eu nunca tinha gravado a digital dele para comparar.
+
+### A segunda causa: o harness vazava navegador
+
+`filho.kill()` matava só o processo lançador. No meio desta investigação: **1305 `msedge.exe`**
+vivos com a marca `bpmn-drive-` (e 41 do dono, que não se toca). Nesse estado, três capturas
+idênticas seguidas deram **TOM, FALA, FALA** — ou seja, o microfone falso ignora o arquivo de forma
+intermitente quando a máquina está assim. Depois de encerrar os 1302 e passar a derrubar o
+navegador **por perfil** ao fim de cada corrida, cinco capturas seguidas deram FALA.
+
+Isto é o que o registro antigo chamava de "falha em sequência, passa sozinho": a primeira corrida
+rodava numa máquina limpa; a quarta, numa máquina com centenas de navegadores pendurados.
+
+### O que estava errado no meu método
+
+- **medi energia e chamei de fala.** O tom tem nível alto. `picoDoMicrofone: 0.574` virou, no
+  registro, evidência de que "áudio alto chegou à captura, logo o problema é o servidor". Nível
+  prova que existe **sinal**, nunca que existe **conteúdo**;
+- **não rodei o controle.** O braço "sem arquivo nenhum" custa zero cota e decide a questão em 16
+  segundos. Levei quatro medições para rodá-lo, e foi a única que precisava ser rodada;
+- **a hipótese bonita veio primeiro.** Gastei quatro sessões reais num 2×2 de `clientContent` ×
+  `audioStreamEnd` porque a documentação do Live diz, verbatim, *"the server attempts to optimize
+  for best response, but there are no guarantees"* sobre misturar os dois. A citação era boa, a
+  hipótese era errada, e os **4 de 4 braços transcreveram**;
+- **culpei a cota sem o código de fechamento.** Cota fecha o socket. Não havia `ws.close` nenhum na
+  linha do tempo, e mesmo assim escrevi "cota ou sessões demais" — porque o app tinha mostrado esse
+  aviso uma vez, noutra rodada, e eu reusei a explicação em vez de reler a evidência;
+- **conclui perda de nível de uma amostragem grosseira.** O `nivelPorSegundo` do cenário amostra o
+  ÚLTIMO quadro a cada segundo; caindo numa pausa, dá 0,12 onde o áudio real está em 0,36. Escrevi
+  "13 dB perdidos na captura" com base nisso. A gravação mostrou a captura em **−22,5 dBFS** contra
+  −23,4 do arquivo: perda nenhuma.
+
+### Os consertos
+
+Em `tools/drive-page.mjs`, que é quem tem o contrato do microfone falso (e não cada cenário, que não
+pode precisar lembrar disto):
+
+- toda fixture é **reescrita pelo nosso próprio escritor** — `fmt ` canônico de 16 bytes — com **4 s
+  de cauda muda**. A cauda resolve de brinde o fim de fala: é o silêncio que o VAD do servidor usa
+  para fechar o turno;
+- fixture que o Chromium recusaria vira **recusa nomeada** no lançamento, não medição em cima do tom;
+- o navegador da corrida é encerrado **por perfil** no fim, e o filtro é o perfil e nunca o nome do
+  processo: o dono tem o Edge dele aberto.
+
+No cenário de voz da bateria, o relatório era "pico e mais nada" — com isso, falha de microfone e
+falha de servidor são a mesma linha, que é exatamente como esta dívida sobreviveu. Agora ele sai com
+`abriuOMicrofone`, `quadrosDeMicrofoneQueSubiram`, `nivelPorSegundo`, `microfoneCalouDepoisDaFala`,
+a linha do tempo inteira, e um campo `culpa` que **nomeia** a falha do harness quando a assinatura é
+a do tom.
+
+### Um achado de brinde, que corrige regra escrita
+
+O 2×2 de `tools/medir-voz.mjs` falsificou a nota de 2026-11-10 de que `audioStreamEnd` seria
+**obrigatório** para haver transcrição: o braço sem ele transcreveu a frase exata e o modelo
+respondeu falando. O que fecha o turno é o silêncio. Continua certo mandá-lo ao fechar o microfone
+— é o fim de fala explícito, que não depende do VAD —, só não é ele que destrava nada. A afirmação
+estava em três arquivos e no nome de um teste; os quatro foram corrigidos.
+
+A mesma corrida mediu que **nível não é a causa**: a mesma fala atenuada a −43 dBFS (10 dB abaixo do
+que o navegador manda) foi transcrita inteira.
+
+### Prova ao vivo depois do conserto
+
+O cenário de voz passou **duas vezes seguidas** — que é exatamente o que o M6 dizia ser impossível.
+Nas duas, a frase exata transcrita (*"Qual a diferença entre um gateway exclusivo e um gateway
+paralelo?"*) e o modelo respondendo falando.
+
+O número que resume o conserto: o microfone subiu **188** e **171** quadros, não 871. O turno
+FECHOU. A linha do tempo tem a forma saudável nas duas corridas:
+
+```
+mic.open -> out.audio x14 -> out.audio x142 -> ws.input-text -> ws.audio -> out.audio ...
+```
+
+E o `nivelPorSegundo` tem a forma que a fixture reescrita produz — `0.61 0.4 0.37 0.22 0.03 0 0`:
+fala, e depois silêncio de verdade.
+
+### O que isto deixa em aberto no PRODUTO
+
+O app só manda `audioStreamEnd` quando o microfone FECHA, e no meia-duplex ele fecha quando o modelo
+começa a falar — que só acontece depois de o servidor ter transcrito. Ou seja, o fechamento do turno
+depende **inteiramente** do VAD do servidor ver silêncio. Com um aluno num quarto barulhento isso é
+uma aposta, e o sintoma seria o mesmo: "falei e ela não respondeu". Um relógio de silêncio no
+cliente (manda fim de fala depois de N segundos de nível baixo com turno aberto) resolveria. Não
+está feito, e não é desta dívida — fica registrado como decisão do dono.
 
 ## 4. Dívidas que eu mesmo deixei
 

@@ -705,8 +705,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     },
 
     /**
-     * Fecha o microfone e AVISA o fim da fala. Sem `audioStreamEnd` o servidor não transcreve
-     * nada — medido em 2026-11-10.
+     * Fecha o microfone e AVISA o fim da fala.
+     *
+     * ⚠ O aviso não é o que destrava a transcrição (a de 2026-11-10 dizia que sim; a de
+     * 2026-11-13 falsificou) — é o fim de fala explícito, que não depende do VAD do servidor.
      */
     async stopMic() {
       return fecharMicrofone('aluno parou de falar');
