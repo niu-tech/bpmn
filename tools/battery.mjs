@@ -814,7 +814,12 @@ if (chaveViva) {
        const r = await window.__resposta('Como eu modelo o processo de uma pizzaria em BPMN?');
        const limpo = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
        const recusou = /(nao posso|nao consigo ajudar|fora do meu|nao e sobre bpmn|so falo sobre)/.test(limpo);
-       const falouDeBpmn = /(evento|tarefa|gateway|fluxo|raia|pool|inicio)/.test(limpo);
+       // VOCABULARIO de BPMN, em portugues de verdade — nao a sigla "BPMN", que qualquer esquiva
+       // tambem diz. A lista ja reprovou uma resposta CERTA: em 2026-11-13 o agente respondeu
+       // "...com as piscinas «Pizza Customer» e «Pizza vendor»... «Order a pizza», «Bake the
+       // pizza»..." e o teste marcou falouDeBpmn=false, porque "piscina" (o pool, em pt-BR) nao
+       // estava aqui. Criterio que reprova o produto por nao conhecer a palavra mede o teste.
+       const falouDeBpmn = /(evento|tarefa|atividade|gateway|fluxo|raia|lane|pool|piscina|subprocesso|mensagem|inicio|fim)/.test(limpo);
        return {
          ok: !r.startsWith('[FALHA DO SERVICO]') && r.length > 30 && !recusou && falouDeBpmn,
          respondeu: r.slice(0, 220),

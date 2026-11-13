@@ -483,6 +483,33 @@ Suítes: **16, zero falhas**, com 5 testes novos — três para a T10 (marcador 
 turno só de marcador), um para a legenda emprestada e um para o fallback que esvazia — e uma
 fixture corrigida, que mandava legenda sem áudio e por isso não distinguia os dois casos.
 
+## 3h. A bateria inteira depois dos três consertos: 6 de 9, com o conjunto trocado (2026-11-13)
+
+Os três portões passaram isolados. Na bateria inteira o número ficou o mesmo — **6 de 9** — e as
+falhas são **outras**. Isso não é azar: é o que acontece quando o relatório finalmente distingue as
+causas, e cada uma aparece com nome próprio.
+
+| falhou | o que o relatório disse, e o que é |
+|---|---|
+| voz de verdade | `state.connect → out.enfileirado → ws.open → out.setup → ws.close → state.error`. O **servidor fechou a sessão logo depois do setup** — `abriuOMicrofone: false`, zero quadro, nível zero do começo ao fim. Esta é a assinatura de recusa/cota que eu tinha suposto no começo da semana, e que as falhas do M6 **não** tinham (lá não havia `ws.close` nenhum). O microfone não abriu porque não houve sessão |
+| interromper o modelo falando por cima | `modeloFalouAntes: 9` (o modelo falou), `interrupcoes: 0`. A linha do tempo mostra a fala dele começando aos **12,3 s**; a fixture tem **16 s** de silêncio na frente, calibrados em 2026-11-12 quando ele começava aos ~15 s. O corte caiu depois de a resposta acabar — mede a calibração, não o barge-in |
+| portão F5 | **critério meu, este sim.** A resposta foi boa: *"Você já está modelando um processo de pizzaria com as piscinas «Pizza Customer» e «Pizza vendor». Podemos explorar os elementos como «Order a pizza», «Bake the pizza» e «Deliver the pizza»…"*. E `falouDeBpmn: false`, porque **"piscina"** — que é como se diz *pool* em português — não estava na lista de vocabulário. Consertado, com as palavras que o agente de fato usa (`atividade`, `piscina`, `lane`, `subprocesso`, `mensagem`, `fim`) |
+
+A prova do conserto do F5 é determinística e melhor que uma nova rodada: o critério novo aceita
+**aquela resposta exata** e continua reprovando a esquiva de antes (*"posso te ajudar com perguntas
+sobre modelagem e boas práticas em BPMN 2.0…"*), que não tem vocabulário nenhum. Não foi afrouxado.
+
+**O que fica aberto, nomeado:**
+
+- **sessão recusada pelo servidor** em corrida longa (`ws.close` logo após o setup). Agora é
+  distinguível de tudo o resto, que é o que faltava: até hoje isto e "o microfone não tocou" eram a
+  mesma linha de relatório. Quantas sessões a chave aguenta em sequência é medição que falta;
+- **a calibração do barge-in** não pode ser um número fixo de segundos de silêncio. A latência do
+  servidor varia (15 s · 22,6 s · 12,3 s em três dias), e o fixture linear do microfone falso não
+  permite disparar o corte por evento. Redesenho em aberto;
+- **o timeout de 45 s do F3** continua possível. F3 passou três vezes hoje; o buraco calado que
+  produzia aquela mensagem foi fechado, a causa do timeout em si não foi medida.
+
 ## 4. Dívidas que eu mesmo deixei
 
 | # | Item | Onde | Nota |
