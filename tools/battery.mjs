@@ -49,6 +49,67 @@ const mic = existsSync(WAV) ? WAV : null;
 
 const CHAVE = 'AQ.CHAVE-SINTETICA-DA-BATERIA-NAO-E-DE-NINGUEM-0123';
 
+/**
+ * Espera a resposta DESTA pergunta. Instalado na pagina por todo cenario que conversa.
+ *
+ * ⚠ A resposta e identificada pelo TURNO que o proprio produto carimba em cada mensagem, nao
+ * pela posicao na lista de bolhas. Duas correcoes ao vivo levaram ate aqui (2026-11-13):
+ *
+ *  1. teto de tamanho: o passo pedia "responda com o numero", o agente respondeu **9**, e o
+ *     laco descartou a resposta ideal por ser curta demais;
+ *  2. contagem de bolhas: o fim do turno REESCREVE a bolha, e uma entrega ATRASADA do turno
+ *     anterior cria bolha nova depois que o passo seguinte ja perguntou - "9 tarefas." foi lido
+ *     como resposta a "o que e isto que eu selecionei?".
+ *
+ * E se o app disser na tela que algo deu errado ("nao deu: a cota da sua chave acabou"), o laco
+ * devolve isso na hora: erro nomeado virando "respondeu: ''" e a pior especie de relatorio.
+ */
+const ESPERAR_RESPOSTA = `
+window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+window.__naTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
+  .map((m) => (m.className.match(/--([a-z]+)/)?.[1] ?? '?') + ': ' + m.textContent.trim().slice(0, 120));
+window.__resposta = async (pergunta) => {
+  const erroNaTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
+    .map((m) => m.textContent.trim())
+    .find((x) => /^n[a\u00e3]o deu:/i.test(x));
+  const erroAntes = erroNaTela();
+  const ta = document.querySelector('.bpmn-assist__composer textarea');
+  ta.value = pergunta;
+  window.__btn('Enviar').click();
+  const meuTurno = window.__bpmnAssist.mensagens.filter((m) => m.role === 'user').at(-1)?.turn ?? null;
+  const minha = () => window.__bpmnAssist.mensagens
+    .filter((m) => m.role === 'assistant' && (meuTurno === null || m.turn === meuTurno))
+    .map((m) => (m.text ?? '').trim())
+    .at(-1) ?? '';
+  let anterior = null;
+  let estavel = 0;
+  for (let i = 0; i < 140; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    const erro = erroNaTela();
+    if (erro && erro !== erroAntes) return '[FALHA DO SERVICO] ' + erro;
+    const atual = minha();
+    if (!atual) continue;
+    if (atual === anterior) { if (++estavel >= 2) return atual; }
+    else { anterior = atual; estavel = 0; }
+  }
+  return anterior ?? '';
+};
+/** A mesma espera, para resposta que chega por VOZ (a pergunta foi falada, nao digitada). */
+window.__respostaFalada = async (turnoMinimo = 0) => {
+  let anterior = null;
+  let estavel = 0;
+  for (let i = 0; i < 140; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    const m = window.__bpmnAssist.mensagens.filter((x) => x.role === 'assistant' && (x.turn ?? 0) >= turnoMinimo).at(-1);
+    const atual = (m?.text ?? '').trim();
+    if (!atual) continue;
+    if (atual === anterior) { if (++estavel >= 2) return atual; }
+    else { anterior = atual; estavel = 0; }
+  }
+  return anterior ?? '';
+};
+`;
+
 /** Instala o dublê do socket e abre o painel. Primeiro passo de todo cenário com sessão. */
 const PREPARAR = `
 window.__frames = [];
@@ -482,60 +543,7 @@ if (chaveViva) {
     url: ALVO,
     espera: 3500,
     passos: [
-      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
-       // Espera a resposta DESTA pergunta, nao "uma bolha a mais".
-       //
-       // ⚠ Contar bolhas falhou ao vivo (2026-11-13): o turno anterior produziu uma bolha
-       // atrasada, o laco a tomou como resposta nova, e a pergunta sobre o elemento selecionado
-       // foi julgada contra "O diagrama possui 9 tarefas" — do turno de antes. O criterio certo
-       // e o TEXTO: diferente do ultimo que ja estava la, e estavel por duas leituras seguidas
-       // (a bolha cresce enquanto a resposta chega).
-       window.__resposta = async (pergunta) => {
-         const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-         // O app FALA quando algo deu errado ("nao deu: a cota da sua chave acabou..."). Esperar
-         // 70s por uma resposta que o proprio produto ja disse que nao vem e transformar um erro
-         // nomeado em "respondeu: ''" — que parece defeito do agente e e falta de cota.
-         const erroNaTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
-           .map((m) => m.textContent.trim())
-           .find((x) => /^n[aã]o deu:/i.test(x));
-         const erroAntes = erroNaTela();
-         // Conta BOLHAS, nao compara texto. A bolha anterior ainda muda depois de "pronta": o
-         // fechamento do turno reescreve o texto com o valor final da entrega, e "O diagrama tem
-         // 9 tarefas." virou "9 tarefas." DEPOIS que o passo anterior terminou - o passo seguinte
-         // leu essa reescrita como se fosse a resposta dele. Cada pergunta cria uma bolha nova.
-         const quantasAntes = bolhas().length;
-         const ta = document.querySelector('.bpmn-assist__composer textarea');
-         ta.value = pergunta;
-         window.__btn('Enviar').click();
-         let anterior = null;
-         let estavel = 0;
-         // 140 x 500ms = 70s. Resposta lenta ainda e resposta certa; teto curto transforma
-         // latencia do servidor em reprovacao do produto.
-         for (let i = 0; i < 140; i++) {
-           await new Promise((r) => setTimeout(r, 500));
-           const erro = erroNaTela();
-           if (erro && erro !== erroAntes) return '[FALHA DO SERVICO] ' + erro;
-           const lista = bolhas();
-           if (lista.length <= quantasAntes) continue;
-           const atual = lista.at(-1) ?? '';
-           // ⚠ Sem teto minimo de tamanho. Havia um corte em 15 caracteres, e o passo da
-           // contagem pede "responda com o numero": o agente respondeu 9 e o teste descartou
-           // a resposta certa por ser curta demais. Criterio de teste que recusa a resposta
-           // ideal e pior que teste nenhum.
-           if (atual) {
-             // TRES leituras iguais (1,5s parado). Com duas, a pausa natural do meio da
-             // resposta era lida como fim e o teste julgava meia frase ("Tem mais alguma
-             // duvida sobre") - reprovando o produto por impaciencia do teste.
-             if (atual === anterior) { if (++estavel >= 2) return atual; }
-             else { anterior = atual; estavel = 0; }
-           }
-         }
-         return anterior ?? '';
-       };
-       // O que ESTAVA na tela, para quando a captura volta vazia. Sem isto, "respondeu: ''" pode
-       // ser o app mudo ou o laco impaciente, e as duas coisas exigem consertos opostos.
-       window.__naTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
-         .map((m) => (m.className.match(/--(\w+)/)?.[1] ?? '?') + ': ' + m.textContent.trim().slice(0, 120));
+      `${ESPERAR_RESPOSTA}
        document.querySelector('.bpmn-assist__toggle').click();
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
@@ -615,7 +623,7 @@ if (chaveViva) {
     espera: 3500,
     mic: existsSync('artifacts/voz/continuidade.wav') ? 'artifacts/voz/continuidade.wav' : null,
     passos: [
-      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+      `${ESPERAR_RESPOSTA}
        document.querySelector('.bpmn-assist__toggle').click();
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
@@ -626,17 +634,7 @@ if (chaveViva) {
          await new Promise((r) => setTimeout(r, 500));
        }
        // Um assunto que NAO esta no diagrama aberto: tem de vir da conversa, nao do contexto.
-       const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-       const antes = bolhas().length;
-       const ta = document.querySelector('.bpmn-assist__composer textarea');
-       ta.value = 'Estou modelando o processo de uma locadora de caiaques. Qual evento representa o aluguel comecando?';
-       window.__btn('Enviar').click();
-       let resposta = '';
-       for (let i = 0; i < 100; i++) {
-         await new Promise((r) => setTimeout(r, 500));
-         const b = bolhas();
-         if (b.length > antes && b.at(-1).length > 10) { resposta = b.at(-1); break; }
-       }
+       const resposta = await window.__resposta('Estou modelando o processo de uma locadora de caiaques. Qual evento representa o aluguel comecando?');
        return {
          ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && resposta.length > 10,
          status: document.querySelector('.bpmn-assist__status').textContent,
@@ -644,25 +642,13 @@ if (chaveViva) {
        };`,
 
       `// Troca para VOZ: sessao nova, com o resumo da conversa indo junto.
-       const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-       const antes = bolhas().length;
        window.__btn('Voz').click();
        for (let i = 0; i < 60 && !['pronto', 'ouvindo', 'falando'].includes(document.querySelector('.bpmn-assist__status').textContent); i++) {
          await new Promise((r) => setTimeout(r, 500));
        }
-       // O WAV ja esta tocando como microfone: "Sobre o que a gente estava falando?".
-       let resposta = '';
-       let anterior = null;
-       let estavel = 0;
-       for (let i = 0; i < 140; i++) {
-         await new Promise((r) => setTimeout(r, 500));
-         const b = bolhas();
-         if (b.length <= antes) continue;
-         const atual = b.at(-1) ?? '';
-         if (!atual) continue;
-         if (atual === anterior) { if (++estavel >= 2) { resposta = atual; break; } }
-         else { anterior = atual; estavel = 0; }
-       }
+       // O WAV ja esta tocando como microfone: "Sobre o que a gente estava falando?". A sessao
+       // e NOVA, entao o turno recomeca do zero - a espera e por qualquer resposta de assistente.
+       const resposta = await window.__respostaFalada(0);
        const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
        const citou = /caiaque|locadora|aluguel/.test(limpo(resposta));
        const eventos = window.__bpmnAssist.eventos.map((e) => e.key);
@@ -672,7 +658,7 @@ if (chaveViva) {
          levouHistorico: eventos.filter((k) => k === 'out.history').length,
          citouOAssunto: citou,
          respondeu: resposta.slice(0, 220),
-         naTela: resposta ? undefined : window.__naTela?.() ?? [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim().slice(0, 110)),
+         naTela: resposta ? undefined : window.__naTela(),
        };`,
     ],
   });
@@ -734,30 +720,7 @@ if (chaveViva) {
     url: ALVO,
     espera: 3500,
     passos: [
-      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
-       window.__bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-       window.__erro = () => [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim()).find((x) => /^n[aã]o deu:/i.test(x));
-       window.__resposta = async (pergunta) => {
-         const erroAntes = window.__erro();
-         const quantasAntes = window.__bolhas().length;
-         const ta = document.querySelector('.bpmn-assist__composer textarea');
-         ta.value = pergunta;
-         window.__btn('Enviar').click();
-         let anterior = null;
-         let estavel = 0;
-         for (let i = 0; i < 140; i++) {
-           await new Promise((r) => setTimeout(r, 500));
-           const e = window.__erro();
-           if (e && e !== erroAntes) return '[FALHA DO SERVICO] ' + e;
-           const lista = window.__bolhas();
-           if (lista.length <= quantasAntes) continue;
-           const atual = lista.at(-1) ?? '';
-           if (!atual) continue;
-           if (atual === anterior) { if (++estavel >= 2) return atual; }
-           else { anterior = atual; estavel = 0; }
-         }
-         return anterior ?? '';
-       };
+      `${ESPERAR_RESPOSTA}
        document.querySelector('.bpmn-assist__toggle').click();
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
@@ -819,11 +782,17 @@ if (chaveViva) {
 
        const r = await window.__resposta('Existe no diagrama um elemento chamado "' + alvo.nome + '"?');
        const limpo = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-       const negouExistencia = /(nao existe|nao ha |nao encontrei|nao consta no diagrama|nao foi encontrado)/.test(limpo);
+       // ⚠ "nao encontrei na amostra, preciso investigar" e a resposta CERTA (design H13): a
+       // amostra e parcial e o agente admite isso. So reprova a negacao CATEGORICA - dizer que
+       // o elemento nao existe NO DIAGRAMA, sem ressalva. O criterio anterior reprovava o
+       // comportamento desejado (bateria completa de 2026-11-13).
+       const negouExistencia = /(nao existe|nao ha |nao consta no diagrama|nao foi encontrado)/.test(limpo);
        const admitiuParcial = /(amostra|parcial|preciso (procurar|verificar|olhar|conferir)|deixa eu (procurar|verificar)|posso (procurar|verificar)|nao recebi)/.test(limpo);
        const confirmou = limpo.includes(alvo.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
        return {
          ok: r.length > 5 && !negouExistencia && (admitiuParcial || confirmou),
+         // Negar sem ressalva e o defeito; negar DIZENDO que a lista e parcial e o contrato.
+         negouSemRessalva: negouExistencia && !admitiuParcial,
          perguntouPor: alvo.nome + ' [' + alvo.id + ']',
          foraDaAmostra: d.amostra.length + ' de ' + d.total + ' na amostra',
          negouExistencia,

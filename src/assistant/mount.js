@@ -101,6 +101,12 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     get contagem() { return session.diagnostics.counts; },
     /** O contexto como o prompt o vê — e por onde a prova de injeção pelo diagrama entra (F2). */
     get contexto() { return session.contexto; },
+    /**
+     * A conversa com o NÚMERO DO TURNO em cada mensagem. É o que permite dizer "esta resposta é
+     * desta pergunta" — a bolha sozinha não diz, e uma entrega atrasada do turno anterior já foi
+     * lida como resposta do seguinte (portão F3, 2026-11-13). Cópia, só leitura.
+     */
+    get mensagens() { return session.messages; },
     /** A projeção crua do diagrama aberto, recalculada na leitura (F3). `null` sem modelador. */
     get diagrama() { return olho.atual(); },
     /** O último quadro que o modelo de fato recebeu. É o espelho do delta. */

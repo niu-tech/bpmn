@@ -160,6 +160,35 @@ ruim não vira fato só porque o conserto que ela motivou funcionou.
 > **olhar a tela**, não mexer no produto. Resposta ausente é a afirmação mais fácil de um medidor
 > errar — e a mais cara de acreditar.
 
+## 3c. A bateria completa de 2026-11-13: 11 de 17, e o que cada falha era
+
+Rodar os 17 cenários de uma vez — depois de cada portão ter passado isolado — é o que separa
+"funciona" de "funciona sempre". O resultado foi **11 de 17**, e a leitura das seis falhas é mais
+útil que o número:
+
+| Falhou | O que era |
+|---|---|
+| voz de verdade · interromper · gate 4.3 · portão F4 (2ª metade) | **o mesmo problema**: em sequência, o áudio do microfone sobe (881 frames num caso, pico 0,574 noutro) e o servidor **não transcreve nada**. Sem `ws.input-text`, não há turno. É o M6, agora com mais evidência |
+| portão F3 (3ª pergunta) | **critério meu**: uma entrega ATRASADA do turno anterior criou bolha nova depois que o passo seguinte já tinha perguntado, e o teste leu *"9 tarefas."* como resposta a *"o que é isto?"* |
+| portão F5 (3ª pergunta) | **critério meu, ao contrário**: o agente respondeu *"não encontrei o elemento na amostra… eu precisaria investigar mais para confirmar"* — que é EXATAMENTE o contrato do H13 — e o regex o classificou como negação |
+
+Dois consertos de instrumento saíram daí, e os dois são de forma, não de ajuste:
+
+- **a resposta passou a ser identificada pelo TURNO** que o produto já carimba em cada mensagem
+  (`__bpmnAssist.mensagens`), em vez de pela posição na lista de bolhas. Nenhuma entrega atrasada
+  volta a ser lida como resposta de outra pergunta;
+- **o laço de espera virou UM só**, compartilhado pelos três portões. Havia três cópias, e a
+  prova de que isso não se sustenta é que eu consertei a da F3 e deixei a da F4 contando bolhas —
+  no mesmo dia.
+
+E o critério da amostra passou a reprovar só a **negação categórica**: dizer que não achou na
+amostra, admitindo que ela é parcial, é o comportamento pedido — reprová-lo era o teste cobrando
+o contrário do design.
+
+> **O que fica:** das seis falhas, quatro são a mesma limitação de ambiente (M6) e duas eram o
+> medidor. Nenhuma era comportamento errado do agente. Isso não torna o 11 de 17 um 17 de 17 —
+> torna o número legível, que é o mínimo que um relatório precisa ser.
+
 ## 4. Dívidas que eu mesmo deixei
 
 | # | Item | Onde | Nota |
