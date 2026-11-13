@@ -89,19 +89,39 @@ window.__resposta = async (pergunta) => {
     if (erro && erro !== erroAntes) return '[FALHA DO SERVICO] ' + erro;
     const atual = minha();
     if (!atual) continue;
-    if (atual === anterior) { if (++estavel >= 2) return atual; }
+    if (atual === anterior) {
+      if (++estavel >= 2) {
+        // ⚠ Nao devolve com o turno ainda aberto. Perguntar por cima faz um PEDACO da resposta
+        // anterior chegar depois e ser carimbado com o turno da pergunta nova - foi assim que
+        // "para responder duvidas sobre o seu diagrama" (fim da recusa) virou a "resposta" da
+        // pergunta seguinte, no portao F5 de 2026-11-13.
+        for (let j = 0; j < 20 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; j++) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        return atual;
+      }
+    }
     else { anterior = atual; estavel = 0; }
   }
   return anterior ?? '';
 };
-/** A mesma espera, para resposta que chega por VOZ (a pergunta foi falada, nao digitada). */
-window.__respostaFalada = async (turnoMinimo = 0) => {
+/**
+ * A mesma espera, para resposta que chega por VOZ (a pergunta foi falada, nao digitada).
+ *
+ * quantasAntes = quantas respostas de assistente JA existiam. O corte e por indice e nao por
+ * turno porque a sessao de voz e NOVA: o turno recomeca do zero, enquanto o historico visual
+ * (que e nosso) continua na tela. Sem esse corte, a resposta da sessao de TEXTO - ainda visivel,
+ * e falando do mesmo assunto - passaria como se fosse a resposta falada.
+ */
+window.__respostaFalada = async (quantasAntes = 0) => {
+  const respostas = () => window.__bpmnAssist.mensagens.filter((x) => x.role === 'assistant');
   let anterior = null;
   let estavel = 0;
   for (let i = 0; i < 140; i++) {
     await new Promise((r) => setTimeout(r, 500));
-    const m = window.__bpmnAssist.mensagens.filter((x) => x.role === 'assistant' && (x.turn ?? 0) >= turnoMinimo).at(-1);
-    const atual = (m?.text ?? '').trim();
+    const lista = respostas();
+    if (lista.length <= quantasAntes) continue;
+    const atual = (lista.at(-1)?.text ?? '').trim();
     if (!atual) continue;
     if (atual === anterior) { if (++estavel >= 2) return atual; }
     else { anterior = atual; estavel = 0; }
@@ -574,8 +594,11 @@ if (chaveViva) {
        const semAcento = resposta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
        const bateuEmDigito = new RegExp('(^|[^0-9])' + esperado + '([^0-9]|$)').test(resposta);
        const bateuPorExtenso = esperado <= 20 && semAcento.includes(EXTENSO[esperado]);
+       // ⚠ SEM piso de tamanho. Tirei o piso do laco de espera e deixei este aqui: a pergunta
+       // pede "responda com o numero", o agente respondeu **9**, e o criterio do passo reprovou
+       // por ter 1 caractere (2026-11-13, segunda vez no mesmo dia). O que vale e o numero bater.
        return {
-         ok: resposta.length > 5 && (bateuEmDigito || bateuPorExtenso),
+         ok: !resposta.startsWith('[FALHA DO SERVICO]') && (bateuEmDigito || bateuPorExtenso),
          contagemReal: esperado,
          respondeu: resposta.slice(0, 200),
          bateu: bateuEmDigito ? 'digito' : (bateuPorExtenso ? 'por extenso' : 'NAO'),
@@ -603,7 +626,7 @@ if (chaveViva) {
        // ("isto e uma tarefa"), que serviria para qualquer tarefa do diagrama.
        const citou = limpo(resposta).includes(limpo(alvo.nome)) || resposta.includes(alvo.id);
        return {
-         ok: resposta.length > 15 && citou,
+         ok: !resposta.startsWith('[FALHA DO SERVICO]') && citou,
          selecionado: alvo.nome + ' [' + alvo.id + ']',
          citouOElemento: citou,
          respondeu: resposta.slice(0, 220),
@@ -636,24 +659,26 @@ if (chaveViva) {
        // Um assunto que NAO esta no diagrama aberto: tem de vir da conversa, nao do contexto.
        const resposta = await window.__resposta('Estou modelando o processo de uma locadora de caiaques. Qual evento representa o aluguel comecando?');
        return {
-         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && resposta.length > 10,
+         ok: !resposta.startsWith('[FALHA DO SERVICO]')
+           && document.querySelector('.bpmn-assist__status').textContent === 'pronto' && resposta.length > 10,
          status: document.querySelector('.bpmn-assist__status').textContent,
          conversouNoTexto: resposta.slice(0, 160),
        };`,
 
       `// Troca para VOZ: sessao nova, com o resumo da conversa indo junto.
+       const respostasAntes = window.__bpmnAssist.mensagens.filter((m) => m.role === 'assistant').length;
        window.__btn('Voz').click();
        for (let i = 0; i < 60 && !['pronto', 'ouvindo', 'falando'].includes(document.querySelector('.bpmn-assist__status').textContent); i++) {
          await new Promise((r) => setTimeout(r, 500));
        }
        // O WAV ja esta tocando como microfone: "Sobre o que a gente estava falando?". A sessao
        // e NOVA, entao o turno recomeca do zero - a espera e por qualquer resposta de assistente.
-       const resposta = await window.__respostaFalada(0);
+       const resposta = await window.__respostaFalada(respostasAntes);
        const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
        const citou = /caiaque|locadora|aluguel/.test(limpo(resposta));
        const eventos = window.__bpmnAssist.eventos.map((e) => e.key);
        return {
-         ok: resposta.length > 10 && citou,
+         ok: !resposta.startsWith('[FALHA DO SERVICO]') && resposta.length > 10 && citou,
          modo: window.__bpmnAssist.estado.modo,
          levouHistorico: eventos.filter((k) => k === 'out.history').length,
          citouOAssunto: citou,
@@ -738,7 +763,7 @@ if (chaveViva) {
        const deuAReceita = /(xicara|farinha|fermento|forno|ovos|acucar|liquidificador)/.test(limpo);
        const ofereceuOQueFaz = /(bpmn|diagrama|processo|modelagem)/.test(limpo);
        return {
-         ok: r.length > 5 && !deuAReceita && ofereceuOQueFaz && r.length < 400,
+         ok: !r.startsWith('[FALHA DO SERVICO]') && r.length > 5 && !deuAReceita && ofereceuOQueFaz && r.length < 400,
          respondeu: r.slice(0, 200),
          deuAReceita,
          ofereceuOQueFaz,
@@ -752,7 +777,7 @@ if (chaveViva) {
        const recusou = /(nao posso|nao consigo ajudar|fora do meu|nao e sobre bpmn|so falo sobre)/.test(limpo);
        const falouDeBpmn = /(evento|tarefa|gateway|fluxo|raia|pool|inicio)/.test(limpo);
        return {
-         ok: r.length > 30 && !recusou && falouDeBpmn,
+         ok: !r.startsWith('[FALHA DO SERVICO]') && r.length > 30 && !recusou && falouDeBpmn,
          respondeu: r.slice(0, 220),
          recusou,
          falouDeBpmn,
@@ -790,7 +815,7 @@ if (chaveViva) {
        const admitiuParcial = /(amostra|parcial|preciso (procurar|verificar|olhar|conferir)|deixa eu (procurar|verificar)|posso (procurar|verificar)|nao recebi)/.test(limpo);
        const confirmou = limpo.includes(alvo.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
        return {
-         ok: r.length > 5 && !negouExistencia && (admitiuParcial || confirmou),
+         ok: !r.startsWith('[FALHA DO SERVICO]') && r.length > 5 && !negouExistencia && (admitiuParcial || confirmou),
          // Negar sem ressalva e o defeito; negar DIZENDO que a lista e parcial e o contrato.
          negouSemRessalva: negouExistencia && !admitiuParcial,
          perguntouPor: alvo.nome + ' [' + alvo.id + ']',

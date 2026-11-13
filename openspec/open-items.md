@@ -198,6 +198,7 @@ o contrário do design.
 | T3 | Sem cenário para o **viewer** na bateria além de carregar | `tools/battery.mjs` | a simulação em lote com o painel aberto só foi verificada à mão, no P2 |
 | T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | o roteiro continua válido para humano, mas a bateria cobre o essencial |
 | T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | o runner tem Chrome; falta decidir se o custo de minutos compensa |
+| T9 | Texto atrasado do turno anterior é carimbado com o turno NOVO | `session-manager.js` (`onText`) | perguntar enquanto o turno anterior ainda produz saída faz um pedaço da resposta velha chegar depois, virar bolha nova e levar o número do turno recém-aberto. Visto no portão F5 (2026-11-13): o fim da recusa — *"…para responder dúvidas sobre o seu diagrama"* — apareceu como resposta à pergunta seguinte. O Live não correlaciona turno no frame, então o conserto honesto é do lado do produto (enfileirar a pergunta até o turno fechar, sem quebrar o barge-in da voz) e ainda não foi feito; a bateria, por ora, espera o turno fechar antes de perguntar de novo |
 | T8 | O veredito da bateria olhava só o ÚLTIMO passo | `tools/battery.mjs` (corrigido 2026-11-13) | cenário de três passos podia reprovar no segundo e ser reportado OK. Achado ao escrever o portão F3, e a reprovação escondida era real — ver §3b. Agora todo passo que devolve veredito conta |
 
 ## 4b. Achados da pesquisa de arquitetura (2026-11-12)
