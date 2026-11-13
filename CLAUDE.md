@@ -2,6 +2,37 @@
 
 Regras de trabalho deste repositório. Valem para qualquer sessão, sem precisar ser repetidas.
 
+## ⛔ Trabalhar por BLOCOS. Voltar no checkpoint, não a cada tarefa
+
+> Dono, 2026-11-13: *"Você está voltando para mim muito rápido… vamos fazer em blocos e criar
+> checkpoints com esses blocos. Você vai avançar um bloco e ao final, com o checkpoint, gerar para
+> mim esse retorno."*
+
+A unidade de retorno é o **bloco** do `tasks.md`, não a tarefa. Avance o bloco **inteiro** — todas
+as caixas dele, com os testes e a prova ao vivo — e só então volte.
+
+Dentro do bloco: não narrar passo a passo, não pedir aval entre tarefas, não entregar peça
+intermediária. Voltar antes do bloco fechar só por três motivos: **decisão que é do dono**,
+**credencial que só ele tem**, ou **bloqueio que nenhuma alternativa resolve**. "Terminei uma
+tarefa" não é motivo.
+
+## ⛔ A peça do checkpoint é CURTA, e é NOVA a cada bloco
+
+> Dono, 2026-11-13: *"Não faz um e vai aumentando ele. Faz pequenos retornos… está denso demais
+> ainda. Dá para melhorar."*
+
+Cada checkpoint gera a **sua própria** peça, sobre **aquele bloco**:
+
+- **o que foi feito** — o essencial, com o número que prova;
+- **o que vem agora** — o próximo bloco, em uma frase por item;
+- nada mais. Sem recontar o projeto, sem repetir o que a peça anterior já disse.
+
+**Proibido crescer a mesma peça a cada rodada.** Documento que incha vira denso, e denso não se
+lê — que é o defeito que originou esta regra. Uma página só, e que caiba numa olhada.
+
+O **panorama geral** é uma peça separada e rara: só quando o dono pede, ou quando o mapa do
+projeto mudou de verdade. Não se atualiza panorama a cada bloco.
+
 ## ⛔ Plano, panorama ou decisão para o dono = **peça visual para abrir na aba**
 
 > Dono, 2026-11-13, duas correções seguidas no mesmo dia:

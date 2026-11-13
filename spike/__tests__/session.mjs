@@ -164,6 +164,65 @@ test('legenda SEM audio nao vira resposta: e legenda emprestada da geracao anter
   assert.equal(texts.at(-1).vazio, true, 'a tela avisa em vez de mostrar texto de outro turno');
 });
 
+test('a MESMA chamada repetida executa UMA vez e reaproveita o resultado', () => {
+  // O servidor repete `toolCall` - reconexao, retransmissao. Enquanto a ferramenta so LE, repetir
+  // custa uma consulta; com a escrita da F7, repetir custa um elemento duplicado no diagrama.
+  let batidas = 0;
+  const { session, ws } = ready({
+    dispatcher: {
+      despachar: async (calls) => {
+        batidas += calls.length;
+        return calls.map((c) => ({ id: c.id, name: c.name, response: { ok: true, achou: 'Task_1' } }));
+      },
+    },
+  });
+  session.ask('existe esse elemento?');
+  const chamada = { toolCall: { functionCalls: [{ id: 'fc-1', name: 'buscar_elemento', args: { termo: 'x' } }] } };
+  ws.emit(chamada);
+  ws.emit(chamada);                                  // o servidor repetiu a MESMA chamada
+  return Promise.resolve().then(() => Promise.resolve()).then(() => {
+    assert.equal(batidas, 1, `a ferramenta foi batida ${batidas}x; deveria ser 1`);
+    const respostas = ws.sent.filter((f) => f.toolResponse);
+    assert.equal(respostas.length, 2, 'as DUAS chamadas foram respondidas: sem resposta o turno pendura');
+    const ultima = respostas.at(-1).toolResponse.functionResponses[0];
+    assert.equal(ultima.response.achou, 'Task_1', 'a repetida devolve o resultado memorizado');
+  });
+});
+
+test('chamada de id DIFERENTE no mesmo turno executa normalmente', () => {
+  let batidas = 0;
+  const { session, ws } = ready({
+    dispatcher: {
+      despachar: async (calls) => { batidas += calls.length; return calls.map((c) => ({ id: c.id, name: c.name, response: { ok: true } })); },
+    },
+  });
+  session.ask('duas coisas');
+  ws.emit({ toolCall: { functionCalls: [{ id: 'fc-1', name: 'buscar_elemento', args: {} }] } });
+  ws.emit({ toolCall: { functionCalls: [{ id: 'fc-2', name: 'detalhar_elemento', args: {} }] } });
+  return Promise.resolve().then(() => Promise.resolve()).then(() => {
+    assert.equal(batidas, 2, 'ids distintos sao duas execucoes');
+  });
+});
+
+test('quadro que chega DEPOIS do fim pertence ao turno que fechou, nao ao proximo', () => {
+  // O protocolo nao carimba turno em quadro nenhum: a ordem e a unica pista. Sem dono explicito,
+  // esse quadro voltava com `turno: null` e a camada de cima o entregava ao "turno mais recente" -
+  // que, depois de uma pergunta nova, e o turno ERRADO (portao F5, 2026-11-13).
+  const trans = [];
+  const { session, ws } = ready({ onTranscript: (t) => trans.push(t) });
+  session.ask('primeira');
+  ws.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'AAAA' } }] } } });
+  ws.emit({ serverContent: { outputTranscription: { text: 'resposta da primeira' } } });
+  const nDoPrimeiro = session.turns.length === 0 ? 1 : session.turns.at(-1)?.n ?? 1;
+  ws.emit({ serverContent: { turnComplete: true } });
+  // Cauda ATRASADA, com o turno ja fechado e nenhum turno novo aberto.
+  ws.emit({ serverContent: { outputTranscription: { text: ' (cauda atrasada)' } } });
+  const atrasado = trans.at(-1);
+  assert.equal(atrasado.text, ' (cauda atrasada)');
+  assert.equal(atrasado.turno, nDoPrimeiro, `a cauda ficou com o turno ${atrasado.turno}; deveria ser ${nDoPrimeiro}`);
+  assert.notEqual(atrasado.turno, null, 'quadro atrasado nao volta mais sem dono');
+});
+
 test('o turno da FERRAMENTA nao fecha o turno do aluno', () => {
   // Medido no portao F6 (2026-11-13): o servidor fecha o turno logo depois do tool-response e
   // manda a RESPOSTA numa geracao nova. Fechando no primeiro turnComplete, a entrega chegava

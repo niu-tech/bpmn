@@ -12,11 +12,17 @@
 - [x] 1.2 **H1 · lado da ENTRADA ligado**: a fala do aluno vira UMA bolha que cresce, e quem a fecha
       é sinal do servidor (primeiro áudio/legenda do modelo, ou turno fechado), nunca um relógio.
       Provado ao vivo: `bolhasDeFala: 1`, frase inteira, modelo respondeu
-- [ ] 1.3 **H1 · prender evento ao turno**: o `session.js` passa a perguntar ao rastreador de quem é
-      cada quadro, em vez de `turnoLocal(null) → turno mais recente`. Remove as duas heurísticas de
-      13/11 (`audioFrames > 0` e a legenda emprestada)
-- [ ] 1.4 **H1 · uma execução por `{turno, chamada}`** no despacho de ferramenta, com o resultado
-      memorizado. Prova: a mesma chamada repetida numa reconexão **não** executa de novo
+- [x] 1.3 **H1 · prender evento ao turno** — `dono()` agora é `pendente ?? turn ?? ultimoEncerrado`:
+      o quadro que chega depois do fim pertence ao turno que FECHOU, e não volta mais sem dono para
+      a camada de cima adivinhar "o mais recente". Teste determinístico em `spike/__tests__`.
+      ⚠ **A heurística `audioFrames > 0` FICA**, e dizer o contrário seria mentir: ela cobre o caso
+      em que a legenda atrasada chega **depois** de a pergunta seguinte já ter aberto turno — ali
+      `turn` existe e vence, e o protocolo não carimba turno em quadro nenhum. O que mudou é que
+      ela dispara muito menos: entre turnos, a atribuição agora está certa por construção
+- [x] 1.4 **H1 · uma execução por `{turno, chamada}`** — o despacho classifica cada chamada antes
+      de executar; a repetida devolve o resultado **memorizado** e continua sendo respondida (sem
+      resposta o turno pendura). Dois testes: a mesma chamada repetida bate na ferramenta **1×** e
+      ainda assim recebe duas respostas; ids distintos continuam sendo duas execuções
 - [x] 1.5 **H11 · injeção de fala no nível da sessão** — `__bpmnAssist.injetarFala` + `pararMicrofone`
       e `tools/injetar-fala.mjs` (lê o WAV, corta em quadros de 40 ms, injeta no ritmo real, com
       cauda muda para o VAD fechar o turno). Provado ao vivo: 221 quadros, `ouviu` = a frase exata,

@@ -18,6 +18,7 @@ import {
   buildAudioChunk, buildAudioStreamEnd, buildHistory, buildSetup, buildTextTurn, buildToolResponse,
   parseServerFrame, respostaDeEntrega, socketUrl, DELIVERY_TOOL,
 } from './protocol.js';
+import { RastreadorDeTurnos } from './turn-tracker.js';
 
 export const STATES = ['idle', 'connecting', 'ready', 'listening', 'speaking', 'closing', 'error'];
 
@@ -179,13 +180,35 @@ export function createSession({
       ev('state', 'turno-atropelado', `n=${turn.n}`);
     }
     turn = { n: ++seqTurno, kind, prompt, text: '', spoken: '', delivered: false, audioFrames: 0, complete: false };
+    // Turno novo no rastreador: tudo preso ao anterior passa a ser velho, inclusive chamada.
+    rastreador.abrirTurno();
     armTurnTimer();
     return turn;
   }
 
-  /** De quem é o frame que acabou de chegar: do atropelado, enquanto ele não fecha. */
+  /**
+   * O turno que acabou de FECHAR. É dele o quadro que chega depois do fim e antes da pergunta
+   * seguinte — o protocolo não carimba turno em quadro nenhum, e a ordem é a única pista.
+   *
+   * Sem isto, esse quadro voltava sem dono (`turno: null`) e a camada de cima o entregava ao
+   * "turno mais recente". Entre turnos os dois coincidem; depois de uma pergunta nova, não — e a
+   * diferença é um pedaço da resposta anterior virando resposta da pergunta seguinte (portão F5).
+   */
+  let ultimoEncerrado = null;
+
+  /**
+   * Uma execução por `{turno, chamada}` (H1 · tarefa 1.4).
+   *
+   * O turno dele anda junto do nosso `beginTurn`. Chamada repetida — reconexão, retransmissão do
+   * servidor — reaproveita o resultado memorizado em vez de executar de novo. Enquanto a
+   * ferramenta só LÊ, repetir custa uma consulta; com a escrita da F7, repetir custa um elemento
+   * duplicado no diagrama do aluno.
+   */
+  const rastreador = new RastreadorDeTurnos();
+
+  /** De quem é o frame que acabou de chegar: do atropelado, do atual, ou do que acabou de fechar. */
   function dono() {
-    return pendente ?? turn;
+    return pendente ?? turn ?? ultimoEncerrado;
   }
 
   function encerrarTurno(alvo, idle) {
@@ -232,6 +255,7 @@ export function createSession({
     }
     turn.idle = idle;
     turn.usage = lastUsage;
+    ultimoEncerrado = turn;
     turns.push(turn);
     if (turnTimer) { clock.clearTimeout(turnTimer); turnTimer = null; }
     setState('ready');
@@ -364,6 +388,30 @@ export function createSession({
           return;
         }
 
+        // ⚠ UMA EXECUÇÃO POR `{turno, chamada}`. O servidor repete `toolCall` — reconexão,
+        // retransmissão — e executar de novo é, com a escrita da F7, criar o elemento duas vezes.
+        // Responder continua OBRIGATÓRIO para a repetida: o que muda é que ela devolve o resultado
+        // memorizado em vez de bater na ferramenta.
+        const classificadas = acoes.map((c) => ({ c, d: rastreador.classificarChamada(rastreador.turno, c.id) }));
+        const novas = classificadas.filter((x) => x.d.acao === 'executar');
+        const repetidas = classificadas.filter((x) => x.d.acao !== 'executar');
+        const respostasRepetidas = repetidas.map(({ c, d }) => ({
+          id: c.id,
+          name: c.name,
+          response: d.resultado ?? { ok: false, erro: 'chamada_repetida_sem_resultado' },
+        }));
+        if (repetidas.length) {
+          log(`chamada repetida reaproveitada: ${repetidas.map((x) => x.c.name).join(', ')}`);
+          ev('tool', 'repetida', String(repetidas.length));
+        }
+
+        if (!novas.length) {
+          // Tudo repetido: responde com o memorizado, sem despachar nada.
+          send(buildToolResponse([...entregas.map(respostaDeEntrega), ...respostasRepetidas]));
+          armTurnTimer();
+          return;
+        }
+
         // Ação de verdade: despacho ASSÍNCRONO. `handleFrame` volta já — travar aqui travaria o
         // laço de recepção do socket, que é o deadlock que os invariantes de voz proíbem.
         pausarRelogioDoTurno();
@@ -372,20 +420,27 @@ export function createSession({
         // fechou em 7,8 s, e a resposta falada veio no turno seguinte, aos 9 s — com o aviso de
         // "o modelo encerrou sem responder" plantado no meio, assustando à toa.
         { const alvo = dono(); if (alvo) alvo.usouFerramenta = true; }
+        const paraExecutar = novas.map((x) => x.c);
         const despacho = dispatcher
-          ? dispatcher.despachar(acoes)
-          : Promise.resolve(acoes.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_nao_roteada' } })));
+          ? dispatcher.despachar(paraExecutar)
+          : Promise.resolve(paraExecutar.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_nao_roteada' } })));
 
         Promise.resolve(despacho)
           .then((resultados) => {
             if (closedByUs) return;
-            send(buildToolResponse([...entregas.map(respostaDeEntrega), ...resultados]));
+            // Memoriza ANTES de responder: se o servidor repetir a mesma chamada, a repetição já
+            // encontra o resultado pronto.
+            for (const r of resultados) {
+              const casada = novas.find((x) => x.c.id === r.id);
+              if (casada) rastreador.concluirChamada(casada.d.chave, r.response);
+            }
+            send(buildToolResponse([...entregas.map(respostaDeEntrega), ...respostasRepetidas, ...resultados]));
           })
           .catch((err) => {
             // O despachante não deveria lançar; se lançar, o modelo ainda precisa de resposta.
             log('despacho lancou:', err?.message ?? String(err));
             if (!closedByUs) {
-              send(buildToolResponse(acoes.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_falhou' } }))));
+              send(buildToolResponse([...respostasRepetidas, ...paraExecutar.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_falhou' } }))]));
             }
           })
           .finally(() => { retomarRelogioDoTurno(); });
