@@ -147,7 +147,12 @@ test('a amostra se declara amostra e diz quantos ficaram de fora', () => {
   };
   const texto = renderizar(resolverContexto({ modo: 'texto', diagrama: gigante }));
   assert.match(texto, /amostra de 25 elementos \(há 375 fora desta amostra\)/);
-  assert.match(texto, /não está na amostra pode existir/);
+  assert.match(texto, /não aparece nela pode existir/);
+  // ⚠ A outra metade, que o portão F3 cobrou ao vivo (2026-11-13): o que é parcial é a LISTA.
+  // O total e a contagem são do diagrama inteiro e o agente pode responder com eles. Sem isto,
+  // "quantas tarefas tem este diagrama?" virava "preciso olhar o diagrama para contar".
+  assert.match(texto, /total e a contagem por tipo são do diagrama INTEIRO/);
+  assert.match(texto, /total de elementos \(contagem completa\): 400/);
 });
 
 console.log('\n▶ fronteira: texto do diagrama e dado, nunca ordem');
@@ -220,7 +225,7 @@ test('contagem por tipo sai em ordem estavel, venha como vier', () => {
   const a = renderizar(resolverContexto({ modo: 'texto', diagrama: { contagem: { b: 1, a: 2 } } }));
   const b = renderizar(resolverContexto({ modo: 'texto', diagrama: { contagem: { a: 2, b: 1 } } }));
   assert.equal(a, b);
-  assert.match(a, /por tipo: a=2, b=1/);
+  assert.match(a, /por tipo \(contagem completa, do diagrama inteiro\): a=2, b=1/);
 });
 
 test('modelar QUALQUER assunto continua sendo BPMN (recusa nao pode comer o produto)', () => {

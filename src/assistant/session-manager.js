@@ -16,6 +16,7 @@
 //
 // ponytail: uma fábrica com callbacks, não uma classe com EventEmitter. São seis eventos.
 
+import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { promptDoPerfil } from './agent/render.js';
 import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback } from './live/audio.js';
@@ -45,6 +46,19 @@ export const ERROR_LABELS = {
   quota: 'a cota da sua chave acabou ou há sessões demais',
   timeout: 'o servidor não respondeu',
 };
+
+/**
+ * Marcas que o transcritor do provedor emite no lugar de fala: `<no speech>`, `{pause}` e
+ * companhia. Não são conteúdo e não são nossas — são ruído do canal de legenda, e chegavam
+ * coladas na resposta do aluno (*"9<no speech>{pause}"*, visto no portão F3 em 2026-11-13).
+ */
+const LIXO_DE_LEGENDA = /<\s*no[ _-]?speech\s*>|\{\s*pause\s*\}|<\s*\/?\s*noise\s*>/gi;
+
+export function limparLegenda(texto) {
+  // ⚠ NÃO apara as pontas: a legenda chega em pedaços, e o espaço entre eles é o espaço
+  // entre as palavras. Aparar cada pedaço produzia "Uma raiaserve paraorganizar.".
+  return String(texto ?? '').replace(LIXO_DE_LEGENDA, '').replace(/[ \t]{2,}/g, ' ');
+}
 
 export function describeError(reason) {
   if (!reason) return null;
@@ -91,12 +105,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let teardownInFlight = null;
 
   /**
-   * O que o agente sabe do mundo fora da conversa: diagrama aberto e memória da aba. Entra por
-   * `definirContexto` e é lido no `setup` de cada sessão (fase F2). Em F3 quem alimenta é o
-   * `eventBus` do bpmn-js, e o contexto passa a viajar por `clientContent` a cada turno — por
-   * isso mora aqui e não dentro de `openSession`.
+   * O que o agente sabe do mundo fora da conversa: diagrama aberto e memória da aba.
+   *
+   * Duas fontes, com precedência declarada: o que `definirContexto` escreveu VENCE o que
+   * `deps.lerDiagrama()` observa. Na página ninguém chama `definirContexto`, então o diagrama
+   * vem do `elementRegistry` vivo (fase F3); no teste e na bateria o chamador declara um
+   * diagrama e dirige o caso que quer — inclusive o envenenado, que não se consegue desenhar.
    */
   let contexto = {};
+
+  /**
+   * O contexto do ÚLTIMO quadro enviado ao modelo. É contra ele que o delta é calculado: sem
+   * essa memória, cada turno remandaria o diagrama inteiro e o aluno pagaria duas vezes pelo
+   * mesmo texto.
+   */
+  let contextoEnviado = null;
 
   /** Diário da sessão. Um relatório = uma conexão: `connect()` zera. */
   const diag = deps.diagnostics ?? createDiagnostics();
@@ -191,17 +214,105 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let lastStats = null;
   let speakerEmVoo = null;
 
+  /**
+   * O contexto como o modelo deve vê-lo AGORA. Recalcula a projeção do diagrama no momento da
+   * leitura (o observador do `eventBus` só marca sujo) — então é chamado nas bordas de turno, e
+   * não a cada evento do modelador.
+   */
+  function contextoAtual(modo = mode) {
+    return resolverContexto({
+      modo,
+      pagina: deps.pagina ?? contexto.pagina,
+      diagrama: contexto.diagrama ?? deps.lerDiagrama?.() ?? null,
+      memoria: contexto.memoria,
+    });
+  }
+
+  /**
+   * Manda o que mudou desde o último quadro, no COMEÇO de cada turno — digitado (`ask`) ou de
+   * voz (`startMic`).
+   *
+   * O aluno pode perguntar por cima da resposta (o composer aceita em `speaking`), então o
+   * quadro às vezes sai com o modelo falando. É seguro porque ele vai FECHADO, como par
+   * user+model: é história, não uma vez em aberto competindo com o turno em curso — a diferença
+   * que emudeceu a voz em 2026-11-13.
+   */
+  function atualizarContexto() {
+    if (!session) return false;
+    const delta = calcularDelta();
+    if (!delta) return false;
+    session.enviarContexto(delta);
+    diag.state('contexto', `delta=${delta.length}b`);
+    return true;
+  }
+
+  /**
+   * O que mudou desde o último quadro, já marcado como entregue. Separado do envio porque a
+   * pergunta digitada manda o quadro DENTRO do próprio frame dela (ver `ask`): dois frames
+   * seguidos deixavam a pergunta ultrapassar o contexto.
+   */
+  function calcularDelta() {
+    const agora = contextoAtual();
+    const delta = quadroDelta(contextoEnviado, agora);
+    if (delta) contextoEnviado = agora;
+    return delta;
+  }
+
+  /**
+   * Semeia a sessão nova: o estado da tela e, quando já houve conversa, o passado dela.
+   *
+   * É isto que faz trocar de modo parar de recomeçar do zero (tarefa 2.3). Os dois frames saem
+   * ANTES do `setupComplete` e ficam na fila da sessão — a ordem é garantida por lá.
+   */
+  function semearContexto(ctx) {
+    contextoEnviado = null;
+    const quadro = montarQuadro(ctx);
+    if (quadro) {
+      session.enviarContexto(quadro);
+      contextoEnviado = ctx;
+    }
+    const passado = historicoResumido();
+    if (passado.length) {
+      session.enviarHistorico(passado);
+      diag.state('historico', `turnos=${passado.length}`);
+    }
+    return { quadro: Boolean(quadro), turnos: passado.length };
+  }
+
+  /**
+   * As últimas trocas, com os papéis preservados. Teto duplo (quantidade e tamanho) porque
+   * histórico sem teto é transcrição, e transcrição não cabe no orçamento (design H6).
+   */
+  function historicoResumido({ maxTurnos = 12, maxChars = 600 } = {}) {
+    return messages
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
+      .slice(-maxTurnos)
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        text: m.text.length > maxChars ? `${m.text.slice(0, maxChars)}…` : m.text,
+      }));
+  }
+
   function openSession(targetMode) {
     const apiKey = credentials.use();
+    const ctxInicial = contextoAtual(targetMode);
     session = sessionFactory({
       apiKey,
       // O perfil decide a prosa E a declaração da função, numa chamada só (ver render.js).
-      setupOptions: promptDoPerfil(resolverContexto({
-        modo: targetMode,
-        pagina: deps.pagina ?? contexto.pagina,
-        diagrama: contexto.diagrama,
-        memoria: contexto.memoria,
-      })),
+      // Só o tier ESTÁVEL vai aqui: o volátil viaja por `clientContent` (design H3).
+      setupOptions: promptDoPerfil(ctxInicial),
+      /**
+       * ⚠ Reconexão é sessão NOVA do lado do servidor: o `setup` é reenviado pelo `onopen`, mas
+       * o quadro de contexto não, porque ele já tinha saído da fila na primeira vez. Sem isto,
+       * uma queda de rede no meio da conversa deixava o agente cego para o diagrama até o aluno
+       * reconectar à mão — e nada na tela diria que ele ficou cego.
+       *
+       * O sinal é o SETUP ACEITO, não o estado `ready`: o estado volta ao fim de cada turno, e
+       * ouvi-lo re-semearia contexto e histórico a cada pergunta.
+       */
+      onSetupComplete: ({ reconectou }) => {
+        if (reconectou) semearContexto(contextoAtual());
+      },
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
         setState(s, r);
@@ -223,8 +334,18 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
       onEvent: (src, kind, detail) => diag.record(src, kind, detail),
       onLog: (m) => { if (deps.debug) note(m, 'debug'); },
-      onText: ({ text, fallback, complete }) => {
-        if (complete && fallback) return;             // a legenda já foi aparecendo
+      onText: ({ text: cru, fallback, complete, vazio }) => {
+        // Turno que terminou sem nada utilizável: diga isso, em vez de deixar a tela muda.
+        if (vazio) {
+          note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
+          return;
+        }
+        // ⚠ Na VOZ a legenda já foi aparecendo durante o turno, então o fechamento é repetição.
+        // No TEXTO ela foi filtrada de propósito (ver `onTranscript`), e este é o único lugar
+        // onde um turno respondido só com fala vira bolha. Ignorar aqui também deixava o aluno
+        // sem resposta nenhuma — o que é pior que uma resposta feia.
+        if (complete && fallback && mode === 'voz') return;
+        const text = fallback ? limparLegenda(cru).trim() : cru;
         if (!text) return;
         if (currentTurn && currentTurn.role === 'assistant') {
           currentTurn.text = text;
@@ -242,12 +363,20 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           push({ role: 'user', text, via: 'voz', turn: turnSeq });
           return;
         }
-        // Legenda da fala: um turno, uma bolha que cresce.
+        // ⚠ Legenda é coisa do modo VOZ. No modo texto a resposta vem pelos argumentos de
+        // `entregar_resposta`, e a legenda que chega junto é de um turno de áudio que o modelo
+        // às vezes emite mesmo assim — vazio, transcrito como `<no speech>` ou `{pause}`. Isso
+        // colava na bolha do aluno: *"9<no speech>{pause}"* (visto no portão F3, 2026-11-13).
+        // Turno de texto que termine sem entrega ainda tem fallback: `endTurn` usa o falado.
+        if (mode !== 'voz') return;
+        // Legenda da fala: um turno, uma bolha que cresce — sem as marcas de não-fala.
+        const limpo = limparLegenda(text);
+        if (!limpo.trim()) return;
         if (currentTurn && currentTurn.role === 'assistant' && currentTurn.turn === turnSeq) {
-          currentTurn.text += text;
+          currentTurn.text += limpo;
           publish();
         } else {
-          currentTurn = push({ role: 'assistant', text, fallback: true, turn: turnSeq });
+          currentTurn = push({ role: 'assistant', text: limpo, fallback: true, turn: turnSeq });
         }
       },
       onAudio: async (b64) => {
@@ -282,7 +411,12 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
     });
     session.start();
+    // Depois do `start`: o frame entra na fila da sessão e sai no `setupComplete` (design H3).
+    ultimaSemeadura = semearContexto(ctxInicial);
   }
+
+  /** O que a última sessão levou de berço. É o que decide o texto do aviso de troca de modo. */
+  let ultimaSemeadura = null;
 
   let audioSeq = 0;
 
@@ -301,9 +435,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     get meiaDuplex() { return meiaDuplex; },
 
     /**
-     * O que o agente deve saber do diagrama e da conversa. Vale a partir da PRÓXIMA sessão: o
-     * `setup` é imutável depois de aceito, então mudar o contexto no meio não alcança o modelo
-     * — é exatamente o que F3 conserta, mandando o contexto por fora do `setup`.
+     * Declara o contexto à mão, vencendo o que o modelador observa. Vale JÁ: desde F3 o contexto
+     * viaja por `clientContent`, então o próximo turno leva o que mudou — não é mais preciso
+     * reabrir a sessão (dívida T6, fechada).
      */
     definirContexto(novo = {}) {
       contexto = { ...contexto, ...novo };
@@ -312,7 +446,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
     /** O contexto resolvido como o prompt o vê. Para teste e diagnóstico. */
     get contexto() {
-      return resolverContexto({ ...contexto, modo: mode, pagina: deps.pagina ?? contexto.pagina });
+      return contextoAtual();
+    },
+
+    /** O que já foi entregue ao modelo. Só diagnóstico — é o espelho do delta. */
+    get contextoEnviado() {
+      return contextoEnviado;
+    },
+
+    /** Força a atualização do quadro fora de um turno. Usado pela prova e pelo diagnóstico. */
+    sincronizarContexto() {
+      return atualizarContexto();
     },
 
     /**
@@ -388,10 +532,23 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       const haviaContexto = turnSeq > 0;
       const ok = await this.connect(targetMode);
       if (ok && haviaContexto) {
-        note(
-          `modo ${targetMode}: sessão nova. O que já foi dito continua aqui na tela, mas o modelo recomeça sem esse contexto.`,
-          'context-reset',
-        );
+        // ⚠ O aviso segue a REALIDADE da reconstrução, não um texto fixo. Desde F3 a sessão nova
+        // nasce com o estado da tela e com o resumo da conversa (`clientContent`), então repetir
+        // "o modelo recomeça sem esse contexto" seria mentira — e aviso que mente é aviso que o
+        // aluno aprende a ignorar. Quando não houve o que reconstruir, o aviso antigo continua
+        // valendo, palavra por palavra.
+        const levou = ultimaSemeadura?.turnos ?? 0;
+        if (levou) {
+          note(
+            `modo ${targetMode}: sessão nova, mas levei junto o estado do diagrama e as últimas ${levou} mensagens desta conversa.`,
+            'info',
+          );
+        } else {
+          note(
+            `modo ${targetMode}: sessão nova. O que já foi dito continua aqui na tela, mas o modelo recomeça sem esse contexto.`,
+            'context-reset',
+          );
+        }
       }
       return ok;
     },
@@ -406,8 +563,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       }
       turnSeq++;
       currentTurn = null;
+      // O que mudou na tela vai JUNTO com a pergunta, no mesmo frame: perguntar "o que é isto?"
+      // com a seleção chegando em outro frame é perguntar sobre o elemento anterior — e foi
+      // exatamente o que aconteceu ao vivo até 2026-11-13.
+      const delta = calcularDelta();
+      if (delta) diag.state('contexto', `com a pergunta, delta=${delta.length}b`);
       push({ role: 'user', text: q, via: 'texto', turn: turnSeq });
-      session.ask(q);
+      session.ask(q, delta);
       return true;
     },
 
@@ -425,6 +587,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         await (await ensureSpeaker()).resume();   // o mesmo gesto libera o alto-falante
         turnSeq++;
         currentTurn = null;
+        // Abrir o microfone é começar um turno: o estado da tela tem de chegar antes da fala.
+        atualizarContexto();
         diag.mic('open');
         mic = await capture({
           onFrame: (b64) => {

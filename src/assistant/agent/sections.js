@@ -83,13 +83,38 @@ export const SECOES = Object.freeze([
   },
 
   {
+    // ⚠ Esta seção tem DUAS metades, e a segunda nasceu de um portão F3 reprovado (2026-11-13):
+    // perguntado "quantas tarefas tem este diagrama?", com `Task=9` no contexto, o agente
+    // respondeu *"preciso olhar o diagrama para contar as tarefas"*. A regra da amostra parcial,
+    // sozinha, contaminava TUDO — inclusive o número que chegou completo. Dizer o que é parcial
+    // sem dizer o que é completo transforma prudência em inutilidade.
     id: 'amostra',
     titulo: 'O que você sabe e o que você não sabe',
     tier: 'estavel',
     render: () => [
-      'Quando a lista de elementos vier marcada como amostra, ela é PARCIAL. Elemento que não',
-      'está na amostra pode existir: diga que precisa procurar, nunca que não existe. Não invente',
-      'id, nome nem contagem — se o dado não chegou, diga que precisa olhar o diagrama.',
+      'O total e a contagem por tipo são do diagrama INTEIRO: pode responder com eles, sem',
+      'ressalva e sem pedir para olhar de novo. A LISTA de elementos é que pode vir marcada como',
+      'amostra — nessa lista faltam itens, então elemento que não aparece nela pode existir: diga',
+      'que precisa procurar, nunca que não existe. Não invente id, nome nem número: o que não',
+      'chegou, você diz que precisa olhar.',
+    ].join(' '),
+  },
+
+  {
+    // ⚠ Nasceu de um portão F3 reprovado (2026-11-13). A linha `SELECIONADO pelo aluno` já
+    // chegava no contexto, e o modelo respondia *"como não consigo ver qual elemento você
+    // selecionou, você poderia descrevê-lo?"* — o prior dele ("não vejo sua tela") vencia um
+    // dado que estava ali. O design (H5) dizia que a seleção é a fonte determinística do "isto";
+    // faltava dizer isso ao MODELO. Fica no tier estável: vale antes de o primeiro dado chegar.
+    id: 'selecao',
+    titulo: 'Quando o aluno diz "isto"',
+    tier: 'estavel',
+    render: () => [
+      'O contexto pode trazer uma linha "SELECIONADO pelo aluno" com o tipo, o nome e o id de um',
+      'elemento. Essa linha é o que ele clicou na tela AGORA: é exatamente o "isto", "este", "esse',
+      'aqui" da pergunta dele. Responda sobre esse elemento direto, citando o nome — não diga que',
+      'não consegue ver a tela e não peça para ele descrever o que já chegou até você. Sem essa',
+      'linha, aí sim pergunte de qual elemento ele está falando.',
     ].join(' '),
   },
 
@@ -134,26 +159,37 @@ export const SECOES = Object.freeze([
  */
 function descreverDiagrama(d) {
   const linhas = [];
+  // ⚠ A SELEÇÃO VEM PRIMEIRO. Ela estava no fim, depois de até 25 linhas de amostra, e o modelo
+  // respondia *"você não selecionou nenhum elemento"* com o dado presente no mesmo bloco
+  // (medido três vezes em 2026-11-13, contra o diagrama de 47 elementos). Enterrar o fato mais
+  // perguntado de todos — "o que é isto?" — debaixo da lista é desenho ruim antes de ser
+  // problema de modelo: o que o aluno acabou de clicar é a primeira coisa que importa.
+  if (d.selecionado) {
+    linhas.push(`SELECIONADO pelo aluno AGORA: ${d.selecionado.tipo} "${d.selecionado.nome ?? ''}" [${d.selecionado.id}] — é deste elemento que ele fala ao dizer "isto"`);
+  }
   if (d.processo) linhas.push(`processo: ${d.processo.nome ?? '(sem nome)'} [${d.processo.id ?? '?'}]`);
   if (d.somenteLeitura) linhas.push('modo: visualizador (somente leitura)');
-  if (d.total !== null && d.total !== undefined) linhas.push(`total de elementos: ${d.total}`);
+  // Os números são do diagrama inteiro e dizem isso de si mesmos. Sem o rótulo, ficam ao lado
+  // de uma lista marcada como amostra e herdam a dúvida dela.
+  if (d.total !== null && d.total !== undefined) linhas.push(`total de elementos (contagem completa): ${d.total}`);
   if (d.contagem && Object.keys(d.contagem).length) {
     const partes = Object.entries(d.contagem).map(([tipo, n]) => `${tipo}=${n}`);
-    linhas.push(`por tipo: ${partes.join(', ')}`);
+    linhas.push(`por tipo (contagem completa, do diagrama inteiro): ${partes.join(', ')}`);
   }
   if (d.raias?.length) linhas.push(`raias e pools: ${d.raias.join(' | ')}`);
-  if (d.selecionado) {
-    linhas.push(`SELECIONADO pelo aluno: ${d.selecionado.tipo} "${d.selecionado.nome ?? ''}" [${d.selecionado.id}]`);
-  }
   if (d.amostra?.length) {
     const sobra = (d.total ?? d.amostra.length) - d.amostra.length;
     linhas.push(sobra > 0
       ? `amostra de ${d.amostra.length} elementos (há ${sobra} fora desta amostra):`
       : `elementos (${d.amostra.length}, lista completa):`);
     for (const e of d.amostra) linhas.push(`- ${e.tipo} "${e.nome ?? ''}" [${e.id}]`);
-  } else if (!linhas.length) {
+  } else if (d.total === 0 || !linhas.length) {
     // Fronteira presente mesmo com diagrama vazio: é o que diz ao modelo que ele RECEBEU o
     // diagrama e ele está vazio, em vez de deixá-lo supor que o dado não chegou.
+    //
+    // ⚠ A condição não é só `!linhas.length`. Desde F3 a projeção traz o processo mesmo num
+    // diagrama em branco, então a lista NÃO fica vazia — sobrava um `total de elementos: 0`
+    // solto no meio de outras linhas, que é um número para interpretar em vez de uma frase.
     linhas.push('o diagrama está aberto e não tem nenhum elemento ainda');
   }
   return linhas.join('\n');

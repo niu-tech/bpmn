@@ -472,6 +472,111 @@ if (chaveViva) {
     ],
   });
 
+  // ------------------------------------------------------------ portao F3 (o agente enxerga a tela)
+  // ⚠ Este cenario NAO declara contexto. O diagrama tem de vir do `elementRegistry` da propria
+  // pagina — e o criterio e comparar a resposta do modelo com a contagem REAL, nao com um numero
+  // escrito aqui. Ate a F2, na pagina, o diagrama chegava VAZIO ao prompt (divida T7): o agente
+  // conversava sobre BPMN em geral sem nunca ter visto o desenho do aluno.
+  CENARIOS.push({
+    nome: 'AO VIVO: o agente enxerga o diagrama da pagina (portao F3)',
+    url: ALVO,
+    espera: 3500,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       // Espera a resposta DESTA pergunta, nao "uma bolha a mais".
+       //
+       // ⚠ Contar bolhas falhou ao vivo (2026-11-13): o turno anterior produziu uma bolha
+       // atrasada, o laco a tomou como resposta nova, e a pergunta sobre o elemento selecionado
+       // foi julgada contra "O diagrama possui 9 tarefas" — do turno de antes. O criterio certo
+       // e o TEXTO: diferente do ultimo que ja estava la, e estavel por duas leituras seguidas
+       // (a bolha cresce enquanto a resposta chega).
+       window.__resposta = async (pergunta) => {
+         const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+         const antes = bolhas().at(-1) ?? '';
+         const ta = document.querySelector('.bpmn-assist__composer textarea');
+         ta.value = pergunta;
+         window.__btn('Enviar').click();
+         let anterior = null;
+         let estavel = 0;
+         // 140 x 500ms = 70s. Resposta lenta ainda e resposta certa; teto curto transforma
+         // latencia do servidor em reprovacao do produto.
+         for (let i = 0; i < 140; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+           const atual = bolhas().at(-1) ?? '';
+           if (atual && atual !== antes && atual.length > 15) {
+             // TRES leituras iguais (1,5s parado). Com duas, a pausa natural do meio da
+             // resposta era lida como fim e o teste julgava meia frase ("Tem mais alguma
+             // duvida sobre") - reprovando o produto por impaciencia do teste.
+             if (atual === anterior) { if (++estavel >= 2) return atual; }
+             else { anterior = atual; estavel = 0; }
+           }
+         }
+         return anterior ?? '';
+       };
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       // A projecao sai do modelador vivo, sem ninguem declarar nada.
+       const d = window.__bpmnAssist.diagrama;
+       window.__d = d;
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto'
+           && !!d && d.total > 5 && (d.contagem.Task ?? 0) > 0,
+         status: document.querySelector('.bpmn-assist__status').textContent,
+         processo: d?.processo?.nome ?? '(sem nome)',
+         total: d?.total ?? null,
+         tarefasDeVerdade: d?.contagem?.Task ?? null,
+         raias: (d?.raias ?? []).join(' | '),
+         amostraEnviada: d?.amostra?.length ?? 0,
+       };`,
+
+      `// Metade 1 do portao: a CONTAGEM tem de bater com o diagrama que esta na tela.
+       const esperado = window.__d.contagem.Task;
+       const resposta = await window.__resposta('Quantas tarefas (bpmn:Task) tem este diagrama? Responda com o numero.');
+       const EXTENSO = ['zero','uma','duas','tres','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove','vinte'];
+       const semAcento = resposta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+       const bateuEmDigito = new RegExp('(^|[^0-9])' + esperado + '([^0-9]|$)').test(resposta);
+       const bateuPorExtenso = esperado <= 20 && semAcento.includes(EXTENSO[esperado]);
+       return {
+         ok: resposta.length > 5 && (bateuEmDigito || bateuPorExtenso),
+         contagemReal: esperado,
+         respondeu: resposta.slice(0, 200),
+         bateu: bateuEmDigito ? 'digito' : (bateuPorExtenso ? 'por extenso' : 'NAO'),
+       };`,
+
+      `// Metade 2 do portao: com um elemento SELECIONADO, "o que e isto?" fala DAQUELE elemento.
+       // A selecao acontece por clique de verdade no SVG — e como o aluno faz; o ajudante nao
+       // tem (e nao deve ter) um verbo para selecionar por fora.
+       const alvo = window.__d.amostra.find((e) => e.tipo === 'Task' && e.nome);
+       if (!alvo) return { ok: false, erro: 'nenhuma tarefa com nome na amostra' };
+       const node = document.querySelector('[data-element-id="' + alvo.id + '"]');
+       if (!node) return { ok: false, erro: 'elemento nao esta no DOM: ' + alvo.id };
+       const r = node.getBoundingClientRect();
+       const op = { bubbles: true, cancelable: true, view: window, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+       const hit = node.querySelector('.djs-hit') ?? node;
+       for (const tipo of ['mousedown', 'mouseup', 'click']) hit.dispatchEvent(new MouseEvent(tipo, op));
+       await new Promise((r2) => setTimeout(r2, 400));
+       const sel = window.__bpmnAssist.diagrama.selecionado;
+       if (!sel || sel.id !== alvo.id) return { ok: false, erro: 'o clique nao selecionou', pedido: alvo.id, selecionado: sel };
+
+       const resposta = await window.__resposta('O que e isto que eu selecionei?');
+       const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+       const citou = limpo(resposta).includes(limpo(alvo.nome));
+       return {
+         ok: resposta.length > 15 && citou,
+         selecionado: alvo.nome + ' [' + alvo.id + ']',
+         citouOElemento: citou,
+         respondeu: resposta.slice(0, 220),
+       };`,
+    ],
+  });
+
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
@@ -483,7 +588,29 @@ const soEsses = (() => { const i = process.argv.indexOf('--so'); return i > 0 ? 
 const aRodar = soEsses ? CENARIOS.filter((c) => c.nome.toLowerCase().includes(soEsses.toLowerCase())) : CENARIOS;
 
 const resultados = [];
+/**
+ * Descanso entre sessoes AO VIVO.
+ *
+ * ⚠ Medido em 2026-11-13: o cenario de voz passa SOZINHO (22 frames de audio, legenda inteira) e
+ * falha quando roda logo depois de outra sessao ao vivo — sempre no mesmo ponto, "sem transcricao
+ * de entrada", com o microfone capturando (pico 0.577). Os cenarios de TEXTO da mesma corrida
+ * passam. Nao e defeito do produto nem do dublê: e o servidor cobrando o ritmo de sessoes Live
+ * seguidas na mesma chave, e a voz e a que mais pesa.
+ *
+ * Sem a pausa, a bateria reporta vermelho por cadencia de teste — que e a pior especie de
+ * vermelho, porque ensina a ignorar vermelho.
+ */
+const DESCANSO_AO_VIVO_MS = Number(process.env.BPMN_DESCANSO_MS ?? 25000);
+let jaRodouAoVivo = false;
+
 for (const c of aRodar) {
+  const aoVivo = c.nome.startsWith('AO VIVO');
+  if (aoVivo && jaRodouAoVivo && DESCANSO_AO_VIVO_MS > 0) {
+    console.log(`        (descansando ${Math.round(DESCANSO_AO_VIVO_MS / 1000)}s antes da proxima sessao ao vivo)`);
+    await new Promise((r) => setTimeout(r, DESCANSO_AO_VIVO_MS));
+  }
+  if (aoVivo) jaRodouAoVivo = true;
+
   const r = await dirigir({
     url: c.url,
     mic: c.mic ?? null,
@@ -498,19 +625,28 @@ for (const c of aRodar) {
   const ultimo = r.passos.at(-1);
   const erroDePasso = r.passos.find((p) => p.erro);
   const ruido = r.console.filter((x) => !/favicon/.test(x.texto));
-  const ok = !erroDePasso && !r.excecoes.length && ultimo?.valor?.ok === true;
+  // ⚠ TODO passo que devolve veredito conta, não só o último. Até 2026-11-13 o `ok` do cenário
+  // era `ultimo?.valor?.ok === true`: um cenário de três passos podia reprovar no segundo e ser
+  // reportado OK porque o terceiro passou. Foi visto no portão F3, cujo passo do meio compara a
+  // contagem do modelo com a do diagrama — a metade mais fácil de errar era a que não tinha
+  // portão. Resultado que não pode falhar não é prova.
+  const passoReprovado = r.passos.find((p) => p.valor && typeof p.valor === 'object' && p.valor.ok === false);
+  const ok = !erroDePasso && !r.excecoes.length && !passoReprovado && ultimo?.valor?.ok === true;
+  const culpado = passoReprovado?.valor ?? ultimo?.valor;
 
   resultados.push({
     cenario: c.nome,
     ok,
-    detalhe: ultimo?.valor ?? null,
+    detalhe: culpado ?? null,
+    // Todos os vereditos, na ordem: é o que mostra QUAL metade do portão caiu.
+    passos: r.passos.map((p) => p.valor ?? null),
     erro: erroDePasso?.erro ?? r.excecoes[0] ?? null,
     console: ruido,
     shot: r.shot,
   });
 
   console.log(`${ok ? '  OK  ' : '  FALHOU  '} ${c.nome}`);
-  if (!ok) console.log(`        ${JSON.stringify(ultimo?.valor ?? erroDePasso?.erro ?? r.excecoes[0])}`);
+  if (!ok) console.log(`        ${JSON.stringify(culpado ?? erroDePasso?.erro ?? r.excecoes[0])}`);
   else if (ultimo?.valor) console.log(`        ${JSON.stringify(ultimo.valor)}`);
   if (ruido.length) console.log(`        ! console: ${ruido.map((x) => x.texto).join(' | ').slice(0, 200)}`);
 }

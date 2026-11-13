@@ -7,6 +7,7 @@
 // diferentes e um `let montado` não os enxergaria.
 
 import './ui/assistant.css';
+import { observarDiagrama } from './agent/diagram.js';
 import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
@@ -48,12 +49,19 @@ function reservarRodape(root) {
  * cosmético — é o que faz o contexto nascer `somenteLeitura` e, quando as ferramentas de escrita
  * existirem (F7), o que impede que elas sejam declaradas ao modelo numa página que não edita.
  * Explícito em vez de adivinhado pela URL: o viewer pode ser servido em qualquer caminho.
+ *
+ * `modelador` é o `BpmnModeler` (ou o `NavigatedViewer`) da página. É o que faz o agente
+ * ENXERGAR a tela (fase F3): sem ele o ajudante monta igual e conversa sobre BPMN em geral, com
+ * o diagrama chegando vazio ao prompt — que era o estado até aqui (dívida T7).
  */
-export function mountAssistant({ container = document.body, debug = false, pagina = 'modelador' } = {}) {
+export function mountAssistant({ container = document.body, debug = false, pagina = 'modelador', modelador = null } = {}) {
   if (document.documentElement.dataset[MARK] === '1') return null;
   document.documentElement.dataset[MARK] = '1';
 
   let widget = null;
+
+  // O observador só marca sujo; quem recalcula é o `lerDiagrama` abaixo, nas bordas de turno.
+  const olho = observarDiagrama(modelador);
 
   const credentials = createCredentialStore({
     onChange: () => widget?.render(view()),
@@ -61,7 +69,7 @@ export function mountAssistant({ container = document.body, debug = false, pagin
 
   const session = createAssistantSession({
     credentials,
-    deps: { debug, pagina },
+    deps: { debug, pagina, lerDiagrama: () => olho.atual() },
     onUpdate: () => widget?.render(view()),
   });
 
@@ -93,6 +101,11 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     get contagem() { return session.diagnostics.counts; },
     /** O contexto como o prompt o vê — e por onde a prova de injeção pelo diagrama entra (F2). */
     get contexto() { return session.contexto; },
+    /** A projeção crua do diagrama aberto, recalculada na leitura (F3). `null` sem modelador. */
+    get diagrama() { return olho.atual(); },
+    /** O último quadro que o modelo de fato recebeu. É o espelho do delta. */
+    get contextoEnviado() { return session.contextoEnviado; },
+    sincronizarContexto: () => session.sincronizarContexto(),
     definirContexto: (c) => session.definirContexto(c),
   };
 
@@ -109,6 +122,7 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     /** Desmonta de verdade: encerra a sessão, tira os listeners e libera a marca. */
     async destroy() {
       pararDeMedir();
+      olho.dispose();
       widget.dispose?.();
       if (window.__bpmnAssist) delete window.__bpmnAssist;
       window.removeEventListener('beforeunload', bye);

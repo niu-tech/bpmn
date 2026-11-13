@@ -13,12 +13,19 @@
 //  - toda mensagem de erro passa por `redact` antes de sair (a chave viaja na URL do socket).
 
 import { redact, rememberSecret } from './redact.js';
+import { MARCA_XML } from '../agent/frame.js';
 import {
-  buildAudioChunk, buildAudioStreamEnd, buildSetup, buildTextTurn, buildToolResponse,
+  buildAudioChunk, buildAudioStreamEnd, buildHistory, buildSetup, buildTextTurn, buildToolResponse,
   parseServerFrame, respostaDeEntrega, socketUrl, DELIVERY_TOOL,
 } from './protocol.js';
 
 export const STATES = ['idle', 'connecting', 'ready', 'listening', 'speaking', 'closing', 'error'];
+
+/**
+ * A vez do modelo que FECHA o quadro de contexto. Não é fala que alguém ouça — é o que impede
+ * o turno do aluno de ficar aberto no servidor (ver `enviarContexto`).
+ */
+const ACK_CONTEXTO = 'Entendido, estou com o estado atual da tela.';
 
 const DEFAULTS = {
   connectTimeoutMs: 20000,
@@ -40,6 +47,8 @@ export function createSession({
   onAudio,
   onInterrupted,
   onLog,
+  /** Setup ACEITO pelo servidor. `reconectou` diz se este socket substitui um que caiu. */
+  onSetupComplete,
   // Diário da sessão: um evento por frame que entra e por frame que sai. É o que transforma
   // "o modelo foi interrompido" numa sequência (`out.audio x12 -> ws.interrupted`) que diz a
   // CAUSA. Opcional: sem ele a sessão funciona igual.
@@ -71,7 +80,8 @@ export function createSession({
   const turns = [];            // histórico de turnos concluídos, para diagnóstico
   let turn = null;
   let resumptionHandle = null; // alça de retomada que o servidor manda; não usada ainda
-  let lastUsage = null;        // contagem de tokens do último turno (custo é a cota do aluno)
+  let lastUsage = null;
+  let setupsAceitos = 0;       // quantos setups o servidor ja aceitou nesta sessao (reconexao > 1)        // contagem de tokens do último turno (custo é a cota do aluno)
 
   const log = (...parts) => onLog?.(parts.map((p) => redact(p)).join(' '));
   const ev = (src, kind, detail) => { try { onEvent?.(src, kind, detail); } catch { /* diário nunca derruba a sessão */ } };
@@ -168,8 +178,15 @@ export function createSession({
     } else if (turn.delivered) {
       onText?.({ text: turn.text, fallback: false, complete: true });
     } else {
-      // Nem entrega nem fala: turno vazio. Não inventar resposta.
+      // Nem entrega nem fala: turno vazio. Não inventar resposta — mas AVISAR.
+      //
+      // ⚠ Ficava calado, e o aluno via a própria pergunta e mais nada. Apareceu no portão F3
+      // (2026-11-13): no modo texto o modelo às vezes fecha o turno com um áudio sem fala, cuja
+      // legenda é só `<no speech>`; depois que essas marcas passaram a ser limpas, não sobrava
+      // bolha nenhuma. Silêncio é pior que resposta feia: o aluno não sabe se perguntou errado,
+      // se travou, ou se a cota acabou.
       turn.empty = true;
+      onText?.({ text: '', fallback: true, complete: true, vazio: true });
     }
     turn.idle = idle;
     turn.usage = lastUsage;
@@ -195,6 +212,11 @@ export function createSession({
         if (connectTimer) { clock.clearTimeout(connectTimer); connectTimer = null; }
         setState('ready');
         flushPending();
+        // ⚠ Sinal do SETUP ACEITO, que não é a mesma coisa que o estado `ready`: aquele volta ao
+        // fim de CADA turno. Quem precisa saber "o servidor aceitou um setup novo" — para
+        // semear o contexto de novo depois de uma reconexão — tem de ouvir isto, e não o estado.
+        onSetupComplete?.({ reconectou: setupsAceitos > 0 });
+        setupsAceitos++;
         return;
 
       case 'audio':
@@ -406,11 +428,88 @@ export function createSession({
       open();
     },
 
-    /** PROVA C: pergunta digitada -> Live -> texto pelos argumentos de `entregar_resposta`. */
-    ask(text) {
+    /**
+     * PROVA C: pergunta digitada -> Live -> texto pelos argumentos de `entregar_resposta`.
+     *
+     * `contexto` (opcional) é o quadro do estado da tela que mudou desde o último turno. Ele
+     * entra NO TEXTO da própria pergunta, acima dela, com as marcas de dado que o renderizador
+     * já escreveu. Um frame, um turno, nenhuma corrida.
+     *
+     * ⚠ Duas medições ao vivo moldaram esta linha, em 2026-11-13:
+     *
+     *  1. **Dois frames seguidos não funcionam.** Mandar o quadro por `clientContent` e, no
+     *     mesmo instante, a pergunta por `realtimeInput.text` faz a pergunta ultrapassar o
+     *     quadro: o modelo respondia *"você não selecionou nenhum elemento"* com a seleção
+     *     enviada milissegundos antes (`out.history` logo antes de `out.text`, no diário). Com
+     *     2 s de espera entre os dois, respondia certo — mas esperar seria número mágico.
+     *  2. **Um `clientContent` com `turnComplete:true` também não serve.** Resolve a corrida e
+     *     quebra outra coisa: nesse formato o modelo responde FALANDO, mesmo com a função de
+     *     entrega declarada, e a bolha do aluno recebe a legenda do áudio (`<no speech>{pause}`)
+     *     em vez da resposta. O fato medido no P1 — "declarar a função emudece o modelo" — vale
+     *     para `realtimeInput.text`, e não para um turno de conteúdo.
+     *
+     * Daí a forma atual: o transporte provado, com o contexto dentro do texto.
+     */
+    ask(text, contexto = null) {
       beginTurn('text', text);
       setState('listening');
-      send(buildTextTurn(text));
+      const ctx = typeof contexto === 'string' ? contexto.trim() : '';
+      // Contexto e pergunta no MESMO frame, pelo MESMO transporte de sempre.
+      send(buildTextTurn(ctx && !ctx.includes(MARCA_XML) ? `${ctx}\n\n[fim do contexto]\n\nPergunta do aluno: ${text}` : text));
+    },
+
+    /**
+     * Quadro de contexto: o estado da tela por `clientContent` com `turnComplete:false`
+     * (design H3). Não abre turno e não espera resposta — é informação que o modelo passa a ter.
+     *
+     * Chamável ANTES do `setupComplete`: o frame entra na fila e sai assim que o setup é aceito,
+     * que é exatamente a semeadura que a fase pede. Quem monta o texto é `agent/frame.js`.
+     *
+     * ⚠ Guarda da tarefa 3.4, aqui e não no montador: este é o lugar onde o frame REALMENTE sai.
+     * Um quadro com XML do diagrama é recusado e registrado — o XML tem 22 KB, queima a cota do
+     * aluno e afoga o contexto útil, e a recusa precisa valer mesmo que algum chamador futuro
+     * monte o texto por fora.
+     */
+    enviarContexto(texto) {
+      const t = String(texto ?? '').trim();
+      if (!t) return false;
+      if (t.includes(MARCA_XML)) {
+        ev('out', 'contexto-recusado', 'continha XML do diagrama');
+        log('quadro de contexto recusado: XML não viaja (design H4)');
+        return false;
+      }
+      // ⚠ O quadro vai FECHADO: um turno de `user` e um de `model`. Mandar só o turno do aluno
+      // com `turnComplete:false` significa, no protocolo, "ainda estou compondo minha vez" — e
+      // o servidor fica esperando o fim dela. Medido ao vivo em 2026-11-13: a fala era
+      // transcrita certa ("qual a diferença entre gateway exclusivo e paralelo?") e o modelo
+      // respondia com ZERO frames de áudio, porque o turno do aluno nunca fechava. No modo
+      // texto o defeito não aparecia: `realtimeInput.text` abre e fecha o turno sozinho.
+      send(buildHistory([{ role: 'user', text: t }, { role: 'model', text: ACK_CONTEXTO }]));
+      return true;
+    },
+
+    /**
+     * Histórico semeado como CONVERSA, com os papéis preservados (design H3, tarefa 2.3).
+     *
+     * `turns` = `[{role:'user'|'model', text}]`. Vai por `clientContent` sem fechar o turno, que
+     * é a forma documentada de dar passado a uma sessão nova — é o que faz trocar de voz para
+     * texto deixar de recomeçar do zero.
+     *
+     * ⚠ Papel preservado NÃO é fronteira perdida: um turno que o aluno disse continua sendo um
+     * turno do aluno, com a mesma confiança que tinha quando foi dito. Repetir a fala dele como
+     * se fosse instrução do sistema é que seria promoção de confiança.
+     */
+    enviarHistorico(turnos) {
+      const limpos = (Array.isArray(turnos) ? turnos : [])
+        .map((t) => ({ role: t?.role === 'model' ? 'model' : 'user', text: String(t?.text ?? '').trim() }))
+        .filter((t) => t.text && !t.text.includes(MARCA_XML));
+      // Pergunta que ficou sem resposta não entra: ela deixaria o turno do aluno ABERTO na
+      // sessão nova, e o servidor esperaria o fim dele em vez de ouvir o microfone (medido em
+      // 2026-11-13). Descartar é honesto — aquela pergunta não foi respondida mesmo.
+      while (limpos.length && limpos.at(-1).role === 'user') limpos.pop();
+      if (!limpos.length) return false;
+      send(buildHistory(limpos));
+      return true;
     },
 
     /** PROVA A: quadro do microfone (base64 PCM16 16 kHz). */

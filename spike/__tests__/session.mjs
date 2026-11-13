@@ -144,11 +144,15 @@ test('turno sem entrega usa a transcricao como FALLBACK, e diz que e fallback', 
   assert.equal(session.turns.at(-1).fallback, true);
 });
 
-test('turno vazio nao inventa resposta', () => {
+test('turno vazio AVISA, e nao inventa resposta', () => {
+  // Mudou em 2026-11-13: antes o turno vazio era silencio total, e o aluno via a propria
+  // pergunta e mais nada. Agora sai um aviso com texto VAZIO e a marca `vazio` - quem escuta
+  // decide o que mostrar. O que continua proibido e inventar conteudo.
   const { session, ws, texts } = ready();
   session.ask('p');
   ws.emit({ serverContent: { turnComplete: true } });
-  assert.equal(texts.length, 0);
+  assert.equal(texts.length, 1, 'o turno vazio precisa ser anunciado');
+  assert.equal(texts[0].text ?? texts[0], '');
   assert.equal(session.turns.at(-1).empty, true);
 });
 

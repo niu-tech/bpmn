@@ -177,6 +177,18 @@ A seção do diagrama diz, no próprio texto, que é amostra e quantos ficaram d
 **Por quê.** A projeção tem teto (H4). Sem essa regra, o agente nega a existência de um elemento
 que ele apenas não recebeu — erro pior que não responder, porque soa confiante.
 
+**Correção medida no portão F3 (2026-11-13) — a regra tem DUAS metades, não uma.** Escrita só na
+metade da dúvida, ela contaminou o que era certo: com `Task=9` no contexto, o agente respondeu
+*"preciso olhar o diagrama para contar as tarefas"*. A projeção sempre separou as duas coisas —
+`total` e `contagem` são varreduras do registro inteiro, e só a `amostra` tem teto —, mas o prompt
+não dizia isso, e o modelo estendeu a prudência da lista ao número. Agora a seção afirma as duas
+metades ("o total e a contagem são do diagrama INTEIRO; a LISTA é que pode ser amostra") e as
+linhas da projeção se rotulam (`total de elementos (contagem completa): 47`).
+
+A lição é de desenho, não de redação: **dizer o que é incerto sem dizer o que é certo não produz
+cautela, produz um agente inútil** — e o custo aparece exatamente na pergunta mais comum que
+existe sobre um diagrama.
+
 ## H14 — Confirmação carimbada
 
 **Decisão.** O pedido de confirmação carrega o `id` do elemento **e** a versão do diagrama. Se o

@@ -73,7 +73,7 @@ let last = { eventsRows: [], summaryRows: [], pathRows: [], proofRows: [], cases
 
   // Ajudante BPMN. A barra da simulacao vive em cima a direita; o ajudante, em baixo a direita.
   try {
-    mountAssistant({ pagina: 'viewer' });
+    mountAssistant({ pagina: 'viewer', modelador: viewer });
   } catch (e) {
     console.warn('Ajudante indisponivel:', e);
   }

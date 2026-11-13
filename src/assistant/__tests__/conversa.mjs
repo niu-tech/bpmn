@@ -16,7 +16,7 @@ import { createAssistantSession } from '../session-manager.js';
 import { createDiagnostics } from '../diagnostics.js';
 import { nivelDoQuadro } from '../live/audio.js';
 import { forgetSecrets, rememberSecret } from '../live/redact.js';
-import { report, test } from '../../../tools/test-harness.mjs';
+import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
 const CHAVE = 'AQ.CHAVE-SINTETICA-DE-TESTE-NAO-E-DE-NINGUEM-0123456';
 
@@ -82,7 +82,7 @@ function montar() {
 console.log('\n▶ meia-duplex (o defeito de 2026-11-11)');
 
 await (async () => {
-  test('entrar no modo voz abre o microfone sozinho', async () => {
+  await testAsync('entrar no modo voz abre o microfone sozinho', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -92,7 +92,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('o microfone NAO reabre sozinho a cada turno', async () => {
+  await testAsync('o microfone NAO reabre sozinho a cada turno', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -104,7 +104,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('ESCUTA CONTINUA: o modelo responder NAO fecha o microfone', async () => {
+  await testAsync('ESCUTA CONTINUA: o modelo responder NAO fecha o microfone', async () => {
     // Pedido do dono (2026-11-11): "ele poderia ficar ouvindo e quando a gente falar, poder
     // interromper ela". Fechar o microfone na resposta impedia justamente isso.
     const { session, live, audio } = montar();
@@ -122,7 +122,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('ESCUTA CONTINUA: o quadro SOBE enquanto o modelo fala (e o que interrompe)', async () => {
+  await testAsync('ESCUTA CONTINUA: o quadro SOBE enquanto o modelo fala (e o que interrompe)', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -137,7 +137,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('REDE DE SEGURANCA: 3 interrupcoes sem fala nenhuma liga meia-duplex', async () => {
+  await testAsync('REDE DE SEGURANCA: 3 interrupcoes sem fala nenhuma liga meia-duplex', async () => {
     // Assinatura do laco de eco: o som do proprio ajudante volta pelo microfone, o servidor
     // interrompe, e a conversa morre em silencio. Fala de verdade produz transcricao de
     // entrada; eco nao - e e isso que separa os dois casos.
@@ -160,7 +160,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('falar de verdade ZERA o contador de interrupcoes', async () => {
+  await testAsync('falar de verdade ZERA o contador de interrupcoes', async () => {
     const { session, live } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -176,7 +176,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('em meia-duplex o quadro atrasado morre no cliente', async () => {
+  await testAsync('em meia-duplex o quadro atrasado morre no cliente', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -195,7 +195,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('interrupcao NAO vira recado na conversa', async () => {
+  await testAsync('interrupcao NAO vira recado na conversa', async () => {
     const { session, live } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -212,7 +212,7 @@ await (async () => {
 console.log('\n▶ indicador de escuta');
 
 await (async () => {
-  test('o nivel do microfone chega a view', async () => {
+  await testAsync('o nivel do microfone chega a view', async () => {
     const { session, live, audio, vistas } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -223,7 +223,7 @@ await (async () => {
     forgetSecrets();
   });
 
-  test('fechar o microfone zera o nivel (barra parada = nao esta ouvindo)', async () => {
+  await testAsync('fechar o microfone zera o nivel (barra parada = nao esta ouvindo)', async () => {
     const { session, live, audio } = montar();
     await session.connect('voz');
     live.ultima.pronta();
@@ -294,7 +294,7 @@ await (async () => {
     assert.equal(d.count('ws.unknown'), 50, 'a contagem continua inteira');
   });
 
-  test('conectar zera o diario, e o relatorio sai da sessao', async () => {
+  await testAsync('conectar zera o diario, e o relatorio sai da sessao', async () => {
     const { session, live } = montar();
     await session.connect('voz');
     live.ultima.pronta();

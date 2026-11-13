@@ -66,7 +66,7 @@ fase (`changes/give-bpmn-assistant-an-agent-harness/research.md` §5).
 | Site no ar | <https://niu-tech.github.io/bpmn/>, publicado a cada push em `main` |
 | Transporte | voz e texto contra o Gemini real, escuta contínua, fala sem travar |
 | Prova | 300 asserções + bateria de 11 cenários, 11 passando, incluindo dois AO VIVO |
-| Agente | **não existe** — prompt de 5 linhas, sem contexto, sem memória, sem ferramenta |
+| Agente | contrato de prompt (F2) · despacho honesto (F1) · **enxerga o diagrama da página (F3)** — ainda sem memória e sem ferramenta |
 
 ## As fases
 
@@ -98,12 +98,30 @@ diagrama entra **delimitado como dado do aluno**.
 > diagrama atualizável no meio da conversa — o filtro de camada do renderizador já existe para
 > essa troca ser uma linha.
 
-### F3 — O agente enxerga a tela
+### F3 — O agente enxerga a tela  ✅ 2026-11-13
 Projeção do diagrama (contagem, raias, amostra declarada como amostra, elemento selecionado) ·
 quadro de contexto semeado por `clientContent` · delta por turno · nunca o XML.
 
-> **Portão F3** — AO VIVO: *"quantas tarefas tem este diagrama?"* responde o número real, e
-> *"o que é isto?"* com um elemento selecionado responde sobre **aquele** elemento.
+> **Portão F3 — PASSOU (2026-11-13).** AO VIVO, contra o build local, com o diagrama padrão
+> (`pizza-collaboration`, 47 elementos, 9 tarefas, 5 raias/pools, amostra de 25 declarada):
+> *"quantas tarefas tem este diagrama?"* → **"Este diagrama tem 9 tarefas."**, conferido contra
+> a contagem real da projeção, não contra um número escrito no teste. Depois, clique de verdade
+> no SVG (mousedown/mouseup/click, como o aluno faz) e *"o que é isto que eu selecionei?"* →
+> **"uma tarefa chamada 'Select a pizza'"**, o elemento certo.
+>
+> ⚠ **O portão reprovou quatro vezes antes de passar**, e cada reprovação era um defeito real
+> que os 336 testes determinísticos não viam: a contagem recusada com o número no contexto; a
+> pergunta ultrapassando o quadro de contexto (corrida entre dois frames); a legenda do áudio
+> colando na resposta (`9<no speech>{pause}`); e o turno sem resposta deixando a tela muda. Os
+> quatro estão em `open-items.md` §3b, com a causa e o conserto.
+>
+> ⚠ **Reprodutibilidade em sequência: NÃO provada.** Depois da corrida verde, rodadas seguidas
+> alternaram entre responder certo e não responder nada — nunca responder errado, sempre com a
+> sessão em `pronto` e a projeção correta. Assinatura de limite de ritmo da chave (~12 sessões
+> ao vivo na mesma hora), igual ao M6 da voz. O comportamento está provado; a cadência, não.
+
+Fecha as dívidas **T6** (o diagrama viajava dentro do `setup` imutável) e **T7** (na página, o
+diagrama chegava vazio ao prompt). Fica aberta a tarefa 2.4: medir o teto do `clientContent`.
 
 ### F4 — Continuidade e memória da aba
 Histórico reconstruído ao trocar de modo · memória em `fato`/`decisao`/`preferencia` com teto ·

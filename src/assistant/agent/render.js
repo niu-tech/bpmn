@@ -87,14 +87,15 @@ export function renderizar(ctx, opcoes = {}) {
  * coisas: a seção `entrega` entrar no texto e a função ser declarada no fio. Não há como ligar
  * uma sem a outra.
  *
- * As seções voláteis entram no `systemInstruction` **nesta fase** porque ainda não há transporte
- * de contexto: trocar de modo já reabre a sessão, e o diagrama de F2 vem de quem chamar
- * `definirContexto`. Em F3 o volátil passa a viajar por `clientContent` e esta linha troca de
- * `renderizar(ctx)` para `renderizar(ctx, { tier: 'estavel' })` — o filtro já existe para isso.
+ * ⚠ Só o tier ESTÁVEL entra aqui (fase F3). O `setup` é imutável depois de aceito: enquanto o
+ * diagrama vivia dentro dele, o agente enxergava o retrato do momento em que a sessão abriu, e
+ * editar o diagrama no meio da conversa não alcançava o modelo (dívida T6). O volátil agora
+ * viaja por `clientContent`, montado em `agent/frame.js` — esta linha é a troca que F2 deixou
+ * preparada, e o filtro de camada existia desde lá exatamente para ela.
  */
 export function promptDoPerfil(ctx) {
   return {
-    systemInstruction: renderizar(ctx),
+    systemInstruction: renderizar(ctx, { tier: 'estavel' }),
     withDeliveryTool: ctx.perfil === 'texto',
   };
 }

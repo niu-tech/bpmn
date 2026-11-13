@@ -138,7 +138,15 @@ export function buildAudioStreamEnd() {
   return { realtimeInput: { audioStreamEnd: true } };
 }
 
-/** Histórico semeado sem fechar o turno (fato 2). `turns` = [{role, text}]. */
+/**
+ * Histórico semeado sem fechar o turno (fato 2). `turns` = [{role, text}].
+ *
+ * ⚠ Sempre `turnComplete:false`, e isso é decisão medida (2026-11-13): com `true`, o mesmo
+ * frame vira um TURNO e o modelo responde — só que responde **falando**, mesmo com a função de
+ * entrega declarada, e a bolha do aluno recebe a legenda do áudio em vez do texto. Pergunta
+ * digitada continua indo por `realtimeInput.text` (ver `session.ask`), que é onde a medição do
+ * P1 vale. Este frame é para CONTEXTO e HISTÓRICO: dado que o modelo passa a ter, sem responder.
+ */
 export function buildHistory(turns) {
   return {
     clientContent: {

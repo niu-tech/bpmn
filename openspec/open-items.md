@@ -30,6 +30,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | M3 | Negação de microfone ao vivo | aberto | o teste cobre o caminho de erro em unidade; falta o cenário no navegador (é um `--passo` que recusa `getUserMedia`) |
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |
+| M6 | Os cenários de VOZ ao vivo não são confiáveis **em sequência** | aberto (2026-11-13) | sozinho, o cenário passa (22 frames de áudio, legenda inteira). Rodando depois de outra sessão ao vivo, falha sempre no mesmo ponto: sem transcrição de entrada. O pico do microfone muda de corrida para corrida (0,577 · 0,358 · **0,083**), então o WAV-como-microfone às vezes mal chega — é a fixture, não o produto. Um descanso de 25 s entre sessões ao vivo não resolveu. Até medir a causa, **o veredito de voz vale sozinho** (`--so "voz de verdade"`), e a bateria inteira reporta o que de fato aconteceu |
 
 ## 3. Barge-in: o que a medição mostrou — e o achado que ela trouxe
 
@@ -60,6 +61,80 @@ num segundo trecho do mesmo arquivo (`tools/wav-pad.mjs juntar`).
 O corte caiu **dentro** da fala. O que isso deixa como regra para o próximo teste de voz: medir
 turno digitado em sessão de voz é medir a fila do áudio, não a latência do modelo.
 
+## 3b. O portão F3 reprovou antes de passar (2026-11-13)
+
+Vale registrar porque o defeito era de PROMPT e só apareceu ao vivo — nenhum teste determinístico
+o pegaria, e a primeira rodada o escondeu.
+
+Com `Task=9` no contexto, perguntado *"quantas tarefas tem este diagrama?"*, o agente respondeu:
+
+> *"Preciso olhar o diagrama para contar as tarefas."*
+
+A causa é a seção `amostra` do prompt: ela dizia que a lista é parcial e que não se deve inventar
+contagem — e o modelo, corretamente prudente, estendeu a dúvida da LISTA para o NÚMERO, que havia
+chegado completo. Dizer o que é parcial sem dizer o que é completo transforma prudência em
+inutilidade.
+
+O conserto foi na prosa e na projeção, não no teste: a seção passou a separar as duas coisas
+("o total e a contagem são do diagrama INTEIRO; a LISTA é que pode ser amostra") e as linhas da
+projeção passaram a se rotular (`total de elementos (contagem completa): 47`). Depois disso:
+*"Este diagrama tem 9 tarefas."*
+
+**E a primeira rodada tinha dado OK.** O veredito da bateria era `ultimo?.valor?.ok === true`, e
+como o passo da seleção (o terceiro) passou, o cenário inteiro foi reportado verde com a metade
+da contagem reprovada no meio. Resultado que não pode falhar não é prova — virou T8, já corrigido.
+
+### O quadro de contexto emudeceu a voz — e só a voz
+
+Com o portão F3 passando, a bateria inteira pegou o que o cenário sozinho não pegava: **as duas
+provas de voz ao vivo falharam**, com a fala transcrita corretamente (*"qual a diferença entre um
+gateway exclusivo e um gateway paralelo?"*) e **zero frames de áudio** de resposta.
+
+A causa é o formato do quadro, não o conteúdo. Ele saía como `clientContent` com um único turno
+`user` e `turnComplete:false` — que no protocolo significa *"ainda estou compondo a minha vez"*.
+O servidor passou a esperar o fim dessa vez; o áudio do microfone chegava, era transcrito, e
+nunca virava um turno a responder.
+
+**No modo texto o defeito não aparecia**, porque `realtimeInput.text` abre e fecha o turno
+sozinho — por isso o cenário do portão F3, que é todo digitado, passou limpo enquanto a voz
+estava quebrada. Duas superfícies, um frame, e só uma delas mostra o erro.
+
+O conserto é o quadro ir FECHADO: um turno do aluno e um turno do modelo (`Entendido, estou com o
+estado atual da tela.`). Pela mesma razão, o histórico de uma sessão nova descarta uma pergunta
+final sem resposta, que deixaria o mesmo turno aberto. Medido depois do conserto: 22 frames de
+áudio e legenda. Os dois invariantes têm teste determinístico em `__tests__/diagrama.mjs`.
+
+### Quatro defeitos que só o portão ao vivo mostrou
+
+O cenário do portão F3 é digitado e simples — *"quantas tarefas?"*, clicar num elemento, *"o que é
+isto?"*. Ele derrubou quatro coisas que todos os 336 testes determinísticos achavam saudáveis:
+
+| # | O que acontecia | Causa | Conserto |
+|---|---|---|---|
+| 1 | *"preciso olhar o diagrama para contar as tarefas"*, com `Task=9` no contexto | a seção `amostra` falava do que é parcial e calava sobre o que é completo | a seção afirma as duas metades; as linhas da projeção se rotulam |
+| 2 | *"você não selecionou nenhum elemento"*, com a seleção enviada milissegundos antes | **corrida**: quadro por `clientContent` e pergunta por `realtimeInput.text` no mesmo instante — a pergunta ultrapassa o quadro (com 2 s de espera entre eles, a resposta saía certa) | o contexto entra **no texto da própria pergunta**: um frame, um turno |
+| 3 | a bolha do aluno virava `9<no speech>{pause}` | no modo texto o modelo às vezes fecha o turno com um áudio sem fala, e a legenda dele colava na resposta | legenda é do modo voz; as marcas de não-fala são limpas nos dois modos |
+| 4 | turno sem resposta nenhuma = tela muda | depois de limpar as marcas, sobrava string vazia e nenhuma bolha | `endTurn` anuncia o turno vazio e a conversa diz *"o modelo encerrou o turno sem responder"* |
+
+O caminho 2 teve **uma tentativa intermediária que foi medida e descartada**: mandar contexto,
+confirmação e pergunta num único `clientContent` com `turnComplete:true`. Resolve a corrida e
+quebra outra coisa — nesse formato o modelo responde **falando**, mesmo com a função de entrega
+declarada. O fato medido no P1 ("declarar a função emudece o modelo") vale para
+`realtimeInput.text`, e não para um turno de conteúdo. Está escrito em `protocol.js`, para
+ninguém tentar de novo.
+
+### O veredito do portão, e o que ficou instável
+
+O portão F3 **passou inteiro numa corrida** (contagem certa *e* elemento certo). Depois disso,
+rodadas seguidas alternaram entre responder certo e **não responder nada** — nunca responder
+errado. Sem erro de socket, sem ruído no console, com a sessão em `pronto` e a projeção correta
+em todas elas. A suspeita é limite de ritmo da chave (foram ~12 sessões ao vivo na mesma hora),
+e é a mesma assinatura do M6 da voz.
+
+O que isso significa, dito direito: **o comportamento foi provado; a reprodutibilidade em
+sequência não.** Enquanto a causa não for medida, uma rodada vermelha do portão F3 não é prova de
+regressão — e uma verde, isolada, é a prova que vale.
+
 ## 4. Dívidas que eu mesmo deixei
 
 | # | Item | Onde | Nota |
@@ -69,8 +144,7 @@ turno digitado em sessão de voz é medir a fila do áudio, não a latência do 
 | T3 | Sem cenário para o **viewer** na bateria além de carregar | `tools/battery.mjs` | a simulação em lote com o painel aberto só foi verificada à mão, no P2 |
 | T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | o roteiro continua válido para humano, mas a bateria cobre o essencial |
 | T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | o runner tem Chrome; falta decidir se o custo de minutos compensa |
-| T6 | Em F2 o contexto do diagrama viaja **dentro do `setup`** | `agent/render.js` (`promptDoPerfil`) | o `setup` é imutável depois de aceito, então o agente vê o retrato do momento em que a sessão abriu: editar o diagrama no meio da conversa não chega ao modelo. É o que F3 conserta com `clientContent`; o filtro de camada do renderizador já existe para a troca ser uma linha |
-| T7 | A projeção do diagrama ainda não tem fonte | `session-manager.definirContexto` | em F2 quem alimenta é o teste/bateria; em F3 passa a ser o `elementRegistry` pelo `eventBus`. Até lá, na página o diagrama chega VAZIO ao prompt — a fronteira existe e o dado não |
+| T8 | O veredito da bateria olhava só o ÚLTIMO passo | `tools/battery.mjs` (corrigido 2026-11-13) | cenário de três passos podia reprovar no segundo e ser reportado OK. Achado ao escrever o portão F3, e a reprovação escondida era real — ver §3b. Agora todo passo que devolve veredito conta |
 
 ## 4b. Achados da pesquisa de arquitetura (2026-11-12)
 
@@ -95,15 +169,26 @@ da MAIA foram conferidas no disco e confirmadas. O que **não** fechou:
 
 | # | Em aberto | Por que não bloqueia | Quem fecha |
 |---|---|---|---|
-| K-A | Licença de redistribuição de trechos da norma BPMN 2.0 da OMG | o lote nasce inteiro em explicação autoral com link oficial, e o build **reprova** trecho literal sem nota de direitos | decisão do dono (ou licença lida), antes de qualquer `verified_excerpt` |
+| K-A | Licença de redistribuição de trechos da norma BPMN 2.0 da OMG | o lote nasce inteiro em explicação autoral com link oficial, e o build **reprova** trecho literal sem nota de direitos | **dono, 2026-11-13: autorizado — "se não for ser um problema pro TCC, podemos usar o trecho literal sim".** É autorização CONDICIONADA, e a condição (a licença permitir) continua sem resposta: por isso o gate de build fica como está. Cada `verified_excerpt` nasce com a nota de direitos que diz em que base foi reproduzido, ou não compila |
 | K-B | Teto do acervo num site estático | a pesquisa estimou 12–18 verbetes sem medir | tarefa 5.1 da change — medimos nós |
 | K-C | Recuperação lexical em pergunta ambígua | caminho (índice estático) confirmado; eficácia não | tarefa 5.2 — dez perguntas escritas antes de ver o resultado |
 | K-D | Corrida nova do pipeline OKF da MAIA | o acervo do BPMN é Markdown escrito à mão e validado no nosso build | não depende de nós |
-| K-E | Frente acadêmica: modalidade do TCC, prazos da disciplina, exigências do orientador, ABNT validada | o software é a parte prática e segue sem isso | **o dono com o orientador** — change própria, não esta |
+| K-E | Frente acadêmica: modalidade do TCC, prazos da disciplina, exigências do orientador, ABNT validada | o software é a parte prática e segue sem isso | **o dono com o orientador — contato em andamento (2026-11-13)**. A change acadêmica espera a resposta dele; nada no software espera |
 
 > Concluir atividade em portal, receber avaliação de uma IA ou fechar roteiro de pesquisa **não é
 > aprovação acadêmica**. Essa autoridade é do orientador e da instituição — a pesquisa disse
 > isso sem ser perguntada, e fica escrito aqui.
+
+## 4d. O que o dono estacionou, de propósito (2026-11-13)
+
+Perguntado sobre as quatro decisões abertas, o dono fechou duas (K-A e K-E, acima) e **estacionou
+as outras duas**. Fica escrito porque "ninguém decidiu" e "foi decidido deixar para depois" são
+coisas diferentes, e só a segunda é verdade aqui:
+
+| Item | Palavra do dono | O que isso significa na prática |
+|---|---|---|
+| Publicação definitiva (D1–D5: domínio, DNS, secrets, ambiente `production`, rollback) | *"isso não precisamos agora mas vamos ir vendo"* | o site segue no endereço provisório, que já serve o orientador; os cinco itens continuam em §1, sem pressa e sem sumir |
+| Memória durável entre visitas | *"também podemos ir vendo"* | a memória continua morrendo com a aba, por escolha; o aviso de privacidade atual continua verdadeiro, e nada precisa ser reescrito agora |
 
 ## 5. Decisões conscientes que continuam valendo
 
