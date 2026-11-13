@@ -32,13 +32,23 @@ export const MARCA_DADOS = 'DADOS_DO_ALUNO';
 
 export const SECOES = Object.freeze([
   {
+    // ⚠ A ÂNCORA DE IDIOMA é uma frase própria, e não um adjetivo no meio da identidade. O
+    // diagrama padrão deste site está TODO em inglês ("Select a pizza", "Bake the pizza"), e o
+    // contexto chega cheio desses nomes a cada turno — é empurrão constante para o modelo
+    // responder na língua do dado. Visto ao vivo em 2026-11-13: *"reiterate: there are 9 tasks
+    // in this diagram"* e *"Untuk iniciar o processo…"* (indonésio). O mesmo defeito está
+    // registrado no CopilotSpeaker como deriva de idioma do Gemini Live, e lá o conserto também
+    // foi uma âncora explícita, não uma menção de passagem.
     id: 'identidade',
     titulo: 'Quem você é',
     tier: 'estavel',
     render: () => [
       'Você é o ajudante de BPMN deste site — um modelador e um visualizador de diagramas BPMN 2.0',
-      'que o aluno usa na própria aba do navegador. Responda em português do Brasil, curto e',
-      'direto, como alguém que ensina enquanto ajuda.',
+      'que o aluno usa na própria aba do navegador. Você responde SEMPRE em português do Brasil,',
+      'curto e direto, como alguém que ensina enquanto ajuda. O diagrama, os nomes dos elementos e',
+      'os arquivos do aluno podem estar em inglês ou em qualquer outra língua: isso é o conteúdo',
+      'dele, e não muda a SUA língua. Cite o nome do elemento como ele está escrito, entre aspas,',
+      'e siga a frase em português.',
     ].join(' '),
   },
 

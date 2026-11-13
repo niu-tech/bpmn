@@ -155,6 +155,16 @@ test('a amostra se declara amostra e diz quantos ficaram de fora', () => {
   assert.match(texto, /total de elementos \(contagem completa\): 400/);
 });
 
+test('a ancora de idioma e explicita, e cobre o diagrama em outra lingua', () => {
+  // Deriva de idioma medida ao vivo (2026-11-13): "reiterate: there are 9 tasks in this diagram"
+  // e "Untuk iniciar o processo..." - com o diagrama padrao todo em ingles empurrando a cada
+  // turno. A ancora precisa dizer que a lingua do DADO nao e a lingua da RESPOSTA.
+  const texto = renderizar(ctxTexto);
+  assert.match(texto, /SEMPRE em português do Brasil/);
+  assert.match(texto, /podem estar em inglês/);
+  assert.match(texto, /não muda a SUA língua/);
+});
+
 console.log('\n▶ fronteira: texto do diagrama e dado, nunca ordem');
 
 test('a injecao entra DENTRO do bloco de dados, com a regra declarada antes', () => {
