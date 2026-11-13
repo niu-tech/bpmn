@@ -21,13 +21,15 @@ function fakeLive() {
     const s = {
       opts,
       enviados: [],
+      turnos: 0,
       setups: 0,
       fechada: false,
       audioEncerrado: false,
       get state() { return state; },
       get lastUsage() { return null; },
       start() { state = 'connecting'; opts.onState?.({ state, reason: null }); },
-      ask(t, ctx = null) { s.enviados.push({ tipo: 'texto', t, ctx }); },
+      // Como a sessao de verdade: devolve a identidade do turno.
+      ask(t, ctx = null) { s.enviados.push({ tipo: 'texto', t, ctx }); return ++s.turnos; },
       // F3: o contexto viaja por fora do `setup`. O dublê registra os dois frames para o teste
       // poder perguntar O QUE o modelo recebeu, e não só se a chamada aconteceu.
       enviarContexto(texto) { s.enviados.push({ tipo: 'contexto', t: texto }); return true; },
@@ -594,6 +596,40 @@ await (async () => {
     live.ultima.pronta();
     await session.switchMode('voz');
     assert.equal(live.ultima.enviados.filter((e) => e.tipo === 'historico').length, 0);
+  });
+
+  await testAsync('T9: texto ATRASADO volta para a bolha do turno dele', async () => {
+    // Visto ao vivo nos portoes F3 e F5 (2026-11-13): o fim da resposta anterior chegava depois
+    // que a pergunta seguinte ja tinha sido enviada, virava bolha nova carimbada com o turno
+    // recem-aberto, e o teste - e o aluno - liam aquilo como a resposta da pergunta nova.
+    const { session, live } = montar();
+    await session.connect('texto');
+    live.ultima.pronta();
+
+    session.ask('quantas tarefas?');          // turno 1 na sessao
+    live.ultima.texto('O diagrama tem 9 tarefas.', { turno: 1 });
+    session.ask('o que e isto?');             // turno 2
+    // ... e so AGORA chega o resto do turno 1.
+    live.ultima.texto('O diagrama tem 9 tarefas. Posso detalhar cada uma.', { turno: 1 });
+
+    const respostas = session.messages.filter((m) => m.role === 'assistant');
+    assert.equal(respostas.length, 1, 'o atrasado nao pode virar bolha nova');
+    assert.match(respostas[0].text, /Posso detalhar/, 'ele atualiza a bolha de onde saiu');
+    assert.equal(respostas[0].turn, session.messages.find((m) => m.text === 'quantas tarefas?').turn);
+  });
+
+  await testAsync('pergunta e resposta carregam o MESMO numero de turno', async () => {
+    const { session, live } = montar();
+    await session.connect('texto');
+    live.ultima.pronta();
+    session.ask('primeira?');
+    live.ultima.texto('resposta um', { turno: 1 });
+    session.ask('segunda?');
+    live.ultima.texto('resposta dois', { turno: 2 });
+
+    const porTurno = (n) => session.messages.filter((m) => m.turn === n).map((m) => m.text);
+    assert.deepEqual(porTurno(1), ['primeira?', 'resposta um']);
+    assert.deepEqual(porTurno(2), ['segunda?', 'resposta dois']);
   });
 
   await testAsync('no modo TEXTO a legenda do audio nao suja a resposta', async () => {

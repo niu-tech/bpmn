@@ -79,6 +79,17 @@ export function createSession({
   let closedByUs = false;
   const turns = [];            // histórico de turnos concluídos, para diagnóstico
   let turn = null;
+  let seqTurno = 0;            // identidade do turno DENTRO desta sessão (1, 2, 3…)
+  /**
+   * O turno que o aluno atropelou perguntando por cima, e que o servidor ainda vai terminar.
+   *
+   * ⚠ Existe porque o Live NÃO carimba turno no frame. Quando uma pergunta nova entra com o
+   * turno anterior ainda aberto, o servidor termina o anterior ANTES de começar o novo — então
+   * tudo que chega até o próximo `turnComplete` pertence ao velho. Sem essa regra, o fim da
+   * resposta anterior era carimbado com o turno novo e aparecia como resposta à pergunta nova
+   * (dívida T9: *"…para responder dúvidas sobre o seu diagrama"* respondendo outra coisa).
+   */
+  let pendente = null;
   let resumptionHandle = null; // alça de retomada que o servidor manda; não usada ainda
   let lastUsage = null;
   let setupsAceitos = 0;       // quantos setups o servidor ja aceitou nesta sessao (reconexao > 1)        // contagem de tokens do último turno (custo é a cota do aluno)
@@ -160,23 +171,36 @@ export function createSession({
   }
 
   function beginTurn(kind, prompt) {
-    turn = { kind, prompt, text: '', spoken: '', delivered: false, audioFrames: 0, complete: false };
+    // Perguntar por cima não apaga o turno anterior: ele vira `pendente` e continua recebendo o
+    // que o servidor ainda mandar, até o `turnComplete` que o fecha.
+    if (turn && !turn.complete) {
+      if (pendente) encerrarTurno(pendente, false);   // dois atropelos seguidos: fecha o mais velho
+      pendente = turn;
+      ev('state', 'turno-atropelado', `n=${turn.n}`);
+    }
+    turn = { n: ++seqTurno, kind, prompt, text: '', spoken: '', delivered: false, audioFrames: 0, complete: false };
     armTurnTimer();
     return turn;
   }
 
-  function endTurn(idle) {
-    if (!turn) return;
-    turn.complete = true;
+  /** De quem é o frame que acabou de chegar: do atropelado, enquanto ele não fecha. */
+  function dono() {
+    return pendente ?? turn;
+  }
+
+  function encerrarTurno(alvo, idle) {
+    if (!alvo) return;
+    alvo.complete = true;
+    const turn = alvo;   // o corpo abaixo fala do turno que está fechando, não do atual
     // Fallback: turno que termina sem chamada de entrega usa a transcrição da fala, e o registro
     // DIZ que foi fallback. JSON falado não sobrevive à transcrição, então isto é degradação
     // conhecida, não equivalência.
     if (!turn.delivered && turn.spoken) {
       turn.text = turn.spoken;
       turn.fallback = true;
-      onText?.({ text: turn.text, fallback: true, complete: true });
+      onText?.({ text: turn.text, fallback: true, complete: true, turno: turn.n });
     } else if (turn.delivered) {
-      onText?.({ text: turn.text, fallback: false, complete: true });
+      onText?.({ text: turn.text, fallback: false, complete: true, turno: turn.n });
     } else {
       // Nem entrega nem fala: turno vazio. Não inventar resposta — mas AVISAR.
       //
@@ -186,14 +210,31 @@ export function createSession({
       // bolha nenhuma. Silêncio é pior que resposta feia: o aluno não sabe se perguntou errado,
       // se travou, ou se a cota acabou.
       turn.empty = true;
-      if (!turn.usouFerramenta) onText?.({ text: '', fallback: true, complete: true, vazio: true });
+      if (!turn.usouFerramenta) onText?.({ text: '', fallback: true, complete: true, vazio: true, turno: turn.n });
     }
     turn.idle = idle;
     turn.usage = lastUsage;
     turns.push(turn);
-    turn = null;
     if (turnTimer) { clock.clearTimeout(turnTimer); turnTimer = null; }
     setState('ready');
+  }
+
+  /**
+   * Fecha o turno certo. O PRIMEIRO `turnComplete` depois de uma pergunta por cima fecha o
+   * ATROPELADO — o servidor termina o anterior antes de começar o novo —, e o seguinte fecha o
+   * atual. É a única pista de fronteira que o protocolo dá.
+   */
+  function endTurn(idle) {
+    if (pendente) {
+      const alvo = pendente;
+      pendente = null;
+      encerrarTurno(alvo, idle);
+      return;
+    }
+    if (!turn) return;
+    const alvo = turn;
+    turn = null;
+    encerrarTurno(alvo, idle);
   }
 
   function handleFrame(raw) {
@@ -219,17 +260,19 @@ export function createSession({
         setupsAceitos++;
         return;
 
-      case 'audio':
-        if (turn) turn.audioFrames++;
+      case 'audio': {
+        const alvo = dono();
+        if (alvo) alvo.audioFrames++;
         setState('speaking');
         armTurnTimer();
         onAudio?.(frame.pcm16Base64);
         // O mesmo frame costuma trazer a legenda junto; sem isto ela se perdia.
         if (frame.text) {
-          if (turn) turn.spoken += frame.text;
-          onTranscript?.({ side: 'output', text: frame.text });
+          if (alvo) alvo.spoken += frame.text;
+          onTranscript?.({ side: 'output', text: frame.text, turno: alvo?.n ?? null });
         }
         return;
+      }
 
       case 'noop':
       case 'generation-complete':
@@ -247,27 +290,31 @@ export function createSession({
         return;
 
       case 'input-text':
-        onTranscript?.({ side: 'input', text: frame.text });
+        // A fala do aluno é do turno NOVO: é ela que o abre. Nunca do atropelado.
+        onTranscript?.({ side: 'input', text: frame.text, turno: turn?.n ?? null });
         armTurnTimer();
         return;
 
-      case 'output-text':
-        if (turn) turn.spoken += frame.text;
-        onTranscript?.({ side: 'output', text: frame.text });
+      case 'output-text': {
+        const alvo = dono();
+        if (alvo) alvo.spoken += frame.text;
+        onTranscript?.({ side: 'output', text: frame.text, turno: alvo?.n ?? null });
         armTurnTimer();
         return;
+      }
 
       case 'tool-call': {
         // Responder é OBRIGATÓRIO, inclusive para chamada recusada ou repetida: sem a resposta o
         // turno fica pendurado e o pedido seguinte cai no meio dele. O que mudou é QUANDO e COM
         // O QUÊ — a resposta agora carrega o resultado real.
         if (frame.delivery !== null && frame.delivery !== undefined) {
-          if (turn?.delivered) {
+          const alvo = dono();
+          if (alvo?.delivered) {
             log('entrega repetida ignorada');
-          } else if (turn) {
-            turn.delivered = true;
-            turn.text = frame.delivery;
-            onText?.({ text: frame.delivery, fallback: false, complete: false });
+          } else if (alvo) {
+            alvo.delivered = true;
+            alvo.text = frame.delivery;
+            onText?.({ text: frame.delivery, fallback: false, complete: false, turno: alvo.n });
           }
         }
 
@@ -288,7 +335,7 @@ export function createSession({
         // meio. Medido no gate 4.3 (2026-11-13): a voz chamou `descrever_diagrama`, o turno
         // fechou em 7,8 s, e a resposta falada veio no turno seguinte, aos 9 s — com o aviso de
         // "o modelo encerrou sem responder" plantado no meio, assustando à toa.
-        if (turn) turn.usouFerramenta = true;
+        { const alvo = dono(); if (alvo) alvo.usouFerramenta = true; }
         const despacho = dispatcher
           ? dispatcher.despachar(acoes)
           : Promise.resolve(acoes.map((c) => ({ id: c.id, name: c.name, response: { ok: false, erro: 'ferramenta_nao_roteada' } })));
@@ -309,11 +356,15 @@ export function createSession({
         return;
       }
 
-      case 'interrupted':
-        if (turn) turn.interrupted = true;
+      case 'interrupted': {
+        // Interrupção fecha o atropelado: foi ele que o servidor cortou para atender o novo.
+        const alvo = dono();
+        if (alvo) alvo.interrupted = true;
+        if (pendente) { const p = pendente; pendente = null; encerrarTurno(p, false); }
         onInterrupted?.();
         setState('ready');
         return;
+      }
 
       case 'turn-complete':
         // `idle=false` é só o enchimento ("vou pensar…"): ainda vem geração nova. Fechar aqui
@@ -456,11 +507,13 @@ export function createSession({
      * Daí a forma atual: o transporte provado, com o contexto dentro do texto.
      */
     ask(text, contexto = null) {
-      beginTurn('text', text);
+      const meu = beginTurn('text', text);
       setState('listening');
       const ctx = typeof contexto === 'string' ? contexto.trim() : '';
       // Contexto e pergunta no MESMO frame, pelo MESMO transporte de sempre.
       send(buildTextTurn(ctx && !ctx.includes(MARCA_XML) ? `${ctx}\n\n[fim do contexto]\n\nPergunta do aluno: ${text}` : text));
+      // Devolve a identidade do turno: é com ela que a conversa casa pergunta e resposta.
+      return meu.n;
     },
 
     /**
@@ -521,6 +574,7 @@ export function createSession({
     pushAudio(pcm16Base64) {
       if (!turn) beginTurn('voice', null);
       send(buildAudioChunk(pcm16Base64));
+      return turn.n;
     },
 
     /**

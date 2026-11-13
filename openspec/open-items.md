@@ -189,6 +189,38 @@ o contrário do design.
 > medidor. Nenhuma era comportamento errado do agente. Isso não torna o 11 de 17 um 17 de 17 —
 > torna o número legível, que é o mínimo que um relatório precisa ser.
 
+## 3d. T9, fechado: o turno ganhou identidade (2026-11-13)
+
+O defeito, em uma frase: **perguntar enquanto o turno anterior ainda produzia saída fazia o
+pedaço que chegava depois virar bolha nova, carimbada com o turno recém-aberto** — e ser lido,
+pelo teste e pelo aluno, como a resposta da pergunta nova. Apareceu três vezes, sempre com a
+mesma cara: *"9 tarefas."* respondendo *"o que é isto?"*; *"…para responder dúvidas sobre o seu
+diagrama"* (fim de uma recusa) respondendo outra coisa; *"specialized in BPMN 2.0 and your open
+diagram."* idem.
+
+A causa é que o Live **não carimba turno no frame**, e nós carimbávamos no momento do `push`,
+com o contador de agora. Duas peças consertam isso:
+
+**1. O turno tem identidade.** Cada turno da sessão ganha um número (`n`), e todo callback —
+texto, legenda, entrega, turno vazio — carrega o turno a que pertence.
+
+**2. Existe fronteira, e ela vem da ordem.** O servidor termina o turno anterior ANTES de começar
+o novo, então tudo que chega até o próximo `turnComplete` pertence ao **atropelado**. Perguntar
+por cima não apaga mais o turno anterior: ele vira `pendente`, continua recebendo o que ainda
+vier, e o primeiro `turnComplete` fecha **ele**, não o novo.
+
+No gerente, a bolha deixou de ser "a bolha do turno atual" e passou a ser procurada **pelo
+turno**. A variável `currentTurn` — que era o nome da ideia errada — foi removida inteira. Como a
+numeração da sessão recomeça a cada reconexão e a cada troca de modo, um mapa liga identidade de
+sessão a número de conversa; é ele que faz a bolha ser reencontrada mesmo depois de o socket cair.
+
+Efeito colateral bom: pergunta e resposta passaram a carregar o MESMO número de turno, e foi isso
+que permitiu a bateria casar uma com a outra em vez de adivinhar pela posição na lista.
+
+Provado em `__tests__/session-manager.mjs` (o atrasado atualiza a bolha de onde saiu, e não cria
+outra) e em `spike/__tests__/session.mjs` (o frame posterior à pergunta nova pertence ao turno
+atropelado até o `turnComplete`, e ao novo depois dele).
+
 ## 4. Dívidas que eu mesmo deixei
 
 | # | Item | Onde | Nota |
@@ -198,7 +230,6 @@ o contrário do design.
 | T3 | Sem cenário para o **viewer** na bateria além de carregar | `tools/battery.mjs` | a simulação em lote com o painel aberto só foi verificada à mão, no P2 |
 | T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | o roteiro continua válido para humano, mas a bateria cobre o essencial |
 | T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | o runner tem Chrome; falta decidir se o custo de minutos compensa |
-| T9 | Texto atrasado do turno anterior é carimbado com o turno NOVO | `session-manager.js` (`onText`) | perguntar enquanto o turno anterior ainda produz saída faz um pedaço da resposta velha chegar depois, virar bolha nova e levar o número do turno recém-aberto. Visto no portão F5 (2026-11-13): o fim da recusa — *"…para responder dúvidas sobre o seu diagrama"* — apareceu como resposta à pergunta seguinte. O Live não correlaciona turno no frame, então o conserto honesto é do lado do produto (enfileirar a pergunta até o turno fechar, sem quebrar o barge-in da voz) e ainda não foi feito; a bateria, por ora, espera o turno fechar antes de perguntar de novo |
 | T8 | O veredito da bateria olhava só o ÚLTIMO passo | `tools/battery.mjs` (corrigido 2026-11-13) | cenário de três passos podia reprovar no segundo e ser reportado OK. Achado ao escrever o portão F3, e a reprovação escondida era real — ver §3b. Agora todo passo que devolve veredito conta |
 
 ## 4b. Achados da pesquisa de arquitetura (2026-11-12)

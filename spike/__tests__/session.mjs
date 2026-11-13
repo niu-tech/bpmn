@@ -144,6 +144,31 @@ test('turno sem entrega usa a transcricao como FALLBACK, e diz que e fallback', 
   assert.equal(session.turns.at(-1).fallback, true);
 });
 
+test('T9: frame que chega depois da pergunta nova pertence ao turno ATROPELADO', () => {
+  // O Live nao carimba turno no frame. A unica pista de fronteira e a ordem: o servidor termina
+  // o turno anterior ANTES de comecar o novo, entao tudo que chega ate o proximo turnComplete e
+  // do velho. Sem esta regra, o fim de uma resposta vira a resposta da pergunta seguinte.
+  const { session, ws, texts } = ready();
+  const t1 = session.ask('quantas tarefas?');
+  const t2 = session.ask('o que e isto?');          // perguntou por cima
+  assert.equal(t1, 1);
+  assert.equal(t2, 2);
+
+  ws.emit({ toolCall: { functionCalls: [{ id: 'd1', name: DELIVERY_TOOL, args: { texto: 'tem 9 tarefas' } }] } });
+  assert.equal(texts.at(-1).turno, 1, 'o texto atrasado e do turno 1');
+
+  ws.emit({ serverContent: { turnComplete: true } });   // fecha o ATROPELADO
+  ws.emit({ toolCall: { functionCalls: [{ id: 'd2', name: DELIVERY_TOOL, args: { texto: 'e uma tarefa' } }] } });
+  assert.equal(texts.at(-1).turno, 2, 'depois do fecho, o frame e do turno novo');
+});
+
+test('cada turno da sessao tem identidade propria e crescente', () => {
+  const { session } = ready();
+  assert.equal(session.ask('a'), 1);
+  assert.equal(session.ask('b'), 2);
+  assert.equal(session.ask('c'), 3);
+});
+
 test('turno que EXECUTOU ferramenta e fechou calado NAO e turno vazio', () => {
   // Medido no gate 4.3 (2026-11-13): a voz chamou `descrever_diagrama`, o turno fechou sem fala
   // e a resposta veio no turno SEGUINTE. O aviso de "encerrou sem responder" no meio disso e

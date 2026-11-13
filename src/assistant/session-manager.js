@@ -104,7 +104,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let interrupcoesSeguidas = 0;
   let relogioDeSom = null;
   let turnSeq = 0;
-  let currentTurn = null;
+  /**
+   * Identidade do turno DA SESSÃO -> número do turno NA CONVERSA.
+   *
+   * ⚠ São numerações diferentes de propósito. A sessão recomeça do 1 a cada reconexão e a cada
+   * troca de modo; a conversa na tela não recomeça. O mapa é o que liga as duas — e é ele que
+   * faz um texto atrasado voltar para a bolha de onde ele saiu, em vez de virar resposta da
+   * pergunta seguinte (dívida T9).
+   */
+  let turnoDaSessao = new Map();
   let teardownInFlight = null;
 
   /**
@@ -143,6 +151,24 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     messages: messages.slice(),
   });
 
+  /**
+   * O número deste turno na conversa. Turno novo da sessão ganha o próximo número; turno já
+   * visto devolve o mesmo de antes — é isso que faz a bolha ser reencontrada.
+   */
+  function turnoLocal(nDaSessao) {
+    if (nDaSessao === null || nDaSessao === undefined) return turnSeq;
+    if (!turnoDaSessao.has(nDaSessao)) turnoDaSessao.set(nDaSessao, ++turnSeq);
+    return turnoDaSessao.get(nDaSessao);
+  }
+
+  /** A bolha do assistente DAQUELE turno, se já existir. */
+  function bolhaDoTurno(n) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant' && messages[i].turn === n) return messages[i];
+    }
+    return null;
+  }
+
   function push(entry) {
     messages.push({ id: messages.length + 1, at: Date.now(), ...entry });
     publish();
@@ -171,7 +197,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     const micRef = mic;
     const speakerRef = speaker;
     session = null; mic = null; speaker = null; speakerEmVoo = null;
-    micOn = false; level = 0; currentTurn = null;
+    micOn = false; level = 0;
 
     if (relogioDeSom) { clearInterval(relogioDeSom); relogioDeSom = null; }
 
@@ -349,6 +375,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   function openSession(targetMode) {
     const apiKey = credentials.use();
     const ctxInicial = contextoAtual(targetMode);
+    // Sessão nova numera do 1 de novo: o mapa não pode atravessar.
+    turnoDaSessao = new Map();
     session = sessionFactory({
       apiKey,
       dispatcher: criarDespachante(),
@@ -388,7 +416,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
       onEvent: (src, kind, detail) => diag.record(src, kind, detail),
       onLog: (m) => { if (deps.debug) note(m, 'debug'); },
-      onText: ({ text: cru, fallback, complete, vazio }) => {
+      onText: ({ text: cru, fallback, complete, vazio, turno }) => {
         // Turno que terminou sem nada utilizável: diga isso, em vez de deixar a tela muda.
         if (vazio) {
           note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
@@ -401,20 +429,25 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         if (complete && fallback && mode === 'voz') return;
         const text = fallback ? limparLegenda(cru).trim() : cru;
         if (!text) return;
-        if (currentTurn && currentTurn.role === 'assistant') {
-          currentTurn.text = text;
-          currentTurn.fallback = Boolean(fallback);
+        // ⚠ A bolha é procurada pelo TURNO, não por "qual era o turno atual". Texto atrasado do
+        // turno anterior volta para a bolha dele; sem isto, virava bolha nova carimbada com o
+        // turno recém-aberto e lida como resposta da pergunta nova (T9).
+        const n = turnoLocal(turno);
+        const bolha = bolhaDoTurno(n);
+        if (bolha) {
+          bolha.text = text;
+          bolha.fallback = Boolean(fallback);
           publish();
         } else {
-          currentTurn = push({ role: 'assistant', text, fallback: Boolean(fallback), turn: turnSeq });
+          push({ role: 'assistant', text, fallback: Boolean(fallback), turn: n });
         }
       },
-      onTranscript: ({ side, text }) => {
+      onTranscript: ({ side, text, turno }) => {
         if (!text) return;
         if (side === 'input') {
           // Houve fala de verdade: o que veio antes não era laço de eco.
           interrupcoesSeguidas = 0;
-          push({ role: 'user', text, via: 'voz', turn: turnSeq });
+          push({ role: 'user', text, via: 'voz', turn: turnoLocal(turno) });
           return;
         }
         // ⚠ Legenda é coisa do modo VOZ. No modo texto a resposta vem pelos argumentos de
@@ -426,11 +459,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // Legenda da fala: um turno, uma bolha que cresce — sem as marcas de não-fala.
         const limpo = limparLegenda(text);
         if (!limpo.trim()) return;
-        if (currentTurn && currentTurn.role === 'assistant' && currentTurn.turn === turnSeq) {
-          currentTurn.text += limpo;
+        const n = turnoLocal(turno);
+        const bolha = bolhaDoTurno(n);
+        if (bolha) {
+          bolha.text += limpo;
           publish();
         } else {
-          currentTurn = push({ role: 'assistant', text: limpo, fallback: true, turn: turnSeq });
+          push({ role: 'assistant', text: limpo, fallback: true, turn: n });
         }
       },
       onAudio: async (b64) => {
@@ -618,15 +653,19 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         note('conecte antes de perguntar.', 'error');
         return false;
       }
-      turnSeq++;
-      currentTurn = null;
       // O que mudou na tela vai JUNTO com a pergunta, no mesmo frame: perguntar "o que é isto?"
       // com a seleção chegando em outro frame é perguntar sobre o elemento anterior — e foi
       // exatamente o que aconteceu ao vivo até 2026-11-13.
       const delta = calcularDelta();
       if (delta) diag.state('contexto', `com a pergunta, delta=${delta.length}b`);
-      push({ role: 'user', text: q, via: 'texto', turn: turnSeq });
-      session.ask(q, delta);
+      // A sessão devolve a identidade do turno; o mapa dá o número desta conversa. Pergunta e
+      // resposta passam a carregar o MESMO número, que é o que permite casar uma com a outra.
+      // Sessao que nao devolve identidade (duble antigo, implementacao futura) ainda conta um
+      // turno: o numero e nosso, e perder a contagem quebraria desde o aviso de troca de modo
+      // ate a origem do que o modelo mandar guardar.
+      const daSessao = session.ask(q, delta);
+      const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);
+      push({ role: 'user', text: q, via: 'texto', turn: n });
       return true;
     },
 
@@ -643,7 +682,6 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       try {
         await (await ensureSpeaker()).resume();   // o mesmo gesto libera o alto-falante
         turnSeq++;
-        currentTurn = null;
         // Abrir o microfone é começar um turno: o estado da tela tem de chegar antes da fala.
         atualizarContexto();
         diag.mic('open');
