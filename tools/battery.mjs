@@ -492,7 +492,18 @@ if (chaveViva) {
        // (a bolha cresce enquanto a resposta chega).
        window.__resposta = async (pergunta) => {
          const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-         const antes = bolhas().at(-1) ?? '';
+         // O app FALA quando algo deu errado ("nao deu: a cota da sua chave acabou..."). Esperar
+         // 70s por uma resposta que o proprio produto ja disse que nao vem e transformar um erro
+         // nomeado em "respondeu: ''" — que parece defeito do agente e e falta de cota.
+         const erroNaTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
+           .map((m) => m.textContent.trim())
+           .find((x) => /^n[aã]o deu:/i.test(x));
+         const erroAntes = erroNaTela();
+         // Conta BOLHAS, nao compara texto. A bolha anterior ainda muda depois de "pronta": o
+         // fechamento do turno reescreve o texto com o valor final da entrega, e "O diagrama tem
+         // 9 tarefas." virou "9 tarefas." DEPOIS que o passo anterior terminou - o passo seguinte
+         // leu essa reescrita como se fosse a resposta dele. Cada pergunta cria uma bolha nova.
+         const quantasAntes = bolhas().length;
          const ta = document.querySelector('.bpmn-assist__composer textarea');
          ta.value = pergunta;
          window.__btn('Enviar').click();
@@ -502,8 +513,16 @@ if (chaveViva) {
          // latencia do servidor em reprovacao do produto.
          for (let i = 0; i < 140; i++) {
            await new Promise((r) => setTimeout(r, 500));
-           const atual = bolhas().at(-1) ?? '';
-           if (atual && atual !== antes && atual.length > 15) {
+           const erro = erroNaTela();
+           if (erro && erro !== erroAntes) return '[FALHA DO SERVICO] ' + erro;
+           const lista = bolhas();
+           if (lista.length <= quantasAntes) continue;
+           const atual = lista.at(-1) ?? '';
+           // ⚠ Sem teto minimo de tamanho. Havia um corte em 15 caracteres, e o passo da
+           // contagem pede "responda com o numero": o agente respondeu 9 e o teste descartou
+           // a resposta certa por ser curta demais. Criterio de teste que recusa a resposta
+           // ideal e pior que teste nenhum.
+           if (atual) {
              // TRES leituras iguais (1,5s parado). Com duas, a pausa natural do meio da
              // resposta era lida como fim e o teste julgava meia frase ("Tem mais alguma
              // duvida sobre") - reprovando o produto por impaciencia do teste.
@@ -513,6 +532,10 @@ if (chaveViva) {
          }
          return anterior ?? '';
        };
+       // O que ESTAVA na tela, para quando a captura volta vazia. Sem isto, "respondeu: ''" pode
+       // ser o app mudo ou o laco impaciente, e as duas coisas exigem consertos opostos.
+       window.__naTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
+         .map((m) => (m.className.match(/--(\w+)/)?.[1] ?? '?') + ': ' + m.textContent.trim().slice(0, 120));
        document.querySelector('.bpmn-assist__toggle').click();
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
@@ -548,6 +571,7 @@ if (chaveViva) {
          contagemReal: esperado,
          respondeu: resposta.slice(0, 200),
          bateu: bateuEmDigito ? 'digito' : (bateuPorExtenso ? 'por extenso' : 'NAO'),
+         naTela: resposta ? undefined : window.__naTela(),
        };`,
 
       `// Metade 2 do portao: com um elemento SELECIONADO, "o que e isto?" fala DAQUELE elemento.
@@ -567,12 +591,15 @@ if (chaveViva) {
 
        const resposta = await window.__resposta('O que e isto que eu selecionei?');
        const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-       const citou = limpo(resposta).includes(limpo(alvo.nome));
+       // Nome OU id: os dois identificam AQUELE elemento. O que nao vale e a resposta generica
+       // ("isto e uma tarefa"), que serviria para qualquer tarefa do diagrama.
+       const citou = limpo(resposta).includes(limpo(alvo.nome)) || resposta.includes(alvo.id);
        return {
          ok: resposta.length > 15 && citou,
          selecionado: alvo.nome + ' [' + alvo.id + ']',
          citouOElemento: citou,
          respondeu: resposta.slice(0, 220),
+         naTela: resposta ? undefined : window.__naTela(),
        };`,
     ],
   });

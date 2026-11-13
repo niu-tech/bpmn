@@ -44,11 +44,15 @@ export function montarQuadro(ctx, cabecalho = CABECALHO) {
  *                                     importante da fase ("o que é isto?")
  * - qualquer outra mudança         -> o quadro inteiro, com cabeçalho dizendo que mudou
  *
- * ⚠ O tamanho aqui é decisão medida, não estilo (2026-11-13). Este texto entra DENTRO da
- * pergunta digitada (ver `session.ask`), e com o quadro inteiro embutido — ~1,5 KB — o modelo
- * passou a fechar o turno **sem responder nada**, repetidamente, enquanto a mesma sessão
- * respondia a pergunta curta anterior. O retrato completo já foi semeado na conexão; o turno só
- * precisa carregar a diferença.
+ * ⚠ Por que curto: o retrato completo já foi semeado na conexão, então o turno só precisa
+ * carregar a diferença — e a diferença mais comum (a seleção) é uma linha. Economia simples.
+ *
+ * ⚠ **Correção do registro (2026-11-13).** Eu havia escrito aqui que o quadro inteiro embutido
+ * fazia o modelo fechar o turno sem responder. Isso **não está provado**: as "respostas vazias"
+ * que me levaram a essa conclusão eram, em boa parte, o laço de captura da bateria descartando
+ * resposta curta (teto de 15 caracteres) e lendo a reescrita da bolha anterior como se fosse a
+ * nova. Consertado o instrumento, o portão passa duas vezes seguidas. O delta curto fica por
+ * ser menor e suficiente, não por uma causa que eu não medi.
  *
  * `anterior` é o contexto do último quadro ENVIADO, ou `null` se ainda não houve nenhum.
  */

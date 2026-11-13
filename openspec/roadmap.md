@@ -115,10 +115,13 @@ quadro de contexto semeado por `clientContent` · delta por turno · nunca o XML
 > colando na resposta (`9<no speech>{pause}`); e o turno sem resposta deixando a tela muda. Os
 > quatro estão em `open-items.md` §3b, com a causa e o conserto.
 >
-> ⚠ **Reprodutibilidade em sequência: NÃO provada.** Depois da corrida verde, rodadas seguidas
-> alternaram entre responder certo e não responder nada — nunca responder errado, sempre com a
-> sessão em `pronto` e a projeção correta. Assinatura de limite de ritmo da chave (~12 sessões
-> ao vivo na mesma hora), igual ao M6 da voz. O comportamento está provado; a cadência, não.
+> ✅ **Reproduzido**: duas corridas verdes seguidas, as duas metades em cada uma. A
+> "instabilidade" que eu havia registrado era **do instrumento**: o laço de captura da bateria
+> exigia resposta com mais de 15 caracteres — e descartava o **9** que o próprio passo pedia —
+> e comparava texto com uma bolha que o fim do turno REESCREVE. Agora ele conta bolhas novas,
+> espera texto estável e falha na hora quando o app diz que algo deu errado. Cota de verdade
+> apareceu uma vez, e dela o app avisa com todas as letras (*"a cota da sua chave acabou ou há
+> sessões demais"*) — agora o teste repete esse aviso em vez de reportar resposta vazia.
 
 Fecha as dívidas **T6** (o diagrama viajava dentro do `setup` imutável) e **T7** (na página, o
 diagrama chegava vazio ao prompt). Fica aberta a tarefa 2.4: medir o teto do `clientContent`.

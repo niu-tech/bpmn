@@ -123,37 +123,42 @@ declarada. O fato medido no P1 ("declarar a função emudece o modelo") vale par
 `realtimeInput.text`, e não para um turno de conteúdo. Está escrito em `protocol.js`, para
 ninguém tentar de novo.
 
-### O veredito do portão, e o que ficou instável
+### O veredito do portão — e a lição que custou mais caro
 
-O portão F3 **passou inteiro numa corrida** (contagem certa *e* elemento certo). Depois disso,
-rodadas seguidas alternaram entre responder certo e **não responder nada** — nunca responder
-errado. Sem erro de socket, sem ruído no console, com a sessão em `pronto` e a projeção correta
-em todas elas. A suspeita é limite de ritmo da chave (foram ~12 sessões ao vivo na mesma hora),
-e é a mesma assinatura do M6 da voz.
+O portão F3 **passou e reproduziu**: duas corridas seguidas, com a contagem certa (*"Este diagrama
+tem 9 tarefas"*) e o elemento certo (*"Você selecionou a tarefa 'Select a pizza'"*).
 
-O que isso significa, dito direito: **o comportamento foi provado; a reprodutibilidade em
-sequência não.** Enquanto a causa não for medida, uma rodada vermelha do portão F3 não é prova de
-regressão — e uma verde, isolada, é a prova que vale.
+Mas o caminho até aqui vale mais registrado que o resultado. Entre a primeira corrida verde e a
+segunda eu passei por uma dezena de rodadas que diziam **"respondeu: ''"**, e tratei isso como
+sintoma do produto: mudei o transporte do contexto três vezes atrás da causa. Quando finalmente
+mandei o teste **imprimir o que estava na tela** em vez de só o que ele conseguiu capturar, a
+resposta apareceu na primeira tentativa — o defeito era do **instrumento**:
 
-**O que mais foi medido tentando estabilizar** (vale para quem continuar, e vale como aviso):
+| O que o laço fazia | O que isso escondia |
+|---|---|
+| exigia resposta com mais de 15 caracteres | o passo pedia *"responda com o número"*, o agente respondeu **9**, e o teste descartou a resposta ideal |
+| comparava o texto da última bolha com o de antes | o fim do turno REESCREVE a bolha com o valor final da entrega; o passo seguinte lia essa reescrita como se fosse a resposta dele |
+| esperava 70 s em silêncio | o app já dizia na tela *"não deu: a cota da sua chave acabou ou há sessões demais"* — erro nomeado virando "resposta vazia" |
 
-- O **tamanho do contexto embutido na pergunta importa**. Com o quadro inteiro (~1,5 KB) dentro
-  do texto da pergunta, o modelo passou a fechar o turno **sem responder nada**, repetidamente,
-  na mesma sessão em que respondia a pergunta curta anterior. O retrato completo já vai no
-  semeador da conexão; o turno leva só a diferença — e com a seleção, essa diferença é uma linha.
-- A **metade da contagem é estável**: *"O diagrama tem 9 tarefas"* saiu certo em todas as últimas
-  rodadas, limpo, sem lixo de legenda.
-- A **metade da seleção oscila** entre a resposta certa (*"Isto é a Task 'Select a pizza'…"*),
-  nenhuma resposta e uma resposta que começa a repetir o turno anterior e trava no meio. Nunca
-  uma resposta errada sobre OUTRO elemento.
-- **Três tentativas de conserto foram medidas e descartadas**, e estão documentadas no código
-  para não voltarem: delta curto em frame separado (corrida), `clientContent` com
-  `turnComplete:true` (o modelo responde falando) e quadro inteiro embutido (turno sem resposta).
+Os três consertos: conta **bolhas novas**, espera o texto ficar **estável**, e **falha na hora**
+repetindo o aviso do app. E todo passo que volta vazio agora grava o que estava na tela.
 
-Próximo passo quando se voltar a isto: medir com a chave descansada, e só então decidir se o que
-falta é cadência de cota ou um invariante do turno que ainda não entendemos. **Não começar
-mexendo no produto** — os três consertos acima já mostraram que o produto responde certo quando
-responde.
+**O que isso obriga a corrigir no que eu já tinha escrito.** Das três hipóteses de produto que
+persegui, duas continuam válidas porque a evidência era CONTEÚDO observado, não ausência:
+
+- a corrida entre o quadro e a pergunta (o agente dizia *"não consigo ver qual elemento"* — e com
+  2 s de espera entre os frames passava a acertar);
+- o `clientContent` com `turnComplete:true` fazendo o modelo responder falando (a bolha recebia
+  `<no speech>{pause}`).
+
+A terceira — *"o quadro inteiro embutido faz o turno não responder"* — **não está provada**: ela
+nasceu das respostas vazias que eram do laço. O delta curto fica por ser menor e suficiente, e o
+comentário em `agent/frame.js` foi reescrito para dizer isso. Hipótese derrubada por instrumento
+ruim não vira fato só porque o conserto que ela motivou funcionou.
+
+> **A regra que fica:** quando o teste disser que não houve resposta, a primeira coisa a fazer é
+> **olhar a tela**, não mexer no produto. Resposta ausente é a afirmação mais fácil de um medidor
+> errar — e a mais cara de acreditar.
 
 ## 4. Dívidas que eu mesmo deixei
 
