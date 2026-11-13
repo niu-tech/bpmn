@@ -31,10 +31,13 @@ node tools/drive-assistant.mjs --mic artifacts/voz/gateway.wav
 # Ler a aba que JA esta aberta no navegador (so leitura; exige --remote-debugging-port=9222)
 node tools/attach-edge.mjs
 
-# BATERIA AUTONOMA: abre o navegador, dirige, verifica e da veredito. 14 cenarios, zero
-# intervencao humana. Dez rodam com o socket DUBLADO (frames reais do protocolo, sem chave); os
-# quatro AO VIVO so entram quando existe um .env com GEMINI_API_KEY, e falam com o Gemini mesmo.
+# BATERIA AUTONOMA: abre o navegador, dirige, verifica e da veredito. 17 cenarios, zero
+# intervencao humana. Nove rodam com o socket DUBLADO (frames reais do protocolo, sem chave); os
+# oito AO VIVO so entram quando existe um .env com GEMINI_API_KEY, e falam com o Gemini mesmo -
+# entre eles os portoes F2 a F5 e o gate da ferramenta na voz.
 # Todo passo que devolve veredito conta para o resultado - nao so o ultimo (corrigido 2026-11-13).
+# A resposta e casada com a PERGUNTA pelo numero do turno, e um aviso de erro do proprio app
+# ("nao deu: a cota da sua chave acabou") interrompe a espera em vez de virar resposta vazia.
 npm run bateria                              # contra o build local servido em :8126
 node tools/battery.mjs https://niu-tech.github.io/bpmn/
 node tools/battery.mjs --ver                 # janela VISIVEL, para acompanhar
