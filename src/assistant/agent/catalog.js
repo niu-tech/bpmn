@@ -7,9 +7,9 @@
 // ⚠ Quem ESCOLHE a ferramenta é o modelo, por function calling. Nunca palavra-chave no nosso
 // código decidindo por ele (constituição §III). Aqui só se declara o que existe e para quem.
 //
-// Esta é a forma MÍNIMA da fase F4: duas ferramentas e uma política por perfil. A F5 traz o
-// catálogo completo com política default-deny declarada, a varredura mecânica contra
-// keyword→tool e os cenários de recusa (tarefas 6.1–6.5 do `tasks.md`).
+// Cada entrada declara o que a ferramenta FAZ (`escreve`) e onde ela vale (`perfis`); quem lê
+// esses campos e decide é `policy.js`. A separação importa: catálogo é o que existe, política é
+// o que está ligado NESTA sessão — e só a segunda muda quando o aluno troca de página ou de modo.
 //
 // ponytail: um array e duas funções. Sem registry, sem decorator, sem plugin.
 
@@ -18,6 +18,8 @@ import { CATEGORIAS } from './memory.js';
 export const FERRAMENTAS = Object.freeze([
   {
     nome: 'lembrar',
+    // Escreve na MEMÓRIA, não no diagrama do aluno: o viewer pode guardar lembrete sem risco.
+    escreve: false,
     // Só o modelo sabe que "responda curto" é preferência e que "meu processo é de atendimento"
     // é fato. Tentar adivinhar isso no código seria classificar intenção por texto — exatamente
     // o que a constituição proíbe.
@@ -50,6 +52,7 @@ export const FERRAMENTAS = Object.freeze([
 
   {
     nome: 'descrever_diagrama',
+    escreve: false,
     // Leitura pura. Existe nesta fase por causa do GATE 4.3: é com ela que se mede se uma sessão
     // de VOZ consegue chamar ferramenta e continuar falando. A versão completa (com busca e
     // detalhe por elemento) é da F6, na change irmã.
@@ -63,18 +66,7 @@ export const FERRAMENTAS = Object.freeze([
   },
 ]);
 
-/**
- * O que é declarado ao modelo neste perfil.
- *
- * ⚠ `viewer` não muda nada AINDA porque as duas ferramentas desta fase são inofensivas numa
- * página que só lê. Quando a escrita existir (F7), é aqui que ela deixa de ser declarada — e o
- * teste do viewer já confere `somenteLeitura` no contexto desde a F2.
- */
-export function ferramentasDoPerfil() {
-  return FERRAMENTAS.map((f) => f.declaracao);
-}
-
-/** Política do despachante: default-deny de verdade — nome fora da lista não executa. */
-export function permitida(nome) {
+/** Existe no catálogo? É só isso — se vale AQUI é pergunta da política (`policy.js`). */
+export function declarada(nome) {
   return FERRAMENTAS.some((f) => f.nome === nome);
 }

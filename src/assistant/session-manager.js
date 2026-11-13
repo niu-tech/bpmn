@@ -16,7 +16,7 @@
 //
 // ponytail: uma fábrica com callbacks, não uma classe com EventEmitter. São seis eventos.
 
-import { permitida } from './agent/catalog.js';
+import { permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
@@ -312,7 +312,11 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    */
   function criarDespachante() {
     return createToolDispatcher({
-      permitido: permitida,
+      // ⚠ A política é consultada A CADA CHAMADA, com o contexto de AGORA. Guardar o resultado
+      // na abertura da sessão faria uma declaração velha valer como autorização depois que o
+      // contexto mudou — e é exatamente assim que uma ferramenta de escrita acabaria rodando
+      // numa página que só lê.
+      permitido: (nome) => permitida(nome, contextoAtual()),
       onEvent: (src, kind, detail) => diag.record(src, kind, detail),
       executores: {
         lembrar: async ({ categoria, texto }) => {

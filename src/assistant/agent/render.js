@@ -16,7 +16,7 @@
 //
 // ponytail: `join('\n\n')` e um `sort` estável. Sem template engine, sem AST de prompt.
 
-import { ferramentasDoPerfil } from './catalog.js';
+import { declaracoesPermitidas } from './policy.js';
 import { MARCA_DADOS, SECOES } from './sections.js';
 
 const ABRE = `<<<${MARCA_DADOS}`;
@@ -103,6 +103,6 @@ export function promptDoPerfil(ctx) {
     // generalizada indevidamente para qualquer declaração (achado P6 da pesquisa de
     // 2026-11-12). O gate 4.3 mede isso ao vivo: se a voz emudecer, o registro é que vira
     // regra — não a suposição.
-    ferramentas: ferramentasDoPerfil(ctx.perfil),
+    ferramentas: declaracoesPermitidas(ctx),
   };
 }

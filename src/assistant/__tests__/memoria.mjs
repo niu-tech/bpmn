@@ -16,7 +16,8 @@
  */
 import assert from 'node:assert/strict';
 
-import { FERRAMENTAS, permitida } from '../agent/catalog.js';
+import { FERRAMENTAS } from '../agent/catalog.js';
+import { permitida } from '../agent/policy.js';
 import { CATEGORIAS, ERROS_MEMORIA, criarMemoria } from '../agent/memory.js';
 import { promptDoPerfil, renderizar } from '../agent/render.js';
 import { resolverContexto } from '../agent/resolve.js';
@@ -116,11 +117,14 @@ test('`lembrar` e DECLARADA, com as categorias no enum', () => {
 });
 
 test('a politica e default-deny: nome fora do catalogo nao passa', () => {
-  assert.equal(permitida('lembrar'), true);
-  assert.equal(permitida('descrever_diagrama'), true);
+  const noModelador = { perfil: 'texto', pagina: 'modelador' };
+  assert.equal(permitida('lembrar', noModelador), true);
+  assert.equal(permitida('descrever_diagrama', noModelador), true);
+  assert.equal(permitida('apagar_tudo', noModelador), false);
+  assert.equal(permitida('', noModelador), false);
+  assert.equal(permitida(undefined, noModelador), false);
+  // Sem contexto nenhum, o default e o caso MAIS restrito - e nao "passa tudo".
   assert.equal(permitida('apagar_tudo'), false);
-  assert.equal(permitida(''), false);
-  assert.equal(permitida(undefined), false);
 });
 
 test('os DOIS perfis declaram as ferramentas; so o texto declara a ENTREGA', () => {
