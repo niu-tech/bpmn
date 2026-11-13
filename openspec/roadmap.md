@@ -32,15 +32,21 @@ de um agente é o defeito mais caro que este produto pode ter.
 Referências, padrão de monografia, fundamentação e metodologia passam a ser trabalho declarado,
 não subproduto. A base é o que já existe no CopilotSpeaker: o acervo da **Alexandria TCC**
 (`docs/wiki/tcc/`, 15 artigos em páginas OKF com citação, localizador e limite de evidência) e a
-conferência de normas da **UFF** (`uff-tcc-guidance.md`). Antes de escrever a change, uma rodada
-de pesquisa dirigida — `pesquisa-tcc-prompt.md`.
+conferência de normas da **UFF** (`uff-tcc-guidance.md`). A rodada de pesquisa dirigida
+(`pesquisa-tcc-prompt.md`) **voltou em 2026-11-12** e entregou um mapeamento parte-acadêmica ×
+material disponível — mas deixou dito que modalidade, prazos e exigências do orientador **não**
+estão confirmados, e que avaliação de IA não é aprovação acadêmica. Vira change própria,
+depois de o dono falar com o orientador (`open-items.md` §4c, K-E).
 
 ### Substituição da decisão 4 — a norma entra por OKF, não por RAG
 
 RAG clássico (embeddings, vetor, servidor) continua fora. No lugar entra o padrão já usado na
 Alexandria: **páginas OKF com trecho citável** + **function calling** para consultar. O agente
 passa a responder sobre BPMN 2.0 **citando a fonte**, em vez de depender da memória do modelo.
-Change: `add-bpmn-norm-knowledge-base` (rascunho, aguardando a rodada de pesquisa).
+Change: `add-bpmn-norm-knowledge-base` — **pesquisa concluída em 2026-11-12**, com design,
+specs e tasks escritos. As oito afirmações dela sobre o acervo da MAIA foram conferidas no
+disco e as oito se confirmaram; das cinco perguntas que bloqueavam, três fecharam e duas
+viraram medição nossa e gate de build (licença da norma e teto do acervo).
 
 ## Onde queremos chegar
 
@@ -137,6 +143,19 @@ quando há escolha · monta em passos que o aluno aceita · propõe sem decidir 
 > ao aceitar, o diagrama ganha início, tarefas e fim ligados; e o agente não mexe no que não foi
 > pedido.
 
+### FK — Conhecimento citável
+Acervo OKF autoral de BPMN servido como arquivo estático · `consultar_norma` escolhida por
+function calling · trecho com localizador e chave de citação · **o aplicativo confere a chave**
+no modo texto · duas fontes declaradas no prompt (acervo × conhecimento geral do modelo).
+
+> **Portão FK** — AO VIVO: *"o que é um gateway exclusivo?"* responde **com a chave de citação**
+> que a ferramenta devolveu; pergunta fora do acervo diz "não está no meu acervo de N verbetes" e
+> **não** "a norma não trata disso"; e uma citação inventada chega ao aluno marcada como não
+> conferida.
+
+Roda depois de F6 — é uma ferramenta de leitura a mais. Não bloqueia F7 nem F8: um tutor sem
+citação é um tutor pior, não um tutor impossível.
+
 ## O mapa das fases nas changes
 
 | Fase | Change | Bloco de tarefas |
@@ -149,6 +168,7 @@ quando há escolha · monta em passos que o aluno aceita · propõe sem decidir 
 | F6 | `add-bpmn-diagram-tools` | 2 (leitura) |
 | F7 | mesma | 3 (escrita) |
 | F8 | `give-bpmn-assistant-an-agent-harness` | spec `bpmn-agent-tutoring`, provada em F8 |
+| FK | `add-bpmn-norm-knowledge-base` | todos (acervo, índice, ferramenta, prompt) |
 
 F8 depende das duas changes: o comportamento de tutor é do prompt (harness), mas só é
 demonstrável com as ferramentas de escrita (tools). Por isso o portão dele é o último.
@@ -158,7 +178,7 @@ demonstrável com as ferramentas de escrita (tools). Por isso o portão dele é 
 | Fora | Razão | Quando reavaliar |
 |---|---|---|
 | Memória durável entre visitas | exige reescrever o aviso de privacidade e pedir consentimento | **no radar do próximo checkpoint**, depois destas etapas |
-| ~~RAG sobre a norma BPMN~~ | **substituído** por base OKF + function calling (decisão do dono, 2026-11-12) | vira `add-bpmn-norm-knowledge-base` |
+| ~~RAG sobre a norma BPMN~~ | **substituído** por base OKF + function calling (decisão do dono, 2026-11-12) | virou `add-bpmn-norm-knowledge-base`, fase **FK** — pesquisa, design, specs e tasks prontos |
 | MCP | não há servidor nosso; as ferramentas são locais à aba | se surgir backend |
 | Motor de skills | procedimento reutilizável só se paga com fluxos repetidos reais | depois de ver o uso |
 | Multiagentes | o produto tem um tutor só | não previsto |

@@ -87,6 +87,24 @@ e **confirmados no nosso código**. Viraram tarefa; ficam aqui até fecharem.
 | P6 | "Declarar ferramenta emudece a voz" era generalização indevida de uma medição estreita | `design.md` H9 | gate 4.3 reescrito |
 | P7 | Recusa de domínio nunca foi testada contra entrada adversarial | — | aberto, sem tarefa ainda |
 
+## 4c. Achados da pesquisa OKF/TCC (2026-11-12)
+
+Rodada de pesquisa `tcc-bpmn-okf-academico-2026-11-12`, registrada em
+`changes/add-bpmn-norm-knowledge-base/research.md`. As oito afirmações verificáveis sobre o acervo
+da MAIA foram conferidas no disco e confirmadas. O que **não** fechou:
+
+| # | Em aberto | Por que não bloqueia | Quem fecha |
+|---|---|---|---|
+| K-A | Licença de redistribuição de trechos da norma BPMN 2.0 da OMG | o lote nasce inteiro em explicação autoral com link oficial, e o build **reprova** trecho literal sem nota de direitos | decisão do dono (ou licença lida), antes de qualquer `verified_excerpt` |
+| K-B | Teto do acervo num site estático | a pesquisa estimou 12–18 verbetes sem medir | tarefa 5.1 da change — medimos nós |
+| K-C | Recuperação lexical em pergunta ambígua | caminho (índice estático) confirmado; eficácia não | tarefa 5.2 — dez perguntas escritas antes de ver o resultado |
+| K-D | Corrida nova do pipeline OKF da MAIA | o acervo do BPMN é Markdown escrito à mão e validado no nosso build | não depende de nós |
+| K-E | Frente acadêmica: modalidade do TCC, prazos da disciplina, exigências do orientador, ABNT validada | o software é a parte prática e segue sem isso | **o dono com o orientador** — change própria, não esta |
+
+> Concluir atividade em portal, receber avaliação de uma IA ou fechar roteiro de pesquisa **não é
+> aprovação acadêmica**. Essa autoridade é do orientador e da instituição — a pesquisa disse
+> isso sem ser perguntada, e fica escrito aqui.
+
 ## 5. Decisões conscientes que continuam valendo
 
 Não são dívidas — são escolhas, registradas para ninguém "consertar" por engano.
