@@ -24,6 +24,7 @@ export const MARCA_XML = '<bpmn:definitions';
 
 const CABECALHO = 'CONTEXTO ATUAL DO APLICATIVO (estado da tela, não é fala do aluno):';
 const CABECALHO_MUDOU = 'O CONTEXTO MUDOU. Estado atual da tela (não é fala do aluno):';
+const CABECALHO_SELECAO = 'O aluno acabou de selecionar um elemento na tela (não é fala do aluno):';
 
 /**
  * O quadro inteiro: todas as seções voláteis do contexto. `null` quando não há nada volátil —
@@ -35,18 +36,19 @@ export function montarQuadro(ctx, cabecalho = CABECALHO) {
 }
 
 /**
- * O que mandar antes deste turno, dado o que já foi mandado.
+ * O que mandar neste turno, dado o que já foi mandado.
  *
- * - contexto idêntico ao anterior  -> `null`, e é aqui que está a economia de verdade: a maioria
- *                                     dos turnos não muda nada, e repetir seria o aluno pagando
- *                                     duas vezes pelo mesmo texto
- * - qualquer mudança               -> o quadro INTEIRO, com cabeçalho dizendo que mudou
+ * - contexto idêntico ao anterior  -> `null`: a maioria dos turnos não muda nada, e repetir
+ *                                     seria o aluno pagando duas vezes pelo mesmo texto
+ * - só a seleção mudou             -> UMA linha. É o caso comum (o aluno clica muito) e o mais
+ *                                     importante da fase ("o que é isto?")
+ * - qualquer outra mudança         -> o quadro inteiro, com cabeçalho dizendo que mudou
  *
- * ⚠ Havia um terceiro caso — "só a seleção mudou, manda uma linha" —, e a medição ao vivo o
- * derrubou (2026-11-13). Com o delta curto, *"o que é isto que eu selecionei?"* respondeu
- * **"não consigo ver qual"** numa corrida e certo noutra: a linha solta, sem o diagrama em volta,
- * é sinal fraco demais para a pergunta mais importante desta fase. O quadro inteiro cabe no teto
- * de 1400 caracteres da seção; a economia não valia a resposta errada.
+ * ⚠ O tamanho aqui é decisão medida, não estilo (2026-11-13). Este texto entra DENTRO da
+ * pergunta digitada (ver `session.ask`), e com o quadro inteiro embutido — ~1,5 KB — o modelo
+ * passou a fechar o turno **sem responder nada**, repetidamente, enquanto a mesma sessão
+ * respondia a pergunta curta anterior. O retrato completo já foi semeado na conexão; o turno só
+ * precisa carregar a diferença.
  *
  * `anterior` é o contexto do último quadro ENVIADO, ou `null` se ainda não houve nenhum.
  */
@@ -61,7 +63,32 @@ export function quadroDelta(anterior, atual) {
   // seria uma falha transitória nossa virando fato na cabeça do modelo.
   if (!agora) return null;
 
+  if (soMudouSelecao(anterior, atual)) {
+    const corpo = corpoVolatil(soComSelecao(atual));
+    if (corpo) return `${CABECALHO_SELECAO}\n${corpo}`;
+  }
+
   return `${CABECALHO_MUDOU}\n${agora}`;
+}
+
+/** Tudo igual menos o elemento selecionado. */
+function soMudouSelecao(a, b) {
+  if (!a.diagrama || !b.diagrama) return false;
+  return chave(a) === chave(b) && JSON.stringify(a.diagrama.selecionado) !== JSON.stringify(b.diagrama.selecionado);
+}
+
+function chave(ctx) {
+  const { selecionado, ...resto } = ctx.diagrama ?? {};
+  return JSON.stringify({ resto, memoria: ctx.memoria ?? [] });
+}
+
+/** O mesmo contexto, com o diagrama reduzido à seleção: é o corpo do delta curto. */
+function soComSelecao(ctx) {
+  return {
+    ...ctx,
+    memoria: [],
+    diagrama: { ...ctx.diagrama, total: null, contagem: {}, raias: [], amostra: [] },
+  };
 }
 
 /** As seções voláteis renderizadas, ou `null`. É o mesmo renderizador do prompt — de propósito. */

@@ -135,6 +135,26 @@ O que isso significa, dito direito: **o comportamento foi provado; a reprodutibi
 sequência não.** Enquanto a causa não for medida, uma rodada vermelha do portão F3 não é prova de
 regressão — e uma verde, isolada, é a prova que vale.
 
+**O que mais foi medido tentando estabilizar** (vale para quem continuar, e vale como aviso):
+
+- O **tamanho do contexto embutido na pergunta importa**. Com o quadro inteiro (~1,5 KB) dentro
+  do texto da pergunta, o modelo passou a fechar o turno **sem responder nada**, repetidamente,
+  na mesma sessão em que respondia a pergunta curta anterior. O retrato completo já vai no
+  semeador da conexão; o turno leva só a diferença — e com a seleção, essa diferença é uma linha.
+- A **metade da contagem é estável**: *"O diagrama tem 9 tarefas"* saiu certo em todas as últimas
+  rodadas, limpo, sem lixo de legenda.
+- A **metade da seleção oscila** entre a resposta certa (*"Isto é a Task 'Select a pizza'…"*),
+  nenhuma resposta e uma resposta que começa a repetir o turno anterior e trava no meio. Nunca
+  uma resposta errada sobre OUTRO elemento.
+- **Três tentativas de conserto foram medidas e descartadas**, e estão documentadas no código
+  para não voltarem: delta curto em frame separado (corrida), `clientContent` com
+  `turnComplete:true` (o modelo responde falando) e quadro inteiro embutido (turno sem resposta).
+
+Próximo passo quando se voltar a isto: medir com a chave descansada, e só então decidir se o que
+falta é cadência de cota ou um invariante do turno que ainda não entendemos. **Não começar
+mexendo no produto** — os três consertos acima já mostraram que o produto responde certo quando
+responde.
+
 ## 4. Dívidas que eu mesmo deixei
 
 | # | Item | Onde | Nota |

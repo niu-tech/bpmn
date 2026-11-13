@@ -204,17 +204,17 @@ test('primeiro quadro da sessao e o inteiro', () => {
   assert.match(d, /Montar a pizza/);
 });
 
-test('mudar a selecao manda o quadro INTEIRO, com a selecao dentro', () => {
-  // Houve um delta curto aqui ("so mudou a selecao -> uma linha"). A medicao ao vivo o derrubou
-  // em 2026-11-13: com ele, "o que e isto que eu selecionei?" respondeu "nao consigo ver qual"
-  // numa corrida e certo noutra. Linha solta, sem o diagrama em volta, e sinal fraco demais.
+test('so a selecao mudou -> UMA linha, nao a amostra toda de novo', () => {
+  // Este delta entra DENTRO da pergunta digitada. Com o quadro inteiro embutido (~1,5 KB) o
+  // modelo passou a fechar o turno sem responder nada, repetidamente (medido em 2026-11-13);
+  // o retrato completo ja foi semeado na conexao, entao o turno leva so a diferenca.
   const antes = ctxCom({ selecionado: tarefa1 });
   const depois = ctxCom({ selecionado: gateway });
   const d = quadroDelta(antes, depois);
-  assert.match(d, /CONTEXTO MUDOU/);
-  assert.match(d, /SELECIONADO pelo aluno/);
+  assert.match(d, /selecionar um elemento/);
   assert.match(d, /Gateway_1/);
-  assert.match(d, /Pedido recebido/, 'o diagrama em volta tem de ir junto');
+  assert.ok(!d.includes('Pedido recebido'), 'o delta curto nao remanda a amostra');
+  assert.ok(d.length < montarQuadro(depois).length / 2, 'o delta curto tem de ser bem menor');
 });
 
 test('o diagrama mudou -> quadro inteiro, dizendo que mudou', () => {
