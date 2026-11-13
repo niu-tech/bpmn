@@ -63,14 +63,28 @@ test('sem prompt o setup RECUSA abrir (antes ele inventava um)', () => {
   assert.throws(() => buildSetup({ systemInstruction: '   ' }), /sem prompt/);
 });
 
-test('modo VOZ: sem funcao e SEM a instrucao de entrega (senao o modelo fica mudo)', () => {
-  // Medido em 2026-11-10: com a funcao declarada o modelo nao fala (0 frames de audio); sem ela
-  // fala e manda outputTranscription junto. Nao da para ter os dois no mesmo turno.
+test('modo VOZ: sem a funcao de ENTREGA, mas COM as ferramentas do catalogo', () => {
+  // Medido em 2026-11-10: com a funcao de ENTREGA declarada o modelo nao fala (0 frames de
+  // audio); sem ela fala e manda outputTranscription junto. Nao da para ter os dois no mesmo
+  // turno - e e por isso que a entrega continua fora da voz.
+  //
+  // ⚠ O que mudou na F4: aquela medicao virou, por generalizacao, "qualquer declaracao emudece
+  // o modelo" - e isso NAO foi medido (achado P6 da pesquisa de 2026-11-12). Agora a voz declara
+  // as ferramentas de leitura e memoria, e o gate 4.3 mede ao vivo se ela continua falando. Se
+  // emudecer, o registro vira regra; ate la, suposicao nao decide desenho.
   const { setup } = buildSetup(VOZ);
-  assert.equal(setup.tools, undefined);
+  const nomes = setup.tools[0].functionDeclarations.map((f) => f.name);
+  assert.ok(!nomes.includes(DELIVERY_TOOL), 'a entrega emudece a voz: medido');
+  assert.deepEqual(nomes, ['lembrar', 'descrever_diagrama']);
   assert.equal(setup.systemInstruction.parts[0].text, VOZ.systemInstruction);
   assert.ok(!setup.systemInstruction.parts[0].text.includes(DELIVERY_TOOL),
     'mandar chamar uma funcao nao declarada e pedir alucinacao');
+});
+
+test('sem ferramentas e sem entrega, o setup nao tem bloco de tools', () => {
+  // A forma minima continua existindo - e e ela que o diagnostico usa.
+  const { setup } = buildSetup({ systemInstruction: 'p', withDeliveryTool: false });
+  assert.equal(setup.tools, undefined);
 });
 
 test('instrucao propria do chamador e respeitada, sem anexo surpresa', () => {
@@ -79,9 +93,9 @@ test('instrucao propria do chamador e respeitada, sem anexo surpresa', () => {
 });
 
 test('modo diagnostico consegue pedir TEXT de proposito (para medir o 1007)', () => {
-  const { setup } = buildSetup({ ...VOZ, modalities: ['TEXT'] });
+  const { setup } = buildSetup({ ...VOZ, modalities: ['TEXT'], ferramentas: [] });
   assert.deepEqual(setup.generationConfig.responseModalities, ['TEXT']);
-  assert.equal(setup.tools, undefined);
+  assert.equal(setup.tools, undefined, 'a medicao do 1007 isola a modalidade, sem tools no meio');
 });
 
 console.log('\n▶ url');
