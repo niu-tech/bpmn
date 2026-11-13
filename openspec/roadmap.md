@@ -231,14 +231,14 @@ A trilha roda **antes da F7**, e a razão é concreta: a F7 dá ao agente o pode
 diagrama**. Os defeitos de atribuição de turno que apareceram em F3 e F5 hoje produziam bolha
 errada; com escrita no meio, produzem **desenho errado**.
 
-### H1 — Dono do turno e coalescência de fala  *(primeiro, e o mais importante)*
+### H1 — Dono do turno e coalescência de fala  ✅ colhido 2026-11-13
 
 | | |
 |---|---|
 | **O que já dói aqui** | consertei a atribuição de turno **duas vezes** em 2026-11-13: T9 (entrega atrasada virando resposta da pergunta nova) e §3g (legenda da geração anterior herdada por um turno sem áudio próprio). Os dois consertos são heurísticas minhas |
 | **O que a cápsula tem** | `agent/voice/turn-tracker.mjs`: coalesce os fragmentos de `inputTranscription` numa fala lógica, **finalizada por sinal do servidor e nunca por `sleep`**; fixa cada evento ao turno dono, descartando o que chega depois de um barge-in ou de um turno novo; e garante **exactly-once por `{turnId, functionCallId}`** |
 | **Por que importa** | o cabeçalho dele documenta o incidente: *"A pause is not the end of a sentence"* — fragmento tratado como pergunta completa gerou chamada de ferramenta prematura, resposta duplicada e laço de "termo não completado". É o mesmo defeito que a nossa transcrição de entrada tem, ainda não observado só porque as fixtures são frases curtas e limpas |
-| **Prova** | portar os testes do CP7.6 junto; o portão é a bateria de voz passando com uma fixture de fala **com pausas no meio** |
+| **Prova** | **FEITO**: `src/assistant/live/turn-tracker.js` + `__tests__/turnos.mjs` (7 casos, os 3 da cápsula e 4 deste projeto). Ao vivo, a pergunta falada virou **uma** bolha — `bolhasDeFala: 1`, frase inteira, modelo respondeu. ⚠ Ligado só o lado da ENTRADA; prender evento ao turno e exactly-once por chamada estão portados e testados, **não ligados** |
 
 ### H2 — Fala e tela são canais diferentes
 
@@ -304,6 +304,37 @@ booking yourself"*. É o desenho da **F7** escrito para o usuário.
 Quando a F7 entrar, a UI passa a dizer o que o agente pode e o que depende do aluno — junto do
 carimbo da versão do diagrama que a F7 já previa.
 
+### O inventário completo trouxe mais três
+
+Varrendo a cápsula inteira — **5.111 linhas de agente e 9.344 de teste** — apareceu o que a primeira
+olhada não viu:
+
+#### H8 — Orçamento e diagnóstico do prompt
+`agent/packages/prompt-assembly/` (408 linhas) + `tests/Pi/cp076-assembly-proof.mjs` (256). Tem
+**orçamento** (*"budget keeps the MOST RECENT turns"*) e **diagnóstico** (`promptDiagnostics(plan)`
+diz quantos turnos de contexto entraram de fato).
+
+Aqui o nosso contrato de prompt tem camadas (estável × volátil) e **nenhum teto medido** — a tarefa
+2.4 do harness, medir o limite do quadro de contexto, nunca rodou. A cápsula não dá só o número: dá
+o mecanismo que impede estourar e o relatório que diz o que coube.
+
+#### H9 — Idioma com preferência do aluno
+`agent/i18n/` (608 linhas: localizer, registro de locales, preferência do usuário, comando de
+idioma) + três provas (`cp079-*`).
+
+O nosso idioma é uma **âncora no prompt** — *"responde SEMPRE em pt-BR; o diagrama pode estar em
+inglês"*. Funciona, e é frágil: depende de o modelo obedecer prosa. Lá é estrutura, e o aluno
+escolhe.
+
+#### H10 — Memória com escopo e consolidação
+`agent/core/memory/` (434 linhas: store, consolidador, escopo) + `cp077-memory-proof.mjs` (455).
+
+A nossa memória da aba é um arquivo: três categorias, teto, dedupe, tudo em RAM. Serve à F4 e não
+escala para o tutor da F8, que precisa lembrar entre sessões e consolidar o que repete.
+
+> **O que NÃO serve:** `agent/ui/` e `agent/extensions/` são da TUI do Pi, e `src/` é .NET
+> (AudioBridge, MCP server). O nosso áudio é Web Audio na aba do aluno. Olhar isso é perder tempo.
+
 ### Ordem, e o que cada passo destrava
 
 | # | passo | destrava |
@@ -314,6 +345,9 @@ carimbo da versão do diagrama que a F7 já previa.
 | 4 | **H6 + H7** estado e contrato na tela | demonstração do TCC, e instrumento que não cega |
 | 5 | **H5** ledger no harness | evidência citável para a dissertação |
 | 6 | **F7** | com H1 e H7 no lugar |
+| — | **H8** orçamento do prompt | fecha a tarefa 2.4 do harness, que nunca rodou |
+| — | **H9** idioma por preferência | tira o idioma da prosa e põe na estrutura |
+| — | **H10** memória com escopo | pré-requisito do tutor da F8 |
 
 ### O que NÃO vem do vídeo
 

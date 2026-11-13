@@ -78,6 +78,16 @@
              padding-top: 2px; }
   .item dd { margin: 0; color: var(--suave); }
   .item.largo { grid-column: 1 / -1; }
+  .item.feito { background: var(--verde-fraco); border-color: #d9e7cd; }
+  .item.feito .cod { color: #fff; background: var(--verde); }
+  .selo { font-size: 11px; font-weight: 700; color: var(--verde); letter-spacing: .04em;
+          text-transform: uppercase; margin-left: 8px; }
+  .achado { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px;
+            padding: 16px 20px; }
+  .achado b { font-size: 14.5px; }
+  .achado p { margin: 5px 0 0; font-size: 13.5px; color: var(--suave); }
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 860px) { .trio { grid-template-columns: 1fr; } }
 
   /* ---------- ordem ---------- */
   .ordem { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
@@ -130,10 +140,10 @@
   que eu reconsertei do zero esta semana.</p>
 
   <div class="numeros">
-    <div class="num"><b>60</b><span>commits da cápsula</span></div>
-    <div class="num"><b>CP7.6</b><span>último checkpoint provado</span></div>
-    <div class="num"><b>6</b><span>provas de voz</span></div>
-    <div class="num destaque"><b>2×</b><span>vezes que refiz o que ela já tinha</span></div>
+    <div class="num"><b>5.111</b><span>linhas de agente prontas</span></div>
+    <div class="num"><b>9.344</b><span>linhas de teste para reusar</span></div>
+    <div class="num"><b>10</b><span>itens a colher</span></div>
+    <div class="num destaque"><b>H1 ✓</b><span>colhido e provado ao vivo hoje</span></div>
   </div>
 </header>
 
@@ -185,14 +195,15 @@
     <p>cada um nasce de um problema que já apareceu aqui</p></div>
   <div class="itens">
 
-    <div class="item largo">
+    <div class="item largo feito">
       <span class="cod">H1</span>
       <div>
-        <h4>Dono do turno e coalescência de fala</h4>
+        <h4>Dono do turno e coalescência de fala <span class="selo">colhido hoje</span></h4>
         <dl>
-          <dt>Dói</dt><dd>consertei a atribuição de turno <b>duas vezes em um dia</b>, as duas com heurística minha</dd>
-          <dt>Tem lá</dt><dd>coalesce fragmentos pelo sinal do servidor, fixa cada evento ao turno dono, e <b>uma execução só</b> por par turno+chamada</dd>
-          <dt>Prova</dt><dd>bateria de voz passando com uma fixture que tenha <b>pausas no meio da frase</b> — hoje nenhuma tem</dd>
+          <dt>Doía</dt><dd>consertei a atribuição de turno <b>duas vezes em um dia</b>, as duas com heurística minha</dd>
+          <dt>Veio</dt><dd>o módulo e <b>os testes dele</b> — 7 casos: 3 da cápsula, 4 deste projeto</dd>
+          <dt>Prova</dt><dd>ao vivo, a pergunta falada virou <b>uma</b> bolha que cresce: <code>bolhasDeFala: 1</code>, frase inteira, modelo respondeu</dd>
+          <dt>Falta</dt><dd>ligado só o lado da <b>entrada</b>; prender evento ao turno e uma-execução-por-chamada estão portados e testados, ainda não ligados</dd>
         </dl>
       </div>
     </div>
@@ -267,9 +278,36 @@
 </section>
 
 <section>
-  <div class="rotulo"><i>04</i><h2>A ordem</h2><p>e o que cada passo destrava</p></div>
+  <div class="rotulo"><i>04</i><h2>O inventário completo trouxe mais três</h2>
+    <p>a primeira olhada não tinha visto</p></div>
+  <div class="trio">
+    <div class="achado">
+      <b>H8 · Orçamento do prompt</b>
+      <p>Lá tem orçamento e diagnóstico — quantos turnos de contexto <em>de fato</em> entraram.
+      Aqui o teto do quadro de contexto <b>nunca foi medido</b>: é a tarefa 2.4 do harness, que
+      ficou para trás.</p>
+    </div>
+    <div class="achado">
+      <b>H9 · Idioma por preferência</b>
+      <p>608 linhas e três provas. O nosso idioma é uma <b>frase no prompt</b> — funciona, e depende
+      de o modelo obedecer prosa. Lá é estrutura, e o aluno escolhe.</p>
+    </div>
+    <div class="achado">
+      <b>H10 · Memória com escopo</b>
+      <p>Store, consolidador e escopo, com 455 linhas de prova. A nossa memória é um arquivo em RAM:
+      serve à F4 e <b>não escala para o tutor da F8</b>.</p>
+    </div>
+  </div>
+  <div class="fora" style="margin-top:16px">
+    <b>Não serve:</b> <code>agent/ui/</code> e <code>agent/extensions/</code> são da TUI do Pi, e
+    <code>src/</code> é .NET. O nosso áudio é Web Audio na aba do aluno — olhar aquilo é perder tempo.
+  </div>
+</section>
+
+<section>
+  <div class="rotulo"><i>05</i><h2>A ordem</h2><p>e o que cada passo destrava</p></div>
   <div class="ordem">
-    <div class="passo"><em>1</em><b>H1</b><span>a F7 inteira</span></div>
+    <div class="passo final"><em>✓</em><b>H1</b><span>colhido e provado ao vivo</span></div>
     <div class="passo"><em>2</em><b>H4</b><span>fecha um aberto e tira o teste da calibração</span></div>
     <div class="passo"><em>3</em><b>H2 · H3</b><span>melhora a F6 e prepara a FK</span></div>
     <div class="passo"><em>4</em><b>H6 · H7</b><span>a demonstração, e um instrumento que não cega</span></div>
@@ -284,14 +322,14 @@
 </section>
 
 <section>
-  <div class="rotulo"><i>05</i><h2>O que depende de você</h2></div>
+  <div class="rotulo"><i>06</i><h2>O que depende de você</h2></div>
   <div class="decisoes">
     <div class="dec a">
       <h4>A declaração acadêmica</h4>
       <p>Código vindo da cápsula é <b>reúso de trabalho anterior do próprio autor</b>. No TCC isso
       precisa estar declarado.</p>
-      <p>Não é obstáculo — é um parágrafo na metodologia. Mas a hora de decidir é <b>antes</b> de
-      colher.</p>
+      <p><b>Adiado por você para a fase de escrita</b> — registrado como K-F para não ser lembrado
+      tarde. Resolve-se em um parágrafo da metodologia.</p>
     </div>
     <div class="dec b">
       <h4>Medir a recusa de sessão (M7)</h4>

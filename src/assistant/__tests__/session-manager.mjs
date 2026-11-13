@@ -391,6 +391,35 @@ await (async () => {
     forgetSecrets();
   });
 
+  await testAsync('a pergunta falada em PEDACOS vira UMA bolha que cresce', async () => {
+    // O consumidor empurrava uma bolha por fragmento. Com fixture curta nao aparecia; com fala de
+    // verdade o aluno veria a propria pergunta picada. Agora o rastreador junta (divida H1).
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    live.ultima.legenda('O que e', 'input');
+    live.ultima.legenda('O que e um gateway', 'input');
+    live.ultima.legenda('O que e um gateway exclusivo?', 'input');
+    const falas = session.messages.filter((m) => m.role === 'user' && m.via === 'voz');
+    assert.equal(falas.length, 1, `uma bolha de fala, nao ${falas.length}`);
+    assert.equal(falas[0].text, 'O que e um gateway exclusivo?');
+    assert.equal(falas[0].parcial, true, 'ainda parcial: o servidor nao disse que ela acabou');
+    // O primeiro audio do modelo e o servidor dizendo que o aluno parou.
+    live.ultima.audio?.();
+    forgetSecrets();
+  });
+
+  await testAsync('a fala fecha quando o modelo comeca a responder', async () => {
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    live.ultima.legenda('quantas tarefas', 'input');
+    live.ultima.legenda('saida do modelo', 'output');
+    const fala = session.messages.find((m) => m.role === 'user' && m.via === 'voz');
+    assert.equal(fala.parcial, false, 'a fala do aluno fechou quando o modelo comecou');
+    forgetSecrets();
+  });
+
   await testAsync('a fala do aluno entra como mensagem marcada "voz"', async () => {
     const { session, live } = montar();
     await session.connect('voz');

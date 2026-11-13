@@ -25,6 +25,7 @@ import { promptDoPerfil } from './agent/render.js';
 import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback } from './live/audio.js';
 import { createSession } from './live/session.js';
+import { EventoDeFala, RastreadorDeTurnos } from './live/turn-tracker.js';
 import { redact } from './live/redact.js';
 import { createDiagnostics } from './diagnostics.js';
 
@@ -144,6 +145,16 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * chega. Guardar só o filtrado perderia a primeira metade de um marcador partido.
    */
   let legendaCruaDoTurno = new Map();
+  /**
+   * Fronteira da fala do aluno (ver `live/turn-tracker.js`).
+   *
+   * A transcrição de entrada chega em PEDAÇOS — e às vezes como a frase inteira repetida. Sem
+   * juntar, cada pedaço virava uma bolha: com as fixtures curtas isso não aparecia, com fala de
+   * verdade o aluno veria a própria pergunta picada.
+   */
+  let rastreador = null;
+  /** O turno LOCAL da fala em curso: o rastreador fala de turno dele, a tela fala do nosso. */
+  let turnoDaFala = null;
   let teardownInFlight = null;
 
   /**
@@ -190,6 +201,24 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     if (nDaSessao === null || nDaSessao === undefined) return turnSeq;
     if (!turnoDaSessao.has(nDaSessao)) turnoDaSessao.set(nDaSessao, ++turnSeq);
     return turnoDaSessao.get(nDaSessao);
+  }
+
+  /**
+   * Fecha a fala do aluno — e SÓ por sinal do servidor: primeiro áudio do modelo, primeira legenda
+   * de saída, ou turno fechado. Idempotente: o segundo sinal do mesmo turno não faz nada.
+   */
+  function fecharFala(motivo) {
+    if (!rastreador?.estaFalando) return;
+    rastreador.fecharFala(motivo);
+    rastreador.abrirTurno();
+  }
+
+  /** A bolha de FALA do aluno daquele turno, se já existir. É ela que cresce a cada pedaço. */
+  function falaDoTurno(n) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user' && messages[i].via === 'voz' && messages[i].turn === n) return messages[i];
+    }
+    return null;
   }
 
   /** A bolha do assistente DAQUELE turno, se já existir. */
@@ -398,6 +427,16 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     // Sessão nova numera do 1 de novo: o mapa não pode atravessar.
     turnoDaSessao = new Map();
     legendaCruaDoTurno = new Map();
+    rastreador = new RastreadorDeTurnos({
+      // Provisório ATUALIZA a mesma bolha; final apenas a fecha — a bolha já está certa.
+      onFala: ({ tipo, texto }) => {
+        if (turnoDaFala == null) return;
+        const bolha = falaDoTurno(turnoDaFala);
+        if (bolha) { bolha.text = texto; bolha.parcial = tipo !== EventoDeFala.Final; }
+        else push({ role: 'user', text: texto, via: 'voz', turn: turnoDaFala, parcial: tipo !== EventoDeFala.Final });
+        publish();
+      },
+    });
     session = sessionFactory({
       apiKey,
       dispatcher: criarDespachante(),
@@ -438,6 +477,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       onEvent: (src, kind, detail) => diag.record(src, kind, detail),
       onLog: (m) => { if (deps.debug) note(m, 'debug'); },
       onText: ({ text: cru, fallback, complete, vazio, turno }) => {
+        if (complete) fecharFala('turno fechado');
         // Turno que terminou sem nada utilizável: diga isso, em vez de deixar a tela muda.
         if (vazio) {
           note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
@@ -478,9 +518,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         if (side === 'input') {
           // Houve fala de verdade: o que veio antes não era laço de eco.
           interrupcoesSeguidas = 0;
-          push({ role: 'user', text, via: 'voz', turn: turnoLocal(turno) });
+          // ⚠ UM pedaço não é uma pergunta. O rastreador junta os pedaços numa fala só e a bolha
+          // CRESCE; quem fecha é sinal do servidor, nunca um relógio nosso.
+          turnoDaFala = turnoLocal(turno);
+          rastreador?.fragmentoDeEntrada(text);
           return;
         }
+        // A primeira saída do modelo é o servidor dizendo que o aluno parou de falar.
+        fecharFala('o modelo começou a responder');
         // ⚠ Legenda é coisa do modo VOZ. No modo texto a resposta vem pelos argumentos de
         // `entregar_resposta`, e a legenda que chega junto é de um turno de áudio que o modelo
         // às vezes emite mesmo assim — vazio, transcrito como `<no speech>` ou `{pause}`. Isso
@@ -506,6 +551,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
       },
       onAudio: async (b64) => {
+        fecharFala('áudio do modelo');
         // Em escuta contínua o microfone FICA ABERTO aqui — é o que permite interromper falando
         // por cima. Só a rede de segurança fecha.
         if (meiaDuplex && mic) fecharMicrofone('meia-duplex: modelo respondendo');

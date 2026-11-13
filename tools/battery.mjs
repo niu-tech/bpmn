@@ -444,6 +444,8 @@ if (chaveViva) {
            ? '[HARNESS] o microfone falso nao tocou a fixture (tom sintetico) -- veja tools/provar-captura.mjs'
            : null,
          ouviu: falas.at(-1)?.slice(0, 120) ?? '(sem transcricao de entrada)',
+         // DIVIDA H1: a pergunta falada tem de ser UMA bolha que cresce, nao uma por fragmento.
+         bolhasDeFala: falas.length,
          respondeu: respostas.at(-1)?.slice(0, 140) ?? '(sem legenda)',
          quadrosDeAudioDoModelo: c['ws.audio'] ?? 0,
          picoDoMicrofone: Number(pico.toFixed(3)),
