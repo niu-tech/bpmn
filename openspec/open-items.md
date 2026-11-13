@@ -31,6 +31,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |
 | M6 | Os cenários de VOZ ao vivo não eram confiáveis | **causa encontrada, conserto no ar (2026-11-13)** | não era cota nem o servidor: **o microfone do teste não tocava a fala**. Duas causas somadas. (1) As fixtures do SAPI têm o chunk `fmt ` com **18 bytes** e o leitor de WAV do Chromium quer os **16** canônicos — arquivo recusado, e o Chromium troca pelo **tom sintético** do dispositivo falso **sem avisar**. (2) O harness vazava navegador: **1305 `msedge.exe`** vivos com a marca `bpmn-drive-` nesta máquina, e nesse estado o microfone falso ignorava o arquivo de forma intermitente. O tom tem energia de verdade — era o pico **0,574** que eu lia como "a fala chegou" — e o Gemini não transcreve tom nem vê fim de fala: 879 quadros subindo para um turno que nunca fecha, socket saudável e mudo. Consertado em `tools/drive-page.mjs` (fixture reescrita com `fmt ` canônico + 4 s de cauda muda; recusa nomeada para fixture ilegível; navegador encerrado por perfil ao fim de cada corrida). Ver §3f |
+| M7 | Quantas sessões ao vivo a chave aguenta em sequência | aberto (2026-11-13) | na bateria completa, o cenário de voz caiu com `ws.open → out.setup → **ws.close** → state.error`: o servidor fechou a sessão logo depois do setup, com zero quadro de microfone. É a assinatura de recusa/cota — e é **distinta** do M6, onde o socket ficava saudável e mudo. Agora dá para separar as duas no relatório; o que falta é o número: abrir sessões em sequência até a recusa, e ver se o limite é por minuto, por concorrência ou por dia. Vale pelo produto também: o aluno BYOK vai bater nisso, e a mensagem na tela tem de dizer qual dos três foi |
 | T10 | O marcador `<no speech>` vazava um pedaço para a bolha | **fechado (2026-11-13)** | a legenda chega em PEDAÇOS e o filtro rodava em cada pedaço: `<no speech>` cortado ao meio não casava em nenhum dos dois e o rabo virava bolha (`"speech>"` no portão F6; antes dele, `"9<no speech>{pause}"` no F3 — era o mesmo bug, e o conserto anterior só cobria o marcador inteiro). Agora o filtro roda no ACUMULADO do turno e segura a cauda que ainda pode virar marcador. Ver §3g |
 
 ## 3. Barge-in: o que a medição mostrou — e o achado que ela trouxe
@@ -511,6 +512,13 @@ sobre modelagem e boas práticas em BPMN 2.0…"*), que não tem vocabulário ne
   produzia aquela mensagem foi fechado, a causa do timeout em si não foi medida.
 
 ## 4. Dívidas que eu mesmo deixei
+
+> **Nota de 2026-11-13 — existe código nosso já provado para várias destas.** A cápsula
+> `capsules/WikiAgentCapsule` (no repositório do CopilotSpeaker) tem turn tracker, máquina de
+> estados de voz, separação fala/tela, apresentador de resultado de ferramenta e ledger de
+> conversa, com seis provas de voz. O plano de colheita é a **Trilha H** do `roadmap.md`. Onde uma
+> dívida abaixo tiver equivalente lá, a resposta é colher, não reinventar — foi o que eu fiz duas
+> vezes hoje sem saber que existia.
 
 | # | Item | Onde | Nota |
 |---|---|---|---|

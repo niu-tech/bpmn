@@ -215,6 +215,113 @@ no modo texto · duas fontes declaradas no prompt (acervo × conhecimento geral 
 Roda depois de F6 — é uma ferramenta de leitura a mais. Não bloqueia F7 nem F8: um tutor sem
 citação é um tutor pior, não um tutor impossível.
 
+## Trilha H — colher a cápsula, antes da F7 (2026-11-13)
+
+Descoberta em 2026-11-13: existe, no repositório do CopilotSpeaker, uma cápsula de agente de voz
+**nossa e já provada** — `capsules/WikiAgentCapsule`, 60 commits, checkpoints CP0.5 a CP7.6, com
+seis provas de voz. Ela resolve, com mais rigor, problemas que este projeto já teve e que eu
+reconsertei do zero. A trilha H é colher isso.
+
+> ⚠ **Declaração acadêmica, decisão do dono.** Código vindo da cápsula é reúso de trabalho
+> anterior do próprio autor. No TCC isso precisa estar **declarado** — o que foi escrito para o
+> TCC e o que foi reaproveitado. Não declarar é problema na banca, e a correção é uma frase, não
+> uma reescrita. Entra junto do K-E (conversa com o orientador).
+
+A trilha roda **antes da F7**, e a razão é concreta: a F7 dá ao agente o poder de **mudar o
+diagrama**. Os defeitos de atribuição de turno que apareceram em F3 e F5 hoje produziam bolha
+errada; com escrita no meio, produzem **desenho errado**.
+
+### H1 — Dono do turno e coalescência de fala  *(primeiro, e o mais importante)*
+
+| | |
+|---|---|
+| **O que já dói aqui** | consertei a atribuição de turno **duas vezes** em 2026-11-13: T9 (entrega atrasada virando resposta da pergunta nova) e §3g (legenda da geração anterior herdada por um turno sem áudio próprio). Os dois consertos são heurísticas minhas |
+| **O que a cápsula tem** | `agent/voice/turn-tracker.mjs`: coalesce os fragmentos de `inputTranscription` numa fala lógica, **finalizada por sinal do servidor e nunca por `sleep`**; fixa cada evento ao turno dono, descartando o que chega depois de um barge-in ou de um turno novo; e garante **exactly-once por `{turnId, functionCallId}`** |
+| **Por que importa** | o cabeçalho dele documenta o incidente: *"A pause is not the end of a sentence"* — fragmento tratado como pergunta completa gerou chamada de ferramenta prematura, resposta duplicada e laço de "termo não completado". É o mesmo defeito que a nossa transcrição de entrada tem, ainda não observado só porque as fixtures são frases curtas e limpas |
+| **Prova** | portar os testes do CP7.6 junto; o portão é a bateria de voz passando com uma fixture de fala **com pausas no meio** |
+
+### H2 — Fala e tela são canais diferentes
+
+`agent/core/turn-output.mjs` carrega uma regra que este projeto viola hoje: **o que soa como
+máquina vai para a tela, nunca para o ouvido**. No incidente da cápsula, o agente falava
+`wiki/concepts/x.md line 42` no meio da frase.
+
+Aqui é idêntico: o portão F5 de hoje respondeu *"Sim, existe o fluxo de mensagem «pizza order»"* —
+e a ferramenta devolve `pizza order [_6-638]`. O id é para a tela. Vale também para a **FK**: a
+chave de citação é tela, nunca fala.
+
+### H3 — Apresentador de resultado de ferramenta
+
+Hoje o aluno vê a resposta e **não vê o que foi consultado**. O assistente do Orbit mostra cartões
+(médico + horário) clicáveis dentro da conversa.
+
+A cápsula já tem o desenho certo, em `agent/core/wiki-tool-activity.mjs`, e o ponto é a separação:
+
+- `content` → **para o modelo**, completo, intocado;
+- `details` → resumo tipado e **redigido**, só do lado do cliente;
+- `render` → **uma linha compacta**.
+
+Para o BPMN: `buscar_elemento` vira *"procurei no diagrama inteiro — 3 de 47"*, `detalhar_elemento`
+vira um cartão do elemento. Isso também mata o risco que a cápsula nomeia: despejar o JSON da
+ferramenta na tela.
+
+### H4 — Barge-in local por nível, não por calibração
+
+| | |
+|---|---|
+| **O que já dói aqui** | o cenário de barge-in mede a **calibração da fixture**: 16 s de silêncio calibrados quando o modelo falava aos 15 s; em 2026-11-13 ele falou aos **12,3 s** e o corte caiu depois da resposta acabar. E o produto depende **inteiramente** do VAD do servidor |
+| **O que a cápsula tem** | `BARGE_IN_RMS = 900` — RMS do PCM16 como pista local de voz **enquanto o modelo fala**, com quadros de 100 ms @ 16 kHz |
+| **O que muda** | barge-in vira comportamento do **produto**, e o teste deixa de depender de um número de segundos que envelhece a cada mudança de latência do servidor |
+
+### H5 — Ledger de conversa, para a evidência do TCC
+
+`agent/core/conversation-ledger.mjs`: SQLite por `node:sqlite` (zero dependência nativa), que
+persiste **só conteúdo final** — sem parciais e sem áudio, e a invariante é do *schema* (não existe
+coluna para isso). Entidades: Conversation, Turn, Transcript, ToolCall, SourceReference,
+SessionCheckpoint.
+
+⚠ **Onde cabe:** no **harness**, não no produto. O produto é BYOK e roda na aba do aluno, onde não
+há `node:sqlite` — prometer isso na página seria errado. No harness, cada corrida da bateria vira
+registro citável, e `SourceReference` encaixa na FK.
+
+### H6 — Estado tipado na tela, e o medidor de nível
+
+Do vídeo: o painel tem um selo que alterna **Ready → Speaking** e um **medidor de nível** desenhando
+no compositor enquanto o microfone está aberto. Da cápsula: `voice-state-machine.mjs` com estados
+nomeados (TextOnly · Starting · Listening · Speaking · ToolCalling · Stopping) e guardas — *inject*
+só a partir de Listening, desligar/falhar/cancelar de qualquer estado ativo com consolidação
+idempotente.
+
+Aqui o estado é texto solto e o nível quase não aparece. **A dívida M6 sobreviveu três dias
+exatamente por cegueira de instrumento**: sem ver o nível, "o microfone tocou um tom" e "o servidor
+está mudo" eram a mesma tela.
+
+### H7 — O contrato impresso na própria UI
+
+O painel do Orbit diz, embaixo do compositor: *"Read-only · it opens the screens, you confirm every
+booking yourself"*. É o desenho da **F7** escrito para o usuário.
+
+Quando a F7 entrar, a UI passa a dizer o que o agente pode e o que depende do aluno — junto do
+carimbo da versão do diagrama que a F7 já previa.
+
+### Ordem, e o que cada passo destrava
+
+| # | passo | destrava |
+|---|---|---|
+| 1 | **H1** turn tracker | a F7 inteira (escrita com turno trocado = desenho errado) |
+| 2 | **H4** barge-in local | fecha o aberto do §3h e tira o teste da calibração |
+| 3 | **H2 + H3** canais e apresentador | melhora a F6 já entregue e prepara a FK |
+| 4 | **H6 + H7** estado e contrato na tela | demonstração do TCC, e instrumento que não cega |
+| 5 | **H5** ledger no harness | evidência citável para a dissertação |
+| 6 | **F7** | com H1 e H7 no lugar |
+
+### O que NÃO vem do vídeo
+
+O indicador de etapa 1-2-3-4 do Orbit espelha um *wizard* de agendamento. Modelagem de BPMN não tem
+etapas fixas — copiar isso seria importar a forma sem o problema. O que vale ali é o **princípio**,
+que a F3 já entrega: o agente sabe onde o usuário está e recusa pular adiante (*"Ainda estamos na
+etapa do motivo e tipo de consulta"*), que é o nosso H13 aplicado a um fluxo.
+
 ## O mapa das fases nas changes
 
 | Fase | Change | Bloco de tarefas |
