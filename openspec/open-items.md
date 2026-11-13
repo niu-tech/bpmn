@@ -31,7 +31,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |
 | M6 | Os cenários de VOZ ao vivo não eram confiáveis | **causa encontrada, conserto no ar (2026-11-13)** | não era cota nem o servidor: **o microfone do teste não tocava a fala**. Duas causas somadas. (1) As fixtures do SAPI têm o chunk `fmt ` com **18 bytes** e o leitor de WAV do Chromium quer os **16** canônicos — arquivo recusado, e o Chromium troca pelo **tom sintético** do dispositivo falso **sem avisar**. (2) O harness vazava navegador: **1305 `msedge.exe`** vivos com a marca `bpmn-drive-` nesta máquina, e nesse estado o microfone falso ignorava o arquivo de forma intermitente. O tom tem energia de verdade — era o pico **0,574** que eu lia como "a fala chegou" — e o Gemini não transcreve tom nem vê fim de fala: 879 quadros subindo para um turno que nunca fecha, socket saudável e mudo. Consertado em `tools/drive-page.mjs` (fixture reescrita com `fmt ` canônico + 4 s de cauda muda; recusa nomeada para fixture ilegível; navegador encerrado por perfil ao fim de cada corrida). Ver §3f |
-| T10 | O marcador `<no speech>` vaza um pedaço para a bolha | aberto (2026-11-13) | na corrida ao vivo de 2026-11-13 o portão F6 respondeu `"speech>"` — o rabo de `<no speech>`, que `limparLegenda` deveria remover. Por baixo o comportamento estava certo (ferramenta chamada, áudio de volta aos 3,8 s): o defeito é só o que chega à tela. Intermitente: o mesmo portão passou limpo duas horas antes |
+| T10 | O marcador `<no speech>` vazava um pedaço para a bolha | **fechado (2026-11-13)** | a legenda chega em PEDAÇOS e o filtro rodava em cada pedaço: `<no speech>` cortado ao meio não casava em nenhum dos dois e o rabo virava bolha (`"speech>"` no portão F6; antes dele, `"9<no speech>{pause}"` no F3 — era o mesmo bug, e o conserto anterior só cobria o marcador inteiro). Agora o filtro roda no ACUMULADO do turno e segura a cauda que ainda pode virar marcador. Ver §3g |
 
 ## 3. Barge-in: o que a medição mostrou — e o achado que ela trouxe
 
@@ -395,15 +395,16 @@ As três falhas que sobraram **não são o M6**, e é melhor dizer o que cada um
 
 - **portão F3** — `[FALHA DO SERVICO] não deu: o servidor não respondeu`, em modo texto. É o timeout
   de silêncio que o app nomeia na tela. Real, e segue aberto;
-- **portão F5** — **critério meu outra vez**: o capturado foi *"sobre modelagem e boas práticas em
-  BPMN 2.0 no seu diagrama aberto."*, que é um FRAGMENTO (começa no meio da frase) — e mesmo assim
-  o relatório marcou `falouDeBpmn: false` sobre um texto que diz "BPMN 2.0" com todas as letras. O
-  teste está contradizendo a própria evidência;
+- **portão F5** — **eu classifiquei isto errado aqui mesmo, e a correção está no §3g**: chamei de
+  "critério meu" porque o relatório marcou `falouDeBpmn: false` sobre um texto que diz "BPMN 2.0".
+  O critério procura **vocabulário** de BPMN (`evento|tarefa|gateway|fluxo|raia|pool`), não a sigla
+  — estava certo. O fragmento *"sobre modelagem e boas práticas em BPMN 2.0 no seu diagrama
+  aberto."* era o fim da resposta da pergunta ANTERIOR, chegando depois e carimbado com o turno
+  novo. Defeito de produto, consertado;
 - **portão F6** — respondeu `"speech>"`. É o rabo do marcador `<no speech>` chegando à bolha, que o
   `limparLegenda` deveria ter tirado. A linha do tempo mostra o comportamento CERTO por baixo
   (`buscar_elemento` → `state.turno-de-ferramenta n=1` → `detalhar_elemento`, com áudio voltando aos
-  3,8 s); o que falha é o que aparece. Este é um defeito de produto, pequeno e novo neste registro —
-  entra como **T10** abaixo.
+  3,8 s); o que falha é o que aparece. Virou **T10**, consertado no §3g.
 
 ### O que isto deixa em aberto no PRODUTO
 
@@ -413,6 +414,74 @@ depende **inteiramente** do VAD do servidor ver silêncio. Com um aluno num quar
 uma aposta, e o sintoma seria o mesmo: "falei e ela não respondeu". Um relógio de silêncio no
 cliente (manda fim de fala depois de N segundos de nível baixo com turno aberto) resolveria. Não
 está feito, e não é desta dívida — fica registrado como decisão do dono.
+
+## 3g. As três que sobraram da corrida ao vivo (2026-11-13)
+
+Fechada a M6, sobraram três falhas na bateria. Duas eram defeito de produto, uma era intermitente —
+e **uma das minhas classificações estava errada**, o que vale mais registrar que esconder.
+
+### T10 — o marcador de não-fala cortado ao meio
+
+A legenda chega em **pedaços**, e o marcador não respeita essa fronteira. `limparLegenda` rodava em
+cada pedaço: `<no speech>` partido entre dois não casava em nenhum dos dois, e o rabo ia para a
+bolha. Foi `"speech>"` no portão F6, e antes dele `"9<no speech>{pause}"` no F3 — **o mesmo bug**, e
+o conserto anterior só cobria o caso em que o marcador cabia inteiro num pedaço.
+
+O conserto não é mais padrão no regex: é filtrar o **acumulado** do turno (a bolha passa a ser
+atribuída, não concatenada) e segurar a cauda que ainda pode virar marcador — um `<no spe` à espera
+do resto. Não há perda: o acumulado é refiltrado a cada pedaço. Três testes determinísticos, um para
+cada forma (marcador inteiro, partido, e turno que só tem marcador).
+
+### F5 — a resposta anterior virando a resposta da pergunta seguinte
+
+**Aqui eu errei a leitura no registro anterior**, e a correção importa mais que o conserto: escrevi
+que era "critério meu outra vez", porque `falouDeBpmn: false` saiu sobre um texto que diz "BPMN
+2.0". O critério procura **vocabulário** (`evento|tarefa|gateway|fluxo|raia|pool`), não a sigla —
+estava certo, e eu julguei o teste sem ler o que ele compara.
+
+O defeito real estava à vista no próprio relatório: *"sobre modelagem e boas práticas em BPMN 2.0 no
+seu diagrama aberto."* começa **no meio de uma frase**. É o fim da resposta da pergunta 1 chegando
+depois do turno dela fechar, e sendo carimbado com o turno da pergunta 2 — `turnoLocal(null)`
+devolve o turno mais recente, e o protocolo não carimba turno nos quadros.
+
+A regra que separa os dois casos sem adivinhar tempo: **fala de verdade traz áudio**. Turno que
+acumulou legenda e não recebeu um único quadro de áudio não falou — herdou. Esse turno é VAZIO, e
+vazio o produto já sabia anunciar. A legenda emprestada vai para o diário
+(`state.legenda-sem-audio`), não para a tela.
+
+Isso também consertou a fixture de um teste que existia: ela mandava legenda **sem** quadro de
+áudio, que é a forma que o servidor nunca produz — e era por isso que ela não distinguia fala de
+legenda emprestada.
+
+### F3 — o buraco calado por trás de "o servidor não respondeu"
+
+F3 passou nas duas corridas de hoje depois do conserto, então ele era intermitente e eu **não posso
+dizer que o timeout acabou**. O que a investigação achou foi o caminho que produz exatamente aquela
+mensagem: no modo texto o modelo às vezes fecha com um turno de áudio sem fala, cuja legenda é só
+`<no speech>`. Esse turno não era `vazio` (tinha `spoken`), caía no fallback, o filtro limpava tudo,
+e um `return` calado saía — o aluno via a própria pergunta até o relógio de 45 s dizer *"o servidor
+não respondeu"*. O que é falso: o servidor respondeu, só não havia o que mostrar.
+
+Agora fallback que limpa até não sobrar nada **avisa**, como qualquer outro turno vazio. Um teste
+determinístico cobre isso. O timeout de 45 s em si continua aberto como possibilidade — se voltar, o
+relatório agora traz a linha do tempo junto (`window.__linhaDoTempo()` em todo portão de texto), que
+foi a única coisa que separou as três causas desta semana.
+
+### Prova ao vivo
+
+Os três portões passaram ao vivo, cada um na sua corrida:
+
+- **F3**, duas vezes seguidas — e a primeira resposta saiu limpa: `9`, sem o `<no speech>{pause}`
+  que sujava antes. Depois, *"Isto é uma tarefa chamada «Select a pizza». Em BPMN, as tarefas
+  representam o trabalho realizado dentro de um processo."*, com `citouOElemento: true`;
+- **F5** — *"Sim, existe o fluxo de mensagem «pizza order» no seu diagrama."*, com
+  `confirmouQueExiste: true`. Nenhum fragmento de pergunta anterior;
+- **F6** — `buscar_elemento` e `detalhar_elemento` chamados, linha do tempo saudável
+  (`state.turno-de-ferramenta n=1` e `n=2`), e a resposta na tela em vez de `"speech>"`.
+
+Suítes: **16, zero falhas**, com 5 testes novos — três para a T10 (marcador inteiro, partido, e
+turno só de marcador), um para a legenda emprestada e um para o fallback que esvazia — e uma
+fixture corrigida, que mandava legenda sem áudio e por isso não distinguia os dois casos.
 
 ## 4. Dívidas que eu mesmo deixei
 

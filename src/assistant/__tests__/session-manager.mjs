@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 
 import { createCredentialStore } from '../credential.js';
-import { createAssistantSession, describeError } from '../session-manager.js';
+import { createAssistantSession, describeError, legendaVisivel } from '../session-manager.js';
 import { forgetSecrets } from '../live/redact.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
@@ -325,6 +325,69 @@ await (async () => {
     const doAssistente = session.messages.filter((m) => m.role === 'assistant');
     assert.equal(doAssistente.length, 1, 'uma bolha por turno');
     assert.equal(doAssistente[0].text, 'Uma raia serve para organizar.');
+    forgetSecrets();
+  });
+
+  // PORTAO F3 — fallback que o filtro limpa ate nao sobrar nada TAMBEM e turno vazio.
+  //
+  // No modo texto o modelo as vezes fecha com um turno de audio sem fala, cuja legenda e so
+  // `<no speech>`. O turno nao era `vazio` (tinha `spoken`), o filtro limpava tudo e o produto
+  // saia calado: o aluno via a propria pergunta ate o relogio de 45 s dizer "o servidor nao
+  // respondeu". Falso - o servidor respondeu, so nao tinha o que mostrar.
+  await testAsync('fallback que vira texto vazio AVISA, nao fica calado', async () => {
+    const { session, live } = montar();
+    await session.connect('texto');
+    live.ultima.pronta();
+    session.ask('o que e um gateway?');
+    live.ultima.texto('<no speech>{pause}', { fallback: true, complete: true });
+    const notas = session.messages.filter((m) => m.role === 'system' || m.kind === 'error');
+    const tudo = session.messages.map((m) => m.text ?? '').join(' | ');
+    assert.ok(/encerrou o turno sem responder/.test(tudo), `nenhum aviso na tela: ${tudo}`);
+    assert.equal(session.messages.filter((m) => m.role === 'assistant').length, 0, 'sem bolha de resposta');
+    assert.ok(notas.length >= 0);
+    forgetSecrets();
+  });
+
+  // DIVIDA T10 — o marcador de nao-fala chega PARTIDO entre dois pedacos da legenda.
+  //
+  // O filtro rodava em cada pedaco, entao `<no speech>` cortado ao meio nao casava em nenhum dos
+  // dois e o rabo virava bolha: o portao F6 respondeu `"speech>"` ao vivo em 2026-11-13, e antes
+  // dele o F3 tinha mostrado `"9<no speech>{pause}"`. Era o mesmo bug, e o conserto anterior so
+  // cobria o caso em que o marcador cabia inteiro num pedaco.
+  test('o marcador partido entre pedacos some do acumulado', () => {
+    assert.equal(legendaVisivel('Uma raia <no ' + 'speech> serve.'), 'Uma raia serve.');
+    assert.equal(legendaVisivel('9<no speech>{pause}'), '9');
+    // Cauda que AINDA pode virar marcador fica segura ate o resto chegar.
+    assert.equal(legendaVisivel('9<no spe'), '9');
+    assert.equal(legendaVisivel('9{pau'), '9');
+    // E o texto normal nao e tocado.
+    assert.equal(legendaVisivel('Uma raia serve para organizar.'), 'Uma raia serve para organizar.');
+  });
+
+  await testAsync('legenda com marcador PARTIDO nao suja a bolha', async () => {
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    session.ask('explique');
+    // A fronteira dos pedacos cai NO MEIO do marcador — que e o caso que a T10 descreve.
+    live.ultima.legenda('Uma raia <no ');
+    live.ultima.legenda('speech>serve para ');
+    live.ultima.legenda('organizar.');
+    const doAssistente = session.messages.filter((m) => m.role === 'assistant');
+    assert.equal(doAssistente.length, 1, 'uma bolha por turno');
+    assert.equal(doAssistente[0].text, 'Uma raia serve para organizar.');
+    forgetSecrets();
+  });
+
+  await testAsync('turno que so tem marcador nao cria bolha nenhuma', async () => {
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    session.ask('explique');
+    live.ultima.legenda('<no ');
+    live.ultima.legenda('speech>');
+    live.ultima.legenda('{pause}');
+    assert.equal(session.messages.filter((m) => m.role === 'assistant').length, 0);
     forgetSecrets();
   });
 

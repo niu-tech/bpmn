@@ -138,10 +138,30 @@ test('entrega repetida no mesmo turno e respondida e descartada (texto nao dupli
 test('turno sem entrega usa a transcricao como FALLBACK, e diz que e fallback', () => {
   const { session, ws, texts } = ready();
   session.ask('p');
+  // ⚠ O quadro de AUDIO vai junto de proposito: fala de verdade traz audio, e o servidor manda os
+  // dois (o parser ate documenta `{modelTurn, outputTranscription}` no mesmo quadro). A fixture
+  // antes mandava so a legenda, e era por isso que ela nao distinguia fala de legenda emprestada.
+  ws.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'AAAA' } }] } } });
   ws.emit({ serverContent: { outputTranscription: { text: 'falei mas nao chamei a funcao' } } });
   ws.emit({ serverContent: { turnComplete: true } });
   assert.equal(texts.at(-1).fallback, true);
   assert.equal(session.turns.at(-1).fallback, true);
+});
+
+test('legenda SEM audio nao vira resposta: e legenda emprestada da geracao anterior', () => {
+  // Portao F5, 2026-11-13: o fim da recusa da pergunta 1 ("...sobre modelagem e boas praticas em
+  // BPMN 2.0 no seu diagrama aberto.") chegou depois do turno dela ter fechado, caiu no turno da
+  // pergunta 2 e virou a "resposta" dela - um fragmento comecando no meio da frase. O protocolo
+  // nao carimba turno nos quadros; o que separa os casos e o audio.
+  const { session, ws, texts } = ready();
+  session.ask('como eu modelo uma pizzaria em bpmn?');
+  ws.emit({ serverContent: { outputTranscription: { text: 'sobre modelagem e boas praticas em BPMN 2.0.' } } });
+  ws.emit({ serverContent: { turnComplete: true } });
+  const t = session.turns.at(-1);
+  assert.equal(t.empty, true, 'turno sem audio proprio e VAZIO');
+  assert.equal(t.text, '', 'nada de legenda emprestada no texto do turno');
+  assert.equal(t.legendaEmprestada, 'sobre modelagem e boas praticas em BPMN 2.0.', 'fica no diario');
+  assert.equal(texts.at(-1).vazio, true, 'a tela avisa em vez de mostrar texto de outro turno');
 });
 
 test('o turno da FERRAMENTA nao fecha o turno do aluno', () => {

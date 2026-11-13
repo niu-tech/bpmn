@@ -68,6 +68,15 @@ const ESPERAR_RESPOSTA = `
 window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
 window.__naTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
   .map((m) => (m.className.match(/--([a-z]+)/)?.[1] ?? '?') + ': ' + m.textContent.trim().slice(0, 120));
+/**
+ * A linha do tempo da sessao, compacta. SEMPRE no relatorio de um passo que falhou.
+ *
+ * Em 2026-11-13 a divida M6 sobreviveu tres dias porque o relatorio dizia "o servidor nao
+ * respondeu" e mais nada: com isso, falha de microfone, turno fechado na hora errada e servidor
+ * lento sao a mesma linha. A linha do tempo foi o que separou os tres.
+ */
+window.__linhaDoTempo = () => window.__bpmnAssist.eventos
+  .map((e) => e.key + (e.n > 1 ? ' x' + e.n : '') + (e.detail ? ' ' + e.detail : ''));
 window.__resposta = async (pergunta) => {
   const erroNaTela = () => [...document.querySelectorAll('.bpmn-assist__msg')]
     .map((m) => m.textContent.trim())
@@ -659,7 +668,8 @@ if (chaveViva) {
          selecionado: alvo.nome + ' [' + alvo.id + ']',
          citouOElemento: citou,
          respondeu: resposta.slice(0, 220),
-         naTela: resposta ? undefined : window.__naTela(),
+         naTela: window.__naTela(),
+         linhaDoTempo: window.__linhaDoTempo(),
        };`,
     ],
   });
@@ -808,6 +818,7 @@ if (chaveViva) {
        return {
          ok: !r.startsWith('[FALHA DO SERVICO]') && r.length > 30 && !recusou && falouDeBpmn,
          respondeu: r.slice(0, 220),
+         linhaDoTempo: window.__linhaDoTempo(),
          recusou,
          falouDeBpmn,
        };`,

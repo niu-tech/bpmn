@@ -195,7 +195,19 @@ export function createSession({
     // Fallback: turno que termina sem chamada de entrega usa a transcrição da fala, e o registro
     // DIZ que foi fallback. JSON falado não sobrevive à transcrição, então isto é degradação
     // conhecida, não equivalência.
-    if (!turn.delivered && turn.spoken) {
+    //
+    // ⚠ LEGENDA SEM ÁUDIO NÃO É FALA DESTE TURNO. O protocolo não carimba o turno nos quadros, e
+    // um pedaço da legenda da geração ANTERIOR chega depois de o turno dela ter fechado — se a
+    // pergunta seguinte já abriu, esse pedaço entra no `spoken` do turno NOVO. Foi assim que
+    // *"sobre modelagem e boas práticas em BPMN 2.0 no seu diagrama aberto."* (o fim da recusa da
+    // pergunta 1) virou a "resposta" da pergunta 2, no portão F5 de 2026-11-13 — um fragmento que
+    // começa no meio da frase, que é a assinatura do problema.
+    //
+    // A regra que separa os dois casos sem adivinhar tempo: fala de verdade TRAZ ÁUDIO. Turno que
+    // acumulou legenda e não recebeu um único quadro de áudio não falou — herdou. Esse turno é
+    // VAZIO, e vazio o produto já sabe anunciar.
+    const falouDeVerdade = turn.spoken && turn.audioFrames > 0;
+    if (!turn.delivered && falouDeVerdade) {
       turn.text = turn.spoken;
       turn.fallback = true;
       onText?.({ text: turn.text, fallback: true, complete: true, turno: turn.n });
@@ -210,6 +222,12 @@ export function createSession({
       // bolha nenhuma. Silêncio é pior que resposta feia: o aluno não sabe se perguntou errado,
       // se travou, ou se a cota acabou.
       turn.empty = true;
+      // Legenda emprestada é registrada, não exibida: some da tela e continua no diário, que é
+      // onde se investiga de quem era.
+      if (turn.spoken) {
+        turn.legendaEmprestada = turn.spoken;
+        ev('state', 'legenda-sem-audio', `n=${turn.n} chars=${turn.spoken.length}`);
+      }
       if (!turn.usouFerramenta) onText?.({ text: '', fallback: true, complete: true, vazio: true, turno: turn.n });
     }
     turn.idle = idle;

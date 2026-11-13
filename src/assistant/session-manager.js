@@ -64,6 +64,28 @@ export function limparLegenda(texto) {
   return String(texto ?? '').replace(LIXO_DE_LEGENDA, '').replace(/[ \t]{2,}/g, ' ');
 }
 
+/**
+ * Marcador CORTADO AO MEIO, no fim do texto — um `<no spe` à espera do resto.
+ *
+ * A legenda chega em pedaços e o marcador não respeita essa fronteira. Rodar o filtro em cada
+ * pedaço não acha `<no speech>` partido entre dois, e o rabo cai na bolha: em 2026-11-13 o
+ * portão F6 respondeu **`"speech>"`** (dívida T10). Não se conserta com mais padrão — conserta-se
+ * filtrando o ACUMULADO, e segurando a cauda que ainda pode virar marcador.
+ *
+ * A regra é a abertura sem fechamento: `<` ou `{` sem o `>` ou `}` dele, perto do fim. Não há
+ * perda — o acumulado é refiltrado a cada pedaço, então assim que o resto chega o texto aparece
+ * inteiro (ou some inteiro, se era marcador mesmo).
+ */
+const MARCADOR_EM_VOO = /[<{][^<>{}]{0,14}$/;
+
+/**
+ * A legenda como o aluno a vê: o acumulado do turno, sem marca de não-fala e sem marcador pela
+ * metade. Recebe o texto INTEIRO do turno, nunca o pedaço — é essa a diferença que fecha a T10.
+ */
+export function legendaVisivel(acumulado) {
+  return limparLegenda(acumulado).replace(MARCADOR_EM_VOO, '');
+}
+
 export function describeError(reason) {
   if (!reason) return null;
   if (ERROR_LABELS[reason]) return ERROR_LABELS[reason];
@@ -114,6 +136,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * pergunta seguinte (dívida T9).
    */
   let turnoDaSessao = new Map();
+  /**
+   * A legenda CRUA de cada turno, do jeito que o servidor mandou.
+   *
+   * Existe porque o filtro de não-fala precisa ver o texto inteiro (ver `legendaVisivel`): a
+   * bolha mostra o filtrado, e o cru fica aqui para ser refiltrado quando o pedaço seguinte
+   * chega. Guardar só o filtrado perderia a primeira metade de um marcador partido.
+   */
+  let legendaCruaDoTurno = new Map();
   let teardownInFlight = null;
 
   /**
@@ -367,6 +397,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     const ctxInicial = contextoAtual(targetMode);
     // Sessão nova numera do 1 de novo: o mapa não pode atravessar.
     turnoDaSessao = new Map();
+    legendaCruaDoTurno = new Map();
     session = sessionFactory({
       apiKey,
       dispatcher: criarDespachante(),
@@ -418,7 +449,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // sem resposta nenhuma — o que é pior que uma resposta feia.
         if (complete && fallback && mode === 'voz') return;
         const text = fallback ? limparLegenda(cru).trim() : cru;
-        if (!text) return;
+        // ⚠ FALLBACK QUE LIMPA ATÉ NÃO SOBRAR NADA TAMBÉM É TURNO VAZIO — e precisa DIZER isso.
+        //
+        // Este era o buraco do portão F3: no modo texto o modelo às vezes fecha com um turno de
+        // áudio sem fala, cuja legenda é só `<no speech>`/`{pause}`. O turno não era `vazio` (ele
+        // tinha `spoken`), então caía aqui; o filtro limpava tudo, o `return` calado saía, e o
+        // aluno ficava vendo a própria pergunta até o relógio de 45 s dizer "o servidor não
+        // respondeu" — o que é falso: o servidor respondeu, só não tinha o que mostrar.
+        if (!text) {
+          if (complete) note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
+          return;
+        }
         // ⚠ A bolha é procurada pelo TURNO, não por "qual era o turno atual". Texto atrasado do
         // turno anterior volta para a bolha dele; sem isto, virava bolha nova carimbada com o
         // turno recém-aberto e lida como resposta da pergunta nova (T9).
@@ -447,15 +488,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // Turno de texto que termine sem entrega ainda tem fallback: `endTurn` usa o falado.
         if (mode !== 'voz') return;
         // Legenda da fala: um turno, uma bolha que cresce — sem as marcas de não-fala.
-        const limpo = limparLegenda(text);
-        if (!limpo.trim()) return;
+        //
+        // ⚠ Filtra o ACUMULADO, não o pedaço: `<no speech>` partido entre dois pedaços não casa
+        // com o filtro em nenhum dos dois, e o rabo vira bolha (dívida T10, portão F6). Por isso
+        // a bolha é ATRIBUÍDA, e não concatenada — o texto visível é função do turno inteiro.
         const n = turnoLocal(turno);
+        const cru = (legendaCruaDoTurno.get(n) ?? '') + text;
+        legendaCruaDoTurno.set(n, cru);
+        const visivel = legendaVisivel(cru);
+        if (!visivel.trim()) return;
         const bolha = bolhaDoTurno(n);
         if (bolha) {
-          bolha.text += limpo;
+          bolha.text = visivel;
           publish();
         } else {
-          push({ role: 'assistant', text: limpo, fallback: true, turn: n });
+          push({ role: 'assistant', text: visivel, fallback: true, turn: n });
         }
       },
       onAudio: async (b64) => {
