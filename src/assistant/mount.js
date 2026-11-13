@@ -145,6 +145,14 @@ export function mountAssistant({ container = document.body, debug = false, pagin
      *
      * Não gasta cota: roda `startCapture` direto, sem socket. Só diagnóstico, só leitura.
      */
+    /**
+     * Fecha o microfone pelo diagnóstico. Na injeção é obrigatório: com o microfone aberto, o
+     * dispositivo falso do navegador despeja o tom dele JUNTO da fala injetada, e a prova mede os
+     * dois misturados.
+     */
+    pararMicrofone: () => session.stopMic(),
+    /** Injeta fala sem microfone (H11). Ver `session-manager.js::injetarFala`. */
+    injetarFala: (quadros, opcoes) => session.injetarFala(quadros, opcoes),
     async provarCaptura(segundos = 8) {
       const quadros = [];
       let niveis = [];

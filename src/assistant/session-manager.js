@@ -807,6 +807,36 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       return fecharMicrofone('aluno parou de falar');
     },
 
+    /**
+     * INJETA fala na sessão, quadro a quadro, sem passar pelo microfone.
+     *
+     * Por que existe (H11, colhido da cápsula, que tem isto como modo `inject`): o cenário de voz
+     * dependia do microfone falso do navegador, e foi exatamente aí que a dívida M6 nasceu — o
+     * Chromium recusava a fixture e trocava por um tom sintético **sem avisar**, três dias lidos
+     * como "o servidor está mudo". Injetando, o navegador sai da conta: o que sobe é o PCM que o
+     * chamador escolheu, no ritmo que ele escolheu.
+     *
+     * ⚠ NÃO substitui a captura. O produto real usa microfone de verdade, e uma suíte que só injeta
+     * não sabe se a captura quebrou — por isso um cenário e o `tools/provar-captura.mjs` continuam
+     * no caminho real. Isto é diagnóstico de harness, não caminho de aluno.
+     */
+    async injetarFala(quadrosBase64, { intervaloMs = 40 } = {}) {
+      if (!session) return { ok: false, motivo: 'sem sessão' };
+      if (mode !== 'voz') return { ok: false, motivo: 'injeção só no modo voz' };
+      if (!Array.isArray(quadrosBase64) || !quadrosBase64.length) {
+        return { ok: false, motivo: 'sem quadros' };
+      }
+      diag.state('injetar', `quadros=${quadrosBase64.length}`);
+      let enviados = 0;
+      for (const quadro of quadrosBase64) {
+        session.pushAudio(quadro);
+        enviados++;
+        // Ritmo REAL: despejar tudo de uma vez mede outra coisa. 40 ms é o quadro do worklet.
+        await new Promise((r) => setTimeout(r, intervaloMs));
+      }
+      return { ok: true, quadros: enviados };
+    },
+
     /** Encerramento completo e idempotente. */
     async stop() {
       if (state !== 'idle') setState('closing');

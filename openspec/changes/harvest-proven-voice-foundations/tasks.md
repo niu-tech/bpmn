@@ -17,9 +17,13 @@
       13/11 (`audioFrames > 0` e a legenda emprestada)
 - [ ] 1.4 **H1 · uma execução por `{turno, chamada}`** no despacho de ferramenta, com o resultado
       memorizado. Prova: a mesma chamada repetida numa reconexão **não** executa de novo
-- [ ] 1.5 **H11 · injeção de fala no nível da sessão** — verbo de harness que empurra o PCM de um WAV
-      direto na sessão (`mic` × `inject`), sem passar pelo microfone falso do navegador. Mantém-se
-      **um** cenário no caminho real de captura; o resto injeta
+- [x] 1.5 **H11 · injeção de fala no nível da sessão** — `__bpmnAssist.injetarFala` + `pararMicrofone`
+      e `tools/injetar-fala.mjs` (lê o WAV, corta em quadros de 40 ms, injeta no ritmo real, com
+      cauda muda para o VAD fechar o turno). Provado ao vivo: 221 quadros, `ouviu` = a frase exata,
+      `bolhasDeFala: 1`, modelo respondeu — **sem o microfone falso do navegador**.
+      ⚠ A primeira corrida saiu suja (injetou com status `conectando`, o microfone automático abriu
+      depois e o servidor transcreveu o tom como *"mhm"*): o passo agora espera `pronto`, fecha o
+      microfone e **recusa injetar** se ele continuar aberto. Mantém-se um cenário no caminho real
 - [ ] 1.6 **H4 · barge-in por nível local** enquanto o modelo fala, tirando o teste da calibração de
       silêncio da fixture (que já envelheceu: 16 s calibrados, modelo falando aos 12,3 s)
 
