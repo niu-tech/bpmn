@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colher o que já está pronto — plano</title>
+<style>
+  :root {
+    --tinta: #15161a; --suave: #5c5d67; --fraco: #8a8b94;
+    --linha: #e6e6ec; --fundo: #fbfbfd; --papel: #fff;
+    --roxo: #5b53d6; --roxo-fraco: #eeedfb;
+    --verde: #3f6b2e; --verde-fraco: #eef5e7;
+    --ambar: #8a4b12; --ambar-fraco: #fdf4e7;
+    --azul: #2c4a66; --azul-fraco: #eef3f9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fundo); color: var(--tinta);
+    font: 16px/1.6 "Segoe UI", -apple-system, Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .env { max-width: 1060px; margin: 0 auto; padding: 0 28px 72px; }
+
+  /* ---------- topo ---------- */
+  header { padding: 56px 0 36px; }
+  .marca { display: inline-flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 600;
+           letter-spacing: .12em; text-transform: uppercase; color: var(--roxo); }
+  .marca::before { content: ""; width: 26px; height: 3px; background: var(--roxo); border-radius: 2px; }
+  h1 { font-size: 40px; line-height: 1.12; letter-spacing: -.022em; font-weight: 600; margin: 18px 0 14px; }
+  .chamada { font-size: 18px; color: var(--suave); max-width: 72ch; margin: 0; }
+
+  /* ---------- números ---------- */
+  .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 34px 0 0; }
+  .num { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 18px 20px; }
+  .num b { display: block; font-size: 27px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+  .num span { display: block; font-size: 13px; color: var(--fraco); margin-top: 6px; }
+  .num.destaque { background: var(--roxo-fraco); border-color: #ddd9f7; }
+  .num.destaque b { color: var(--roxo); }
+
+  /* ---------- seções ---------- */
+  section { margin-top: 54px; }
+  .rotulo { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+  .rotulo i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--roxo); letter-spacing: .1em; }
+  .rotulo h2 { font-size: 22px; font-weight: 600; letter-spacing: -.012em; margin: 0; }
+  .rotulo p { margin: 0 0 0 auto; font-size: 14px; color: var(--fraco); }
+
+  /* ---------- dois lados ---------- */
+  .lados { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .lado { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 22px 24px; }
+  .lado h3 { margin: 0 0 10px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 9px; }
+  .pin { width: 8px; height: 8px; border-radius: 50%; background: var(--fraco); flex: none; }
+  .lado.sim .pin { background: var(--verde); }
+  .lado.nao .pin { background: #c2544a; }
+  .lado p { margin: 0 0 10px; font-size: 14.5px; color: var(--suave); }
+  .lado p:last-child { margin-bottom: 0; }
+  .lado .prova { font-size: 13px; color: var(--azul); background: var(--azul-fraco); border-radius: 9px;
+                 padding: 10px 13px; margin-top: 12px; }
+
+  /* ---------- risco ---------- */
+  .risco { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
+  .risco .linha { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 18px;
+                  padding: 15px 22px; border-bottom: 1px solid #f1f1f5; align-items: center; font-size: 14.5px; }
+  .risco .linha:last-child { border-bottom: none; }
+  .risco .cab { background: #f7f7fa; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase;
+                color: var(--fraco); font-weight: 600; }
+  .risco .agora { color: var(--suave); }
+  .risco .depois { color: #a33a2e; font-weight: 600; }
+
+  /* ---------- itens ---------- */
+  .itens { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .item { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 18px 20px;
+          display: grid; grid-template-columns: 46px 1fr; gap: 15px; align-items: start; }
+  .cod { font-size: 12.5px; font-weight: 700; color: var(--roxo); background: var(--roxo-fraco);
+         border-radius: 9px; padding: 7px 0; text-align: center; letter-spacing: .03em; }
+  .item h4 { margin: 2px 0 7px; font-size: 15.5px; font-weight: 600; letter-spacing: -.005em; }
+  .item dl { margin: 0; display: grid; grid-template-columns: 58px 1fr; gap: 3px 10px; font-size: 13.5px; }
+  .item dt { color: var(--fraco); font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase;
+             padding-top: 2px; }
+  .item dd { margin: 0; color: var(--suave); }
+  .item.largo { grid-column: 1 / -1; }
+
+  /* ---------- ordem ---------- */
+  .ordem { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .passo { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 15px 14px;
+           position: relative; }
+  .passo b { display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 5px; }
+  .passo span { font-size: 12.5px; color: var(--fraco); line-height: 1.45; display: block; }
+  .passo em { position: absolute; top: -9px; left: 14px; font-style: normal; font-size: 11px; font-weight: 700;
+              color: #fff; background: var(--roxo); border-radius: 20px; padding: 2px 8px; }
+  .passo.final { background: var(--verde-fraco); border-color: #d9e7cd; }
+  .passo.final em { background: var(--verde); }
+  .passo.final b { color: var(--verde); }
+
+  /* ---------- decisões ---------- */
+  .decisoes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dec { border-radius: 14px; padding: 22px 24px; border: 1px solid; }
+  .dec.a { background: var(--ambar-fraco); border-color: #f0dfc2; }
+  .dec.b { background: var(--azul-fraco); border-color: #d8e4ef; }
+  .dec h4 { margin: 0 0 9px; font-size: 16px; font-weight: 600; }
+  .dec.a h4 { color: var(--ambar); }
+  .dec.b h4 { color: var(--azul); }
+  .dec p { margin: 0 0 9px; font-size: 14.5px; color: #4a4b54; }
+  .dec p:last-child { margin-bottom: 0; }
+
+  .fora { background: var(--papel); border: 1px dashed var(--linha); border-radius: 14px;
+          padding: 18px 22px; font-size: 14.5px; color: var(--suave); }
+  .fora b { color: var(--tinta); font-weight: 600; }
+
+  footer { margin-top: 50px; padding-top: 18px; border-top: 1px solid var(--linha);
+           display: flex; justify-content: space-between; font-size: 13px; color: var(--fraco); }
+  code { font-family: Consolas, "SF Mono", monospace; font-size: .9em; background: #f2f2f6;
+         padding: 1px 5px; border-radius: 4px; }
+
+  @media (max-width: 860px) {
+    .numeros, .itens, .lados, .decisoes { grid-template-columns: 1fr; }
+    .ordem { grid-template-columns: repeat(2, 1fr); }
+    .risco .linha { grid-template-columns: 1fr; gap: 6px; }
+    h1 { font-size: 31px; }
+  }
+</style>
+</head>
+<body>
+<div class="env">
+
+<header>
+  <div class="marca">Plano para decisão · 13 nov 2026</div>
+  <h1>Colher o que já está pronto</h1>
+  <p class="chamada">O agente do vídeo não está ao nosso alcance. Mas existe, dentro do nosso
+  próprio repositório, um agente de voz nosso e já provado — que resolve com mais rigor problemas
+  que eu reconsertei do zero esta semana.</p>
+
+  <div class="numeros">
+    <div class="num"><b>60</b><span>commits da cápsula</span></div>
+    <div class="num"><b>CP7.6</b><span>último checkpoint provado</span></div>
+    <div class="num"><b>6</b><span>provas de voz</span></div>
+    <div class="num destaque"><b>2×</b><span>vezes que refiz o que ela já tinha</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="rotulo"><i>01</i><h2>O que a busca encontrou</h2></div>
+  <div class="lados">
+    <div class="lado nao">
+      <h3><span class="pin"></span>Não temos</h3>
+      <p>As sessões do vídeo — <em>Appointment Agent PoC</em>, <em>Orbit Stage 2</em> — não existem
+      nesta máquina. Procurei por título e por conteúdo, incluindo arquivadas.</p>
+      <p class="prova">A prova é o relógio: a tela compartilhada marca <b>4:54 PM / ENG US</b>; a sua
+      barra de tarefas, <b>16:54 / PTB2</b>. É outra máquina, por AnyDesk.</p>
+    </div>
+    <div class="lado sim">
+      <h3><span class="pin"></span>Temos</h3>
+      <p><code>capsules/WikiAgentCapsule</code>, no repositório do CopilotSpeaker: agente de voz
+      <b>nosso</b>, com turn tracker, máquina de estados, canais separados e ledger.</p>
+      <p class="prova">Mais a base do OrbitConnect importada — <b>988 arquivos</b>, 970 páginas. É de
+      julho: traz o domínio, não o assistente do vídeo.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="rotulo"><i>02</i><h2>Por que isto vem antes da F7</h2>
+    <p>a F7 dá ao agente o poder de mudar o diagrama</p></div>
+  <div class="risco">
+    <div class="linha cab"><span>O defeito</span><span>Hoje custa</span><span>Com escrita, custa</span></div>
+    <div class="linha">
+      <span>Pedaço da resposta anterior carimbado no turno novo</span>
+      <span class="agora">bolha errada</span>
+      <span class="depois">desenho errado</span>
+    </div>
+    <div class="linha">
+      <span>Fragmento de fala tratado como frase completa</span>
+      <span class="agora">responde a meia pergunta</span>
+      <span class="depois">ferramenta disparada cedo</span>
+    </div>
+    <div class="linha">
+      <span>Chamada repetida numa reconexão</span>
+      <span class="agora">consulta repetida</span>
+      <span class="depois">elemento duplicado</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="rotulo"><i>03</i><h2>Os sete itens</h2>
+    <p>cada um nasce de um problema que já apareceu aqui</p></div>
+  <div class="itens">
+
+    <div class="item largo">
+      <span class="cod">H1</span>
+      <div>
+        <h4>Dono do turno e coalescência de fala</h4>
+        <dl>
+          <dt>Dói</dt><dd>consertei a atribuição de turno <b>duas vezes em um dia</b>, as duas com heurística minha</dd>
+          <dt>Tem lá</dt><dd>coalesce fragmentos pelo sinal do servidor, fixa cada evento ao turno dono, e <b>uma execução só</b> por par turno+chamada</dd>
+          <dt>Prova</dt><dd>bateria de voz passando com uma fixture que tenha <b>pausas no meio da frase</b> — hoje nenhuma tem</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="cod">H2</span>
+      <div>
+        <h4>Fala e tela são canais diferentes</h4>
+        <dl>
+          <dt>Dói</dt><dd>a ferramenta devolve <code>[_6-638]</code> e o id pode acabar falado</dd>
+          <dt>Tem lá</dt><dd>o que soa como máquina vai para a tela. Vale dobrado para a citação da FK</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="cod">H3</span>
+      <div>
+        <h4>Apresentador de resultado</h4>
+        <dl>
+          <dt>Dói</dt><dd>o aluno vê a resposta e não vê o que foi consultado</dd>
+          <dt>Tem lá</dt><dd>completo para o modelo, resumo redigido no cliente, uma linha na tela — os cartões do vídeo</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="cod">H4</span>
+      <div>
+        <h4>Barge-in por nível</h4>
+        <dl>
+          <dt>Dói</dt><dd>o teste mede calibração: 16 s de silêncio, e o modelo falou aos <b>12,3 s</b></dd>
+          <dt>Tem lá</dt><dd>detecta fala local por energia enquanto o modelo fala</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="cod">H5</span>
+      <div>
+        <h4>Ledger — evidência do TCC</h4>
+        <dl>
+          <dt>Dói</dt><dd>a evidência hoje é arquivo solto em <code>artifacts/</code></dd>
+          <dt>Tem lá</dt><dd>guarda só conteúdo final. Cabe no <b>harness</b>, não no produto: a página do aluno não tem banco</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="cod">H6</span>
+      <div>
+        <h4>Estado e nível na tela</h4>
+        <dl>
+          <dt>Dói</dt><dd>a dívida M6 durou <b>três dias</b> por cegueira de instrumento</dd>
+          <dt>Tem lá</dt><dd>estados nomeados com guardas; do vídeo, o selo e o medidor de nível</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="cod">H7</span>
+      <div>
+        <h4>O contrato na interface</h4>
+        <dl>
+          <dt>Dói</dt><dd>a F7 vai dar poder de escrita sem a tela dizer o limite</dd>
+          <dt>Tem lá</dt><dd>do vídeo: <em>"somente leitura — ele abre as telas, você confirma"</em></dd>
+        </dl>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="rotulo"><i>04</i><h2>A ordem</h2><p>e o que cada passo destrava</p></div>
+  <div class="ordem">
+    <div class="passo"><em>1</em><b>H1</b><span>a F7 inteira</span></div>
+    <div class="passo"><em>2</em><b>H4</b><span>fecha um aberto e tira o teste da calibração</span></div>
+    <div class="passo"><em>3</em><b>H2 · H3</b><span>melhora a F6 e prepara a FK</span></div>
+    <div class="passo"><em>4</em><b>H6 · H7</b><span>a demonstração, e um instrumento que não cega</span></div>
+    <div class="passo"><em>5</em><b>H5</b><span>evidência citável</span></div>
+    <div class="passo final"><em>6</em><b>F7</b><span>começa com H1 e H7 no lugar</span></div>
+  </div>
+  <div class="fora" style="margin-top:16px">
+    <b>Fica de fora:</b> o indicador de etapa 1-2-3-4 do Orbit espelha um assistente de agendamento,
+    que tem etapas fixas — modelagem BPMN não tem. O que vale ali é o princípio, e ele já é nosso
+    desde a F3: o agente sabe onde o usuário está e recusa pular adiante.
+  </div>
+</section>
+
+<section>
+  <div class="rotulo"><i>05</i><h2>O que depende de você</h2></div>
+  <div class="decisoes">
+    <div class="dec a">
+      <h4>A declaração acadêmica</h4>
+      <p>Código vindo da cápsula é <b>reúso de trabalho anterior do próprio autor</b>. No TCC isso
+      precisa estar declarado.</p>
+      <p>Não é obstáculo — é um parágrafo na metodologia. Mas a hora de decidir é <b>antes</b> de
+      colher.</p>
+    </div>
+    <div class="dec b">
+      <h4>Medir a recusa de sessão (M7)</h4>
+      <p>Na bateria completa o servidor <b>fechou a sessão logo depois do setup</b>, com zero quadro
+      de microfone enviado.</p>
+      <p>Falta o número: por minuto, por concorrência ou por dia. Interessa ao produto — o aluno com
+      a chave dele vai bater nisso.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>Registro: <code>openspec/roadmap.md</code> (Trilha H) · <code>openspec/open-items.md</code> (M7)</span>
+  <span>niu-tech/bpmn · TCC</span>
+</footer>
+
+</div>
+</body>
+</html>

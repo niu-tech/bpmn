@@ -7,7 +7,7 @@
  *
  * Uso: node tools/html-to-pdf.mjs <entrada.html> <saida.pdf>
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -39,7 +39,11 @@ export async function imprimir(entrada, saida, opcoes = {}) {
   const exe = NAVEGADORES.find((p) => existsSync(p));
   if (!exe) throw new Error('nenhum navegador encontrado (defina BPMN_BROWSER)');
 
-  const porta = 9341;
+  // PORTA POR CORRIDA, nunca fixa. Com `9341` fixo, uma corrida anterior que deixou o navegador
+  // vivo fazia a seguinte ANEXAR na instancia velha -- e o sintoma nao e "porta ocupada", e
+  // `Printing is not available (-32000)`, que parece defeito do documento. Medido em 2026-11-13:
+  // 30 `msedge.exe` de PDF pendurados nesta maquina, e o render falhando sem dizer por que.
+  const porta = 9800 + (process.pid % 150);
   const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-pdf-${process.pid}-${Date.now()}`;
   const filho = spawn(exe, [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
@@ -69,6 +73,16 @@ export async function imprimir(entrada, saida, opcoes = {}) {
     return saida;
   } finally {
     try { filho.kill(); } catch { /* ja morreu */ }
+    // `kill` sozinho nao basta: o Edge re-executa e deixa processos que nao sao filhos deste.
+    // O filtro e o PERFIL (unico por corrida) e nunca o nome: o dono tem o Edge dele aberto.
+    if (process.platform === 'win32') {
+      const marca = perfil.split(/[\\/]/).pop();
+      spawnSync('powershell', ['-NoProfile', '-Command',
+        'Get-CimInstance Win32_Process -Filter "Name=\'msedge.exe\' or Name=\'chrome.exe\'" '
+        + `| Where-Object { $_.CommandLine -like '*${marca}*' } `
+        + '| ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue } catch { } }',
+      ], { stdio: 'ignore', timeout: 20000 });
+    }
   }
 }
 
