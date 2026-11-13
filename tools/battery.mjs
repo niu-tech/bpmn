@@ -589,7 +589,7 @@ if (chaveViva) {
 
       `// Metade 1 do portao: a CONTAGEM tem de bater com o diagrama que esta na tela.
        const esperado = window.__d.contagem.Task;
-       const resposta = await window.__resposta('Quantas tarefas (bpmn:Task) tem este diagrama? Responda com o numero.');
+       const resposta = await window.__resposta('Quantas tarefas (bpmn:Task) tem este diagrama? Responda com o número.');
        const EXTENSO = ['zero','uma','duas','tres','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove','vinte'];
        const semAcento = resposta.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
        const bateuEmDigito = new RegExp('(^|[^0-9])' + esperado + '([^0-9]|$)').test(resposta);
@@ -620,7 +620,7 @@ if (chaveViva) {
        const sel = window.__bpmnAssist.diagrama.selecionado;
        if (!sel || sel.id !== alvo.id) return { ok: false, erro: 'o clique nao selecionou', pedido: alvo.id, selecionado: sel };
 
-       const resposta = await window.__resposta('O que e isto que eu selecionei?');
+       const resposta = await window.__resposta('O que é isto que eu selecionei?');
        const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
        // Nome OU id: os dois identificam AQUELE elemento. O que nao vale e a resposta generica
        // ("isto e uma tarefa"), que serviria para qualquer tarefa do diagrama.
@@ -657,7 +657,7 @@ if (chaveViva) {
          await new Promise((r) => setTimeout(r, 500));
        }
        // Um assunto que NAO esta no diagrama aberto: tem de vir da conversa, nao do contexto.
-       const resposta = await window.__resposta('Estou modelando o processo de uma locadora de caiaques. Qual evento representa o aluguel comecando?');
+       const resposta = await window.__resposta('Estou modelando o processo de uma locadora de caiaques. Qual evento representa o aluguel começando?');
        return {
          ok: !resposta.startsWith('[FALHA DO SERVICO]')
            && document.querySelector('.bpmn-assist__status').textContent === 'pronto' && resposta.length > 10,
