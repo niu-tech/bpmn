@@ -335,6 +335,22 @@ escala para o tutor da F8, que precisa lembrar entre sessões e consolidar o que
 > **O que NÃO serve:** `agent/ui/` e `agent/extensions/` são da TUI do Pi, e `src/` é .NET
 > (AudioBridge, MCP server). O nosso áudio é Web Audio na aba do aluno. Olhar isso é perder tempo.
 
+#### H11 — Injetar a fala no nível da sessão (o achado que faltava)
+A cápsula tem modo `mic` × `inject`: em inject ela sintetiza a frase e empurra o **PCM direto na
+sessão Live**, sem hardware e sem o microfone falso do navegador — e aceita **várias falas** na
+mesma corrida.
+
+É o que teria tornado a dívida M6 impossível: lá o Chromium nunca entra na conta. Aqui o produto já
+expõe o caminho (`pushAudio`); falta o verbo de harness.
+
+⚠ **Não substitui a captura.** Injetar vira o padrão dos cenários (determinístico, multi-turno);
+**um** cenário e o `tools/provar-captura.mjs` continuam no caminho real, porque uma suíte que só
+injeta não sabe se a captura quebrou. Trocar tudo por injeção é trocar uma cegueira por outra.
+
+#### H12 — Inventário de dependências com licença
+O `INVENTORY.md` da cápsula lista **toda** dependência externa com versão fixada e licença, e diz
+em uma linha por que cada exceção existe. Aqui isso não existe — e é rigor que a banca cobra.
+
 ### Ordem, e o que cada passo destrava
 
 | # | passo | destrava |
@@ -348,6 +364,11 @@ escala para o tutor da F8, que precisa lembrar entre sessões e consolidar o que
 | — | **H8** orçamento do prompt | fecha a tarefa 2.4 do harness, que nunca rodou |
 | — | **H9** idioma por preferência | tira o idioma da prosa e põe na estrutura |
 | — | **H10** memória com escopo | pré-requisito do tutor da F8 |
+| — | **H11** injeção no nível da sessão | tira o teste de voz do microfone falso do navegador |
+| — | **H12** inventário de dependências | rigor de banca, hoje inexistente |
+
+> **A change OpenSpec desta trilha:** `openspec/changes/harvest-proven-voice-foundations/`
+> (proposal · design · tasks). É lá que as caixas são marcadas.
 
 ### O que NÃO vem do vídeo
 
