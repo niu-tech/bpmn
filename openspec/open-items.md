@@ -31,6 +31,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 | M4 | Desconexão no meio do turno | aberto | a sessão tem recuo com teto e código de fechamento nomeado, mas nunca foi exercitado cortando a rede de verdade |
 | M5 | Expiração de sessão (`go-away`) | aberto | o frame é reconhecido e registrado no diário; nunca foi visto ao vivo |
 | M6 | Os cenários de VOZ ao vivo não eram confiáveis | **causa encontrada, conserto no ar (2026-11-13)** | não era cota nem o servidor: **o microfone do teste não tocava a fala**. Duas causas somadas. (1) As fixtures do SAPI têm o chunk `fmt ` com **18 bytes** e o leitor de WAV do Chromium quer os **16** canônicos — arquivo recusado, e o Chromium troca pelo **tom sintético** do dispositivo falso **sem avisar**. (2) O harness vazava navegador: **1305 `msedge.exe`** vivos com a marca `bpmn-drive-` nesta máquina, e nesse estado o microfone falso ignorava o arquivo de forma intermitente. O tom tem energia de verdade — era o pico **0,574** que eu lia como "a fala chegou" — e o Gemini não transcreve tom nem vê fim de fala: 879 quadros subindo para um turno que nunca fecha, socket saudável e mudo. Consertado em `tools/drive-page.mjs` (fixture reescrita com `fmt ` canônico + 4 s de cauda muda; recusa nomeada para fixture ilegível; navegador encerrado por perfil ao fim de cada corrida). Ver §3f |
+| T10 | O marcador `<no speech>` vaza um pedaço para a bolha | aberto (2026-11-13) | na corrida ao vivo de 2026-11-13 o portão F6 respondeu `"speech>"` — o rabo de `<no speech>`, que `limparLegenda` deveria remover. Por baixo o comportamento estava certo (ferramenta chamada, áudio de volta aos 3,8 s): o defeito é só o que chega à tela. Intermitente: o mesmo portão passou limpo duas horas antes |
 
 ## 3. Barge-in: o que a medição mostrou — e o achado que ela trouxe
 
@@ -379,6 +380,30 @@ mic.open -> out.audio x14 -> out.audio x142 -> ws.input-text -> ws.audio -> out.
 
 E o `nivelPorSegundo` tem a forma que a fixture reescrita produz — `0.61 0.4 0.37 0.22 0.03 0 0`:
 fala, e depois silêncio de verdade.
+
+**E a bateria ao vivo inteira, logo depois: 6 de 9** (era 3 de 9 na corrida da manhã). Os **quatro**
+cenários que o M6 derrubava passaram **na mesma corrida, em sequência**:
+
+| cenário | antes | agora |
+|---|---|---|
+| voz de verdade | falhou | **passou** |
+| interromper o modelo falando por cima | falhou | **passou** |
+| portão F4 (metade de voz) | falhou | **passou** |
+| gate 4.3 (voz chama ferramenta) | falhou | **passou** |
+
+As três falhas que sobraram **não são o M6**, e é melhor dizer o que cada uma é:
+
+- **portão F3** — `[FALHA DO SERVICO] não deu: o servidor não respondeu`, em modo texto. É o timeout
+  de silêncio que o app nomeia na tela. Real, e segue aberto;
+- **portão F5** — **critério meu outra vez**: o capturado foi *"sobre modelagem e boas práticas em
+  BPMN 2.0 no seu diagrama aberto."*, que é um FRAGMENTO (começa no meio da frase) — e mesmo assim
+  o relatório marcou `falouDeBpmn: false` sobre um texto que diz "BPMN 2.0" com todas as letras. O
+  teste está contradizendo a própria evidência;
+- **portão F6** — respondeu `"speech>"`. É o rabo do marcador `<no speech>` chegando à bolha, que o
+  `limparLegenda` deveria ter tirado. A linha do tempo mostra o comportamento CERTO por baixo
+  (`buscar_elemento` → `state.turno-de-ferramenta n=1` → `detalhar_elemento`, com áudio voltando aos
+  3,8 s); o que falha é o que aparece. Este é um defeito de produto, pequeno e novo neste registro —
+  entra como **T10** abaixo.
 
 ### O que isto deixa em aberto no PRODUTO
 
