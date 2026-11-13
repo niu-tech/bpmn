@@ -8,6 +8,8 @@
 
 import './ui/assistant.css';
 import { observarDiagrama } from './agent/diagram.js';
+import { assinaturaDoDiagrama } from './tools/leitura.js';
+import { criarAcessoBpmn } from './tools/bpmn-api.js';
 import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
@@ -60,8 +62,17 @@ export function mountAssistant({ container = document.body, debug = false, pagin
 
   let widget = null;
 
+  // UMA camada fina sobre o bpmn-js, usada pelo observador E pelas ferramentas (design T6).
+  const acesso = criarAcessoBpmn(modelador);
   // O observador só marca sujo; quem recalcula é o `lerDiagrama` abaixo, nas bordas de turno.
-  const olho = observarDiagrama(modelador);
+  const olho = observarDiagrama(acesso);
+
+  /**
+   * A última corrida de simulação, como a PÁGINA a registrou. O ajudante não dispara simulação
+   * (design T5) — ele comenta o que o aluno rodou. A assinatura do diagrama é guardada JUNTO,
+   * para a ferramenta poder avisar quando o desenho mudou depois da corrida.
+   */
+  let simulacao = null;
 
   const credentials = createCredentialStore({
     onChange: () => widget?.render(view()),
@@ -69,7 +80,13 @@ export function mountAssistant({ container = document.body, debug = false, pagin
 
   const session = createAssistantSession({
     credentials,
-    deps: { debug, pagina, lerDiagrama: () => olho.atual() },
+    deps: {
+      debug,
+      pagina,
+      acesso,
+      lerDiagrama: () => olho.atual(),
+      lerSimulacao: () => simulacao,
+    },
     onUpdate: () => widget?.render(view()),
   });
 
@@ -111,6 +128,8 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     get diagrama() { return olho.atual(); },
     /** O último quadro que o modelo de fato recebeu. É o espelho do delta. */
     get contextoEnviado() { return session.contextoEnviado; },
+    /** A corrida de simulação que o agente enxerga. Só leitura. */
+    get simulacao() { return simulacao; },
     sincronizarContexto: () => session.sincronizarContexto(),
     definirContexto: (c) => session.definirContexto(c),
   };
@@ -125,6 +144,21 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     session,
     credentials,
     widget,
+
+    /**
+     * A página avisa que o aluno rodou uma simulação. Guardamos o resultado E a assinatura do
+     * diagrama naquele momento — é a comparação dessas duas assinaturas que permite dizer "esta
+     * métrica é do desenho anterior" em vez de apresentar número velho como atual (tarefa 2.4).
+     */
+    registrarSimulacao(resultado) {
+      if (!resultado) { simulacao = null; return null; }
+      simulacao = {
+        quando: new Date().toISOString(),
+        resumo: resultado,
+        assinatura: acesso.disponivel ? assinaturaDoDiagrama(acesso.elementos()) : null,
+      };
+      return simulacao;
+    },
     /** Desmonta de verdade: encerra a sessão, tira os listeners e libera a marca. */
     async destroy() {
       pararDeMedir();

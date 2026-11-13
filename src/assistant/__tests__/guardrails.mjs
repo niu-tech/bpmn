@@ -80,11 +80,13 @@ test('ferramenta restrita a um perfil so aparece nele', () => {
   assert.ok(naVoz.includes('so_na_voz'));
 });
 
-test('hoje as duas ferramentas valem nos dois perfis e nas duas paginas', () => {
+test('hoje TODAS as ferramentas valem nos dois perfis e nas duas paginas', () => {
+  // Nenhuma escreve ainda: memoria e leitura sao inofensivas numa pagina que so le. Quando a
+  // primeira de escrita nascer (F7), e este teste que muda - e o do viewer ja esta escrito.
   for (const ctx of [MODELADOR, VIEWER, { perfil: 'voz', pagina: 'modelador' }]) {
     assert.deepEqual(
       ferramentasPermitidas(ctx).map((f) => f.nome),
-      ['lembrar', 'descrever_diagrama'],
+      ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'],
     );
   }
   assert.equal(declarada('lembrar'), true);

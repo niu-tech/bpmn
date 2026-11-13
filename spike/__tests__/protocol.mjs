@@ -75,7 +75,7 @@ test('modo VOZ: sem a funcao de ENTREGA, mas COM as ferramentas do catalogo', ()
   const { setup } = buildSetup(VOZ);
   const nomes = setup.tools[0].functionDeclarations.map((f) => f.name);
   assert.ok(!nomes.includes(DELIVERY_TOOL), 'a entrega emudece a voz: medido');
-  assert.deepEqual(nomes, ['lembrar', 'descrever_diagrama']);
+  assert.deepEqual(nomes, ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao']);
   assert.equal(setup.systemInstruction.parts[0].text, VOZ.systemInstruction);
   assert.ok(!setup.systemInstruction.parts[0].text.includes(DELIVERY_TOOL),
     'mandar chamar uma funcao nao declarada e pedir alucinacao');

@@ -225,14 +225,32 @@ export function createSession({
    * atual. É a única pista de fronteira que o protocolo dá.
    */
   function endTurn(idle) {
+    const alvo = pendente ?? turn;
+    if (!alvo) return;
+
+    // ⚠ TURNO DE FERRAMENTA É INTERMEDIÁRIO. Medido ao vivo no portão F6 (2026-11-13):
+    //
+    //   1,7s  ws.tool-call → tool.executando buscar_elemento → out.tool-response
+    //   1,7s  ws.turn-complete idle=true          ← o servidor FECHA aqui
+    //   2,3s  ws.tool-call (a entrega) → out.tool-response
+    //   4,2s  ws.audio x21
+    //
+    // Ou seja: a resposta ao aluno vem numa GERAÇÃO NOVA, depois do turno que só executou a
+    // ferramenta. Fechando o nosso turno no primeiro `turnComplete`, a entrega chegava sem
+    // turno aberto e era descartada — o aluno via a pergunta, nenhuma resposta, e 45 s depois
+    // "o servidor não respondeu". Era o turno certo fechando na hora errada.
+    if (alvo.usouFerramenta && !alvo.delivered && !alvo.spoken) {
+      log('turno de ferramenta fechado pelo servidor; aguardando a resposta na geração seguinte');
+      ev('state', 'turno-de-ferramenta', `n=${alvo.n}`);
+      armTurnTimer();
+      return;
+    }
+
     if (pendente) {
-      const alvo = pendente;
       pendente = null;
       encerrarTurno(alvo, idle);
       return;
     }
-    if (!turn) return;
-    const alvo = turn;
     turn = null;
     encerrarTurno(alvo, idle);
   }

@@ -60,6 +60,8 @@ function setStatus(el, txt) {
 
 let currentXml = null;
 let last = { eventsRows: [], summaryRows: [], pathRows: [], proofRows: [], casesRows: [], taskRows: [] };
+/** O ajudante desta pagina. Guardado para avisa-lo quando uma simulacao rodar. */
+let ajudante = null;
 
 (async () => {
   const canvasEl = document.getElementById('canvas');
@@ -73,7 +75,7 @@ let last = { eventsRows: [], summaryRows: [], pathRows: [], proofRows: [], cases
 
   // Ajudante BPMN. A barra da simulacao vive em cima a direita; o ajudante, em baixo a direita.
   try {
-    mountAssistant({ pagina: 'viewer', modelador: viewer });
+    ajudante = mountAssistant({ pagina: 'viewer', modelador: viewer });
   } catch (e) {
     console.warn('Ajudante indisponivel:', e);
   }
@@ -173,6 +175,11 @@ let last = { eventsRows: [], summaryRows: [], pathRows: [], proofRows: [], cases
 
       const rngFactory = (seed) => mulberry32(seed);
       last = await runBatch({ graph, cfg, rng: rngFactory });
+      // O ajudante NAO dispara simulacao (design T5): ele comenta a que o aluno rodou.
+      // O registro guarda tambem a assinatura do diagrama de agora, e e isso que depois
+      // permite avisar "esta metrica e do desenho anterior" em vez de apresentar numero
+      // velho como atual.
+      try { ajudante?.registrarSimulacao(last); } catch (e) { console.warn('Ajudante: simulacao nao registrada', e); }
 
       // compute counts for heatmap from events
       const elementCounts = new Map();

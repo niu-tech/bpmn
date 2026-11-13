@@ -3,34 +3,54 @@
 
 ## 0. Pré-requisito
 
-- [ ] 0.1 `give-bpmn-assistant-an-agent-harness` implementada: catálogo, política default-deny,
-      despacho com erro nomeado e contexto do diagrama. Sem isso, cada ferramenta aqui nasceria
-      sem portão
-- [ ] 0.2 **Despacho assíncrono correlacionado** (tarefa 5.0 do harness) de pé. Com o despacho de
-      hoje, que responde `{ok:true}` antes de executar, toda ferramenta desta change mentiria o
-      resultado ao modelo
-- [ ] 0.3 **Gate de voz com ferramenta read-only** (tarefa 4.3 do harness) decidido. Se a voz não
-      suportar ferramenta, esta change entrega só o perfil de texto e diz isso na UI
+- [x] 0.1 `give-bpmn-assistant-an-agent-harness` implementada: catálogo, política default-deny,
+      despacho com erro nomeado e contexto do diagrama — F1 a F5 fechadas e provadas ao vivo
+- [x] 0.2 **Despacho assíncrono correlacionado** de pé desde a F1: resultado real, erro nomeado,
+      teto próprio por ferramenta e o relógio do turno pausado enquanto ela executa
+- [x] 0.3 **Gate de voz com ferramenta read-only — SIM** (2026-11-13). Numa sessão de voz o
+      modelo chamou `descrever_diagrama`, recebeu o resultado e **continuou falando** (20 frames
+      de áudio depois da ferramenta, com as cinco raias certas). Não há perfil reduzido a
+      entregar: as ferramentas valem nos dois modos
 
 ## 1. Acesso à página
 
-- [ ] 1.1 `app.js` entrega o `modeler` ao ajudante; `viewer.js` entrega o `viewer` marcado como
-      somente leitura. Nenhum dos dois expõe o objeto globalmente
-- [ ] 1.2 Uma camada fina sobre o bpmn-js (`src/assistant/tools/bpmn-api.js`) com o que as
-      ferramentas usam — `elementRegistry`, `modeling`, `elementFactory`, `bpmnFactory`,
-      `canvas`, `selection` — para que o dublê de teste tenha superfície pequena
+- [x] 1.1 `app.js` entrega o `modeler` ao ajudante; `viewer.js` entrega o `viewer` e a página
+      nasce `somenteLeitura` pelo perfil. Nenhum dos dois expõe o objeto globalmente — o que
+      `window.__bpmnAssist` dá é projeção e diagnóstico, nunca o modelador
+- [x] 1.2 Camada fina em `src/assistant/tools/bpmn-api.js` com **cinco funções** — `elementos`,
+      `porId`, `selecionado`, `entradasESaidas`, `assinar` — mais a flag `disponivel`. As de
+      escrita (`modeling`, `elementFactory`, `bpmnFactory`) entram na F7, quando houver quem as
+      use: camada com função que ninguém chama é superfície de teste inventada.
+      ⚠ O observador da projeção (`agent/diagram.js`) passou a falar com ESTA camada também —
+      duas camadas sobre a mesma coisa é o que o design T6 existe para impedir. Sem modelador,
+      tudo devolve inerte: montar o ajudante antes de importar diagrama é caso normal
 
 ## 2. Leitura
 
-- [ ] 2.1 `descrever_diagrama` — processo, contagem por tipo, raias e pools
-- [ ] 2.2 `buscar_elemento` — por nome (sem diferenciar acento/caixa) e por tipo; devolve lista
-      com teto e diz quando cortou
-- [ ] 2.3 `detalhar_elemento` — tipo, nome, entradas e saídas de um `id`
-- [ ] 2.4 `resumir_simulacao` — última corrida: tempo médio, gargalo, utilização por raia; diz
-      "sem corrida" quando não houver **e avisa quando o diagrama mudou depois da corrida**, para
-      não apresentar métrica velha como estado atual
-- [ ] 2.5 Testes com dublê de `elementRegistry`, incluindo busca sem resultado e a busca que
-      varre o registro INTEIRO (não a amostra do contexto) — é o que permite afirmar inexistência
+- [x] 2.1 `descrever_diagrama` — processo, contagem por tipo, raias e pools, e o elemento
+      selecionado. Rótulo externo não conta duas vezes e a raiz não vira elemento
+- [x] 2.2 `buscar_elemento` — por nome (sem acento, sem caixa) e/ou por tipo (com ou sem o
+      prefixo `bpmn:`), varrendo o REGISTRO INTEIRO. Teto de 20, e o corte é dito (`cortou: 30`).
+      O resultado carrega `varreuODiagramaInteiro: true` — é essa marca que autoriza o modelo a
+      concluir ausência, coisa que a amostra do contexto nunca permite (design H13).
+      Busca sem resultado **não é erro**: é um fato que o modelo usa
+- [x] 2.3 `detalhar_elemento` — tipo, nome, onde está, entradas e saídas de um `id`. Id que não
+      existe (ou id de rótulo) devolve `elemento_nao_encontrado`, nomeado: é o que faz o modelo
+      procurar em vez de repetir a mesma chamada
+- [x] 2.4 `resumir_simulacao` — última corrida: replicações, throughput médio, WIP médio e o
+      **gargalo** (a tarefa onde mais se espera: fila, não o trabalho em si), com o nome do
+      elemento junto do id. Sem corrida devolve `sem_corrida`, nomeado.
+      **O aviso de métrica velha existe e é medido**: a página registra a corrida junto com uma
+      assinatura do diagrama (quantidade + ids), e a ferramenta compara com a assinatura de
+      agora — mudou, a resposta diz *"o diagrama mudou depois desta corrida: as métricas são do
+      desenho anterior"*.
+      ⚠ **Utilização por raia ficou de fora**, e não por esquecimento: `taskSpans` não carrega
+      `laneId`, então não dá para calcular sem mudar o motor de simulação. Entregar um número
+      inventado seria pior que não entregar
+- [x] 2.5 `src/assistant/__tests__/leitura.mjs` (18 casos), com dublê da NOSSA camada fina e não
+      do bpmn-js (design T6): busca sem resultado, busca por nome+tipo somados, teto com corte
+      declarado, rótulo fora de tudo, erro nomeado, gargalo pela espera, aviso de diagrama
+      mudado, e a página sem modelador devolvendo `sem_diagrama` em todas
 
 ## 3. Escrita (só modelador)
 

@@ -161,13 +161,30 @@ política default-deny (ainda sem ferramenta de edição).
 > está provada antes de a primeira existir. A varredura mecânica contra keyword→tool varre todas
 > as fontes do ajudante a cada `npm test`.
 
-### F6 — Ferramentas de leitura
+### F6 — Ferramentas de leitura  ✅ 2026-11-13
 `descrever_diagrama` · `buscar_elemento` · `detalhar_elemento` · `resumir_simulacao` (dizendo
 quando a métrica é de uma versão anterior do diagrama).
 
-> **Portão F6** — AO VIVO em **voz**: o modelo chama `descrever_diagrama`, recebe o resultado e
-> **continua falando**. É o gate que decide se voz tem ferramenta; resultado negativo vira
-> registro, não suposição.
+> **Portão F6 — PASSOU (2026-11-13), nas duas metades.**
+>
+> **Em voz** (o gate que decidia se voz tem ferramenta): o modelo chamou `descrever_diagrama`,
+> recebeu o resultado e **continuou falando** — 20 frames de áudio depois da ferramenta, com as
+> cinco raias certas. A resposta é SIM, e a hipótese de que declarar função emudece o modelo
+> vale só para a função de ENTREGA.
+>
+> **Em texto**, o que só a ferramenta responde: perguntado por `pizza order` — um fluxo de
+> mensagem real, FORA da amostra de 25 de 47 — o agente chamou `buscar_elemento`, varreu o
+> diagrama inteiro e concluiu: *"Sim, o elemento 'pizza order' existe no diagrama e é um
+> MessageFlow."* Em seguida, `detalhar_elemento`: *"Por ser um fluxo de mensagem, ele não tem
+> fluxos de entrada ou saída, mas sim conecta dois elementos diferentes na colaboração."*
+> Até a F5 a resposta honesta era *"preciso procurar"*; agora ele procura.
+>
+> ⚠ **O portão derrubou um defeito que eu vinha atribuindo à cota.** A linha do tempo mostrou o
+> servidor fechando o turno logo depois do `tool-response` e mandando a RESPOSTA numa geração
+> nova. Como o nosso cliente fechava o turno no primeiro `turnComplete`, a entrega chegava sem
+> turno aberto e era descartada — o aluno via a pergunta, nenhuma resposta, e 45 s depois *"o
+> servidor não respondeu"*. Turno de ferramenta agora é **intermediário**: não fecha o turno do
+> aluno (`open-items.md` §3e).
 
 ### F7 — Ferramentas de escrita
 `criar_elemento` · `conectar` · `renomear` · `remover` com confirmação carimbada pela versão do
@@ -207,7 +224,7 @@ citação é um tutor pior, não um tutor impossível.
 | F3 | mesma | 2 e 3 (quadro e diagrama) |
 | F4 | mesma | 4 (memória) |
 | F5 | mesma | 6 (guardrails e catálogo) |
-| F6 | `add-bpmn-diagram-tools` | 2 (leitura) |
+| F6 | `add-bpmn-diagram-tools` | 0, 1 e 2 (pré-requisitos, acesso à página, leitura) |
 | F7 | mesma | 3 (escrita) |
 | F8 | `give-bpmn-assistant-an-agent-harness` | spec `bpmn-agent-tutoring`, provada em F8 |
 | FK | `add-bpmn-norm-knowledge-base` | todos (acervo, índice, ferramenta, prompt) |

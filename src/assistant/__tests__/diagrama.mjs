@@ -132,27 +132,33 @@ test('a projecao nunca carrega XML', () => {
 
 console.log('\n▶ o observador puxa, não empurra');
 
-test('sem modelador o observador e inerte — a pagina monta igual, sem diagrama', () => {
-  const o = observarDiagrama(null);
-  assert.equal(o.atual(), null);
-  o.dispose();
+test('sem acesso o observador e inerte — a pagina monta igual, sem diagrama', () => {
+  for (const vazio of [null, undefined, { disponivel: false }]) {
+    const o = observarDiagrama(vazio);
+    assert.equal(o.atual(), null);
+    o.dispose();
+  }
 });
 
 test('evento so marca sujo: dez cliques nao produzem dez projecoes', () => {
+  // ⚠ O duble e da NOSSA camada fina (design T6): cinco funcoes, nao o bpmn-js inteiro.
+  // Dublar o bpmn-js seria reimplementa-lo mal, e o caminho real contra ele e coberto pelos
+  // cenarios da bateria, no navegador.
   let calculos = 0;
   const ouvintes = new Map();
-  const modelador = {
-    get: (nome) => ({
-      elementRegistry: { getAll: () => { calculos++; return DIAGRAMA; } },
-      selection: { get: () => [gateway] },
-      eventBus: {
-        on: (ev, fn) => ouvintes.set(ev, fn),
-        off: (ev) => ouvintes.delete(ev),
-      },
-    })[nome],
+  const acesso = {
+    disponivel: true,
+    elementos: () => { calculos++; return DIAGRAMA; },
+    selecionado: () => gateway,
+    porId: (id) => DIAGRAMA.find((e) => e.id === id) ?? null,
+    entradasESaidas: () => ({ entradas: [], saidas: [] }),
+    assinar: (nomes, fn) => {
+      for (const n of nomes) ouvintes.set(n, fn);
+      return () => { for (const n of nomes) ouvintes.delete(n); };
+    },
   };
 
-  const o = observarDiagrama(modelador);
+  const o = observarDiagrama(acesso);
   assert.equal(o.atual().total, 6);
   assert.equal(calculos, 1);
   o.atual(); o.atual();

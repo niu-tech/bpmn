@@ -53,14 +53,70 @@ export const FERRAMENTAS = Object.freeze([
   {
     nome: 'descrever_diagrama',
     escreve: false,
-    // Leitura pura. Existe nesta fase por causa do GATE 4.3: é com ela que se mede se uma sessão
-    // de VOZ consegue chamar ferramenta e continuar falando. A versão completa (com busca e
-    // detalhe por elemento) é da F6, na change irmã.
+    // Leitura pura. Nasceu no GATE 4.3 — é com ela que se mediu que uma sessão de VOZ chama
+    // ferramenta e continua falando.
     declaracao: {
       name: 'descrever_diagrama',
       description:
         'Devolve o estado atual do diagrama aberto: contagem por tipo, raias e pools, e o '
         + 'elemento selecionado. Use quando precisar conferir o diagrama antes de responder.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+
+  {
+    nome: 'buscar_elemento',
+    escreve: false,
+    // ⚠ É a ferramenta que varre o REGISTRO INTEIRO. A lista que chega no contexto é amostra
+    // com teto, e dela não se conclui ausência (design H13) — daqui, sim. A descrição diz isso
+    // ao modelo, porque é a diferença que decide quando ele precisa chamar.
+    declaracao: {
+      name: 'buscar_elemento',
+      description:
+        'Procura elementos no diagrama INTEIRO por parte do nome e/ou por tipo, ignorando acento '
+        + 'e maiúsculas. Use antes de afirmar que algo não existe: a lista de elementos que você '
+        + 'recebe no contexto é só uma amostra, e esta busca varre tudo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          termo: { type: 'string', description: 'Pedaço do nome do elemento, como o aluno falou.' },
+          tipo: {
+            type: 'string',
+            description: 'Tipo BPMN, por exemplo Task, StartEvent, ExclusiveGateway, SequenceFlow.',
+          },
+        },
+      },
+    },
+  },
+
+  {
+    nome: 'detalhar_elemento',
+    escreve: false,
+    declaracao: {
+      name: 'detalhar_elemento',
+      description:
+        'Mostra um elemento pelo id: tipo, nome, onde ele está e quais fluxos entram e saem '
+        + 'dele. Use para explicar o que o aluno selecionou ou o que a busca encontrou.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'O id do elemento, como veio da busca ou do contexto.' } },
+        required: ['id'],
+      },
+    },
+  },
+
+  {
+    nome: 'resumir_simulacao',
+    escreve: false,
+    // ⚠ LÊ a última corrida; não dispara simulação (design T5). Uma corrida em lote leva
+    // segundos e repinta a tela inteira — efeito grande demais para sair de uma frase ambígua.
+    declaracao: {
+      name: 'resumir_simulacao',
+      description:
+        'Resume a ÚLTIMA simulação em lote que o aluno rodou: replicações, throughput médio, '
+        + 'WIP médio e a tarefa com maior espera (o gargalo). Você não dispara simulação — se '
+        + 'não houver corrida, diga que ele precisa rodar uma. O resultado avisa quando o '
+        + 'diagrama mudou depois da corrida; nesse caso, diga que a métrica é do desenho anterior.',
       parameters: { type: 'object', properties: {} },
     },
   },

@@ -144,6 +144,26 @@ test('turno sem entrega usa a transcricao como FALLBACK, e diz que e fallback', 
   assert.equal(session.turns.at(-1).fallback, true);
 });
 
+test('o turno da FERRAMENTA nao fecha o turno do aluno', () => {
+  // Medido no portao F6 (2026-11-13): o servidor fecha o turno logo depois do tool-response e
+  // manda a RESPOSTA numa geracao nova. Fechando no primeiro turnComplete, a entrega chegava
+  // sem turno aberto e era descartada - o aluno via a pergunta e nada mais.
+  const { session, ws, texts } = ready({
+    dispatcher: { despachar: async (calls) => calls.map((c) => ({ id: c.id, name: c.name, response: { ok: true } })) },
+  });
+  session.ask('existe esse elemento?');
+  ws.emit({ toolCall: { functionCalls: [{ id: 't1', name: 'buscar_elemento', args: { termo: 'x' } }] } });
+  ws.emit({ serverContent: { turnComplete: true } });          // fecho do turno de FERRAMENTA
+  assert.equal(session.turns.length, 0, 'o turno do aluno continua aberto');
+
+  // A resposta de verdade, na geracao seguinte.
+  ws.emit({ toolCall: { functionCalls: [{ id: 'd1', name: DELIVERY_TOOL, args: { texto: 'existe, e uma tarefa' } }] } });
+  ws.emit({ serverContent: { turnComplete: true } });
+  assert.equal(session.turns.length, 1, 'agora sim o turno fecha');
+  assert.equal(session.turns[0].text, 'existe, e uma tarefa');
+  assert.equal(texts.at(-1).text, 'existe, e uma tarefa');
+});
+
 test('T9: frame que chega depois da pergunta nova pertence ao turno ATROPELADO', () => {
   // O Live nao carimba turno no frame. A unica pista de fronteira e a ordem: o servidor termina
   // o turno anterior ANTES de comecar o novo, entao tudo que chega ate o proximo turnComplete e
@@ -169,10 +189,10 @@ test('cada turno da sessao tem identidade propria e crescente', () => {
   assert.equal(session.ask('c'), 3);
 });
 
-test('turno que EXECUTOU ferramenta e fechou calado NAO e turno vazio', () => {
-  // Medido no gate 4.3 (2026-11-13): a voz chamou `descrever_diagrama`, o turno fechou sem fala
-  // e a resposta veio no turno SEGUINTE. O aviso de "encerrou sem responder" no meio disso e
-  // mentira - e mentira que assusta o aluno no momento em que tudo esta funcionando.
+test('turno que EXECUTOU ferramenta e fechou calado nao avisa nada', () => {
+  // Medido no gate 4.3 e no portao F6 (2026-11-13): o fecho do turno de ferramenta nao e o fim
+  // da conversa - a resposta vem na geracao seguinte. Nem aviso de "turno vazio" (que assusta a
+  // toa), nem turno fechado (que descartaria a resposta quando ela chegar).
   const { session, ws, texts } = ready({
     dispatcher: { despachar: async (calls) => calls.map((c) => ({ id: c.id, name: c.name, response: { ok: true } })) },
   });
@@ -180,7 +200,7 @@ test('turno que EXECUTOU ferramenta e fechou calado NAO e turno vazio', () => {
   ws.emit({ toolCall: { functionCalls: [{ id: 't1', name: 'descrever_diagrama', args: {} }] } });
   ws.emit({ serverContent: { turnComplete: true } });
   assert.equal(texts.length, 0, 'o passo do meio nao anuncia nada');
-  assert.equal(session.turns.at(-1).empty, true);
+  assert.equal(session.turns.length, 0, 'e nao fecha o turno do aluno');
 });
 
 test('turno vazio AVISA, e nao inventa resposta', () => {

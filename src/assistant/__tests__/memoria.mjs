@@ -132,10 +132,10 @@ test('os DOIS perfis declaram as ferramentas; so o texto declara a ENTREGA', () 
     const { setup } = buildSetup(promptDoPerfil(resolverContexto({ modo })));
     return setup.tools[0].functionDeclarations.map((f) => f.name);
   };
-  assert.deepEqual(nomes('texto'), [DELIVERY_TOOL, 'lembrar', 'descrever_diagrama']);
+  assert.deepEqual(nomes('texto'), [DELIVERY_TOOL, 'lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao']);
   // ⚠ A voz declara ferramenta. A medicao do P1 ("declarar emudece") era sobre a ENTREGA, e foi
   // generalizada indevidamente (achado P6). O gate 4.3 mede isto ao vivo.
-  assert.deepEqual(nomes('voz'), ['lembrar', 'descrever_diagrama']);
+  assert.deepEqual(nomes('voz'), ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao']);
 });
 
 test('NENHUM codigo nosso decide memoria por palavra-chave', () => {

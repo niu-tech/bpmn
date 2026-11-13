@@ -726,7 +726,7 @@ if (chaveViva) {
          todosOsEventos: ev.map((e) => e.key + (e.n > 1 ? ' x' + e.n : '')),
          naTela: [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim().slice(0, 110)),
          chamouFerramenta: iTool >= 0,
-         executou: ev.filter((e) => e.key.startsWith('tool.')).map((e) => e.key + (e.detalhe ? ' ' + e.detalhe : '')),
+         executou: ev.filter((e) => e.key.startsWith('tool.')).map((e) => e.key + (e.detail ? ' ' + e.detail : '')),
          framesDeAudioDEPOISDaFerramenta: audioDepois,
          legenda: legenda.slice(0, 200),
          linhaDoTempo: ev.filter((e) => /ws\.(audio|tool-call|turn-complete|input-text)|out\.tool-response|tool\./.test(e.key))
@@ -824,6 +824,78 @@ if (chaveViva) {
          admitiuParcial,
          confirmouQueExiste: confirmou,
          respondeu: r.slice(0, 220),
+       };`,
+    ],
+  });
+
+  // ------------------------------------------------------------ portao F6 (ferramentas de leitura)
+  // A pergunta que so a FERRAMENTA responde: um elemento que existe no diagrama e NAO veio na
+  // amostra. Ate a F5, a resposta honesta era "preciso procurar"; com `buscar_elemento`, o
+  // agente procura de verdade e conclui. O criterio olha o DIARIO: a ferramenta foi chamada?
+  CENARIOS.push({
+    nome: 'AO VIVO: o agente procura no diagrama inteiro (portao F6)',
+    url: ALVO,
+    espera: 3500,
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       // Alvo: um elemento REAL que ficou fora da amostra (os mesmos criterios do portao F5).
+       const d = window.__bpmnAssist.diagrama;
+       const naAmostra = new Set(d.amostra.map((e) => e.id));
+       const ids = [...document.querySelectorAll('[data-element-id]')]
+         .map((n) => n.getAttribute('data-element-id'))
+         .filter((id, i2, arr) => arr.indexOf(id) === i2 && !id.endsWith('_label'));
+       let alvo = null;
+       for (const id of ids.filter((x) => !naAmostra.has(x))) {
+         const rotulo = document.querySelector('[data-element-id="' + id + '_label"]');
+         const texto = (rotulo?.textContent ?? '').trim();
+         if (texto.length > 3 && texto.length < 40 && /[a-z]/i.test(texto)) { alvo = { id, nome: texto }; break; }
+       }
+       window.__alvo = alvo;
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && !!alvo,
+         alvoForaDaAmostra: alvo ? alvo.nome + ' [' + alvo.id + ']' : null,
+         amostra: d.amostra.length + ' de ' + d.total,
+       };`,
+
+      `// 1. BUSCAR: a resposta certa agora e "existe", porque a ferramenta varre tudo.
+       const alvo = window.__alvo;
+       const r = await window.__resposta('Procure no diagrama inteiro: existe algum elemento chamado "' + alvo.nome + '"? Se existir, me diga o tipo dele.');
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       const limpo = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+       const confirmou = limpo(r).includes(limpo(alvo.nome));
+       const negou = /(nao existe|nao ha |nao encontrei|nao consta)/.test(limpo(r));
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && chamadas.includes('buscar_elemento') && confirmou && !negou,
+         chamouBuscar: chamadas.includes('buscar_elemento'),
+         ferramentasChamadas: chamadas,
+         linhaDoTempo: window.__bpmnAssist.eventos
+           .filter((e) => /ws\.(tool-call|turn-complete|audio|generation)|out\.(tool-response|text)|tool\./.test(e.key))
+           .map((e) => Number((e.ms / 1000).toFixed(1)) + 's ' + e.key + (e.detail ? ' ' + e.detail : '') + (e.n > 1 ? ' x' + e.n : '')),
+         confirmouQueExiste: confirmou,
+         respondeu: r.slice(0, 220),
+       };`,
+
+      `// 2. DETALHAR: o id vem da busca, e o detalhe traz o que entra e o que sai.
+       const alvo = window.__alvo;
+       const antes = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').length;
+       const r = await window.__resposta('Me detalhe esse elemento: o que entra e o que sai dele?');
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && chamadas.length > antes && r.length > 20,
+         ferramentasChamadas: chamadas,
+         linhaDoTempo: window.__bpmnAssist.eventos
+           .filter((e) => /ws\.(tool-call|turn-complete|audio|generation|output)|out\.(tool-response|text)|tool\.|state\.turno/.test(e.key))
+           .map((e) => Number((e.ms / 1000).toFixed(1)) + 's ' + e.key + (e.detail ? ' ' + e.detail : '') + (e.n > 1 ? ' x' + e.n : '')),
+         respondeu: r.slice(0, 260),
        };`,
     ],
   });

@@ -20,6 +20,7 @@ import { permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
+import { criarExecutoresDeLeitura } from './tools/leitura.js';
 import { promptDoPerfil } from './agent/render.js';
 import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback } from './live/audio.js';
@@ -353,21 +354,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           publish();
           return { guardado: true, categoria, total: memoria.total };
         },
-        descrever_diagrama: async () => {
-          const d = contextoAtual().diagrama;
-          if (!d) return { diagrama: null, aviso: 'nenhum diagrama aberto nesta página' };
-          return {
-            processo: d.processo,
-            total: d.total,
-            contagem: d.contagem,
-            raias: d.raias,
-            selecionado: d.selecionado,
-            amostra: d.amostra.length,
-            aviso: d.amostra.length < (d.total ?? 0)
-              ? `a amostra tem ${d.amostra.length} de ${d.total} elementos`
-              : undefined,
-          };
-        },
+        // As ferramentas de leitura falam com a camada fina do bpmn-js, não com o contexto: é
+        // justamente varrer o REGISTRO INTEIRO que as distingue da amostra que já viaja a cada
+        // turno (design H13 + T6).
+        ...criarExecutoresDeLeitura({ acesso: deps.acesso, lerSimulacao: deps.lerSimulacao }),
       },
     });
   }

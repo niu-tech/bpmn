@@ -86,28 +86,17 @@ function peso(e) {
 /**
  * Liga a projeção ao modelador vivo (tarefa 3.2).
  *
- * `modelador` é o `BpmnModeler` ou o `NavigatedViewer` — os dois respondem `.get('…')`. Qualquer
- * coisa diferente disso devolve um observador inerte, porque o ajudante não pode derrubar o
- * modelador: montar sem diagrama é um caso normal (o aluno abre o site antes de importar nada).
+ * `acesso` é a camada fina de `tools/bpmn-api.js` — não o modelador. É a mesma superfície que as
+ * ferramentas usam, e tê-la num lugar só é o que permite ao teste dublar CINCO funções em vez do
+ * bpmn-js inteiro (design T6). Acesso indisponível devolve observador inerte: o ajudante monta
+ * igual, porque abrir o site antes de importar diagrama é caso normal.
  *
  * O contrato é PUXADO, não empurrado: o evento só marca `sujo`, e o cálculo acontece no `atual()`
  * — que é chamado nas bordas de turno. Clicar em dez elementos seguidos não produz dez projeções.
  */
-export function observarDiagrama(modelador, { onMudou = null } = {}) {
+export function observarDiagrama(acesso, { onMudou = null } = {}) {
   const inerte = { atual: () => null, dispose() {} };
-  if (!modelador || typeof modelador.get !== 'function') return inerte;
-
-  let registry;
-  let selection;
-  let eventBus;
-  try {
-    registry = modelador.get('elementRegistry');
-    selection = modelador.get('selection');
-    eventBus = modelador.get('eventBus');
-  } catch {
-    return inerte;
-  }
-  if (!registry || !eventBus) return inerte;
+  if (!acesso?.disponivel) return inerte;
 
   let sujo = true;
   let cache = null;
@@ -119,14 +108,16 @@ export function observarDiagrama(modelador, { onMudou = null } = {}) {
 
   // `import.done` também: trocar de diagrama inteiro não emite `elements.changed` para o que
   // saiu, e sem ele a projeção ficaria falando do arquivo anterior.
-  const eventos = ['elements.changed', 'selection.changed', 'import.done', 'shape.added', 'shape.removed'];
-  for (const nome of eventos) eventBus.on(nome, sujar);
+  const desassinar = acesso.assinar(
+    ['elements.changed', 'selection.changed', 'import.done', 'shape.added', 'shape.removed'],
+    sujar,
+  );
 
   return {
     atual() {
       if (!sujo && cache) return cache;
       try {
-        cache = projetar(registry.getAll(), { selecionado: selection?.get?.()[0] ?? null });
+        cache = projetar(acesso.elementos(), { selecionado: acesso.selecionado() });
         sujo = false;
       } catch {
         // Registro inconsistente no meio de um import: melhor o contexto anterior (ou nenhum)
@@ -135,10 +126,6 @@ export function observarDiagrama(modelador, { onMudou = null } = {}) {
       }
       return cache;
     },
-    dispose() {
-      for (const nome of eventos) {
-        try { eventBus.off(nome, sujar); } catch { /* já desligado */ }
-      }
-    },
+    dispose: desassinar,
   };
 }

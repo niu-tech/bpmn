@@ -239,6 +239,39 @@ representar o início do processo de aluguel de caiaques"*, perguntado por voz d
 conversa digitada). Em sequência com os outros, a metade de voz dele cai — é o M6, e não o T9: o
 que falha ali é a transcrição da entrada, antes de existir turno para atribuir.
 
+## 3e. O turno da ferramenta fechava cedo — e eu estava culpando a cota (2026-11-13)
+
+Achado no portão F6, e é o tipo de defeito que só aparece com a linha do tempo na mão:
+
+```
+1,7s  ws.tool-call → tool.executando buscar_elemento → out.tool-response
+1,7s  ws.turn-complete idle=true          ← o servidor fecha AQUI
+2,7s  ws.tool-call (a entrega) → out.tool-response
+4,2s  ws.audio x21
+```
+
+O servidor fecha o turno logo depois do `tool-response` e manda **a resposta numa geração nova**.
+Nosso cliente fechava o turno no primeiro `turnComplete`, então a entrega chegava sem turno
+aberto e era **descartada**. O aluno via a própria pergunta, nenhuma resposta, e 45 segundos
+depois *"o servidor não respondeu"* — que é o nosso timeout de silêncio, não um erro do Google.
+
+**E foi isso que eu vinha atribuindo à cota.** Parte das falhas de hoje com essa cara — resposta
+vazia depois de uma ferramenta, em modo TEXTO — era este defeito. O M6 continua existindo e
+continua aberto, mas ele é outra coisa: lá a falha é **antes** de haver turno (o áudio sobe e a
+transcrição de entrada nunca chega). Separar os dois foi o que a linha do tempo permitiu; antes
+eu só tinha "o servidor não respondeu" para os dois casos, que é o mesmo sintoma com causas
+diferentes.
+
+O conserto: turno que executou ferramenta e fechou sem entrega e sem fala é **intermediário** —
+não fecha o turno do aluno, re-arma o relógio e espera a geração seguinte. Provado ao vivo
+(`state.turno-de-ferramenta n=1`, resposta chegando depois) e com teste determinístico em
+`spike/__tests__/session.mjs`.
+
+⚠ Uma medição junto: a segunda resposta demorou **52 segundos** para chegar depois da ferramenta.
+O turno sobreviveu porque frames vazios renovam o relógio de silêncio. Isso é lentidão do
+serviço, não defeito nosso — mas é bom saber que o teto de 45 s não é o que manda quando o
+servidor continua mandando sinal de vida.
+
 ## 4. Dívidas que eu mesmo deixei
 
 | # | Item | Onde | Nota |
