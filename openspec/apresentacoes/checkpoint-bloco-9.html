@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint · Bloco 9</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 30px; max-width:64ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:36px; }
+  .num { background:var(--verde-fraco); border:1px solid #d9e7cd; border-radius:13px; padding:14px 16px; }
+  .num b { display:block; font-size:15px; font-weight:600; line-height:1.2; color:var(--verde); }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:34px; }
+
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 24px;
+    font-size:16.5px; color:var(--suave); max-width:62ch; }
+  .cita b { color:var(--tinta); font-weight:600; }
+
+  .regua { background:var(--papel); border:1px solid var(--linha); border-radius:13px;
+    padding:18px; margin-bottom:12px; overflow-x:auto; }
+  .regua svg { display:block; min-width:620px; }
+
+  .lista { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .l { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .l:last-child { border-bottom:none; }
+  .l p { margin:0; font-size:14.5px; }
+  .l p b { font-weight:600; }
+  .l p span { display:block; color:var(--fraco); font-size:13px; margin-top:3px; }
+  .selo { font-size:12px; font-weight:600; white-space:nowrap; color:var(--verde);
+    background:var(--verde-fraco); border-radius:20px; padding:3px 10px; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+  .aberto p { margin:0 0 9px; }
+  .aberto p:last-child { margin-bottom:0; }
+
+  footer { margin-top:34px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros{grid-template-columns:repeat(2,1fr);} .l{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Bloco 9</span>
+  <h1>O layout de vários elementos: a resposta certa foi não escrever layout nenhum</h1>
+  <p class="sub">A tarefa 5.1 pedia “layout automático quando o agente cria vários elementos de
+  uma vez”. A medição respondeu outra coisa: <b>o bpmn-js já faz isso</b> — o pool cresce sozinho.
+  O trabalho virou provar as quatro condições que fazem uma cadeia ser legível.</p>
+
+  <div class="numeros">
+    <div class="num"><b>ligado</b><span>caminho do início ao fim</span></div>
+    <div class="num"><b>legível</b><span>nada por cima de nada</span></div>
+    <div class="num"><b>dentro</b><span>dos limites do pool</span></div>
+    <div class="num"><b>na ordem</b><span>x sempre crescente</span></div>
+  </div>
+
+  <section>
+    <h2>O que a régua mostrou</h2>
+    <p class="cita">Cinco elementos criados numa raia já ocupada. O pool tinha <b>885&nbsp;px</b> de
+    largura; ao fim da cadeia tinha <b>~1386</b> — e ninguém do nosso lado mandou crescer.</p>
+
+    <div class="regua">
+      <svg viewBox="0 0 640 120" xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="Posições dos cinco elementos na raia: 286, 377, 537, 837 e 1138">
+        <line x1="20" y1="86" x2="620" y2="86" stroke="#d6d6de" stroke-width="1"/>
+        <g font-family="Consolas,monospace" font-size="10" fill="#8a8b94">
+          <circle cx="30" cy="86" r="9" fill="#eef5e7" stroke="#3f6b2e"/>
+          <text x="30" y="108" text-anchor="middle">286</text>
+          <text x="30" y="66" text-anchor="middle" font-size="9">início</text>
+
+          <rect x="72" y="76" width="42" height="20" rx="4" fill="#f4f8fd" stroke="#4a6b8a"/>
+          <text x="93" y="108" text-anchor="middle">377</text>
+
+          <rect x="146" y="76" width="42" height="20" rx="4" fill="#f4f8fd" stroke="#4a6b8a"/>
+          <text x="167" y="108" text-anchor="middle">537</text>
+
+          <rect x="286" y="76" width="42" height="20" rx="4" fill="#f4f8fd" stroke="#4a6b8a"/>
+          <text x="307" y="108" text-anchor="middle">837</text>
+
+          <circle cx="470" cy="86" r="9" fill="#fcefed" stroke="#8f2c22"/>
+          <text x="470" y="108" text-anchor="middle">1138</text>
+          <text x="470" y="66" text-anchor="middle" font-size="9">fim</text>
+        </g>
+        <g stroke="#b9bac3" stroke-width="1" marker-end="url(#s)">
+          <line x1="40" y1="86" x2="70" y2="86"/>
+          <line x1="116" y1="86" x2="144" y2="86"/>
+          <line x1="190" y1="86" x2="284" y2="86"/>
+          <line x1="330" y1="86" x2="459" y2="86"/>
+        </g>
+        <g font-family="Segoe UI,sans-serif" font-size="10" fill="#8a4b12">
+          <text x="237" y="46" text-anchor="middle">+300 px</text>
+          <text x="237" y="60" text-anchor="middle" font-size="9" fill="#8a8b94">pulou a “Calm customer”</text>
+          <text x="394" y="46" text-anchor="middle">+301 px</text>
+        </g>
+        <defs>
+          <marker id="s" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6" fill="none" stroke="#b9bac3"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="lista">
+      <div class="l">
+        <p><b>Quem cresce o pool é o <code>BpmnAutoResize</code>.</b>
+        <span>Quando um filho nasce além da borda, o bpmn-js expande o participante e as raias.
+        Escrever um motor de disposição aqui seria reimplementar — pior — o que a biblioteca
+        já faz.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>O que é nosso são duas coisas pequenas.</b>
+        <span>A vaga pedida ao evento <code>autoPlace</code> e o empurrão para a direita quando um
+        vizinho ocupa o lugar. Os dois saltos de 300&nbsp;px são exatamente isso: a cadeia pulando
+        a “Calm customer”, que já estava na raia.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>Ordem de leitura virou critério.</b>
+        <span>Um processo linear desenhado fora de ordem está ligado, cabe no pool e não sobrepõe
+        ninguém — e mesmo assim o aluno não consegue ler. O portão exige <code>x</code> crescente
+        ao longo da trilha.</span></p>
+        <span class="selo">novo</span>
+      </div>
+      <div class="l">
+        <p><b>Duas corridas, posições idênticas.</b>
+        <span><code>286 · 377 · 537 · 837 · 1138</code> nas duas. A colocação é determinística —
+        o que muda entre corridas são os nomes que o modelo escolhe.</span></p>
+        <span class="selo">medido</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Em aberto</h2>
+    <div class="aberto">
+      <p><b>O teto do empurrão.</b> Seis passos para a direita e devolve a vaga do bpmn-js. Na
+      raia cheia da pizzaria bastaram dois; uma raia muito mais densa pode esgotar os seis e cair
+      no lugar ocupado.</p>
+      <p><b>Rótulo continua fora da conta (T13).</b> “Confirmar endereço” encostou no rótulo
+      <i>receipt</i> de um fluxo de mensagem. O bpmn-js também não mede rótulo no botão de
+      append — é outra régua, e ela não foi feita.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>TCC · ajudante BPMN · bloco 9</span>
+    <span>14 de novembro de 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

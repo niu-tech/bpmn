@@ -166,9 +166,18 @@
 
 ## 5. Depois (fora desta change)
 
-- [ ] 5.1 Layout automático quando o agente cria vários elementos de uma vez.
-      Um elemento sozinho **já não precisa disto** (2026-11-14): a vaga vem do bpmn-js e o
-      empurrão cobre o vizinho solto parado nela. O que resta aqui é dispor **vários** de uma vez,
-      e o teto conhecido do empurrão: seis passos para a direita e desiste
+- [x] 5.1 **Medido** (2026-11-14), e o veredito é que **não precisa de layout nosso**: a cadeia
+      de cinco elementos criada pelas três frases do aluno ficou DENTRO do pool e da raia, sem
+      empilhar e em ordem de leitura (x crescente: 286 → 377 → 537 → 837 → 1138).
+      O pool **cresceu sozinho**, de 885 para ~1386 px: o `BpmnAutoResize` do bpmn-js expande o
+      participante (e as raias) quando um filho nasce além da borda. Escrever um motor de
+      disposição aqui seria reimplementar — pior — o que a biblioteca já faz.
+      O que é NOSSO são duas coisas pequenas: a vaga pedida ao evento `autoPlace` e o empurrão
+      para a direita quando um vizinho ocupa o lugar — os dois saltos de 300 px na medição são
+      ele pulando a "Calm customer" que já estava na raia. Teto declarado: seis passos e devolve
+      a vaga do bpmn-js.
+      O portão exige as quatro coisas juntas: **ligado**, **legível** (nada empilhado), **dentro
+      do pool** e **em ordem de leitura** — um processo linear desenhado fora de ordem está
+      ligado, cabe e não sobrepõe ninguém, e mesmo assim o aluno não consegue ler
 - [ ] 5.2 Desfazer em bloco ("desfaça tudo o que você acabou de fazer")
 - [ ] 5.3 Sugestão proativa ao abrir um diagrama com problema de modelagem

@@ -231,6 +231,24 @@ window.__conteiner = (id) => {
   const hit = n && n.querySelector('.djs-hit');
   return !!hit && /djs-hit-no-move|djs-hit-stroke/.test(hit.getAttribute('class') || '');
 };
+// Esta DENTRO do conteiner? A pergunta do portao 5.1: uma cadeia criada numa raia pode
+// transbordar o pool, e ai o desenho fica errado mesmo sem sobrepor ninguem.
+window.__dentroDe = (id, idConteiner, folga = 6) => {
+  const a = window.__caixa(id);
+  const b = window.__caixa(idConteiner);
+  if (!a || !b) return null;
+  return a.x >= b.x - folga && a.y >= b.y - folga
+    && a.x + a.w <= b.x + b.w + folga && a.y + a.h <= b.y + b.h + folga;
+};
+// O conteiner pelo NOME que o aluno le na tela (o rotulo de pool e raia e vertical, mas o
+// texto esta no mesmo <g>).
+window.__conteinerChamado = (texto) => [...document.querySelectorAll('g.djs-shape[data-element-id]')]
+  .filter((n) => window.__conteiner(n.getAttribute('data-element-id')))
+  .map((n) => n.getAttribute('data-element-id'))
+  .find((id) => {
+    const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
+    return (n.textContent || '').trim().toLowerCase().includes(texto.toLowerCase());
+  }) ?? null;
 // Com quem o elemento se sobrepoe. So' FORMAS comuns (um fluxo encosta na borda por
 // desenho), e conter nao e sobrepor.
 window.__sobrepoe = (id) => {
@@ -1173,7 +1191,7 @@ if (chaveViva) {
   // pelo menos duas tarefas e fim, LIGADOS. Caixa solta nao e processo - e e por isso que este
   // portao le as LIGACOES do desenho, e nao so a contagem de elementos novos.
   CENARIOS.push({
-    nome: 'AO VIVO: tres frases viram um processo ligado (portao 4.5)',
+    nome: 'AO VIVO: tres frases viram um processo ligado, legivel e na ordem (portoes 4.5 e 5.1)',
     url: ALVO.replace('viewer.html', 'index.html'),
     espera: 4500,
     passos: [
@@ -1233,10 +1251,35 @@ if (chaveViva) {
          .map((n) => ({ id: n.id, sobre: window.__sobrepoe(n.id) }))
          .filter((x) => Array.isArray(x.sobre) && x.sobre.length)
          .map((x) => x.id + ' sobre ' + x.sobre.join(','));
+       // ⚠ Portao 5.1: a cadeia tem de CABER. Cada elemento sozinho acha a vaga, mas uma
+       // sequencia anda ~140 px por elemento e o pool tem largura fixa — transbordar deixa o
+       // processo do aluno desenhado FORA do pool a que pertence, sem sobrepor ninguem.
+       const pool = window.__conteinerChamado('Pizza vendor');
+       const raia = window.__conteinerChamado('clerk');
+       const foraDoPool = pool
+         ? novos.filter((n) => window.__dentroDe(n.id, pool) === false).map((n) => n.id)
+         : null;
+       const foraDaRaia = raia
+         ? novos.filter((n) => window.__dentroDe(n.id, raia) === false).map((n) => n.id)
+         : null;
+       // ⚠ Portao 5.1, segunda metade: a cadeia tem de andar PARA A FRENTE. Um processo linear
+       // desenhado fora de ordem (o terceiro passo a esquerda do segundo) esta ligado, cabe no
+       // pool e nao sobrepoe ninguem — e mesmo assim o aluno nao consegue ler.
+       const xs = (trilha || []).map((id) => (window.__caixa(id) || {}).x);
+       const ordemDeLeitura = xs.length > 1 && xs.every((x, i) => i === 0 || (Number.isFinite(x) && x > xs[i - 1]));
        const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
        return {
          ok: !r.startsWith('[FALHA DO SERVICO]') && !!inicio && !!fim
-           && tarefas.length >= 2 && naTrilha.length >= 2 && empilhados.length === 0,
+           && tarefas.length >= 2 && naTrilha.length >= 2 && empilhados.length === 0
+           && Array.isArray(foraDoPool) && foraDoPool.length === 0
+           && ordemDeLeitura,
+         ordemDeLeitura,
+         xDaTrilha: xs,
+         foraDoPool,
+         foraDaRaia,
+         caixaDoPool: pool ? window.__caixa(pool) : null,
+         caixaDaRaia: raia ? window.__caixa(raia) : null,
+         caixasNovas: novos.map((n) => n.id + '=' + JSON.stringify(window.__caixa(n.id))),
          ganhou: novos.map((n) => n.tipo + (n.nome ? ' "' + n.nome + '"' : '')),
          nasceramEmpilhados: empilhados,
          trilhaDoInicioAoFim: trilha,
