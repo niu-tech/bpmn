@@ -76,6 +76,11 @@
 .bpmn-assist__panel {
   width: 420px;
   max-width: calc(100vw - 28px);
+  /* ⚠ ALTURA FIXA, não "do tamanho do conteúdo". Sem ela o painel abria rasteiro quando a
+     conversa estava vazia — parecia minimizado (dono, 2026-11-14: "a tela não deveria surgir
+     minimizada, mantemos um tamanho padrão") — e depois crescia a cada resposta, mexendo o
+     rodapé debaixo do dedo de quem ia clicar. */
+  height: min(78vh, 620px);
   max-height: min(78vh, 720px);
   display: flex;
   flex-direction: column;
@@ -303,6 +308,8 @@
   line-height: 1;
   cursor: pointer;
 }
+.bpmn-assist__mic { display: inline-flex; align-items: center; justify-content: center; }
+.bpmn-assist__mic svg, .bpmn-assist__parar svg { display: block; }
 .bpmn-assist__mic:hover { background: #f1f5f9; }
 .bpmn-assist__mic:focus-visible { outline: 3px solid #0b4ea2; outline-offset: 2px; }
 

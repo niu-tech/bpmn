@@ -169,7 +169,23 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const acoes = el('div', { className: 'bpmn-assist__acoes' });
 
   // ------------------------------------------------------------------ falar + medidor
-  const talkBtn = el('button', { className: 'bpmn-assist__mic', type: 'button', textContent: '●' });
+  /**
+   * O MICROFONE, desenhado.
+   *
+   * ⚠ Era o caractere `●`: na tela virava um ponto azul que ninguém reconhece como microfone
+   * (dono, 2026-11-14: "não tem o microfone"). Ícone de verdade, em `currentColor`, então ele
+   * acompanha a cor do botão em cada estado em vez de precisar de uma imagem por estado.
+   */
+  const ICONE_MIC = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">'
+    + '<path fill="currentColor" d="M12 14.5a3 3 0 0 0 3-3v-5a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z"/>'
+    + '<path fill="currentColor" d="M17.5 11.5a1 1 0 1 0-2 0 3.5 3.5 0 0 1-7 0 1 1 0 1 0-2 0 5.5 5.5 0 0 0 4.5 5.41V19H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-2.09a5.5 5.5 0 0 0 4.5-5.41Z"/>'
+    + '</svg>';
+  /** Quadrado de PARAR: mesma família de desenho, para o botão não trocar de linguagem. */
+  const ICONE_PARAR = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">'
+    + '<rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>';
+
+  const talkBtn = el('button', { className: 'bpmn-assist__mic', type: 'button' });
+  talkBtn.innerHTML = ICONE_MIC;
   /**
    * PARAR DE FALAR. Não é encerrar a sessão nem fechar o microfone: é calar a resposta em curso.
    *
@@ -252,8 +268,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
     el('strong', { className: 'bpmn-assist__voztitulo', textContent: 'Estou ouvindo' }),
     el('span', { className: 'bpmn-assist__vozdica', textContent: 'pode falar normalmente' }),
   ]);
-  const pararBtn = el('button', { className: 'bpmn-assist__parar', type: 'button', textContent: '■' });
+  const pararBtn = el('button', { className: 'bpmn-assist__parar', type: 'button' });
   pararBtn.setAttribute('aria-label', 'Encerrar a conversa por voz');
+  pararBtn.innerHTML = ICONE_PARAR;
   pararBtn.title = 'Encerrar a conversa por voz';
   const faixaVoz = el('div', { className: 'bpmn-assist__voz' }, [vozEstado, meter, pararBtn]);
 
@@ -415,9 +432,17 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // O microfone é a PORTA da voz: clicar nele é que leva a sessão para o modo voz. Por isso
     // ele aparece no modo texto também — era o seletor lá de cima que fazia esse papel.
     talkBtn.hidden = perguntando || !canAsk;
-    talkBtn.textContent = '●';
-    talkBtn.setAttribute('aria-label', 'Falar com o ajudante');
-    talkBtn.title = 'Falar com o ajudante';
+    // O ícone troca com o ESTADO (microfone ⇄ parar), e só quando ele muda: reescrever o SVG a
+    // cada render trocaria o nó debaixo do clique do aluno.
+    const queIcone = micOn ? 'parar' : 'mic';
+    if (talkBtn.dataset.icone !== queIcone) {
+      talkBtn.dataset.icone = queIcone;
+      talkBtn.innerHTML = micOn ? ICONE_PARAR : ICONE_MIC;
+    }
+    talkBtn.classList.toggle('bpmn-assist__mic--gravando', micOn);
+    const oQueFaz = micOn ? 'Parar de ouvir' : 'Falar com o ajudante';
+    talkBtn.setAttribute('aria-label', oQueFaz);
+    talkBtn.title = oQueFaz;
     talkBtn.setAttribute('aria-pressed', String(micOn));
 
     // A frase de estado, da tabela da pesquisa. Cada estado diz o que está acontecendo AGORA.
