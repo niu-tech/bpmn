@@ -57,3 +57,26 @@ nomeada.
 
 Decisão do dono (2026-11-13): **adiado para a fase de escrita**, registrado como K-F. Não bloqueia
 nenhuma tarefa desta change — bloqueia a entrega escrita, e resolve-se em um parágrafo.
+
+## D7 — O desenho do painel segue padrão de ajudante, não gosto meu
+
+O dono pediu a janela mais perto do vídeo do Orbit. Como o código dele **não está nesta máquina**
+(procurado três vezes: pastas nos dois drives, sessões locais e histórico de editores), a
+referência é a gravação — e, para não virar questão de gosto, o desenho foi conferido contra o que
+os ajudantes de outros produtos fazem:
+
+- **o microfone fica junto do enviar, dentro do compositor** — e nunca NO LUGAR dele. Trocar enviar
+  por microfone quando o campo está vazio gera reclamação: a pessoa procura o enviar e ele sumiu;
+- **ditado SUBSTITUI digitação**, não se empilha: com as duas entradas visíveis ao mesmo tempo, o
+  usuário não sabe qual vale. Gravando, o campo de texto sai e o medidor ocupa o lugar;
+- **amplitude ao vivo + parada explícita** são o par mínimo de uma gravação: sem a primeira ele não
+  sabe se está sendo ouvido, sem a segunda não sabe como sair;
+- **controle que se usa a qualquer momento não rola junto com a conversa.**
+
+Fontes: [Stream — composer de IA](https://getstream.io/chat/docs/sdk/android/ai-components/composer.md),
+[Stream — visuais de agente de voz](https://getstream.io/chat/docs/sdk/react/ui-cookbooks/ai/voice-agent-visuals/),
+[teardown do composer do ChatGPT](https://aiuxplayground.com/teardowns/chatgpt/composer),
+[assistant-ui — ditado](https://www.assistant-ui.com/docs/guides/Dictation).
+
+⚠ O que NÃO veio do vídeo: o indicador de etapa 1-2-3-4 (lá é um assistente de agendamento, com
+etapas fixas; modelagem BPMN não tem) e os cartões clicáveis, adiados pelo dono para depois da F7.

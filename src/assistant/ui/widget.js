@@ -58,7 +58,13 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const toggle = el('button', {
     className: 'bpmn-assist__toggle',
     type: 'button',
-  }, [dot, el('span', { textContent: 'Ajudante BPMN' })]);
+  }, [
+    dot,
+    el('span', { className: 'bpmn-assist__toggletxt' }, [
+      el('strong', { textContent: 'Ajudante BPMN' }),
+      el('small', { textContent: 'tire dúvidas sobre o seu diagrama' }),
+    ]),
+  ]);
   toggle.setAttribute('aria-expanded', 'false');
   toggle.setAttribute('aria-controls', panelId);
 
@@ -138,7 +144,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const barraTopo = el('div', { className: 'bpmn-assist__row' }, [modeGroup, powerBtn]);
 
   // ------------------------------------------------------------------ falar + medidor
-  const talkBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--talk', type: 'button', textContent: 'Falar' });
+  const talkBtn = el('button', { className: 'bpmn-assist__mic', type: 'button', textContent: '●' });
   talkBtn.setAttribute('aria-pressed', 'false');
 
   const barras = PERFIL.map(() => el('span', { className: 'bpmn-assist__bar' }));
@@ -146,7 +152,13 @@ export function createWidget({ session, credentials, onClose } = {}) {
   meter.setAttribute('aria-hidden', 'true');          // a frase ao lado já diz o que isto mostra
   const micLabel = el('span', { className: 'bpmn-assist__miclabel', textContent: '' });
 
-  const talkRow = el('div', { className: 'bpmn-assist__row bpmn-assist__row--talk' }, [talkBtn, meter, micLabel]);
+  // ⚠ O microfone mora DENTRO do compositor, à direita, ao lado do enviar — nunca numa fileira
+  // própria em cima. Dois motivos, e os dois são de uso e não de gosto:
+  //   • a mão do aluno já está no compositor; subir para outra fileira para falar é o atrito que
+  //     o dono apontou vendo o vídeo do Orbit (2026-11-13);
+  //   • separar o campo de texto do microfone é o padrão que confunde — a pessoa vê DUAS entradas
+  //     e não sabe qual vale. O ditado SUBSTITUI a digitação; não se empilha com ela.
+  // Enquanto grava, o compositor vira a faixa do medidor e o microfone vira PARAR.
 
   // ------------------------------------------------------------------ dica derivada
   const hint = el('p', { className: 'bpmn-assist__hint' });
@@ -180,15 +192,18 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // falar para fora da tela: "a gente fala e aí tem que subir a conversa toda para falar de
   // novo" (dono, 2026-11-11). Controle que se usa a cada turno mora no rodapé fixo; só a
   // conversa rola.
+  // ⚠ `barraTopo` (Texto/Voz/Encerrar) saiu do corpo ROLÁVEL: ela sumia da tela assim que a
+  // conversa crescia, e aí trocar de modo exigia rolar tudo de volta. Controle que se usa a
+  // qualquer momento fica FIXO; só a conversa rola. Mesma razão que já tirou o microfone daqui.
   const body = el('div', { className: 'bpmn-assist__body' }, [
-    setupBlock, compacto, barraTopo, hint, empty, log, diagBox,
+    setupBlock, compacto, hint, empty, log, diagBox,
   ]);
 
   // ------------------------------------------------------------------ composer
   const input = el('textarea', { placeholder: 'Escreva a sua pergunta…', rows: 1 });
   input.setAttribute('aria-label', 'Sua pergunta');
   const sendBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--primary', type: 'button', textContent: 'Enviar' });
-  const composer = el('div', { className: 'bpmn-assist__composer' }, [input, sendBtn]);
+  const composer = el('div', { className: 'bpmn-assist__composer' }, [input, meter, talkBtn, sendBtn]);
 
   /**
    * O CONTRATO, escrito para o aluno (H7).
@@ -203,9 +218,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
     textContent: 'Ele lê o seu diagrama para explicar — não altera nada. O que muda no desenho é você que faz.',
   });
 
-  const rodape = el('div', { className: 'bpmn-assist__footer' }, [talkRow, composer, contrato]);
+  const rodape = el('div', { className: 'bpmn-assist__footer' }, [micLabel, composer, contrato]);
 
-  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, body, rodape, liveRegion]);
+  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, barraTopo, body, rodape, liveRegion]);
   panel.hidden = true;
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'false');     // o diagrama continua utilizável de propósito
@@ -298,10 +313,17 @@ export function createWidget({ session, credentials, onClose } = {}) {
     powerBtn.disabled = busy || (!canAsk && !credentials.hasKey && !keyInput.value);
 
     // Falar só existe no modo voz e com sessão viva: esconder é mais honesto que desabilitar.
-    talkRow.hidden = !(mode === 'voz' && canAsk);
-    talkBtn.textContent = micOn ? 'Parar' : 'Ouvir';
+    // O microfone só existe no modo voz; o resto do compositor continua igual.
+    talkBtn.hidden = !(mode === 'voz' && canAsk);
+    micLabel.hidden = !(mode === 'voz' && canAsk);
+    talkBtn.textContent = micOn ? '■' : '●';
+    talkBtn.setAttribute('aria-label', micOn ? 'Parar de ouvir' : 'Falar com o ajudante');
+    talkBtn.title = micOn ? 'Parar de ouvir' : 'Falar com o ajudante';
     talkBtn.setAttribute('aria-pressed', String(micOn));
-    talkBtn.classList.toggle('bpmn-assist__btn--talking', micOn);
+    talkBtn.classList.toggle('bpmn-assist__mic--gravando', micOn);
+    // Gravando, o campo de texto SAI de cena: duas entradas ao mesmo tempo é o padrão que confunde.
+    composer.classList.toggle('bpmn-assist__composer--gravando', micOn);
+    input.disabled = micOn;
     // Em escuta contínua o microfone fica aberto durante a resposta — e dizer isso em texto é o
     // que faz o aluno descobrir que pode interromper. A rede de segurança muda a frase, porque
     // aí NÃO dá para interromper.

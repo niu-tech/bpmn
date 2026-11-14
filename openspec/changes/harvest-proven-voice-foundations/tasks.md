@@ -97,9 +97,20 @@
       pintados de branco translúcido num painel CLARO. Estavam no DOM, os testes passavam, e não
       aparecia nada na tela. Corrigido para a cor do resto do painel (`#64748b`), com a armadilha
       escrita no CSS. ⚠ É a lição da dívida M6 outra vez: **olhe a tela**
+- [x] 6.6 **O compositor ficou igual ao do vídeo** — microfone DENTRO dele, à direita, ao lado do
+      enviar e nunca no lugar dele; gravando, vira **parar** em vermelho, o campo de texto sai de
+      cena e o medidor ocupa a faixa. Duas entradas ao mesmo tempo é o padrão que confunde: o
+      ditado substitui a digitação. Acabaram os dois botões numa fileira em cima
+- [x] 6.7 **Respiro** — painel de 360×560 para **420×720**, e Texto/Voz/Encerrar saíram do corpo
+      rolável para uma faixa fixa: eles sumiam assim que a conversa crescia
+- [x] 6.8 **O minimizado diz o que o ajudante faz** — era uma pílula com um nome; ganhou segunda
+      linha ("tire dúvidas sobre o seu diagrama"). É a primeira coisa que o aluno vê
+- [x] 6.9 **As barras do medidor têm altura dentro do compositor** — sem isso o `scaleY` trabalhava
+      sobre 22 px e virava um fio de pontinhos: o medidor existe justamente para o aluno ver que
+      está sendo ouvido
 - [ ] 6.4 **Cartões clicáveis** no resultado da ferramenta (no vídeo, médico + horário). Aqui seria
-      o elemento encontrado, clicável para selecionar no diagrama. Vale decidir se entra antes ou
-      depois da F7
+      o elemento encontrado, clicável para selecionar no diagrama. **Decidido pelo dono
+      (2026-11-13): depois da F7** — fica documentado, não é o ponto mais importante agora
 - [ ] 6.5 **"Ouvindo" no modo texto** — o selo diz "ouvindo" numa sessão sem microfone. Anterior a
       esta change, e do mesmo assunto do bloco 2
 

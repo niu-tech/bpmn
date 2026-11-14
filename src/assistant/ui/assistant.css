@@ -29,11 +29,13 @@
 
 /* ---------------------------------------------------------------- botão */
 
+/* O minimizado é a PRIMEIRA coisa que o aluno vê, e era só uma pílula com um nome. Agora diz o
+   que o ajudante faz, em duas linhas — quem nunca abriu não tem como saber pelo título. */
 .bpmn-assist__toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 11px 18px;
   border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 999px;
   background: #1f6feb;
@@ -62,10 +64,12 @@
 
 /* ---------------------------------------------------------------- painel */
 
+/* Mais largura e mais altura: a 360x560 a conversa cabia em três linhas e o aluno rolava a cada
+   resposta. O painel é a janela de trabalho dele, não um balão de aviso. */
 .bpmn-assist__panel {
-  width: 360px;
+  width: 420px;
   max-width: calc(100vw - 28px);
-  max-height: min(70vh, 560px);
+  max-height: min(78vh, 720px);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(15, 23, 42, 0.16);
@@ -104,6 +108,16 @@
 .bpmn-assist__icon:focus-visible { outline: 2px solid #1f6feb; outline-offset: 1px; }
 
 .bpmn-assist__body { padding: 12px 14px; overflow: auto; flex: 1; }
+
+/* Texto/Voz/Encerrar: fixos sob o cabeçalho. No corpo rolável eles sumiam assim que a conversa
+   crescia, e trocar de modo exigia rolar tudo de volta. */
+.bpmn-assist__panel > .bpmn-assist__row {
+  flex: none;
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.bpmn-assist__panel > .bpmn-assist__row[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- chave */
 
@@ -210,16 +224,76 @@
   background: rgba(248, 250, 252, 0.9);
 }
 
-.bpmn-assist__footer .bpmn-assist__row--talk {
-  margin: 0;
-  padding: 8px 14px 0;
+.bpmn-assist__composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px 14px 10px;
+}
+.bpmn-assist__composer textarea { resize: none; height: 42px; flex: 1; }
+
+/* ---- o MICROFONE, dentro do compositor ------------------------------------------------------
+   À direita, ao lado do enviar, nunca no lugar dele: trocar enviar por microfone quando o campo
+   está vazio é o padrão que gera reclamação — a pessoa procura o enviar e ele sumiu. */
+.bpmn-assist__mic {
+  flex: none;
+  width: 42px; height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: #fff;
+  color: #1f6feb;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.bpmn-assist__mic:hover { background: #f1f5f9; }
+.bpmn-assist__mic:focus-visible { outline: 3px solid #0b4ea2; outline-offset: 2px; }
+.bpmn-assist__mic[hidden] { display: none; }
+
+/* Gravando: o botão vira PARAR, em vermelho, e pulsa. Parada explícita, sem adivinhação. */
+.bpmn-assist__mic--gravando {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+  animation: bpmn-assist-gravando 1.6s ease-in-out infinite;
+}
+@keyframes bpmn-assist-gravando {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, .45); }
+  50%      { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0); }
 }
 
-.bpmn-assist__composer {
-  display: flex; gap: 8px;
-  padding: 10px 14px;
+/* Enquanto grava, o campo de texto sai de cena e o medidor ocupa o lugar dele: DUAS entradas ao
+   mesmo tempo é o que confunde — o ditado substitui a digitação, não se empilha com ela. */
+.bpmn-assist__composer .bpmn-assist__meter { display: none; }
+.bpmn-assist__composer--gravando textarea { display: none; }
+.bpmn-assist__composer--gravando .bpmn-assist__meter {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(185, 28, 28, .35);
+  border-radius: 10px;
+  background: #fef2f2;
 }
-.bpmn-assist__composer textarea { resize: none; height: 38px; }
+/* ⚠ Dentro do compositor as barras precisam de ALTURA de base, senão o `scaleY` da amplitude
+   trabalha sobre 22 px e vira um fio de pontinhos — o aluno não vê que está sendo ouvido, que é
+   justamente o que o medidor existe para mostrar. */
+.bpmn-assist__composer--gravando .bpmn-assist__bar {
+  width: 4px;
+  height: 30px;
+  background: #b91c1c;
+}
+
+.bpmn-assist__miclabel {
+  display: block;
+  padding: 8px 14px 0;
+  font-size: 11.5px;
+  color: #64748b;
+}
+.bpmn-assist__miclabel[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- responsivo */
 
@@ -385,3 +459,15 @@
   line-height: 1.45;
   color: #64748b;
 }
+
+/* ---- o minimizado diz o que o ajudante FAZ ------------------------------------------------- */
+.bpmn-assist__toggletxt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
+.bpmn-assist__toggletxt strong { font-weight: 600; }
+.bpmn-assist__toggletxt small { font-size: 11px; font-weight: 400; opacity: .82; }
+
+/* ---- a tela da chave, com ar ----------------------------------------------------------------
+   É a primeira tela de quem chega, e estava apertada como um formulário de erro. */
+.bpmn-assist__setup { padding: 4px 0 2px; }
+.bpmn-assist__setup label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 12.5px; }
+.bpmn-assist__setup input[type="password"] { height: 40px; }
+.bpmn-assist__setup .bpmn-assist__row { margin-top: 10px; }

@@ -63,57 +63,55 @@
 <div class="env">
 
   <div class="marca">Checkpoint · 13 nov 2026</div>
-  <h1>A janela, e a heurística<br>que saiu</h1>
-  <p class="sub">A classificação por palavra foi substituída por sinal estrutural. E o bloco de UI:
-  o que o vídeo mostra, o que já tínhamos, e um defeito meu que só a tela pegou.</p>
+  <h1>A janela</h1>
+  <p class="sub">O compositor ficou como no vídeo, o painel ganhou ar, e o desenho foi conferido
+  contra o que outros ajudantes fazem — para não virar questão de gosto.</p>
 
   <div class="numeros">
-    <div class="num ok"><b>0</b><span>heurísticas por palavra no produto</span></div>
+    <div class="num ok"><b>420×720</b><span>painel, era 360×560</span></div>
+    <div class="num ok"><b>1</b><span>fileira a menos: o microfone desceu</span></div>
     <div class="num"><b>19</b><span>suítes, zero falhas</span></div>
-    <div class="num ok"><b>2×</b><span>busca pelo código do Orbit: não existe aqui</span></div>
   </div>
 
   <section>
-    <h2>A heurística saiu — e por estrutura, não por remendo</h2>
+    <h2>O que mudou na tela</h2>
     <div class="feito">
-      <div class="f"><span class="cod">✓</span>
-        <p><b>O sinal agora é o nosso estado, não a prosa do servidor</b>
-        <span>o setup já foi aceito alguma vez nesta sessão? <b>Não</b> → é a chave. <b>Sim</b> → a chave já autenticou, então é limite de uso. Zero palavras em inglês no meio</span></p>
-        <span class="prova">diff menor</span></div>
-    </div>
-  </section>
-
-  <section>
-    <h2>A janela</h2>
-    <div class="feito">
-      <div class="f"><span class="cod">6.1</span>
-        <p><b>Carregar mensagem</b>
-        <span>entre a pergunta e a resposta não havia nada, e a resposta leva segundos. A bolha de espera é a mesma que a resposta ocupa — e some se o turno acabar sem texto</span></p>
+      <div class="f"><span class="cod">6.6</span>
+        <p><b>Microfone dentro do compositor</b>
+        <span>à direita, ao lado do enviar — e nunca no lugar dele. Gravando, vira <b>parar</b> em vermelho, o campo de texto sai e o medidor ocupa a faixa</span></p>
+        <span class="prova">1 fileira a menos</span></div>
+      <div class="f"><span class="cod">6.7</span>
+        <p><b>Respiro</b>
+        <span>painel maior, e Texto/Voz/Encerrar saíram do corpo rolável: sumiam assim que a conversa crescia</span></p>
+        <span class="prova">faixa fixa</span></div>
+      <div class="f"><span class="cod">6.8</span>
+        <p><b>O minimizado diz o que o ajudante faz</b>
+        <span>era só um nome; agora tem a segunda linha. É a primeira coisa que o aluno vê</span></p>
         <span class="prova">feito</span></div>
-      <div class="f"><span class="cod">6.2</span>
-        <p><b>Som enquanto o aluno fala</b>
-        <span>já existia e está certo: alimentado pelo mesmo PCM que vai para o Gemini</span></p>
-        <span class="prova">nada a fazer</span></div>
+      <div class="f"><span class="cod">6.9</span>
+        <p><b>O medidor virou medidor</b>
+        <span>sem altura de base, a amplitude trabalhava sobre 22 px e virava um fio de pontinhos</span></p>
+        <span class="prova">30 px</span></div>
     </div>
   </section>
 
   <section>
-    <h2>O defeito que só a tela pegou</h2>
-    <div class="aberto">
-      <b>Tudo que o bloco 2 entregou estava invisível.</b> Pintei a linha da ferramenta e o contrato
-      de branco translúcido — num painel <b>claro</b>. Estavam no DOM, os testes passavam, e a tela
-      não mostrava nada. É a lição da M6 pela terceira vez: <b>olhe a tela</b>. Corrigido, e a
-      armadilha ficou escrita no CSS.
+    <h2>O estudo, em quatro linhas</h2>
+    <div class="aberto" style="background:#f7f7fc;border-color:#ddd9f7">
+      <b>Microfone junto do enviar, nunca no lugar dele</b> — trocar um pelo outro faz a pessoa
+      procurar o enviar que sumiu. <b>Ditado substitui digitação</b>, não se empilha: duas entradas
+      visíveis é o que confunde. <b>Amplitude ao vivo + parada explícita</b> são o par mínimo de uma
+      gravação. <b>Controle que se usa sempre não rola junto com a conversa.</b>
     </div>
   </section>
 
   <section>
-    <h2>Próximos passos</h2>
+    <h2>Decidido e registrado</h2>
     <div class="proximo">
-      <div class="p"><b>Bloco 3 · prompt e memória</b><span>orçamento do prompt (e o teto que nunca foi medido), idioma por preferência, memória com escopo</span></div>
-      <div class="p"><b>Bloco 4 · evidência</b><span>ledger no harness e inventário de dependências</span></div>
-      <div class="p"><b>F7 · escrita</b><span>criar, conectar, renomear, remover — com H1 e o contrato na tela já no lugar</span></div>
-      <div class="p"><b>Em aberto da UI</b><span>cartões clicáveis no resultado; e o selo que diz "ouvindo" no modo texto</span></div>
+      <div class="p"><b>Cartões clicáveis → depois da F7</b><span>documentado na change; não é o ponto mais importante agora</span></div>
+      <div class="p"><b>Código do Orbit: não existe aqui</b><span>procurado 3×, agora também no histórico de editores. A referência é a gravação</span></div>
+      <div class="p"><b>Próximo: bloco 3</b><span>orçamento do prompt, idioma por preferência, memória com escopo</span></div>
+      <div class="p"><b>Depois</b><span>bloco 4 (evidência) e então a F7</span></div>
     </div>
   </section>
 
