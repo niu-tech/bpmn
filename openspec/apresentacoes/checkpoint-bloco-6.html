@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint · Bloco 6</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 30px; max-width:64ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:36px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:34px; }
+
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 24px;
+    font-size:16.5px; color:var(--suave); max-width:62ch; }
+  .cita b { color:var(--tinta); font-weight:600; }
+
+  .lista { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .l { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .l:last-child { border-bottom:none; }
+  .l p { margin:0; font-size:14.5px; }
+  .l p b { font-weight:600; }
+  .l p span { display:block; color:var(--fraco); font-size:13px; margin-top:3px; }
+  .selo { font-size:12px; font-weight:600; white-space:nowrap; color:var(--verde);
+    background:var(--verde-fraco); border-radius:20px; padding:3px 10px; }
+  .selo.q { color:var(--ambar); background:var(--ambar-fraco); }
+
+  .bichos { display:grid; gap:12px; }
+  .bicho { background:var(--vinho-fraco); border:1px solid #f2d9d5; border-radius:13px; padding:15px 18px; }
+  .bicho b { display:block; font-size:14.5px; color:var(--vinho); margin-bottom:4px; }
+  .bicho p { margin:0; font-size:14px; color:#4a4b54; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+  .aberto p { margin:0 0 9px; }
+  .aberto p:last-child { margin-bottom:0; }
+
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+
+  footer { margin-top:34px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .l{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Bloco 6</span>
+  <h1>A interface que a pesquisa pediu — e as primeiras ferramentas que escrevem</h1>
+  <p class="sub">Duas frentes num bloco: o painel redesenhado a partir do retorno da pesquisa
+  visual, e a fase <b>F7</b>, em que o agente passa a mexer no diagrama. No caminho, três
+  defeitos que o código dizia estar certos.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>4</b><span>ferramentas que escrevem no diagrama</span></div>
+    <div class="num ok"><b>21</b><span>casos novos · 365 verdes no total</span></div>
+    <div class="num"><b>3</b><span>defeitos que só a medição mostrou</span></div>
+  </div>
+
+  <section>
+    <h2>A frase que organizou o redesenho</h2>
+    <p class="cita">“A mudança mais importante não é escolher um azul mais bonito ou aumentar os
+    cantos arredondados. É <b>reduzir a interface a uma ação principal por estado</b>.”</p>
+    <div class="lista">
+      <div class="l">
+        <p><b>Em voz não existe “Enviar”.</b>
+        <span>Não há mensagem para enviar. O compositor de texto e a faixa de voz passaram a ser
+        mutuamente exclusivos — antes apareciam juntos, com medidor, parar e enviar na mesma linha.</span></p>
+        <span class="selo">na tela</span>
+      </div>
+      <div class="l">
+        <p><b>Um ponto de entrada.</b>
+        <span>O botão azul continuava visível por cima do painel aberto, competindo com ele.
+        Aberto, ele some.</span></p>
+        <span class="selo">na tela</span>
+      </div>
+      <div class="l">
+        <p><b><code>Encerrar</code> saiu do seletor de modo.</b>
+        <span>Estava lado a lado com <code>Texto</code> e <code>Voz</code>, misturando modo de
+        <i>entrada</i> com fim de <i>sessão</i>, e com o mesmo peso visual. Foi para um menu
+        <code>⋯</code>, junto da troca de chave e do diagnóstico.</span></p>
+        <span class="selo">na tela</span>
+      </div>
+      <div class="l">
+        <p><b>Escuta deixou de ser vermelha.</b>
+        <span>Verde-azulado para ouvir, violeta para responder, vermelho só para erro e para
+        encerrar. Com o medidor rosado e o botão vermelho, “ouvindo” parecia um alerta.</span></p>
+        <span class="selo">na tela</span>
+      </div>
+      <div class="l">
+        <p><b>“Pode interromper falando” só quando é verdade.</b>
+        <span>Se o produto fechou o microfone por suspeita de eco, a frase passa a ser
+        <i>“microfone pausado durante a resposta”</i>. Prometer o que não existe é pior que não
+        prometer.</span></p>
+        <span class="selo">na tela</span>
+      </div>
+      <div class="l">
+        <p><b>O aviso de segurança que não existia.</b>
+        <span>A chave viaja na URL do WebSocket e <b>aparece nas ferramentas de rede</b> do
+        navegador. “Só em memória” não quer dizer invisível — e o aluno merece saber isso antes
+        de colar a dele.</span></p>
+        <span class="selo">na tela</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Três defeitos que o código dizia estar certos</h2>
+    <div class="bichos">
+      <div class="bicho">
+        <b>O campo de texto voltava, e o diff parecia certo</b>
+        <p>Havia uma <b>segunda</b> atribuição de <code>composer.hidden</code> mais abaixo no mesmo
+        render, e ela vencia por ser a última. Em voz, o campo e o “Enviar” reapareciam ao lado do
+        medidor — exatamente o defeito que o redesenho existe para remover. Quem pegou foi o print,
+        não a leitura.</p>
+      </div>
+      <div class="bicho">
+        <b><code>[hidden]</code> perde de qualquer classe nossa</b>
+        <p>O atributo do navegador é <code>display:none</code> com peso mínimo: um
+        <code>.classe { display:flex }</code> vence, e o elemento fica na tela com o DOM dizendo
+        que está escondido. Havia <b>nove</b> regras, uma por classe, e cada elemento novo
+        precisava lembrar da sua. Agora é uma.</p>
+      </div>
+      <div class="bicho">
+        <b>O estado da interface existia em dois lugares</b>
+        <p>A sessão publicava uma vista; o <code>mount.js</code> montava outra, do zero, e
+        <b>ignorava</b> a que recebia. Os testes leem a primeira, a tela renderiza a segunda — então
+        um campo podia estar provado e invisível ao mesmo tempo. Foi o que aconteceu com o pedido de
+        confirmação do <code>remover</code>: publicado, testado, e nada aparecia. A duplicata foi
+        apagada, não remendada.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>F7 — o agente passa a mexer no diagrama</h2>
+    <div class="lista">
+      <div class="l">
+        <p><b>Tudo pelo <code>modeling</code> do bpmn-js.</b>
+        <span>É ele que registra no <code>commandStack</code>, e é o commandStack que faz o
+        <code>Ctrl+Z</code> do aluno alcançar o que o agente fez. Escrita que ele não consegue
+        desfazer é escrita que ele vai ter medo de pedir. Um teste com dublê do modelador afirma
+        que nenhuma das quatro toca XML.</span></p>
+        <span class="selo">21 casos</span>
+      </div>
+      <div class="l">
+        <p><b>Confirmação lida de volta, nunca presumida.</b>
+        <span>O retorno não diz “mandei criar”: procura o elemento no registro <i>depois</i> da
+        operação. Chamada que não estoura e não muda nada falha com <code>nada_mudou</code> — é o
+        jeito mais fácil de o instrumento mentir.</span></p>
+        <span class="selo">21 casos</span>
+      </div>
+      <div class="l">
+        <p><b>Nós não escolhemos o tipo da ligação.</b>
+        <span>A regra do BPMN mora no bpmn-js: entre pools nasce fluxo de <i>mensagem</i>, no mesmo
+        processo fluxo de <i>sequência</i>. A ferramenta manda conectar e <b>lê o tipo que
+        nasceu</b> — a explicação ao aluno sai do fato, não de um <code>if</code> com
+        palavra-chave.</span></p>
+        <span class="selo">21 casos</span>
+      </div>
+      <div class="l">
+        <p><b>Apagar pede confirmação, com a versão do diagrama.</b>
+        <span>Se o desenho mudou entre o pedido do modelo e o clique, a remoção é recusada: o
+        <code>id</code> de então pode ser outro elemento agora. Recusa do aluno volta ao modelo
+        como fato — sem isso ele narra a remoção como feita.</span></p>
+        <span class="selo">21 casos</span>
+      </div>
+      <div class="l">
+        <p><b>No visualizador, as quatro não existem.</b>
+        <span>Não é a execução que recusa: elas não são nem <i>declaradas</i> ao modelo numa página
+        que só lê. Declarar e depois recusar ensinaria o agente a prometer ao aluno o que não vai
+        conseguir fazer.</span></p>
+        <span class="selo">21 casos</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Ao vivo, na página do modelador</h2>
+    <div class="lista" id="vivo">
+      <div class="l">
+        <p><b>Criar: a tarefa apareceu no desenho, ligada ao evento de início.</b>
+        <span>Pedido nas palavras do aluno, sem id. O agente chamou <code>criar_elemento</code>, e
+        a prova é o elemento novo no diagrama — não a frase dele. Na tela:
+        <i>“criei task «Receber pedido» depois de «Order received»”</i>.</span></p>
+        <span class="selo">medido</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>F5 — o que a medição disse, e o que ela não disse</h2>
+    <div class="aberto">
+      <p>O portão <b>passou</b> nesta corrida, nas três perguntas: recusou a receita de bolo em uma
+      frase, modelou a pizzaria sem recusar, e não declarou inexistente o que estava fora da
+      amostra.</p>
+      <p><b>Mas isso não fecha a dívida.</b> O que estava aberto é um tempo de silêncio
+      <i>intermitente</i>, e uma corrida verde não explica uma falha que aparece de vez em quando.
+      O que mudou é que a <b>linha do tempo da sessão agora vai em todo passo do portão</b> — antes
+      só um dos três a reportava, e os outros dois diziam apenas “o servidor não respondeu”, que é
+      a mesma frase para servidor calado, turno fechado na hora errada e resposta que chegou e o
+      laço não viu. Na próxima ocorrência, ela se nomeia.</p>
+      <p>Uma coisa a linha já mostrou: num turno de <b>texto</b> chegam quadros de áudio do
+      servidor. Não é defeito — o modelo recusa a modalidade de texto e o texto volta por chamada
+      de função, então o áudio vem junto por desenho. Ficou registrado para não ser “descoberto”
+      como bug na próxima leitura.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Próximo</h2>
+    <div class="proximo">
+      <div class="p"><b>Fechar os gates ao vivo da F7</b>
+      <span>Pools e a recusa da remoção, na página do modelador.</span></div>
+      <div class="p"><b>Montagem guiada</b>
+      <span>Descrever um processo em três frases e o diagrama ganhar início, duas tarefas e fim,
+      ligados.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>bpmn · checkpoint do bloco 6</span>
+    <span>14 nov 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

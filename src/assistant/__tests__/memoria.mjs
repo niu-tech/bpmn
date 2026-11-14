@@ -127,15 +127,29 @@ test('a politica e default-deny: nome fora do catalogo nao passa', () => {
   assert.equal(permitida('apagar_tudo'), false);
 });
 
+const LEITURA = ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
+const ESCRITA = ['criar_elemento', 'conectar', 'renomear', 'remover'];
+
 test('os DOIS perfis declaram as ferramentas; so o texto declara a ENTREGA', () => {
-  const nomes = (modo) => {
-    const { setup } = buildSetup(promptDoPerfil(resolverContexto({ modo })));
+  const nomes = (modo, pagina) => {
+    const { setup } = buildSetup(promptDoPerfil(resolverContexto({ modo, pagina })));
     return setup.tools[0].functionDeclarations.map((f) => f.name);
   };
-  assert.deepEqual(nomes('texto'), [DELIVERY_TOOL, 'lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao']);
+  assert.deepEqual(nomes('texto', 'modelador'), [DELIVERY_TOOL, ...LEITURA, ...ESCRITA]);
   // ⚠ A voz declara ferramenta. A medicao do P1 ("declarar emudece") era sobre a ENTREGA, e foi
   // generalizada indevidamente (achado P6). O gate 4.3 mede isto ao vivo.
-  assert.deepEqual(nomes('voz'), ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao']);
+  assert.deepEqual(nomes('voz', 'modelador'), [...LEITURA, ...ESCRITA]);
+});
+
+test('no viewer, as quatro de ESCRITA nao sao nem declaradas ao modelo (F7)', () => {
+  const nomes = (modo) => {
+    const { setup } = buildSetup(promptDoPerfil(resolverContexto({ modo, pagina: 'viewer' })));
+    return setup.tools[0].functionDeclarations.map((f) => f.name);
+  };
+  // Nao e so a execucao que recusa: a ferramenta nao EXISTE para o modelo numa pagina que so le.
+  // Declarar e depois recusar ensinaria o agente a prometer ao aluno o que nao vai conseguir.
+  assert.deepEqual(nomes('texto'), [DELIVERY_TOOL, ...LEITURA]);
+  assert.deepEqual(nomes('voz'), LEITURA);
 });
 
 test('NENHUM codigo nosso decide memoria por palavra-chave', () => {

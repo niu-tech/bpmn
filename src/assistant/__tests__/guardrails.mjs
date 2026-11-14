@@ -80,16 +80,22 @@ test('ferramenta restrita a um perfil so aparece nele', () => {
   assert.ok(naVoz.includes('so_na_voz'));
 });
 
-test('hoje TODAS as ferramentas valem nos dois perfis e nas duas paginas', () => {
-  // Nenhuma escreve ainda: memoria e leitura sao inofensivas numa pagina que so le. Quando a
-  // primeira de escrita nascer (F7), e este teste que muda - e o do viewer ja esta escrito.
-  for (const ctx of [MODELADOR, VIEWER, { perfil: 'voz', pagina: 'modelador' }]) {
-    assert.deepEqual(
-      ferramentasPermitidas(ctx).map((f) => f.nome),
-      ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'],
-    );
-  }
+const LEITURA = ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
+const ESCRITA = ['criar_elemento', 'conectar', 'renomear', 'remover'];
+
+test('a PAGINA decide: leitura nas duas, escrita so no modelador (F7)', () => {
+  // Era "todas valem nas duas paginas", com a nota de que este teste mudaria quando a primeira
+  // ferramenta de escrita nascesse. Nasceram quatro — e o que as separa e o campo `escreve`, nao
+  // o nome: a politica nunca olha nome especial, e nunca olha o texto do aluno.
+  assert.deepEqual(ferramentasPermitidas(MODELADOR).map((f) => f.nome), [...LEITURA, ...ESCRITA]);
+  assert.deepEqual(ferramentasPermitidas({ perfil: 'voz', pagina: 'modelador' }).map((f) => f.nome), [...LEITURA, ...ESCRITA]);
+  // No viewer as quatro nao EXISTEM para o modelo: declarar e depois recusar ensinaria o agente
+  // a prometer ao aluno o que ele nao vai conseguir fazer.
+  assert.deepEqual(ferramentasPermitidas(VIEWER).map((f) => f.nome), LEITURA);
+  // Default-deny tambem para o esquecimento: contexto ausente e o caso mais restrito.
+  assert.deepEqual(ferramentasPermitidas(undefined).map((f) => f.nome), LEITURA);
   assert.equal(declarada('lembrar'), true);
+  assert.equal(declarada('remover'), true);
   assert.equal(declarada('apagar_tudo'), false);
 });
 

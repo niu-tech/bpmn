@@ -22,6 +22,7 @@ import { linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
 import { criarExecutoresDeLeitura } from './tools/leitura.js';
+import { criarExecutoresDeEscrita } from './tools/escrita.js';
 import { promptDoPerfil } from './agent/render.js';
 import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback, criarDetectorDeFala } from './live/audio.js';
@@ -204,12 +205,57 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   /** Histórico SÓ em memória. Morre com a aba — como a chave. */
   const messages = [];
 
-  const publish = () => onUpdate?.({
+  /**
+   * O pedido de confirmação em aberto — hoje só `remover` cria um (F7, tarefa 3.4).
+   *
+   * Fica aqui, e não na interface, porque é a SESSÃO que precisa resolvê-lo quando a conexão
+   * cai: uma ferramenta esperando um clique que nunca vem prenderia o turno para sempre.
+   */
+  let confirmacao = null;
+
+  /**
+   * Pergunta ao aluno e devolve a resposta dele. Quem decide é ele; este módulo só espera.
+   *
+   * ⚠ Um pedido por vez, e o segundo é RECUSADO em vez de enfileirado: duas perguntas de apagar
+   * empilhadas na tela, respondidas fora de ordem, apagariam o elemento errado.
+   */
+  function pedirConfirmacao({ acao, alvo, versao }) {
+    if (confirmacao) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      confirmacao = { acao, alvo, versao, resolver: resolve };
+      diag.record('tool', 'confirmacao-pedida', `${acao} ${alvo?.id ?? ''}`);
+      publish();
+    });
+  }
+
+  /** Resposta do aluno (ou da sessão caindo, que responde NÃO por ele). */
+  function fecharConfirmacao(sim) {
+    if (!confirmacao) return;
+    const { resolver, acao, alvo } = confirmacao;
+    confirmacao = null;
+    diag.record('tool', sim ? 'confirmacao-dada' : 'confirmacao-recusada', `${acao} ${alvo?.id ?? ''}`);
+    publish();
+    try { resolver(Boolean(sim)); } catch { /* promessa já resolvida */ }
+  }
+
+/**
+   * O estado da interface, num lugar SÓ.
+   *
+   * ⚠ Isto era duplicado: `publish()` montava um objeto e o `mount.js` montava outro, do zero,
+   * ignorando o que recebia. Os testes liam o primeiro, a tela renderizava o segundo — então um
+   * campo novo podia estar provado e invisível ao mesmo tempo. Foi o que aconteceu com o pedido
+   * de confirmação do `remover`: campo publicado, testes verdes, nada na tela.
+   */
+  const vista = () => ({
     state, reason, mode, micOn, level,
+    // A interface precisa do PEDIDO, nunca da função que o resolve.
+    confirmacao: confirmacao ? { acao: confirmacao.acao, alvo: confirmacao.alvo } : null,
     busy: state === 'connecting' || state === 'closing',
     canAsk: (state === 'ready' || state === 'listening' || state === 'speaking'),
     messages: messages.slice(),
   });
+
+  const publish = () => onUpdate?.(vista());
 
   /**
    * O número deste turno na conversa. Turno novo da sessão ganha o próximo número; turno já
@@ -306,6 +352,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     micOn = false; level = 0;
 
     if (relogioDeSom) { clearInterval(relogioDeSom); relogioDeSom = null; }
+    // ⚠ Confirmação em aberto na hora de fechar vira NÃO. A promessa tem de resolver: uma
+    // ferramenta esperando um clique que não vem mais prende o turno até o teto, e o aluno vê o
+    // ajudante "pensando" para sempre. Fechar é a resposta segura — ninguém apaga nada.
+    fecharConfirmacao(false);
 
     teardownInFlight = (async () => {
       // Ordem: microfone primeiro (apaga o indicador do navegador na hora), depois som, depois fio.
@@ -484,7 +534,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // justamente varrer o REGISTRO INTEIRO que as distingue da amostra que já viaja a cada
         // turno (design H13 + T6).
         ...criarExecutoresDeLeitura({ acesso: deps.acesso, lerSimulacao: deps.lerSimulacao }),
+        // As que ESCREVEM (F7). A política já as esconde numa página que só lê; a camada fina
+        // recusa de novo se a declaração vazar de uma sessão anterior.
+        ...criarExecutoresDeEscrita({ acesso: deps.acesso, pedirConfirmacao }),
       },
+      // `remover` espera uma pessoa decidir. Dois minutos é tempo de ler e clicar; o relógio do
+      // turno fica pausado enquanto isso.
+      tetosPorFerramenta: { remover: 120000 },
     });
   }
 
@@ -676,6 +732,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let audioSeq = 0;
 
   const api = {
+    /** A mesma vista que `onUpdate` entrega — para quem precisa dela sem esperar um evento. */
+    get vista() { return vista(); },
     get state() { return state; },
     get reason() { return reason; },
     get mode() { return mode; },
@@ -931,6 +989,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         await new Promise((r) => setTimeout(r, intervaloMs));
       }
       return { ok: true, quadros: enviados };
+    },
+
+    /**
+     * A resposta do aluno ao pedido de confirmação (F7, tarefa 3.4).
+     *
+     * ⚠ A interface chama isto; ela NUNCA executa a remoção. Quem remove é a ferramenta, depois
+     * de a promessa resolver — é esse caminho único que garante a checagem de versão do diagrama
+     * (H14) valer para todo clique.
+     */
+    confirmar(sim) {
+      fecharConfirmacao(sim);
     },
 
     /** Encerramento completo e idempotente. */

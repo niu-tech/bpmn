@@ -73,9 +73,23 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const closeBtn = el('button', { className: 'bpmn-assist__icon', type: 'button', textContent: '✕' });
   closeBtn.setAttribute('aria-label', 'Fechar o ajudante');
 
+  /**
+   * O menu `⋯` — e ele existe para TIRAR coisa do caminho principal.
+   *
+   * `Encerrar` estava lado a lado com `Texto` e `Voz`, misturando **modo de entrada** com **fim de
+   * sessão**, com o mesmo peso visual. Trocar a chave e o diagnóstico também não são ações do
+   * turno: são de manutenção, e ocupavam linha fixa no painel.
+   */
+  const menuBtn = el('button', { className: 'bpmn-assist__icon', type: 'button', textContent: '⋯' });
+  menuBtn.setAttribute('aria-label', 'Mais opções');
+  menuBtn.setAttribute('aria-expanded', 'false');
+  const menu = el('div', { className: 'bpmn-assist__menu' });
+  menu.hidden = true;
+
   const head = el('div', { className: 'bpmn-assist__head' }, [
     el('h2', { id: 'bpmn-assist-title', textContent: 'Ajudante BPMN' }),
     statusChip,
+    menuBtn,
     closeBtn,
   ]);
 
@@ -108,9 +122,15 @@ export function createWidget({ session, credentials, onClose } = {}) {
       el('span', { textContent: 'Fica só nesta aba e vai só para o Google.' }),
     ]),
     el('p', {
+      // ⚠ "Só em memória" NÃO quer dizer invisível, e o aluno merece saber isso ANTES de colar.
+      // A conexão é direta do navegador e a chave vai na URL do WebSocket: ela aparece nas
+      // ferramentas de rede e no histórico de requisições. Apontado na pesquisa visual de
+      // 2026-11-14 como a informação que faltava nesta tela.
       textContent: 'Este site não tem chave própria e não guarda a sua: ela fica só na memória '
         + 'desta aba e some ao recarregar ou fechar. Não vai para nenhum servidor nosso — só '
-        + 'para generativelanguage.googleapis.com. Pegue a sua em aistudio.google.com.',
+        + 'para generativelanguage.googleapis.com. Como a conexão sai direto do seu navegador, a '
+        + 'chave aparece nas ferramentas de rede dele: guardar só em memória não a torna '
+        + 'invisível. Use uma chave que você possa revogar, e pegue a sua em aistudio.google.com.',
     }),
   ]);
 
@@ -141,6 +161,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // ⚠ O ÚNICO botão de ação. Guarda a chave (se houver uma digitada) e conecta; vira "Encerrar".
   const powerBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--primary', type: 'button', textContent: 'Começar' });
 
+  // `powerBtn` ANDA: enquanto é "Começar" ele é a ação principal e fica na barra; virando
+  // "Encerrar" ele deixa de ser do turno e vai para o menu. Um elemento, dois lugares — porque o
+  // que muda não é o botão, é a importância dele.
   const barraTopo = el('div', { className: 'bpmn-assist__row' }, [modeGroup, powerBtn]);
 
   // ------------------------------------------------------------------ falar + medidor
@@ -195,15 +218,36 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // ⚠ `barraTopo` (Texto/Voz/Encerrar) saiu do corpo ROLÁVEL: ela sumia da tela assim que a
   // conversa crescia, e aí trocar de modo exigia rolar tudo de volta. Controle que se usa a
   // qualquer momento fica FIXO; só a conversa rola. Mesma razão que já tirou o microfone daqui.
+  // Menos regiões: a linha da chave e o diagnóstico saem do corpo e vão para o menu. Eles
+  // fragmentavam o painel na vertical sem nunca serem a ação do momento.
+  menu.append(powerBtn, compacto, diagBox);
+
   const body = el('div', { className: 'bpmn-assist__body' }, [
-    setupBlock, compacto, hint, empty, log, diagBox,
+    setupBlock, hint, empty, log,
   ]);
 
   // ------------------------------------------------------------------ composer
   const input = el('textarea', { placeholder: 'Escreva a sua pergunta…', rows: 1 });
   input.setAttribute('aria-label', 'Sua pergunta');
   const sendBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--primary', type: 'button', textContent: 'Enviar' });
-  const composer = el('div', { className: 'bpmn-assist__composer' }, [input, meter, talkBtn, sendBtn]);
+  const composer = el('div', { className: 'bpmn-assist__composer' }, [input, talkBtn, sendBtn]);
+
+  /**
+   * A faixa de VOZ. Substitui o compositor enquanto a sessão de áudio está ativa — não convive
+   * com ele.
+   *
+   * ⚠ Em voz NÃO existe "Enviar": não há mensagem para enviar. Mostrar os três juntos (medidor,
+   * parar e enviar) foi apontado como defeito crítico na pesquisa visual, e o motivo é simples —
+   * o aluno não sabe qual é a ação daquele momento.
+   */
+  const vozEstado = el('p', { className: 'bpmn-assist__vozestado' }, [
+    el('strong', { className: 'bpmn-assist__voztitulo', textContent: 'Estou ouvindo' }),
+    el('span', { className: 'bpmn-assist__vozdica', textContent: 'pode falar normalmente' }),
+  ]);
+  const pararBtn = el('button', { className: 'bpmn-assist__parar', type: 'button', textContent: '■' });
+  pararBtn.setAttribute('aria-label', 'Encerrar a conversa por voz');
+  pararBtn.title = 'Encerrar a conversa por voz';
+  const faixaVoz = el('div', { className: 'bpmn-assist__voz' }, [vozEstado, meter, pararBtn]);
 
   /**
    * O CONTRATO, escrito para o aluno (H7).
@@ -218,9 +262,31 @@ export function createWidget({ session, credentials, onClose } = {}) {
     textContent: 'Ele lê o seu diagrama para explicar — não altera nada. O que muda no desenho é você que faz.',
   });
 
-  const rodape = el('div', { className: 'bpmn-assist__footer' }, [micLabel, composer, contrato]);
+  /**
+   * A confirmação de uma ação destrutiva (F7, tarefa 3.4).
+   *
+   * Fica no RODAPÉ, no lugar onde a ação do momento mora — é a regra desta change: uma ação
+   * principal por estado. Enquanto ela está na tela, o pedido é a ação; o resto do rodapé sai.
+   *
+   * ⚠ Os dois botões respondem a MESMA pergunta, e nenhum deles remove nada: eles resolvem a
+   * promessa que a ferramenta está esperando. A remoção continua acontecendo num lugar só.
+   */
+  const confirmaTexto = el('p', { className: 'bpmn-assist__confirmatxt' });
+  const simBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--perigo', type: 'button', textContent: 'Apagar' });
+  const naoBtn = el('button', { className: 'bpmn-assist__btn', type: 'button', textContent: 'Cancelar' });
+  const confirmaBox = el('div', { className: 'bpmn-assist__confirma' }, [
+    confirmaTexto,
+    // Cancelar PRIMEIRO no DOM: é ele que recebe o foco antes, porque é o que o aluno
+    // aperta por reflexo quando não leu a frase inteira.
+    el('div', { className: 'bpmn-assist__confirmabtns' }, [naoBtn, simBtn]),
+  ]);
+  confirmaBox.hidden = true;
+  confirmaBox.setAttribute('role', 'alertdialog');
+  confirmaBox.setAttribute('aria-live', 'assertive');
 
-  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, barraTopo, body, rodape, liveRegion]);
+  const rodape = el('div', { className: 'bpmn-assist__footer' }, [confirmaBox, faixaVoz, micLabel, composer, contrato]);
+
+  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, menu, barraTopo, body, rodape, liveRegion]);
   panel.hidden = true;
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'false');     // o diagrama continua utilizável de propósito
@@ -283,7 +349,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   }
 
   function render(view) {
-    const { state, reason, mode, micOn, level = 0, busy, canAsk, messages } = view;
+    const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null } = view;
 
     dot.setAttribute('data-state', state);
     const label = STATE_LABELS[state] ?? state;
@@ -307,23 +373,59 @@ export function createWidget({ session, credentials, onClose } = {}) {
     modeText.disabled = busy;
     modeVoice.disabled = busy;
 
-    // UM botão, dois papéis.
-    powerBtn.textContent = canAsk ? 'Encerrar' : 'Começar';
+    // UM botão, dois papéis — e dois LUGARES. Como "Começar" ele é a ação principal e fica na
+    // barra; como "Encerrar" ele é manutenção e vai para o menu, longe do seletor de modo.
+    powerBtn.textContent = canAsk ? 'Encerrar sessão' : 'Começar';
     powerBtn.classList.toggle('bpmn-assist__btn--primary', !canAsk);
+    powerBtn.classList.toggle('bpmn-assist__btn--perigo', canAsk);
     powerBtn.disabled = busy || (!canAsk && !credentials.hasKey && !keyInput.value);
+    const ondeDeveEstar = canAsk ? menu : barraTopo;
+    if (powerBtn.parentElement !== ondeDeveEstar) ondeDeveEstar.append(powerBtn);
 
-    // Falar só existe no modo voz e com sessão viva: esconder é mais honesto que desabilitar.
-    // O microfone só existe no modo voz; o resto do compositor continua igual.
-    talkBtn.hidden = !(mode === 'voz' && canAsk);
-    micLabel.hidden = !(mode === 'voz' && canAsk);
-    talkBtn.textContent = micOn ? '■' : '●';
-    talkBtn.setAttribute('aria-label', micOn ? 'Parar de ouvir' : 'Falar com o ajudante');
-    talkBtn.title = micOn ? 'Parar de ouvir' : 'Falar com o ajudante';
+    // ⚠ UMA AÇÃO PRINCIPAL POR ESTADO. Ouvindo, o rodapé é a faixa de voz — sem campo de texto e
+    // sem "Enviar", porque não há mensagem para enviar. Digitando, não existe controle de gravação.
+    // Mostrar os dois juntos foi o defeito crítico apontado na pesquisa visual.
+    // ⚠ `micOn` e não `canAsk`: durante uma ferramenta `canAsk` é falso, e a faixa inteira
+    // desaparecia no meio do turno — justamente quando ela tem de dizer "consultando o diagrama".
+    // Rodapé que se esvazia no meio do turno é o que faz o aluno achar que travou.
+    const emVoz = mode === 'voz' && micOn;
+    // Pedido de confirmação é a ação do momento: ele toma o rodapé e o resto sai.
+    const perguntando = Boolean(confirmacao);
+    confirmaBox.hidden = !perguntando;
+    if (perguntando) {
+      const alvo = confirmacao.alvo ?? {};
+      const comoChamar = alvo.nome ? `"${alvo.nome}"` : (alvo.id ?? 'o elemento');
+      const tipo = alvo.tipo ? ` (${alvo.tipo.toLowerCase()})` : '';
+      // O id entra junto do nome: dois elementos com o mesmo rótulo é caso comum num diagrama,
+      // e o aluno precisa saber QUAL vai embora.
+      const qual = alvo.nome && alvo.id ? ` · ${alvo.id}` : '';
+      confirmaTexto.textContent = `Apagar ${comoChamar}${tipo}${qual} do diagrama?`;
+    }
+    faixaVoz.hidden = perguntando || !emVoz;
+    composer.hidden = perguntando || !canAsk || emVoz;
+    micLabel.hidden = perguntando || !(mode === 'voz' && canAsk) || micOn;
+
+    // O microfone no compositor é só para COMEÇAR a falar; quem para é o botão da faixa.
+    talkBtn.hidden = perguntando || !(mode === 'voz' && canAsk);
+    talkBtn.textContent = '●';
+    talkBtn.setAttribute('aria-label', 'Falar com o ajudante');
+    talkBtn.title = 'Falar com o ajudante';
     talkBtn.setAttribute('aria-pressed', String(micOn));
-    talkBtn.classList.toggle('bpmn-assist__mic--gravando', micOn);
-    // Gravando, o campo de texto SAI de cena: duas entradas ao mesmo tempo é o padrão que confunde.
-    composer.classList.toggle('bpmn-assist__composer--gravando', micOn);
-    input.disabled = micOn;
+
+    // A frase de estado, da tabela da pesquisa. Cada estado diz o que está acontecendo AGORA.
+    const falandoAgora = state === 'speaking';
+    const consultando = state === 'tool';
+    vozEstado.querySelector('.bpmn-assist__voztitulo').textContent = consultando
+      ? 'Consultando o diagrama…'
+      : (falandoAgora ? 'Respondendo' : 'Estou ouvindo');
+    // ⚠ "Pode interromper falando" só quando for VERDADE: em meia-duplex o microfone fecha
+    // durante a resposta, e prometer o que não existe é pior que não prometer.
+    vozEstado.querySelector('.bpmn-assist__vozdica').textContent = consultando
+      ? 'já volto com o resultado'
+      : (falandoAgora
+        ? (session.meiaDuplex ? 'microfone pausado durante a resposta' : 'pode interromper falando')
+        : 'pode falar normalmente');
+    faixaVoz.classList.toggle('bpmn-assist__voz--falando', falandoAgora || consultando);
     // Em escuta contínua o microfone fica aberto durante a resposta — e dizer isso em texto é o
     // que faz o aluno descobrir que pode interromper. A rede de segurança muda a frase, porque
     // aí NÃO dá para interromper.
@@ -342,10 +444,11 @@ export function createWidget({ session, credentials, onClose } = {}) {
     hint.textContent = texto;
     hint.hidden = !texto;
 
-    // Campo de pergunta desligado ocupa a mesma altura e não serve para nada: sumir devolve
-    // espaço justamente na tela pequena, onde o problema aparece.
-    composer.hidden = !canAsk;
-    contrato.hidden = !canAsk;
+    // ⚠ O compositor JÁ foi decidido acima (ele dá lugar à faixa de voz). Havia uma segunda
+    // atribuição aqui, e ela vencia por ser a última: em voz o campo de texto voltava à tela com
+    // "Enviar" ao lado do medidor — exatamente o defeito que esta change existe para remover. Em
+    // tela estava lá; no DOM eu tinha "corrigido".
+    contrato.hidden = perguntando || !canAsk;
     sendBtn.disabled = !canAsk;
     input.disabled = !canAsk;
 
@@ -357,16 +460,36 @@ export function createWidget({ session, credentials, onClose } = {}) {
 
   function open() {
     panel.hidden = false;
+    // ⚠ Dois pontos de entrada para a MESMA coisa: o launcher azul continuava visível por cima do
+    // painel aberto, competindo com ele. Aberto, o launcher some (crítico na pesquisa visual).
+    toggle.hidden = true;
     toggle.setAttribute('aria-expanded', 'true');
     (credentials.ready ? input : keyInput).focus();
   }
 
   function close() {
     panel.hidden = true;
+    toggle.hidden = false;
+    menu.hidden = true;
+    menuBtn.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.focus();                    // o foco volta de onde veio
     onClose?.();
   }
+
+  menuBtn.addEventListener('click', () => {
+    menu.hidden = !menu.hidden;
+    menuBtn.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  // Clique fora fecha o menu: menu aberto esquecido come a conversa.
+  panel.addEventListener('click', (e) => {
+    if (menu.hidden || menu.contains(e.target) || e.target === menuBtn) return;
+    menu.hidden = true;
+    menuBtn.setAttribute('aria-expanded', 'false');
+  });
+  pararBtn.addEventListener('click', () => session.stopMic());
+  simBtn.addEventListener('click', () => session.confirmar(true));
+  naoBtn.addEventListener('click', () => session.confirmar(false));
 
   toggle.addEventListener('click', () => (panel.hidden ? open() : close()));
   closeBtn.addEventListener('click', close);

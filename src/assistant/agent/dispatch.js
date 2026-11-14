@@ -52,6 +52,16 @@ export function createToolDispatcher({
   /** Política do perfil. Default-deny de verdade mora em quem constrói este objeto. */
   permitido = () => false,
   tetoMs = 8000,
+  /**
+   * Teto DIFERENTE para ferramentas específicas.
+   *
+   * ⚠ Existe por causa de `remover`: ela espera o CLIQUE do aluno, e oito segundos é menos do
+   * que uma pessoa leva para ler "apagar isto?" e decidir. Com o teto geral, a confirmação
+   * expirava sozinha e voltava `tempo_esgotado` ao modelo — que leria como falha nossa, quando o
+   * aluno ainda estava olhando a tela. O relógio de silêncio do turno fica pausado nesse tempo
+   * todo (a sessão cuida disso), então a espera longa aqui não mata o turno.
+   */
+  tetosPorFerramenta = {},
   clock = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) },
   onEvent,
   /**
@@ -70,14 +80,15 @@ export function createToolDispatcher({
   const ev = (kind, detail) => { try { onEvent?.('tool', kind, detail); } catch { /* diário nunca derruba */ } };
 
   function comTeto(promessa, nome) {
+    const teto = Number(tetosPorFerramenta?.[nome]) > 0 ? Number(tetosPorFerramenta[nome]) : tetoMs;
     return new Promise((resolve) => {
       let pronto = false;
       const t = clock.setTimeout(() => {
         if (pronto) return;
         pronto = true;
         ev('tempo-esgotado', nome);
-        resolve({ ok: false, erro: ERROS.TEMPO, tetoMs });
-      }, tetoMs);
+        resolve({ ok: false, erro: ERROS.TEMPO, tetoMs: teto });
+      }, teto);
 
       Promise.resolve(promessa).then(
         (valor) => {

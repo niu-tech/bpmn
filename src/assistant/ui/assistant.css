@@ -87,7 +87,11 @@
   overflow: hidden;
 }
 
-.bpmn-assist__panel[hidden] { display: none; }
+/* UMA regra para tudo que o painel esconde.
+   ⚠ `[hidden]` do navegador é `display: none` com peso MÍNIMO: qualquer `.classe { display: flex }`
+   nossa vence o atributo e o elemento continua na tela — com o DOM dizendo que está escondido.
+   Eram nove regras, uma por classe, e cada elemento novo precisava lembrar da sua. */
+.bpmn-assist [hidden], .bpmn-assist__panel[hidden] { display: none; }
 
 .bpmn-assist__head {
   display: flex; align-items: center; gap: 8px;
@@ -124,7 +128,6 @@
   padding: 10px 14px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
-.bpmn-assist__panel > .bpmn-assist__row[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- chave */
 
@@ -167,7 +170,6 @@
 .bpmn-assist__privacy summary { cursor: pointer; }
 .bpmn-assist__privacy p { margin: 8px 0 0; }
 
-.bpmn-assist__composer[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- ações */
 
@@ -255,7 +257,6 @@
 }
 .bpmn-assist__mic:hover { background: #f1f5f9; }
 .bpmn-assist__mic:focus-visible { outline: 3px solid #0b4ea2; outline-offset: 2px; }
-.bpmn-assist__mic[hidden] { display: none; }
 
 /* Gravando: o botão vira PARAR, em vermelho, e pulsa. Parada explícita, sem adivinhação. */
 .bpmn-assist__mic--gravando {
@@ -300,7 +301,6 @@
   font-size: 11.5px;
   color: #64748b;
 }
-.bpmn-assist__miclabel[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- responsivo */
 
@@ -339,7 +339,6 @@
   font-size: 11.5px; color: #64748b;
   margin: 0 0 8px;
 }
-.bpmn-assist__compact[hidden], .bpmn-assist__setup[hidden] { display: none; }
 
 .bpmn-assist button.bpmn-assist__link {
   border: 0; background: none; padding: 0;
@@ -371,7 +370,6 @@
 .bpmn-assist button.bpmn-assist__seg:disabled { opacity: .5; cursor: not-allowed; }
 
 .bpmn-assist__row { align-items: center; }
-.bpmn-assist__row--talk[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- falar + medidor
  *
@@ -417,7 +415,6 @@
   border-radius: 8px;
   padding: 7px 10px;
 }
-.bpmn-assist__hint[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- diagnostico */
 
@@ -478,3 +475,136 @@
 .bpmn-assist__setup label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 12.5px; }
 .bpmn-assist__setup input[type="password"] { height: 40px; }
 .bpmn-assist__setup .bpmn-assist__row { margin-top: 10px; }
+
+
+/* ============================================================================================
+   REDESENHO (pesquisa visual, 2026-11-14)
+   ============================================================================================
+   A frase que organiza tudo aqui: "a mudanca mais importante nao e escolher um azul mais bonito.
+   E reduzir a interface a UMA ACAO PRINCIPAL POR ESTADO."
+
+   ⚠ A escuta NAO e vermelha. Vermelho e erro e e encerrar; escuta e verde-azulado. Com o medidor
+   rosado e o botao vermelho, "ouvindo" parecia um alerta — o aluno achava que algo deu errado. */
+
+.bpmn-assist {
+  --cor-primaria: #2563eb;
+  --cor-texto: #17263c;
+  --cor-secundaria: #526277;
+  --cor-borda: #dce4ef;
+  --cor-ouvindo: #0f766e;   /* escuta */
+  --cor-falando: #7c3aed;   /* o modelo respondendo */
+  --cor-erro: #b42318;      /* so erro, e so encerrar */
+}
+
+/* ---- tipografia: nada abaixo de 12 px ----------------------------------------------------- */
+.bpmn-assist__msg { font-size: 14.5px; line-height: 1.55; }
+.bpmn-assist__msg--system,
+.bpmn-assist__msg--tool { font-size: 12.5px; }
+.bpmn-assist__status { font-size: 12.5px; }
+.bpmn-assist__hint,
+.bpmn-assist__compact,
+.bpmn-assist__contrato,
+.bpmn-assist__miclabel { font-size: 12.5px; color: var(--cor-secundaria); }
+.bpmn-assist__head h2 { font-size: 17px; }
+
+/* ---- menu secundario ----------------------------------------------------------------------
+   Encerrar, trocar a chave e o diagnostico saem do caminho do turno. */
+.bpmn-assist__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  background: #f8fafc;
+}
+.bpmn-assist__menu .bpmn-assist__compact { margin: 0; }
+.bpmn-assist__menu .bpmn-assist__diag { margin: 0; }
+.bpmn-assist__btn--perigo {
+  background: #fff;
+  border-color: var(--cor-erro);
+  color: var(--cor-erro);
+  align-self: flex-start;
+}
+.bpmn-assist__btn--perigo:hover { background: #fef2f2; }
+
+/* ---- a faixa de VOZ, que SUBSTITUI o compositor -------------------------------------------- */
+.bpmn-assist__voz {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-borda);
+  background: #f0fdfa;                      /* verde-azulado claro: escuta, nao alerta */
+}
+.bpmn-assist__voz--falando { background: #f5f3ff; }   /* o modelo respondendo */
+
+.bpmn-assist__vozestado { margin: 0; flex: 1; min-width: 0; }
+.bpmn-assist__voztitulo { display: block; font-size: 14px; color: var(--cor-ouvindo); }
+.bpmn-assist__voz--falando .bpmn-assist__voztitulo { color: var(--cor-falando); }
+.bpmn-assist__vozdica { display: block; font-size: 12.5px; color: var(--cor-secundaria); }
+
+.bpmn-assist__voz .bpmn-assist__meter {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 34px;
+  flex: none;
+}
+.bpmn-assist__voz .bpmn-assist__bar { width: 3px; height: 26px; background: var(--cor-ouvindo); }
+.bpmn-assist__voz--falando .bpmn-assist__bar { background: var(--cor-falando); }
+
+/* O unico botao vermelho da tela, e ele ENCERRA. */
+.bpmn-assist__parar {
+  flex: none;
+  width: 44px; height: 44px;              /* alvo de toque, acima do minimo WCAG */
+  border-radius: 999px;
+  border: 1px solid var(--cor-erro);
+  background: var(--cor-erro);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bpmn-assist__parar:hover { background: #991b1b; }
+.bpmn-assist__parar:focus-visible { outline: 3px solid #0b4ea2; outline-offset: 2px; }
+
+/* O microfone do compositor deixa de ser vermelho: ele COMECA a escuta, nao encerra nada. */
+.bpmn-assist__mic--gravando { animation: none; }
+
+/* ---- foco visivel e movimento reduzido ----------------------------------------------------- */
+.bpmn-assist button:focus-visible,
+.bpmn-assist input:focus-visible,
+.bpmn-assist textarea:focus-visible,
+.bpmn-assist summary:focus-visible {
+  outline: 3px solid var(--cor-primaria);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bpmn-assist *,
+  .bpmn-assist *::before,
+  .bpmn-assist *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---- o launcher menor: ele chama, nao compete com o diagrama ------------------------------- */
+.bpmn-assist__toggle { padding: 10px 16px; }
+.bpmn-assist__toggletxt small { font-size: 11.5px; }
+
+/* ---- confirmação de ação destrutiva (F7, tarefa 3.4) ---------------------------------------
+   Enquanto ela está na tela, ela É a ação: o compositor e a faixa de voz saem. */
+.bpmn-assist__confirma {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--cor-erro);
+  background: #fef2f2;
+}
+.bpmn-assist__confirmatxt { margin: 0; font-size: 14px; color: var(--cor-texto); }
+.bpmn-assist__confirmabtns { display: flex; gap: 8px; }
+/* O destrutivo NÃO é o botão de descanso: "Cancelar" recebe o foco primeiro na ordem de tab,
+   porque é ele que o aluno aperta por reflexo quando não leu a frase inteira. */
+.bpmn-assist__confirma .bpmn-assist__btn--perigo { background: var(--cor-erro); color: #fff; }
+.bpmn-assist__confirma .bpmn-assist__btn--perigo:hover { background: #991b1b; }

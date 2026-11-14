@@ -18,6 +18,7 @@
 // ferramenta é o modelo.
 
 /** Plural sem gambiarra: a conta é do chamador, a palavra é daqui. */
+const QUOTE = '"';
 const plural = (n, um, muitos) => `${n} ${n === 1 ? um : muitos}`;
 
 /**
@@ -70,6 +71,39 @@ const COMO_MOSTRAR = {
     return partes.length ? `li a última simulação — ${partes.join(' · ')}` : 'li a última simulação';
   },
 
+  // ---- escrita: a linha diz o que MUDOU no desenho, com o nome ou o id. O aluno precisa
+  // poder conferir na tela — e precisa saber o que desfazer se não gostou.
+  criar_elemento: (e, r) => {
+    if (!r || r.ok === false || !r.criado) return 'tentei criar um elemento';
+    const nome = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
+    const tipo = (r.criado.tipo ?? '').toLowerCase();
+    const antes = r.ligadoA ? (r.ligadoA.nome ? QUOTE + r.ligadoA.nome + QUOTE : r.ligadoA.id) : null;
+    return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '');
+  },
+
+  conectar: (e, r) => {
+    if (!r || r.ok === false || !r.ligou) return 'tentei ligar dois elementos';
+    const lado = (x) => (x?.nome ? QUOTE + x.nome + QUOTE : (x?.id ?? '?'));
+    // ⚠ O TIPO da ligação entra na linha: fluxo de mensagem e fluxo de sequência são coisas
+    // diferentes em BPMN, e o aluno que pediu um e recebeu o outro tem de ver isso aqui.
+    const tipo = r.tipoDaLigacao === 'MessageFlow' ? 'fluxo de mensagem' : 'fluxo de sequência';
+    return 'liguei ' + lado(r.ligou.de) + ' -> ' + lado(r.ligou.para) + ' (' + tipo + ')';
+  },
+
+  renomear: (e, r) => {
+    if (!r || r.ok === false || !r.para) return 'tentei renomear';
+    const ate = QUOTE + r.para + QUOTE;
+    return r.de ? 'renomeei ' + QUOTE + r.de + QUOTE + ' -> ' + ate : 'nomeei ' + ate;
+  },
+
+  remover: (e, r) => {
+    if (!r || r.ok === false) return 'tentei remover';
+    const alvo = r.alvo?.nome ? QUOTE + r.alvo.nome + QUOTE : (r.alvo?.id ?? e?.id ?? 'o elemento');
+    // Recusa do aluno NÃO é falha: é a decisão dele, e a linha diz isso em vez de "não deu".
+    if (r.recusadoPeloAluno) return 'não removi ' + alvo + ' — você não confirmou';
+    return r.removido ? 'removi ' + alvo : 'não removi ' + alvo;
+  },
+
   lembrar: (e, r) => (r?.guardado
     ? `anotei${e?.categoria ? ` (${e.categoria})` : ''}`
     : 'tentei anotar'),
@@ -82,6 +116,11 @@ export function linhaDeInicio(nome) {
     buscar_elemento: 'procurando no diagrama…',
     detalhar_elemento: 'abrindo o elemento…',
     resumir_simulacao: 'lendo a simulação…',
+    criar_elemento: 'criando no diagrama…',
+    conectar: 'ligando os elementos…',
+    renomear: 'renomeando…',
+    // ⚠ "removendo…" mentiria: nesse instante ainda se espera o aluno confirmar.
+    remover: 'esperando você confirmar a remoção…',
     lembrar: 'anotando…',
   })[nome] ?? `${nome}…`;
 }

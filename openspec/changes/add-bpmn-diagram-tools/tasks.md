@@ -54,18 +54,41 @@
 
 ## 3. Escrita (só modelador)
 
-- [ ] 3.1 `criar_elemento` — tipo, nome, âncora e direção; posição calculada a partir da âncora
-- [ ] 3.2 `conectar` — sequência ou mensagem; valida existência dos dois lados e a regra de pools
-- [ ] 3.3 `renomear`
-- [ ] 3.4 `remover` — **confirmação na interface** antes de executar; recusa devolve resposta ao
-      modelo. A confirmação carrega `id` **e versão do diagrama**: se o diagrama mudou entre o
-      pedido e o clique, recusa com `diagrama_mudou` (H14)
-- [ ] 3.5 Toda escrita por `modeling`; guarda que falha se alguma ferramenta tocar XML
-- [ ] 3.6 Toda escrita devolve o que mudou, para o agente narrar ao aluno
+- [x] 3.1 `criar_elemento` — tipo (lista fechada de 18), nome e âncora. Com âncora o bpmn-js
+      posiciona **e já liga** (`appendShape`), que é o que o aluno pede em palavras ("uma tarefa
+      depois do início"); o retorno diz que a ligação existe, para o agente não ligar de novo.
+      ⚠ **Direção ficou de fora**, e sem âncora a posição é FIXA: espalhar elemento solto sem
+      sobrepor é layout automático (tarefa 5.1, fora desta change). Está dito no código e na
+      declaração ao modelo — o que não dá é prometer ao agente uma colocação que não existe
+- [x] 3.2 `conectar` — e **nós não escolhemos o tipo**. A regra do BPMN mora no bpmn-js: entre
+      pools nasce `MessageFlow`, no mesmo processo `SequenceFlow`. A ferramenta manda conectar e
+      **lê de volta o tipo que nasceu**; é desse FATO que sai a explicação ao aluno, não de um
+      `if` com palavra-chave. Recusa silenciosa do bpmn-js vira `conexao_invalida` — silêncio
+      virando `{ok:true}` faria o agente afirmar uma ligação que não está no desenho
+- [x] 3.3 `renomear` — devolve o nome de antes e o de agora, **lido do registro** depois da
+      operação. Nome vazio é erro nomeado, não rótulo em branco
+- [x] 3.4 `remover` — **confirmação na interface**, no rodapé, onde a ação do momento mora: com a
+      pergunta na tela o compositor e a faixa de voz saem. `Cancelar` vem primeiro no DOM (é o
+      que se aperta por reflexo). A confirmação carrega o alvo **e a versão do diagrama**, e se o
+      desenho mudou entre o pedido e o clique a remoção é recusada com `diagrama_mudou` (H14).
+      Recusa do aluno volta ao modelo como `recusadoPeloAluno: true` — fato, não silêncio.
+      ⚠ Duas coisas que o caminho exigiu: o despachante ganhou **teto por ferramenta** (os 8 s
+      gerais expiravam a confirmação enquanto a pessoa ainda lia, e o modelo recebia
+      `tempo_esgotado` como se fosse falha nossa), e a sessão **responde NÃO ao cair** — promessa
+      pendurada prenderia o turno até o teto, com o aluno vendo "pensando" para sempre
+- [x] 3.5 Toda escrita por `modeling` — e o teste prova com um dublê do modelador que registra
+      cada chamada: só `appendShape`, `createShape`, `connect`, `updateLabel` e `removeElements`.
+      É isso que faz o `Ctrl+Z` do aluno alcançar o trabalho do agente
+- [x] 3.6 Toda escrita devolve o que mudou — **e lido de volta do registro, nunca presumido**.
+      Chamada que não estoura e não muda nada falha com `nada_mudou`: é o jeito mais fácil de o
+      instrumento mentir. A linha da tela diz o que mudou com o nome e o id
 
 ## 4. Prova
 
-- [ ] 4.1 Teste: desfazer remove o que o agente criou
+- [x] 4.1 `src/assistant/__tests__/escrita.mjs` (21 casos): desfazer alcança o que o agente
+      criou, as quatro recusam num viewer (mesmo com declaração vazada), `diagrama_mudou`,
+      recusa do aluno preservando o elemento, e o guarda de que nada toca XML. O dublê é do
+      **bpmn-js**, não da nossa camada — porque aqui quem está sob teste inclui `bpmn-api.js`
 - [ ] 4.2 Bateria AO VIVO: "crie uma tarefa chamada Receber pedido depois do evento de início" →
       verificar no registro que a tarefa existe e está conectada
 - [ ] 4.3 Bateria AO VIVO: pedir remoção e **não** confirmar → elemento continua lá

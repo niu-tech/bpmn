@@ -14,6 +14,7 @@
 // ponytail: um array e duas funções. Sem registry, sem decorator, sem plugin.
 
 import { CATEGORIAS } from './memory.js';
+import { TIPOS_CRIAVEIS } from '../tools/escrita.js';
 
 export const FERRAMENTAS = Object.freeze([
   {
@@ -118,6 +119,105 @@ export const FERRAMENTAS = Object.freeze([
         + 'não houver corrida, diga que ele precisa rodar uma. O resultado avisa quando o '
         + 'diagrama mudou depois da corrida; nesse caso, diga que a métrica é do desenho anterior.',
       parameters: { type: 'object', properties: {} },
+    },
+  },
+
+  // ---------------------------------------------------------------- escrita (F7, só modelador)
+  // ⚠ As quatro nascem `escreve: true`, e é esse campo — não um nome especial — que faz a
+  // política esconder todas numa página que só lê. A regra já existia desde a F5, esperando a
+  // primeira ferramenta que escrevesse.
+
+  {
+    nome: 'criar_elemento',
+    escreve: true,
+    declaracao: {
+      name: 'criar_elemento',
+      description:
+        'Cria um elemento no diagrama do aluno. Passe depoisDe com o id de um elemento que já '
+        + 'existe sempre que der: assim o novo nasce posicionado E já ligado ao anterior, que é '
+        + 'o que o aluno quer quando diz "uma tarefa depois do início". Sem depoisDe o elemento '
+        + 'fica solto numa posição fixa e pode cobrir outro. O resultado diz o id criado e se a '
+        + 'ligação foi feita.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tipo: {
+            type: 'string',
+            enum: [...TIPOS_CRIAVEIS],
+            description: 'Tipo BPMN do elemento, sem o prefixo bpmn:.',
+          },
+          nome: { type: 'string', description: 'O rótulo que aparece no desenho.' },
+          depoisDe: {
+            type: 'string',
+            description: 'Id do elemento que vem ANTES. Use o id do contexto ou da busca.',
+          },
+        },
+        required: ['tipo'],
+      },
+    },
+  },
+
+  {
+    nome: 'conectar',
+    escreve: true,
+    // ⚠ A declaração NÃO pede o tipo da ligação, e isso é de propósito: quem decide entre fluxo
+    // de sequência e fluxo de mensagem é a regra do BPMN dentro do bpmn-js. O resultado DIZ qual
+    // nasceu — é daí que sai a explicação certa quando os dois estão em pools diferentes.
+    declaracao: {
+      name: 'conectar',
+      description:
+        'Liga dois elementos do diagrama pelos ids. Você não escolhe o tipo da ligação: dentro '
+        + 'do mesmo processo nasce um fluxo de sequência, entre pools diferentes nasce um fluxo '
+        + 'de mensagem. O resultado diz qual dos dois foi criado — conte isso ao aluno. Se a '
+        + 'ligação não for permitida, o erro é conexao_invalida.',
+      parameters: {
+        type: 'object',
+        properties: {
+          de: { type: 'string', description: 'Id do elemento de origem.' },
+          para: { type: 'string', description: 'Id do elemento de destino.' },
+        },
+        required: ['de', 'para'],
+      },
+    },
+  },
+
+  {
+    nome: 'renomear',
+    escreve: true,
+    declaracao: {
+      name: 'renomear',
+      description:
+        'Troca o rótulo de um elemento do diagrama. O resultado traz o nome de antes e o de '
+        + 'agora. Id que não existe devolve elemento_nao_encontrado.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Id do elemento.' },
+          nome: { type: 'string', description: 'O novo rótulo.' },
+        },
+        required: ['id', 'nome'],
+      },
+    },
+  },
+
+  {
+    nome: 'remover',
+    escreve: true,
+    // ⚠ Destrutiva, e o aluno CONFIRMA na tela antes de executar. A declaração avisa o modelo
+    // disso para ele não narrar a remoção antes de ter o resultado — recusa do aluno é uma
+    // resposta legítima e comum, não falha.
+    declaracao: {
+      name: 'remover',
+      description:
+        'Apaga um elemento do diagrama. O aluno CONFIRMA na tela antes de a remoção acontecer: '
+        + 'não diga que removeu antes de receber o resultado. Se ele recusar, o resultado traz '
+        + 'recusadoPeloAluno: true — avise que nada foi apagado. Se o diagrama mudar entre o '
+        + 'pedido e o clique, o erro é diagrama_mudou e você deve procurar o elemento de novo.',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', description: 'Id do elemento a apagar.' } },
+        required: ['id'],
+      },
     },
   },
 ]);

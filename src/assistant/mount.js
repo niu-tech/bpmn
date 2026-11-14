@@ -90,19 +90,13 @@ export function mountAssistant({ container = document.body, debug = false, pagin
       lerDiagrama: () => olho.atual(),
       lerSimulacao: () => simulacao,
     },
-    onUpdate: () => widget?.render(view()),
+    // ⚠ Renderiza o que RECEBEU. Antes isto montava a vista de novo, do zero, e ignorava o
+    // argumento: o estado da interface existia em dois lugares, e um campo novo na sessão podia
+    // ficar provado pelos testes e invisível na tela. Quem define a vista é a sessão.
+    onUpdate: (vista) => widget?.render(vista),
   });
 
-  const view = () => ({
-    state: session.state,
-    reason: session.reason,
-    mode: session.mode,
-    micOn: session.micOn,
-    level: session.level,
-    busy: session.state === 'connecting' || session.state === 'closing',
-    canAsk: ['ready', 'listening', 'speaking'].includes(session.state),
-    messages: session.messages,
-  });
+  const view = () => session.vista;
 
   widget = createWidget({ session, credentials });
   container.append(widget.root);

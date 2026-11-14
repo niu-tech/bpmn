@@ -828,6 +828,7 @@ if (chaveViva) {
          ok: !r.startsWith('[FALHA DO SERVICO]') && r.length > 5 && !deuAReceita && ofereceuOQueFaz && r.length < 400,
          respondeu: r.slice(0, 200),
          deuAReceita,
+         linhaDoTempo: window.__linhaDoTempo(),
          ofereceuOQueFaz,
          tamanho: r.length,
        };`,
@@ -889,6 +890,7 @@ if (chaveViva) {
          perguntouPor: alvo.nome + ' [' + alvo.id + ']',
          foraDaAmostra: d.amostra.length + ' de ' + d.total + ' na amostra',
          negouExistencia,
+         linhaDoTempo: window.__linhaDoTempo(),
          admitiuParcial,
          confirmouQueExiste: confirmou,
          respondeu: r.slice(0, 220),
@@ -968,6 +970,133 @@ if (chaveViva) {
     ],
   });
 
+
+  // ------------------------------------------------------------ portao F7 (escrita no diagrama)
+  // ⚠ Este e o PRIMEIRO cenario que roda na pagina do MODELADOR (index.html) e nao no viewer:
+  // as quatro ferramentas de escrita nao existem onde so se le, entao provar escrita contra o
+  // viewer mediria a recusa, nao o produto.
+  //
+  // O criterio NUNCA e a frase do agente. "Criei a tarefa" e texto; a prova e o elemento estar
+  // no DESENHO - e e o desenho que o harness le, pelos nos [data-element-id] que o bpmn-js
+  // renderiza. Agente que narra o que nao fez e exatamente o defeito que a F7 tem de pegar.
+  CENARIOS.push({
+    nome: 'AO VIVO: criar, ligar e NAO remover sem confirmar (portao F7)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    espera: 4500,
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       // No modelador o ajudante monta igual; o que muda e o contexto nascer editavel.
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       // Quem esta no desenho AGORA: a linha de base de toda a prova deste portao.
+       window.__idsNaTela = () => [...document.querySelectorAll('[data-element-id]')]
+         .map((n) => n.getAttribute('data-element-id'))
+         .filter((id, i2, arr) => arr.indexOf(id) === i2 && !id.endsWith('_label'));
+       // ⚠ Dois lugares: evento/gateway/fluxo tem rotulo EXTERNO ('<id>_label'); tarefa desenha
+       // o nome DENTRO da forma. Ler so o externo fazia a tarefa criada aparecer sem nome.
+       window.__rotulo = (id) => {
+         const fora = document.querySelector('[data-element-id="' + id + '_label"]');
+         const dentro = document.querySelector('[data-element-id="' + id + '"]');
+         return ((fora?.textContent ?? '') || (dentro?.textContent ?? '')).trim();
+       };
+       window.__antes = window.__idsNaTela();
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && window.__antes.length > 5,
+         elementosNaTela: window.__antes.length,
+       };`,
+
+      `// 1. CRIAR (gate 4.2): a tarefa tem de aparecer NO DESENHO, ligada ao que veio antes.
+       // ⚠ A pergunta vai nas PALAVRAS do aluno, sem id: e o agente que procura a ancora. Passar
+       // o id eu mesmo testaria menos do que o produto faz — e, no diagrama da pizzaria, os ids
+       // nao tem padrao nenhum ('_6-53'), entao adivinhar o do inicio era adivinhar errado.
+       const r = await window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início do processo.');
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       const novos = window.__idsNaTela().filter((id) => !window.__antes.includes(id));
+       const criado = novos.find((id) => window.__rotulo(id).toLowerCase().includes('receber pedido'))
+         ?? novos.find((id) => /Task|Activity/i.test(id)) ?? null;
+       window.__criado = criado;
+       window.__antes = window.__idsNaTela();
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && chamadas.includes('criar_elemento') && !!criado,
+         chamouCriar: chamadas.includes('criar_elemento'),
+         apareceuNoDesenho: criado ? criado + ' = "' + window.__rotulo(criado) + '"' : null,
+         novosNoDesenho: novos,
+         // A linha da ferramenta na tela: o aluno tem de ver o que mudou, com o nome.
+         linhaDaFerramenta: [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim()).at(-1) ?? null,
+         ferramentasChamadas: chamadas,
+         linhaDoTempo: window.__linhaDoTempo(),
+         respondeu: r.slice(0, 200),
+       };`,
+
+      `// 2. POOLS (gate 4.4): fluxo de sequencia entre pools nao existe em BPMN. O certo e o
+       // agente dizer que a ligacao e de MENSAGEM — e isso tem de vir do FATO (o tipo que o
+       // bpmn-js criou ou a regra que ele recusou), nunca de um if nosso com palavra-chave.
+       //
+       // A pergunta e a do aluno, com os nomes das raias que ele ve na tela. Quem acha os ids e
+       // o agente: e isso que o produto faz, e e isso que precisa ser medido.
+       const r = await window.__resposta('Ligue uma tarefa do pool do cliente numa tarefa do pool da pizzaria com um fluxo de sequência.');
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       const limpo = r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+       // Ou ele explica antes de tentar, ou ele tenta e conta o que nasceu. As duas servem; o
+       // que NAO serve e afirmar um fluxo de sequencia entre pools, que o BPMN nao permite.
+       const falouDeMensagem = /(mensagem|message)/.test(limpo);
+       const afirmouSequencia = /(criei|liguei|fiz).{0,40}(fluxo de sequencia|sequence flow)/.test(limpo) && !falouDeMensagem;
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && falouDeMensagem && !afirmouSequencia,
+         falouDeMensagem,
+         afirmouSequenciaEntrePools: afirmouSequencia,
+         ferramentasChamadas: chamadas,
+         linhaDaFerramenta: [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim()).slice(-2),
+         linhaDoTempo: window.__linhaDoTempo(),
+         respondeu: r.slice(0, 260),
+       };`,
+
+      `// 3. RECUSAR A REMOCAO (gate 4.3): o elemento tem de CONTINUAR la. Este passo mede a
+       // trava inteira - a pergunta aparece na tela, o aluno clica Cancelar, e a ferramenta
+       // devolve a recusa ao modelo em vez de sumir em silencio.
+       // O alvo e o que o AGENTE criou no passo 1 — nao um id sorteado do diagrama do aluno.
+       const alvo = window.__criado;
+       if (!alvo) return { ok: false, erro: 'o passo 1 nao criou nada para remover' };
+       const ta = document.querySelector('.bpmn-assist__composer textarea');
+       ta.value = 'Apague o elemento ' + alvo + ' do diagrama.';
+       window.__btn('Enviar').click();
+       // Espera a PERGUNTA, nao a resposta: e ela o produto deste passo.
+       const caixa = document.querySelector('.bpmn-assist__confirma');
+       let apareceu = false;
+       for (let i = 0; i < 80 && !apareceu; i++) {
+         await new Promise((r2) => setTimeout(r2, 500));
+         apareceu = caixa && !caixa.hidden;
+       }
+       const pergunta = apareceu ? document.querySelector('.bpmn-assist__confirmatxt').textContent.trim() : null;
+       // Com a pergunta na tela, o compositor sai: uma acao principal por estado.
+       const compositorEscondido = apareceu ? getComputedStyle(document.querySelector('.bpmn-assist__composer')).display === 'none' : null;
+       if (apareceu) {
+         [...document.querySelectorAll('.bpmn-assist__confirma button')].find((b) => b.textContent.trim() === 'Cancelar').click();
+       }
+       for (let i = 0; i < 40; i++) {
+         await new Promise((r2) => setTimeout(r2, 500));
+         if (document.querySelector('.bpmn-assist__status').textContent === 'pronto') break;
+       }
+       const aindaLa = window.__idsNaTela().includes(alvo);
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: apareceu && aindaLa && chamadas.includes('remover'),
+         perguntouAntes: pergunta,
+         compositorSaiuDaTela: compositorEscondido,
+         elementoContinuaNoDesenho: aindaLa,
+         linhaDaFerramenta: [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim()).at(-1) ?? null,
+         ferramentasChamadas: chamadas,
+         linhaDoTempo: window.__linhaDoTempo(),
+       };`,
+    ],
+  });
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
