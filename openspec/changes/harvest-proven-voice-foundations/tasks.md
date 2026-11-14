@@ -79,6 +79,30 @@
 - [ ] 4.2 **H12 · inventário de dependências** fixadas, com licença declarada, no modelo do
       `INVENTORY.md` da cápsula
 
+## 6. A janela mais perto do vídeo (pedido do dono, 2026-11-13)
+
+> O vídeo do assistente do Orbit é a referência. ⚠ O código dele **não está nesta máquina** —
+> procurado duas vezes, nos dois drives e nas sessões locais, sem nenhum resultado. A referência é
+> a gravação, e o que vier dela entra com o nosso desenho, não copiado por cima.
+
+- [x] 6.1 **Carregar mensagem** — entre a pergunta e a resposta não havia NADA na tela, e a resposta
+      leva segundos: o aluno olhava a própria pergunta sem saber se tinha mandado. Agora a bolha de
+      espera entra junto da pergunta e **é a mesma** que a resposta ocupa. Some em todo caminho que
+      termina sem texto (turno vazio, legenda só de marcador, falha) — "pensando…" pendurado é pior
+      que erro nenhum
+- [x] 6.2 **Som enquanto o aluno fala** — já existia e está certo: o medidor é alimentado pelo MESMO
+      PCM que sai para o Gemini, e fica fixo acima do compositor. **Nada a fazer** — olhar antes de
+      refazer é o que evitou um dia de trabalho
+- [x] 6.3 **O que o bloco 2 entregou estava INVISÍVEL** — a linha da ferramenta e o contrato foram
+      pintados de branco translúcido num painel CLARO. Estavam no DOM, os testes passavam, e não
+      aparecia nada na tela. Corrigido para a cor do resto do painel (`#64748b`), com a armadilha
+      escrita no CSS. ⚠ É a lição da dívida M6 outra vez: **olhe a tela**
+- [ ] 6.4 **Cartões clicáveis** no resultado da ferramenta (no vídeo, médico + horário). Aqui seria
+      o elemento encontrado, clicável para selecionar no diagrama. Vale decidir se entra antes ou
+      depois da F7
+- [ ] 6.5 **"Ouvindo" no modo texto** — o selo diz "ouvindo" numa sessão sem microfone. Anterior a
+      esta change, e do mesmo assunto do bloco 2
+
 ## 5. Fechamento
 
 - [ ] 5.1 Bateria ao vivo completa depois do bloco 1, com o número relatado como ele for

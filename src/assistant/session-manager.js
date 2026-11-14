@@ -241,6 +241,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     rastreador.abrirTurno();
   }
 
+  /**
+   * Tira a bolha de ESPERA ("pensando…") que nunca virou resposta.
+   *
+   * Pendurada para sempre é pior que erro nenhum: o aluno fica esperando algo que não vem. Some
+   * em todo caminho que termina sem texto — turno vazio, legenda só de marcador, falha de serviço.
+   */
+  function tirarEspera(n = null) {
+    const alvo = n == null
+      ? messages.filter((m) => m.role === 'assistant' && m.rodando).at(-1)
+      : bolhaDoTurno(n);
+    if (!alvo?.rodando) return false;
+    messages.splice(messages.indexOf(alvo), 1);
+    publish();
+    return true;
+  }
+
   /** A bolha de FALA do aluno daquele turno, se já existir. É ela que cresce a cada pedaço. */
   function falaDoTurno(n) {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -516,6 +532,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           api.startMic();
         }
         if (s !== 'error') return;
+        // Mesma razão: erro com a bolha de espera na tela deixa duas mensagens contraditórias.
+        tirarEspera();
         note(`não deu: ${describeError(r)}`, 'error');
         // Chave recusada tem conserto, e o conserto é do aluno: dizer o que fazer vale mais que
         // repetir o código do erro.
@@ -529,6 +547,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         if (complete) fecharFala('turno fechado');
         // Turno que terminou sem nada utilizável: diga isso, em vez de deixar a tela muda.
         if (vazio) {
+          // ⚠ Tirar a bolha de espera ANTES de avisar: "pensando…" pendurado para sempre é pior
+          // que erro nenhum — some com o aviso e deixa o aluno esperando uma resposta que não vem.
+          tirarEspera(turnoLocal(turno));
           note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
           return;
         }
@@ -546,7 +567,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // aluno ficava vendo a própria pergunta até o relógio de 45 s dizer "o servidor não
         // respondeu" — o que é falso: o servidor respondeu, só não tinha o que mostrar.
         if (!text) {
-          if (complete) note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
+          if (complete) {
+            tirarEspera(turnoLocal(turno));
+            note('o modelo encerrou o turno sem responder. Pergunte de novo, por favor.', 'error');
+          }
           return;
         }
         // ⚠ A bolha é procurada pelo TURNO, não por "qual era o turno atual". Texto atrasado do
@@ -556,6 +580,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         const bolha = bolhaDoTurno(n);
         if (bolha) {
           bolha.text = text;
+          bolha.rodando = false;
           bolha.fallback = Boolean(fallback);
           publish();
         } else {
@@ -798,6 +823,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       const daSessao = session.ask(q, delta);
       const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);
       push({ role: 'user', text: q, via: 'texto', turn: n });
+      // Entre a pergunta e a resposta não havia NADA na tela, e a resposta leva segundos: o aluno
+      // ficava olhando a própria pergunta sem saber se mandou mesmo. A bolha de espera é a mesma
+      // que a resposta vai ocupar — `bolhaDoTurno` a encontra pelo turno e escreve por cima.
+      push({ role: 'assistant', text: 'pensando…', rodando: true, turn: n });
       return true;
     },
 

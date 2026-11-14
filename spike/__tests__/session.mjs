@@ -416,34 +416,29 @@ test('o relogio injetado e chamado como METODO do proprio objeto', () => {
 
 console.log('\n▶ falhas nomeadas');
 
-test('1007 de CONFIGURACAO e nomeado e NAO vira retry', () => {
-  const { session, ws } = ready();
-  ws.serverClose(1007, 'The requested combination of response modalities (TEXT) is not supported');
-  assert.equal(session.state, 'error');
-  assert.equal(session.reason, 'ws-closed:1007');
-  assert.equal(MockSocket.instances.length, 1, 'nao deveria ter reconectado');
+// ⚠ O que separa "a chave nao presta" de "acabou a cota" NAO e a prosa do servidor.
+// Classificar casando `api key` no texto de fechamento quebra calado no dia em que o Google muda
+// a redacao - e ai o aluno e mandado procurar defeito no lugar errado. O sinal e o NOSSO estado:
+// o setup ja foi aceito alguma vez nesta sessao?
+test('recusa ANTES do setup aceito vira bad-key, qualquer que seja o texto', () => {
+  for (const [code, texto] of [[1007, 'API key not valid.'], [1008, "unregistered callers"], [1007, ''], [1011, 'seja la o que for']]) {
+    MockSocket.instances.length = 0;
+    const { session, ws } = ready({ skipSetupComplete: true });
+    ws.serverClose(code, texto);
+    assert.equal(session.state, 'error');
+    assert.equal(session.reason, 'bad-key', `${code} "${texto}" deveria ser bad-key`);
+    assert.equal(MockSocket.instances.length, 1, 'credencial errada nao se conserta repetindo');
+  }
 });
 
-test('1007 de CHAVE vira bad-key, nao "configuracao recusada"', () => {
-  // O servidor usa 1007 para as duas coisas. Para quem traz a propria chave, dizer "o servidor
-  // recusou a configuracao" manda o aluno procurar defeito no lugar errado.
-  const { session, ws } = ready();
-  ws.serverClose(1007, 'API key not valid. Please pass a valid API key.');
-  assert.equal(session.reason, 'bad-key');
-  assert.equal(MockSocket.instances.length, 1, 'credencial errada nao se conserta repetindo');
-});
-
-test('1008 de credencial tambem vira bad-key, nao quota', () => {
-  const { session, ws } = ready();
-  ws.serverClose(1008, "Method doesn't allow unregistered callers");
-  assert.equal(session.reason, 'bad-key');
-});
-
-test('1011 sem texto de credencial vira quota, nao retry', () => {
-  const { session, ws } = ready();
-  ws.serverClose(1011);
-  assert.equal(session.reason, 'quota');
-  assert.equal(MockSocket.instances.length, 1);
+test('recusa DEPOIS do setup aceito vira quota: a chave ja autenticou', () => {
+  for (const code of [1007, 1008, 1011]) {
+    MockSocket.instances.length = 0;
+    const { session, ws } = ready();          // `ready()` emite setupComplete
+    ws.serverClose(code, 'API key not valid.');   // ate com o texto de chave: ela JA passou
+    assert.equal(session.reason, 'quota', `${code} depois do setup deveria ser quota`);
+    assert.equal(MockSocket.instances.length, 1, 'limite nao se conserta repetindo');
+  }
 });
 
 test('queda comum reconecta com recuo e PARA no teto', () => {

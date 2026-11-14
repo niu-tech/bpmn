@@ -352,7 +352,11 @@
   border-radius: 8px; padding: 8px 10px;
 }
 
-/* ---- linha de ATIVIDADE da ferramenta (H3) -------------------------------------------------
+/* ⚠ O painel e CLARO (#fff, texto #0f172a). Branco translucido aqui e TEXTO INVISIVEL: foi o que
+   aconteceu em 2026-11-13 - a linha e o contrato estavam no DOM, os testes passavam, e ninguem
+   via nada na tela. Cor daqui sai da mesma familia do resto do painel (#64748b), nunca de branco.
+
+   ---- linha de ATIVIDADE da ferramenta (H3) -------------------------------------------------
    Não é fala de ninguém: é o ajudante mostrando o que foi consultar. Por isso não tem bolha,
    tem recuo e cor fraca — presente para quem procura, discreta para quem só quer a resposta. */
 .bpmn-assist__msg--tool {
@@ -360,9 +364,9 @@
   background: none;
   border: none;
   padding: 2px 0 2px 10px;
-  border-left: 2px solid rgba(255, 255, 255, .16);
+  border-left: 2px solid #cbd5e1;
   font-size: .82rem;
-  color: rgba(255, 255, 255, .62);
+  color: #64748b;
   font-style: italic;
 }
 .bpmn-assist__msg--tool .bpmn-assist__text { white-space: normal; }
@@ -379,5 +383,5 @@
   margin: 6px 2px 0;
   font-size: .74rem;
   line-height: 1.45;
-  color: rgba(255, 255, 255, .5);
+  color: #64748b;
 }

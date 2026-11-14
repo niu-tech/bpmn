@@ -314,7 +314,10 @@ await (async () => {
     assert.equal(session.ask('o que e um gateway?'), true);
     // `ctx: null` = sem diagrama declarado e sem modelador, nao ha quadro para viajar junto.
     assert.deepEqual(live.ultima.enviados, [{ tipo: 'texto', t: 'o que e um gateway?', ctx: null }]);
-    assert.equal(session.messages.at(-1).role, 'user');
+    // A bolha de ESPERA entra junto da pergunta: entre uma e a resposta nao havia nada na tela.
+    const ultimas = session.messages.slice(-2).map((m) => m.role);
+    assert.deepEqual(ultimas, ['user', 'assistant']);
+    assert.equal(session.messages.at(-1).rodando, true, 'a de espera nasce marcada como rodando');
     forgetSecrets();
   });
 
@@ -434,7 +437,10 @@ await (async () => {
     live.ultima.legenda('<no ');
     live.ultima.legenda('speech>');
     live.ultima.legenda('{pause}');
-    assert.equal(session.messages.filter((m) => m.role === 'assistant').length, 0);
+    // A bolha de espera existe (a pergunta foi feita), mas o marcador NAO escreve nela.
+    const resp = session.messages.filter((m) => m.role === 'assistant');
+    assert.equal(resp.length, 1, 'marcador nao cria bolha nova');
+    assert.equal(resp[0].text, 'pensando…', 'marcador nao vira texto de resposta');
     forgetSecrets();
   });
 
@@ -752,8 +758,12 @@ await (async () => {
     live.ultima.texto('O diagrama tem 9 tarefas. Posso detalhar cada uma.', { turno: 1 });
 
     const respostas = session.messages.filter((m) => m.role === 'assistant');
-    assert.equal(respostas.length, 1, 'o atrasado nao pode virar bolha nova');
+    // Duas bolhas: a do turno 1 (ja respondida) e a de ESPERA do turno 2. O que nao pode e o
+    // atrasado criar uma TERCEIRA, ou escrever na espera do turno 2.
+    assert.equal(respostas.length, 2, 'o atrasado nao pode virar bolha nova');
     assert.match(respostas[0].text, /Posso detalhar/, 'ele atualiza a bolha de onde saiu');
+    assert.equal(respostas[1].rodando, true, 'a espera do turno 2 continua esperando');
+    assert.equal(respostas[1].text, 'pensando…', 'o atrasado NAO escreveu na bolha do turno novo');
     assert.equal(respostas[0].turn, session.messages.find((m) => m.text === 'quantas tarefas?').turn);
   });
 

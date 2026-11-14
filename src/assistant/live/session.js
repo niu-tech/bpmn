@@ -510,20 +510,18 @@ export function createSession({
       clearTimers();
       if (closedByUs) { setState('idle'); return; }
 
-      // ⚠ 1007 é AMBÍGUO: o servidor usa o mesmo código para "configuração recusada" (o pedido de
-      // saída TEXT, que o 3.8 nega) e para "API key not valid". Para quem traz a própria chave, o
-      // segundo caso é de longe o mais comum — e dizer "o servidor recusou a configuração" manda
-      // o aluno procurar defeito no lugar errado. Medido nas duas situações no P1, o que separa
-      // uma da outra é o TEXTO do fechamento.
-      if (code === 1007) {
-        if (/api[ _-]?key/i.test(texto)) fail('bad-key', 'o servidor recusou a credencial');
-        else fail('ws-closed:1007', 'servidor recusou o payload do setup');
-        return;
-      }
-      if (code === 1008 || code === 1011) {
-        // 1008 também aparece como "unregistered callers" quando a credencial não autentica.
-        if (/unregistered|credential|api[ _-]?key/i.test(texto)) { fail('bad-key', 'credencial não aceita'); return; }
-        fail('quota', `fechado com ${code}`);
+      // ⚠ Os códigos de recusa são AMBÍGUOS: 1007 serve tanto para "configuração recusada" quanto
+      // para "API key not valid", e 1008 aparece como "unregistered callers". O que separa um do
+      // outro NÃO é a prosa do servidor — classificar casando `api key` no texto quebra calado no
+      // dia em que o Google muda a redação, e o aluno é mandado procurar defeito no lugar errado.
+      //
+      // O que separa é o NOSSO estado: o setup já foi aceito alguma vez nesta sessão?
+      //   não  -> o servidor nunca nos aceitou. Para quem traz a própria chave, é a chave: um
+      //           payload de setup inválido falharia para todo mundo, e a suíte pegaria.
+      //   sim  -> a chave JÁ autenticou. Depois disso, recusa é limite de uso, nunca credencial.
+      if (code === 1007 || code === 1008 || code === 1011) {
+        if (setupsAceitos === 0) fail('bad-key', `o servidor recusou a conexão (${code})`);
+        else fail('quota', `fechado com ${code} depois de a chave ter sido aceita`);
         return;
       }
 
