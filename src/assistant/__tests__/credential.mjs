@@ -9,7 +9,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createCredentialStore } from '../credential.js';
-import { calcularReserva } from '../layout.js';
+import { calcularReserva, RESERVA_MINIMA } from '../layout.js';
 import { forgetSecrets, looksLikeSecret, redact } from '../live/redact.js';
 import { codigoSemComentarios as codigo, report, test } from '../../../tools/test-harness.mjs';
 
@@ -170,8 +170,10 @@ test('a chave nunca e escrita na URL da APLICACAO', () => {
 
 console.log('\n▶ reserva do rodape em tela estreita (medido em 375x812)');
 
-test('tela larga: cada um no seu canto, sem reserva', () => {
-  assert.equal(calcularReserva({ larguraJanela: 1280, alturaJanela: 900, alturaBarra: 51 }), 14);
+test('tela larga: so o piso de licenca, sem barra a reservar', () => {
+  // ⚠ Nao e 'sem reserva': ha um PISO, e ele e de LICENCA — a marca d'agua do bpmn.io nao pode
+  // ser sobreposta, e com 14 px o painel cobria ela (medido em 2026-11-14).
+  assert.equal(calcularReserva({ larguraJanela: 1280, alturaJanela: 900, alturaBarra: 51 }), RESERVA_MINIMA);
 });
 
 test('tela estreita com a barra COLAPSADA (51 px) reserva a faixa inteira', () => {
@@ -190,8 +192,8 @@ test('barra absurda nao espreme o painel abaixo do usavel', () => {
   assert.ok(812 - r >= 320, 'sobra pelo menos a altura minima util do painel');
 });
 
-test('sem barra no rodape, nada a reservar', () => {
-  assert.equal(calcularReserva({ larguraJanela: 375, alturaJanela: 812, alturaBarra: 0 }), 14);
+test('sem barra no rodape, ainda assim o piso de licenca', () => {
+  assert.equal(calcularReserva({ larguraJanela: 375, alturaJanela: 812, alturaBarra: 0 }), RESERVA_MINIMA);
 });
 
 test('tela minuscula nao produz reserva negativa', () => {

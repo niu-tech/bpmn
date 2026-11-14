@@ -168,6 +168,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * juntar, cada pedaço virava uma bolha: com as fixtures curtas isso não aparecia, com fala de
    * verdade o aluno veria a própria pergunta picada.
    */
+  /** Alguma sessão desta aba já chegou a `ready` com a chave atual. Ver `chaveJaFuncionou`. */
+  let chaveJaAbriuSessao = false;
   let rastreador = null;
   /** O turno LOCAL da fala em curso: o rastreador fala de turno dele, a tela fala do nosso. */
   let turnoDaFala = null;
@@ -505,6 +507,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     session = sessionFactory({
       apiKey,
       dispatcher: criarDespachante(),
+      // A sessão sozinha não sabe se a chave já funcionou ANTES dela; quem sabe é a aba.
+      chaveJaFuncionou: () => chaveJaAbriuSessao,
       // O perfil decide a prosa E a declaração da função, numa chamada só (ver render.js).
       // Só o tier ESTÁVEL vai aqui: o volátil viaja por `clientContent` (design H3).
       setupOptions: promptDoPerfil(ctxInicial),
@@ -518,6 +522,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
        * ouvi-lo re-semearia contexto e histórico a cada pergunta.
        */
       onSetupComplete: ({ reconectou }) => {
+        chaveJaAbriuSessao = true;
         if (reconectou) semearContexto(contextoAtual());
       },
       onState: ({ state: s, reason: r }) => {
@@ -581,10 +586,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         if (bolha) {
           bolha.text = text;
           bolha.rodando = false;
+          // O turno FECHOU: quem lê não precisa adivinhar pelo texto ter parado de mudar. Uma
+          // pausa do modelo no meio da frase é indistinguível do fim, e foi assim que o portão F6
+          // leu "Sim, o elemento" como resposta inteira (2026-11-14).
+          bolha.completa = Boolean(complete);
           bolha.fallback = Boolean(fallback);
           publish();
         } else {
-          push({ role: 'assistant', text, fallback: Boolean(fallback), turn: n });
+          push({ role: 'assistant', text, fallback: Boolean(fallback), completa: Boolean(complete), turn: n });
         }
       },
       onTranscript: ({ side, text, turno }) => {
@@ -934,6 +943,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
     /** Trocar ou remover a chave implica derrubar a sessão: ela foi aberta com a antiga. */
     async forgetKey() {
+      chaveJaAbriuSessao = false;
       await this.stop();
       credentials.clear();
       note('chave removida desta aba.', 'info');

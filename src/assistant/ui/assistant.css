@@ -13,8 +13,15 @@
   position: fixed;
   right: 14px;
   /* Quanto reservar no rodape para a barra do modelador, que mora no mesmo canto inferior em
-   * telas estreitas. `mount.js` mede a barra e escreve este valor; sem barra, fica o default. */
-  bottom: var(--bpmn-assist-bottom, 14px);
+   * telas estreitas. `mount.js` mede a barra e escreve este valor; sem barra, fica o default.
+   *
+   * ⚠ O DEFAULT DE 14px VIOLAVA A LICENCA DO bpmn-js. A marca d'agua do bpmn.io fica no canto
+   * inferior direito do canvas (medida: 53x21 px, topo em y=864 numa janela de 900), e a licenca
+   * e explicita: ela "MUST NOT be removed or changed" e "must stay fully visible and not visually
+   * overlapped by other elements". O painel ia ate y=886 e cobria a marca nas DUAS paginas.
+   * Medido e corrigido em 2026-11-14, quando o inventario de dependencias revelou que o bpmn-js
+   * nao e MIT puro. 44px deixam a marca inteira a vista. */
+  bottom: var(--bpmn-assist-bottom, 44px);
   z-index: 100000;
   display: flex;
   flex-direction: column;

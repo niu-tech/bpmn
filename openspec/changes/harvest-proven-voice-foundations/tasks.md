@@ -97,10 +97,18 @@
 
 ## 4. Evidência
 
-- [ ] 4.1 **H5 · ledger de conversa no harness** — só conteúdo final, sem parciais e sem áudio, com
-      a invariante no esquema. Cada corrida da bateria vira registro citável
-- [ ] 4.2 **H12 · inventário de dependências** fixadas, com licença declarada, no modelo do
-      `INVENTORY.md` da cápsula
+- [x] 4.1 **H5 · diário das corridas** — `tools/ledger.mjs`, JSONL append-only, e a bateria passou a
+      registrar cada cenário. O `resultado.json` é da ÚLTIMA corrida e a seguinte o sobrescreve;
+      para a dissertação, "o portão F6 passou ao vivo" precisa de registro com data que ninguém
+      apagou ao rodar de novo. **A invariante mora no código**: lista branca de campos mais um
+      filtro de nomes — áudio, PCM, base64, chave, token e texto parcial são descartados mesmo
+      quando mandados. 9 testes, incluindo o do áudio disfarçado dentro de um objeto aninhado.
+      JSONL e não banco: a prova precisa ser lida por uma pessoa (e pelo orientador) com um `grep`
+- [x] 4.2 **H12 · inventário de dependências** — `tools/inventario.mjs` GERA `docs/INVENTARIO.md`
+      do `package-lock` (a versão real) e do `node_modules` (a licença real). 9 diretas, 378 com
+      transitivas. Gerado e não escrito à mão: tabela à mão envelhece na primeira atualização e
+      passa a mentir com cara de rigor.
+      ⚠ **E o inventário achou um problema de LICENÇA na primeira execução** — ver §7
 
 ## 6. A janela mais perto do vídeo (pedido do dono, 2026-11-13)
 
@@ -137,8 +145,45 @@
 - [ ] 6.5 **"Ouvindo" no modo texto** — o selo diz "ouvindo" numa sessão sem microfone. Anterior a
       esta change, e do mesmo assunto do bloco 2
 
+## 7. O achado de licença (2026-11-14)
+
+O `bpmn-js` **não é MIT**. A licença dele é permissiva, com uma condição explícita:
+
+> *The source code responsible for displaying the bpmn.io project watermark that links back to
+> https://bpmn.io as part of rendered diagrams MUST NOT be removed or changed. When this software
+> is being used in a website or application, the watermark must stay fully visible and **not
+> visually overlapped by other elements**.*
+
+- [x] 7.1 **Nós estávamos violando.** A marca fica no canto inferior direito do canvas (53×21 px,
+      topo em y=864 numa janela de 900) e o painel do ajudante ia até y=886 — **sobrepondo, nas
+      duas páginas**. Medido, não deduzido
+- [x] 7.2 **Corrigido**: a reserva do rodapé ganhou um piso de **44 px**, e ele é de licença e não
+      de estética — está dito assim no código, para ninguém baixar o número e ganhar altura de
+      painel perdendo o direito de publicar. Reconferido: painel termina em 856, marca começa em
+      864, sem sobreposição
+- [ ] 7.3 **Declarar no texto do TCC** que o trabalho usa `bpmn-js` sob essa licença e que a marca
+      é preservada por exigência dela. Vai junto do K-F (declaração de reúso), na fase de escrita
+
+> Este é o motivo de o inventário existir. Ele não é burocracia de banca: na **primeira execução**
+> achou uma condição de licença que o projeto estava quebrando havia meses, sem ninguém saber.
+
 ## 5. Fechamento
 
-- [ ] 5.1 Bateria ao vivo completa depois do bloco 1, com o número relatado como ele for
-- [ ] 5.2 `openspec/roadmap.md` e `openspec/open-items.md` atualizados no MESMO change
+- [x] 5.1 **Bateria ao vivo completa: 7 de 9** (2026-11-14), relatado como ele é. As falhas:
+      **portão F5** com o timeout de silêncio em texto, que segue aberto; e **portão F3** com
+      *"a chave foi recusada"* — que era **defeito da regra nova**, não da chave (ver 7.4).
+      ⚠ A corrida ANTERIOR deu 6 de 9 por **regressão do próprio harness**: a bolha de espera
+      ("pensando…") é uma mensagem de assistente ESTÁVEL, e o laço a leu como resposta pronta em
+      1 s. Dois consertos saíram daí, e os dois tiram adivinhação do teste:
+      o laço passa a **descartar bolha em curso**, e passa a esperar o **fim declarado pelo
+      produto** (`completa`) em vez de "o texto parou de mudar" — uma pausa do modelo no meio da
+      frase é indistinguível do fim, e foi assim que o F6 leu *"Sim, o elemento"* como resposta
+
+- [x] 7.4 **A regra estrutural do bloco anterior tinha um furo, e a bateria o encontrou.**
+      "Nunca aceitou o setup NESTA sessão" não é o mesmo que "a chave não presta": numa corrida
+      longa o servidor passa a recusar SESSÕES (dívida M7) e o fecho vem antes do setup. O aluno
+      era mandado trocar uma chave que funciona. Agora a pergunta é se **esta chave já abriu
+      sessão nesta aba** — quem sabe disso é quem guarda a credencial, então a resposta é
+      injetada. Teste determinístico junto
+- [x] 5.2 `openspec/roadmap.md` e `openspec/open-items.md` atualizados no MESMO change
 - [ ] 5.3 Peça visual do plano atualizada e entregue ao dono (regra do `CLAUDE.md`)

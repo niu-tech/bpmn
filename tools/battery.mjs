@@ -21,6 +21,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { dirigir } from './drive-page.mjs';
+import { registrar } from './ledger.mjs';
 
 /**
  * Chave do Gemini para o cenário AO VIVO, lida de um `.env` que o git ignora.
@@ -86,8 +87,12 @@ window.__resposta = async (pergunta) => {
   ta.value = pergunta;
   window.__btn('Enviar').click();
   const meuTurno = window.__bpmnAssist.mensagens.filter((m) => m.role === 'user').at(-1)?.turn ?? null;
+  // ⚠ A bolha de ESPERA ("pensando...") e uma mensagem de assistente ESTAVEL: sem descartar as que
+  // ainda estao em curso, o laco a le como resposta pronta em 1s e devolve "pensando..." no lugar
+  // do que o agente respondeu. Visto em 2026-11-14, nos portoes F4, F5 e F6 - regressao do proprio
+  // harness logo depois de a bolha entrar no produto.
   const minha = () => window.__bpmnAssist.mensagens
-    .filter((m) => m.role === 'assistant' && (meuTurno === null || m.turn === meuTurno))
+    .filter((m) => m.role === 'assistant' && !m.rodando && (meuTurno === null || m.turn === meuTurno))
     .map((m) => (m.text ?? '').trim())
     .at(-1) ?? '';
   let anterior = null;
@@ -98,6 +103,17 @@ window.__resposta = async (pergunta) => {
     if (erro && erro !== erroAntes) return '[FALHA DO SERVICO] ' + erro;
     const atual = minha();
     if (!atual) continue;
+    // O produto DIZ quando o turno fechou. Esperar o texto "parar de mudar" confunde uma pausa do
+    // modelo com o fim da frase - foi assim que o F6 leu "Sim, o elemento" como resposta inteira.
+    const fechou = window.__bpmnAssist.mensagens.some(
+      (m) => m.role === 'assistant' && m.completa && (meuTurno === null || m.turn === meuTurno),
+    );
+    if (fechou) {
+      for (let j = 0; j < 20 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; j++) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      return minha();
+    }
     if (atual === anterior) {
       if (++estavel >= 2) {
         // ⚠ Nao devolve com o turno ainda aberto. Perguntar por cima faz um PEDACO da resposta
@@ -1028,6 +1044,21 @@ for (const c of aRodar) {
 
 const passaram = resultados.filter((r) => r.ok).length;
 writeFileSync('artifacts/bateria/resultado.json', JSON.stringify({ alvo: ALVO, quando: new Date().toISOString(), passaram, de: resultados.length, resultados }, null, 2));
+
+// ⚠ O `resultado.json` é da ÚLTIMA corrida — a seguinte o sobrescreve. Para a dissertação isso
+// não serve: "o portão F6 passou ao vivo" precisa de registro com data que ninguém apagou ao
+// rodar de novo. O diário é append-only e guarda só conteúdo final (ver `tools/ledger.mjs`).
+const corrida = `${new Date().toISOString().replace(/[:.]/g, '-')}`;
+for (const r of resultados) {
+  registrar({
+    corrida,
+    cenario: r.cenario,
+    ok: r.ok,
+    resposta: r.detalhe?.respondeu ?? r.detalhe?.ouviu ?? null,
+    ferramentas: r.detalhe?.ferramentasChamadas ?? r.detalhe?.linhasDeFerramenta ?? null,
+    erro: r.detalhe?.culpa ?? r.detalhe?.erro ?? null,
+  });
+}
 
 console.log(`\n========================================`);
 console.log(`bateria: ${passaram} de ${resultados.length} em ${ALVO}`);

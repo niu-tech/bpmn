@@ -59,6 +59,11 @@ export function createSession({
    * textual é respondida `ferramenta_nao_roteada` — que é a verdade, e não `{ok:true}`.
    */
   dispatcher,
+  /**
+   * Esta chave já abriu uma sessão com sucesso nesta aba? Quem sabe é quem guarda a credencial.
+   * Sem isto, a recusa de SESSÃO (M7) vira "a chave foi recusada" na cara do aluno.
+   */
+  chaveJaFuncionou = () => false,
   // ⚠ Envoltórios, NUNCA as referências cruas. No navegador `setTimeout` é método de `window`:
   // guardá-lo num objeto e chamar `clock.setTimeout(...)` perde o `this` e o browser lança
   // `TypeError: Illegal invocation`. No node a mesma linha funciona — então o defeito é
@@ -520,8 +525,16 @@ export function createSession({
       //           payload de setup inválido falharia para todo mundo, e a suíte pegaria.
       //   sim  -> a chave JÁ autenticou. Depois disso, recusa é limite de uso, nunca credencial.
       if (code === 1007 || code === 1008 || code === 1011) {
-        if (setupsAceitos === 0) fail('bad-key', `o servidor recusou a conexão (${code})`);
-        else fail('quota', `fechado com ${code} depois de a chave ter sido aceita`);
+        // ⚠ "Nunca aceitou NESTA sessão" não é o mesmo que "a chave não presta". Numa bateria
+        // longa o servidor passa a RECUSAR sessões (dívida M7) e o fecho vem antes do setup —
+        // dizer ao aluno "a chave foi recusada" ali é mandá-lo trocar uma chave que funciona.
+        // Visto no portão F3 em 2026-11-14, com a mesma chave respondendo nos outros cenários.
+        //
+        // O que separa: esta chave já funcionou alguma vez NESTA ABA? Quem sabe disso é quem
+        // guarda a credencial, e por isso a resposta é injetada (`chaveJaFuncionou`).
+        const nunca = setupsAceitos === 0 && !chaveJaFuncionou();
+        if (nunca) fail('bad-key', `o servidor recusou a conexão (${code})`);
+        else fail('quota', `o servidor recusou a sessão (${code}) — a chave já funcionou antes`);
         return;
       }
 

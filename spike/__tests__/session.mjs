@@ -431,6 +431,16 @@ test('recusa ANTES do setup aceito vira bad-key, qualquer que seja o texto', () 
   }
 });
 
+test('recusa ANTES do setup, mas com a chave JA testada na aba, nao culpa a chave', () => {
+  // Numa bateria longa o servidor passa a recusar SESSOES (divida M7) e o fecho vem antes do
+  // setup. Dizer "a chave foi recusada" ali e mandar o aluno trocar uma chave que funciona -
+  // visto no portao F3 em 2026-11-14, com a mesma chave respondendo nos outros cenarios.
+  MockSocket.instances.length = 0;
+  const { session, ws } = ready({ skipSetupComplete: true, chaveJaFuncionou: () => true });
+  ws.serverClose(1011, '');
+  assert.equal(session.reason, 'quota', 'chave que ja funcionou nao vira bad-key');
+});
+
 test('recusa DEPOIS do setup aceito vira quota: a chave ja autenticou', () => {
   for (const code of [1007, 1008, 1011]) {
     MockSocket.instances.length = 0;
