@@ -1016,7 +1016,10 @@ if (chaveViva) {
        // ⚠ A pergunta vai nas PALAVRAS do aluno, sem id: e o agente que procura a ancora. Passar
        // o id eu mesmo testaria menos do que o produto faz — e, no diagrama da pizzaria, os ids
        // nao tem padrao nenhum ('_6-53'), entao adivinhar o do inicio era adivinhar errado.
-       const r = await window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início do processo.');
+       // ⚠ O evento de inicio vai NOMEADO. Sem o nome, o agente respondeu — com razao — "temos
+       // dois eventos de inicio, «Hungry for pizza» e «Order received», qual deles?", e o passo
+       // reprovou uma pergunta CERTA. O nome e o que o aluno le na tela, nao um id.
+       const r = await window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início "Order received".');
        const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
        const novos = window.__idsNaTela().filter((id) => !window.__antes.includes(id));
        const criado = novos.find((id) => window.__rotulo(id).toLowerCase().includes('receber pedido'))

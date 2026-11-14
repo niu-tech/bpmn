@@ -73,7 +73,7 @@ function fakeAudio() {
   return { estado, startCapture, startPlayback };
 }
 
-function montar() {
+function montar(deps = {}) {
   const credentials = createCredentialStore();
   credentials.set(CHAVE);
   credentials.setConsent(true);
@@ -83,10 +83,28 @@ function montar() {
   const session = createAssistantSession({
     credentials,
     onUpdate: (v) => vistas.push(v),
-    deps: { createSession: live.factory, startCapture: audio.startCapture, startPlayback: audio.startPlayback },
+    deps: {
+      createSession: live.factory,
+      startCapture: audio.startCapture,
+      startPlayback: audio.startPlayback,
+      ...deps,
+    },
   });
   return { session, credentials, live, audio, vistas };
 }
+
+console.log('\n▶ o contrato na tela diz a verdade');
+
+test('a linha de contrato segue a POLITICA, nao a pagina que alguem digitou', () => {
+  // ⚠ A tela dizia "ele le o seu diagrama - nao altera nada" logo abaixo da conversa em que ele
+  // acabara de criar uma tarefa (print do portao F7, 2026-11-14). A frase vem de `podeEscrever`,
+  // e `podeEscrever` vem das ferramentas que a politica de fato liberou: assim as duas nunca
+  // discordam. Poder sem contrato na tela e o aluno descobrindo por acidente.
+  assert.equal(montar({ pagina: 'modelador' }).session.vista.podeEscrever, true);
+  assert.equal(montar({ pagina: 'viewer' }).session.vista.podeEscrever, false);
+  // Default-deny tambem aqui: sem pagina declarada, o contrato e o de leitura.
+  assert.equal(montar().session.vista.podeEscrever, false);
+});
 
 console.log('\n▶ fail closed');
 

@@ -16,7 +16,7 @@
 //
 // ponytail: uma fábrica com callbacks, não uma classe com EventEmitter. São seis eventos.
 
-import { permitida } from './agent/policy.js';
+import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
@@ -250,6 +250,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     state, reason, mode, micOn, level,
     // A interface precisa do PEDIDO, nunca da função que o resolve.
     confirmacao: confirmacao ? { acao: confirmacao.acao, alvo: confirmacao.alvo } : null,
+    /**
+     * O agente pode mexer no desenho AQUI?
+     *
+     * ⚠ Sai da POLÍTICA, não da página: a linha de contrato no rodapé e o que o modelo de fato
+     * pode fazer nunca podem discordar. A linha dizia "ele lê o seu diagrama — não altera nada"
+     * na mesma tela em que ele acabara de criar uma tarefa (visto no print do portão F7). Poder
+     * sem contrato na tela é o aluno descobrindo por acidente.
+     */
+    podeEscrever: ferramentasPermitidas(contextoAtual()).some((f) => f.escreve),
     busy: state === 'connecting' || state === 'closing',
     canAsk: (state === 'ready' || state === 'listening' || state === 'speaking'),
     messages: messages.slice(),

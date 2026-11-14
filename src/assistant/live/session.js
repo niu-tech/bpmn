@@ -145,6 +145,28 @@ export function createSession({
     if (turnTimer) clock.clearTimeout(turnTimer);
     turnTimer = null;
     if (ferramentasEmVoo > 0) return;
+    /**
+     * ⚠ SEM TURNO ABERTO NÃO HÁ SILÊNCIO PARA CONTAR — e foi isto que, por três dias, transformou
+     * uma resposta descartada em *"o servidor não respondeu"*.
+     *
+     * Medido no portão F7 (2026-11-14), com a linha do tempo da sessão:
+     *
+     *   out.text                     ← a pergunta saiu
+     *   ws.interrupted               ← o servidor cortou a geração anterior
+     *   ws.turn-complete idle=true   ← e fechou o turno
+     *   ws.audio x25                 ← a resposta chegou DEPOIS, numa geração nova
+     *   ws.generation-complete
+     *   ws.turn-complete idle=true
+     *   state.error timeout: servidor calado após o setup      ← 45 s depois
+     *
+     * O servidor respondeu — 25 quadros de áudio. O que aconteceu é que cada um desses quadros
+     * re-armou o relógio de silêncio de um turno que já estava fechado, e quando eles pararam o
+     * relógio cobrou a conta de alguém que não devia nada. A mensagem no fim era falsa, e é a
+     * pior espécie de mensagem: ela acusa o servidor do defeito que é nosso.
+     *
+     * O relógio existe para dizer *"pedi e não vieram"*. Nada pedido, nada a cobrar.
+     */
+    if (!turn && !pendente) return;
     turnTimer = clock.setTimeout(() => fail('timeout', 'servidor calado após o setup'), cfg.idleTurnTimeoutMs);
   }
 
@@ -289,6 +311,22 @@ export function createSession({
     if (alvo.usouFerramenta && !alvo.delivered && !alvo.spoken) {
       log('turno de ferramenta fechado pelo servidor; aguardando a resposta na geração seguinte');
       ev('state', 'turno-de-ferramenta', `n=${alvo.n}`);
+      armTurnTimer();
+      return;
+    }
+
+    // ⚠ MESMA FORMA, outra causa: o servidor manda `interrupted` e fecha o turno, e a resposta
+    // vem na geração seguinte. Fechando aqui, os quadros que chegam depois não têm turno e são
+    // descartados — o aluno vê a pergunta, nenhuma resposta, e o relógio de silêncio depois
+    // acusa o servidor. Medido no portão F7 (2026-11-14): `interrupted` → `turn-complete` →
+    // 25 quadros de áudio no vazio.
+    //
+    // A condição é a mesma do caso de cima, e é ela que separa os dois sentidos de
+    // `interrupted`: nada entregue e nada falado = a resposta ainda não veio, espera. Barge-in
+    // de verdade já trouxe fala antes de ser cortado, então cai fora desta porta.
+    if (alvo.interrupted && !alvo.delivered && !alvo.spoken) {
+      log('turno interrompido e vazio; aguardando a resposta na geração seguinte');
+      ev('state', 'turno-interrompido-vazio', `n=${alvo.n}`);
       armTurnTimer();
       return;
     }

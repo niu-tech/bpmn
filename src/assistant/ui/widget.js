@@ -257,10 +257,20 @@ export function createWidget({ session, credentials, onClose } = {}) {
    * é a linha que passa a dizer que ele PROPÕE e o aluno confirma — e ela entra JUNTO da escrita,
    * não depois, porque poder sem contrato na tela é o aluno descobrindo por acidente.
    */
-  const contrato = el('p', {
-    className: 'bpmn-assist__contrato',
-    textContent: 'Ele lê o seu diagrama para explicar — não altera nada. O que muda no desenho é você que faz.',
-  });
+  const contrato = el('p', { className: 'bpmn-assist__contrato' });
+
+  /**
+   * Duas frases, e a que vale é a que a POLÍTICA permite — nunca a página onde eu acho que estou.
+   *
+   * ⚠ Onde ele escreve, o contrato tem de dizer o que ele faz SOZINHO e o que pede: criar, ligar
+   * e renomear acontecem na hora; apagar pergunta antes. Prometer que ele "não altera nada" numa
+   * tela onde ele altera é a pior linha possível — o aluno confia nela e descobre o contrário
+   * olhando o próprio desenho.
+   */
+  const CONTRATO = {
+    le: 'Ele lê o seu diagrama para explicar — não altera nada. O que muda no desenho é você que faz.',
+    escreve: 'Ele pode criar, ligar e renomear no seu diagrama, e você desfaz com Ctrl+Z. Para apagar, ele pergunta antes.',
+  };
 
   /**
    * A confirmação de uma ação destrutiva (F7, tarefa 3.4).
@@ -349,7 +359,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   }
 
   function render(view) {
-    const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null } = view;
+    const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null, podeEscrever = false } = view;
 
     dot.setAttribute('data-state', state);
     const label = STATE_LABELS[state] ?? state;
@@ -448,6 +458,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // atribuição aqui, e ela vencia por ser a última: em voz o campo de texto voltava à tela com
     // "Enviar" ao lado do medidor — exatamente o defeito que esta change existe para remover. Em
     // tela estava lá; no DOM eu tinha "corrigido".
+    contrato.textContent = podeEscrever ? CONTRATO.escreve : CONTRATO.le;
     contrato.hidden = perguntando || !canAsk;
     sendBtn.disabled = !canAsk;
     input.disabled = !canAsk;

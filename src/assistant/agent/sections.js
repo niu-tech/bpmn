@@ -213,6 +213,10 @@ export const SECOES = Object.freeze([
  */
 function descreverDiagrama(d) {
   const linhas = [];
+  // Projeção que chegou sem UM fato sequer sobre o desenho. Diferente de um delta que só traz a
+  // seleção: ali o diagrama existe e não mudou, aqui não há nada a dizer dele.
+  const semFatos = (x) => !x.selecionado && !x.processo && (x.total === null || x.total === undefined)
+    && !Object.keys(x.contagem ?? {}).length && !x.raias?.length;
   // ⚠ A SELEÇÃO VEM PRIMEIRO. Ela estava no fim, depois de até 25 linhas de amostra, e o modelo
   // respondia *"você não selecionou nenhum elemento"* com o dado presente no mesmo bloco
   // (medido três vezes em 2026-11-13, contra o diagrama de 47 elementos). Enterrar o fato mais
@@ -237,13 +241,15 @@ function descreverDiagrama(d) {
       ? `amostra de ${d.amostra.length} elementos (há ${sobra} fora desta amostra):`
       : `elementos (${d.amostra.length}, lista completa):`);
     for (const e of d.amostra) linhas.push(`- ${e.tipo} "${e.nome ?? ''}" [${e.id}]`);
-  } else if (d.total === 0 || !linhas.length) {
+  } else if (d.total === 0 || semFatos(d)) {
     // Fronteira presente mesmo com diagrama vazio: é o que diz ao modelo que ele RECEBEU o
     // diagrama e ele está vazio, em vez de deixá-lo supor que o dado não chegou.
     //
-    // ⚠ A condição não é só `!linhas.length`. Desde F3 a projeção traz o processo mesmo num
-    // diagrama em branco, então a lista NÃO fica vazia — sobrava um `total de elementos: 0`
-    // solto no meio de outras linhas, que é um número para interpretar em vez de uma frase.
+    // ⚠ A condição era `d.total === 0 || !linhas.length`, e o `!linhas.length` era um ATALHO:
+    // "não escrevi nada ainda" valendo por "o diagrama não tem nada". Qualquer linha nova antes
+    // daqui quebra o atalho sem tocar nesta função — e foi o que aconteceu quando a marca de
+    // visualizador passou a aparecer por padrão: o diagrama vazio deixou de dizer que estava
+    // vazio. Agora a condição é o fato: sem amostra e sem total.
     linhas.push('o diagrama está aberto e não tem nenhum elemento ainda');
   }
   return linhas.join('\n');

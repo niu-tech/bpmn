@@ -473,6 +473,55 @@ test('silencio do servidor depois do setup vira timeout em vez de travar', () =>
   assert.equal(session.reason, 'timeout');
 });
 
+/* -------------------------------------------------------------------------------------------
+ * O portao F5 ficou aberto tres dias por UMA mensagem falsa: "o servidor nao respondeu".
+ * A linha do tempo da sessao, no portao F7 (2026-11-14), mostrou o servidor respondendo — e o
+ * relogio de silencio cobrando a conta de um turno que ja havia fechado.
+ * ------------------------------------------------------------------------------------------- */
+
+test('quadro que chega SEM turno aberto nao arma o relogio de silencio (dívida F5)', () => {
+  const { session, ws, clock } = ready();
+  session.ask('p');
+  // Turno entregue e fechado: daqui em diante nao ha nada pedido.
+  ws.emit({ toolCall: { functionCalls: [{ id: 'c1', name: DELIVERY_TOOL, args: { texto: 'pronto' } }] } });
+  ws.emit({ serverContent: { turnComplete: true } });
+  assert.equal(session.state, 'ready');
+
+  // 25 quadros de audio depois do fim — o caso REAL medido. Cada um re-armava o relogio, e
+  // quando eles paravam o relogio acusava o servidor de nao ter respondido.
+  for (let i = 0; i < 25; i++) ws.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm', data: 'AAAA' } }] } } });
+  ws.emit({ serverContent: { generationComplete: true } });
+  clock.flush();
+
+  assert.notEqual(session.state, 'error', 'mensagem falsa: o servidor respondeu e foi acusado de calado');
+  assert.equal(session.reason, null);
+});
+
+test('turno INTERROMPIDO e vazio espera a geracao seguinte, como o de ferramenta', () => {
+  const { session, ws, clock, texts } = ready();
+  session.ask('p');
+  // A forma medida ao vivo: interrupted -> turnComplete -> a resposta, numa geracao nova.
+  ws.emit({ serverContent: { interrupted: true } });
+  ws.emit({ serverContent: { turnComplete: true } });
+  // Fechando no turnComplete, isto chegava sem turno e era descartado.
+  ws.emit({ toolCall: { functionCalls: [{ id: 'c1', name: DELIVERY_TOOL, args: { texto: 'a resposta de verdade' } }] } });
+  ws.emit({ serverContent: { turnComplete: true } });
+
+  assert.equal(texts.at(-1)?.text, 'a resposta de verdade');
+  clock.flush();
+  assert.notEqual(session.state, 'error');
+});
+
+test('o relogio continua valendo para o que FOI pedido e nao veio', () => {
+  // A trava nao pode virar "nunca mais reclamar": turno aberto e servidor calado segue erro.
+  const { session, ws, clock } = ready();
+  session.ask('p');
+  ws.emit({ serverContent: { outputTranscription: { text: 'oi' } } });
+  clock.flush();
+  assert.equal(session.state, 'error');
+  assert.equal(session.reason, 'timeout');
+});
+
 test('close explicito encerra, nao reconecta e esvazia a fila', () => {
   const { session, ws, clock } = ready();
   session.close();

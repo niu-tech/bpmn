@@ -89,16 +89,33 @@
       criou, as quatro recusam num viewer (mesmo com declaração vazada), `diagrama_mudou`,
       recusa do aluno preservando o elemento, e o guarda de que nada toca XML. O dublê é do
       **bpmn-js**, não da nossa camada — porque aqui quem está sob teste inclui `bpmn-api.js`
-- [ ] 4.2 Bateria AO VIVO: "crie uma tarefa chamada Receber pedido depois do evento de início" →
-      verificar no registro que a tarefa existe e está conectada
-- [ ] 4.3 Bateria AO VIVO: pedir remoção e **não** confirmar → elemento continua lá
-- [ ] 4.4 Bateria AO VIVO: pedir fluxo de sequência entre pools → agente explica que é mensagem
+- [x] 4.2 **Medido** (2026-11-14, página do modelador): pedido nas palavras do aluno, sem id —
+      o agente chamou `criar_elemento`, e `Activity_0xd2gk8` + `Flow_0p25lx7` apareceram **no
+      desenho**. Na tela: *"criei task «Receber pedido» depois de «Order received»"*.
+      O critério é o elemento no registro, nunca a frase do agente
+- [x] 4.3 **Medido**: a pergunta apareceu — *"Apagar «Receber pedido» (task) · Activity_0xd2gk8 do
+      diagrama?"* —, o compositor saiu da tela, `Cancelar` clicado, **o elemento continua lá**, e
+      a linha da ferramenta virou *"não removi «Receber pedido» — você não confirmou"*
+- [x] 4.4 **Medido**: *"Não é possível ligar tarefas de pools diferentes com um fluxo de
+      sequência. Para conectar elementos em pools distintos, você deve usar um fluxo de
+      mensagem."*
+      ⚠ **Duas correções no INSTRUMENTO antes de o portão medir o produto**: eu procurava pool e
+      tarefa por padrão no id (`/Participant/i`, `/Task/i`), e no diagrama da pizzaria os ids são
+      `_6-53` — a varredura achava zero e reprovava o produto por erro meu. Agora a pergunta vai
+      nas palavras do aluno e quem acha os ids é o agente, que é como a coisa funciona. E o
+      leitor de rótulo lia só o label EXTERNO: tarefa desenha o nome dentro da forma, então a
+      criação aparecia sem nome
 - [ ] 4.5 Cenário de montagem guiada: descrever um processo em 3 frases e verificar que o diagrama
-      ganhou início, ao menos duas tarefas e fim, ligados
+      ganhou início, ao menos duas tarefas e fim, ligados.
+      ⚠ **Pré-requisito achado no print**: num diagrama cheio, `appendShape` colocou a tarefa nova
+      **por cima** de outra. A montagem guiada cria vários elementos seguidos, então ela depende
+      do layout automático (5.1) ou de uma colocação que respeite o que já está desenhado
 - [ ] 4.6 `open-items.md` atualizado
 
 ## 5. Depois (fora desta change)
 
-- [ ] 5.1 Layout automático quando o agente cria vários elementos de uma vez
+- [ ] 5.1 Layout automático quando o agente cria vários elementos de uma vez.
+      **Deixou de ser teórico**: o print do portão F7 mostra a tarefa criada sobreposta a outra,
+      num diagrama de 48 elementos
 - [ ] 5.2 Desfazer em bloco ("desfaça tudo o que você acabou de fazer")
 - [ ] 5.3 Sugestão proativa ao abrir um diagrama com problema de modelagem

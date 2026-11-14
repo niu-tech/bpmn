@@ -75,14 +75,14 @@
 
   <span class="marca">Bloco 6</span>
   <h1>A interface que a pesquisa pediu — e as primeiras ferramentas que escrevem</h1>
-  <p class="sub">Duas frentes num bloco: o painel redesenhado a partir do retorno da pesquisa
-  visual, e a fase <b>F7</b>, em que o agente passa a mexer no diagrama. No caminho, três
-  defeitos que o código dizia estar certos.</p>
+  <p class="sub">Três frentes num bloco: o painel redesenhado a partir do retorno da pesquisa
+  visual, a fase <b>F7</b> — em que o agente passa a mexer no diagrama — e a dívida <b>F5</b>, que
+  fechou quando a medição mostrou que a culpa não era do servidor.</p>
 
   <div class="numeros">
     <div class="num ok"><b>4</b><span>ferramentas que escrevem no diagrama</span></div>
-    <div class="num ok"><b>21</b><span>casos novos · 365 verdes no total</span></div>
-    <div class="num"><b>3</b><span>defeitos que só a medição mostrou</span></div>
+    <div class="num ok"><b>25</b><span>casos novos · 496 verdes no total</span></div>
+    <div class="num ok"><b>F5</b><span>dívida fechada: era mensagem falsa</span></div>
   </div>
 
   <section>
@@ -207,39 +207,87 @@
     <h2>Ao vivo, na página do modelador</h2>
     <div class="lista" id="vivo">
       <div class="l">
-        <p><b>Criar: a tarefa apareceu no desenho, ligada ao evento de início.</b>
-        <span>Pedido nas palavras do aluno, sem id. O agente chamou <code>criar_elemento</code>, e
-        a prova é o elemento novo no diagrama — não a frase dele. Na tela:
-        <i>“criei task «Receber pedido» depois de «Order received»”</i>.</span></p>
+        <p><b>Criar — e a prova é o desenho, não a frase.</b>
+        <span>O agente chamou <code>criar_elemento</code>, e <code>Activity_0xd2gk8</code> mais o
+        fluxo que o liga apareceram no diagrama. Na tela: <i>“criei task «Receber pedido» depois
+        de «Order received»”</i>. O critério nunca é o que ele diz ter feito.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>Pools: ele explica que é fluxo de mensagem.</b>
+        <span><i>“Não é possível ligar tarefas de pools diferentes com um fluxo de sequência. Para
+        conectar elementos em pools distintos, você deve usar um fluxo de mensagem.”</i> A regra
+        veio do bpmn-js, não de um <code>if</code> nosso.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>Apagar e não confirmar: o elemento fica.</b>
+        <span>A pergunta apareceu — <i>“Apagar «Receber pedido» (task) · Activity_0xd2gk8 do
+        diagrama?”</i> —, o compositor saiu da tela, <code>Cancelar</code> foi clicado, o elemento
+        continua lá, e a linha virou <i>“não removi «Receber pedido» — você não
+        confirmou”</i>.</span></p>
         <span class="selo">medido</span>
       </div>
     </div>
   </section>
 
   <section>
-    <h2>F5 — o que a medição disse, e o que ela não disse</h2>
+    <h2>Duas coisas que o print mostrou e o teste não pegaria</h2>
+    <div class="bichos">
+      <div class="bicho">
+        <b>A tela prometia o contrário do que o agente fazia</b>
+        <p>Embaixo da conversa em que ele acabara de criar uma tarefa, a linha de contrato dizia
+        <i>“ele lê o seu diagrama para explicar — <b>não altera nada</b>”</i>. Agora a frase vem da
+        <b>política</b>, não da página: onde ele escreve, ela diz o que ele faz sozinho e o que
+        pede antes. Puxando esse fio apareceu outra: <code>resolverContexto</code> assumia
+        “modelador” quando ninguém declarava a página, e a política assumia “visualizador” —
+        <b>dois padrões para a mesma pergunta</b>, e o errado era o que dava escrita de brinde a
+        quem esqueceu de dizer onde estava.</p>
+      </div>
+      <div class="bicho">
+        <b>A tarefa nova nasceu por cima de outra</b>
+        <p>Num diagrama de 48 elementos, o <code>appendShape</code> colocou a tarefa criada
+        sobrepondo a que já estava ali. Está correto no registro e ilegível na tela. Não é
+        surpresa — layout automático está declarado fora desta fase —, mas deixou de ser teórico:
+        a montagem guiada, que cria vários elementos seguidos, <b>depende disso</b>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>F5 — a dívida fechou, e era uma mensagem falsa</h2>
+    <p class="cita">A dívida F5 era um tempo de silêncio intermitente, relatado como
+    <b>“o servidor não respondeu”</b>. Ele respondeu. <b>Vinte e cinco quadros de áudio.</b></p>
     <div class="aberto">
-      <p>O portão <b>passou</b> nesta corrida, nas três perguntas: recusou a receita de bolo em uma
-      frase, modelou a pizzaria sem recusar, e não declarou inexistente o que estava fora da
-      amostra.</p>
-      <p><b>Mas isso não fecha a dívida.</b> O que estava aberto é um tempo de silêncio
-      <i>intermitente</i>, e uma corrida verde não explica uma falha que aparece de vez em quando.
-      O que mudou é que a <b>linha do tempo da sessão agora vai em todo passo do portão</b> — antes
-      só um dos três a reportava, e os outros dois diziam apenas “o servidor não respondeu”, que é
-      a mesma frase para servidor calado, turno fechado na hora errada e resposta que chegou e o
-      laço não viu. Na próxima ocorrência, ela se nomeia.</p>
-      <p>Uma coisa a linha já mostrou: num turno de <b>texto</b> chegam quadros de áudio do
-      servidor. Não é defeito — o modelo recusa a modalidade de texto e o texto volta por chamada
-      de função, então o áudio vem junto por desenho. Ficou registrado para não ser “descoberto”
-      como bug na próxima leitura.</p>
+      <p>A linha do tempo da sessão — que neste bloco passou a ser gravada em todo passo — mostrou
+      a sequência inteira:</p>
+      <p style="font-family:Consolas,monospace; font-size:12.5px; line-height:1.9; color:#3b3c45">
+      <code>out.text</code> → a pergunta saiu<br>
+      <code>ws.interrupted</code> → o servidor cortou a geração anterior<br>
+      <code>ws.turn-complete</code> → e fechou o turno<br>
+      <code>ws.audio × 25</code> → <b>a resposta chegou depois, numa geração nova</b><br>
+      <code>state.error timeout</code> → 45 s depois, “servidor calado”</p>
+      <p>Duas coisas estavam erradas, e nenhuma delas era do servidor. A primeira: o turno fechou
+      no <code>turn-complete</code>, e os quadros que chegaram em seguida não tinham turno a que
+      pertencer — foram <b>descartados</b>. O aluno via a pergunta e mais nada. A segunda: cada um
+      daqueles quadros <b>re-armava o relógio de silêncio</b> de um turno já fechado, e quando eles
+      pararam o relógio cobrou a conta de alguém que não devia nada.</p>
+      <p>O conserto são duas frases de código, e as duas são a mesma ideia: <b>o relógio só conta
+      silêncio quando há algo pedido</b> — sem turno aberto não há nada a cobrar; e <b>turno
+      interrompido e vazio espera a geração seguinte</b>, exatamente como o turno de ferramenta já
+      esperava desde a F6. Era a mesma forma, com outra causa.</p>
+      <p>⚠ A mensagem falsa é a parte que importa guardar: ela acusava o servidor de um defeito
+      nosso. Três dias de dívida aberta porque o relatório dizia “o servidor não respondeu” e mais
+      nada — a mesma frase para servidor calado, para turno fechado na hora errada e para resposta
+      que chegou e ninguém viu. <b>A linha do tempo separou os três em uma leitura.</b></p>
     </div>
   </section>
 
   <section>
     <h2>Próximo</h2>
     <div class="proximo">
-      <div class="p"><b>Fechar os gates ao vivo da F7</b>
-      <span>Pools e a recusa da remoção, na página do modelador.</span></div>
+      <div class="p"><b>Colocação que não sobrepõe</b>
+      <span>Pré-requisito da montagem guiada: hoje o elemento novo pode nascer por cima.</span></div>
       <div class="p"><b>Montagem guiada</b>
       <span>Descrever um processo em três frases e o diagrama ganhar início, duas tarefas e fim,
       ligados.</span></div>

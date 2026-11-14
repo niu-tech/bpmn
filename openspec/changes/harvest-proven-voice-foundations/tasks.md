@@ -170,7 +170,12 @@ O `bpmn-js` **não é MIT**. A licença dele é permissiva, com uma condição e
 ## 5. Fechamento
 
 - [x] 5.1 **Bateria ao vivo completa: 7 de 9** (2026-11-14), relatado como ele é. As falhas:
-      **portão F5** com o timeout de silêncio em texto, que segue aberto; e **portão F3** com
+      **portão F5** com o timeout de silêncio em texto — **FECHADO em 2026-11-14**: o servidor
+      respondia (25 quadros de áudio numa geração nova, depois de `interrupted` + `turnComplete`)
+      e o relógio de silêncio, re-armado por cada quadro de um turno JÁ fechado, acusava
+      *"servidor calado"* 45 s depois. Dois consertos: o relógio só conta silêncio com turno
+      aberto, e turno interrompido e vazio espera a geração seguinte (como o de ferramenta desde
+      a F6). Provado em `spike/__tests__/session.mjs`; e **portão F3** com
       *"a chave foi recusada"* — que era **defeito da regra nova**, não da chave (ver 7.4).
       ⚠ A corrida ANTERIOR deu 6 de 9 por **regressão do próprio harness**: a bolha de espera
       ("pensando…") é uma mensagem de assistente ESTÁVEL, e o laço a leu como resposta pronta em

@@ -16,7 +16,18 @@ const MAX_AMOSTRA = 25;
 
 export function resolverContexto(estado = {}) {
   const perfil = estado.modo === 'voz' ? 'voz' : 'texto';
-  const pagina = estado.pagina === 'viewer' ? 'viewer' : 'modelador';
+  /**
+   * ⚠ Página não declarada é o caso RESTRITO, não o permissivo.
+   *
+   * Isto defaultava para `'modelador'` enquanto a política (`policy.js`) defaultava para
+   * `'viewer'` — dois defaults para a MESMA pergunta, e o errado era justamente o que dava
+   * escrita de brinde a quem esqueceu de dizer onde estava. Só apareceu quando a linha de
+   * contrato do rodapé passou a ler a política e discordou dela.
+   *
+   * Quem SABE a página é a entrada (`mountAssistant`), e ela declara: `app.js` monta no
+   * modelador, `viewer.js` no visualizador. Aqui dentro, esquecimento é leitura.
+   */
+  const pagina = estado.pagina === 'modelador' ? 'modelador' : 'viewer';
   const somenteLeitura = pagina === 'viewer';
 
   return Object.freeze({
