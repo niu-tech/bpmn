@@ -136,8 +136,9 @@ export const FERRAMENTAS = Object.freeze([
         'Cria um elemento no diagrama do aluno. Passe depoisDe com o id de um elemento que já '
         + 'existe sempre que der: assim o novo nasce posicionado E já ligado ao anterior, que é '
         + 'o que o aluno quer quando diz "uma tarefa depois do início". Sem depoisDe o elemento '
-        + 'fica solto numa posição fixa e pode cobrir outro. O resultado diz o id criado e se a '
-        + 'ligação foi feita.',
+        + 'nasce solto, e aí ele precisa de um lugar: num diagrama com mais de um pool a '
+        + 'ferramenta recusa com sem_lugar e devolve os nomes — pergunte ao aluno em qual e '
+        + 'repita com dentroDe. O resultado diz o id criado e se a ligação foi feita.',
       parameters: {
         type: 'object',
         properties: {
@@ -150,6 +151,13 @@ export const FERRAMENTAS = Object.freeze([
           depoisDe: {
             type: 'string',
             description: 'Id do elemento que vem ANTES. Use o id do contexto ou da busca.',
+          },
+          dentroDe: {
+            type: 'string',
+            description:
+              'Id do pool, da raia ou do subprocesso que vai receber o elemento solto. Só faz '
+              + 'sentido sem depoisDe. Use quando a ferramenta pedir, ou quando o aluno disser '
+              + 'onde quer.',
           },
         },
         required: ['tipo'],

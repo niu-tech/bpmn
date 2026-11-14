@@ -119,8 +119,34 @@
       nas palavras do aluno e quem acha os ids é o agente, que é como a coisa funciona. E o
       leitor de rótulo lia só o label EXTERNO: tarefa desenha o nome dentro da forma, então a
       criação aparecia sem nome
-- [ ] 4.5 Cenário de montagem guiada: descrever um processo em 3 frases e verificar que o diagrama
-      ganhou início, ao menos duas tarefas e fim, ligados.
+- [x] 4.5 **Medido** (2026-11-14): três frases do aluno — *"Quero montar um processo novo de
+      atendimento na raia clerk… começa quando o cliente faz um pedido por telefone, depois o
+      atendente registra… no fim o pedido é despachado e termina"* — e o diagrama ganhou
+      `StartEvent "Pedido por telefone"` → `Registrar pedido` → `Confirmar endereço` →
+      `Despachar pedido` → `EndEvent "Fim do atendimento"`, com as quatro ligações e **caminho
+      completo do início ao fim**. Cinco chamadas de `criar_elemento` encadeadas por `depoisDe`;
+      nenhuma de `conectar` (a âncora já liga).
+      ⚠ O portão lê as LIGAÇÕES, não a contagem: elemento solto não é processo. Isso exigiu um
+      diagnóstico novo — `__bpmnAssist.desenho` (nós e ligações crus, sem teto de amostra) —,
+      porque o DOM desenha a linha e não as pontas, e a projeção do prompt é uma amostra.
+      ⚠ **O caminho até aqui achou dois defeitos do produto, e os dois deixavam rastro na tela:**
+      1. **Crash com fantasma** (`Cannot read properties of undefined (reading 'push')`, três
+         vezes seguidas): criar um elemento SOLTO numa colaboração. O `BpmnUpdater` guarda todo
+         `bpmn:FlowElement` em `flowElements` e uma `bpmn:Collaboration` **não tem** essa coleção
+         — processo mora dentro de um pool. A forma era desenhada e o XML quebrava; o agente
+         tentava de novo e deixava outro fantasma. Agora quem diz onde cabe é o `rules` do
+         bpmn-js (a mesma autoridade que decide se o aluno pode soltar a forma ali): com um só
+         lugar possível, cria; com vários (uma colaboração tem um pool por participante), recusa
+         com `sem_lugar` **e devolve os nomes**, para o agente perguntar em qual — adivinhar o
+         pool põe o processo do aluno no lugar errado. Daí também o parâmetro novo `dentroDe`
+         (pool, raia ou subprocesso), declarado ao modelo. A mesma guarda vale para a âncora:
+         *"uma tarefa depois do pool X"* recusa em vez de desenhar.
+      2. **Nasceu em cima do que já estava lá**: dentro de uma raia a vaga media `children`, e
+         numa colaboração o nó pertence ao POOL — a raia é uma faixa por cima, com lista de
+         filhos vazia. O início novo caiu sobre o *"Order received"*. Agora a vaga olha quem está
+         **desenhado** dentro da caixa do contêiner.
+      O portão passou a exigir as duas coisas: processo ligado **e** legível (nenhum elemento novo
+      por cima de outra forma), com o medidor de sobreposição agora compartilhado entre cenários.
       ✅ **Pré-requisito FECHADO em 2026-11-14.** Com âncora, a vaga sai do evento `autoPlace` do
       bpmn-js — o mesmo que o botão de append do aluno dispara; sem âncora, o elemento cai
       embaixo do que já está desenhado. Omitir a posição caía no `AppendBehavior`, que usa um

@@ -30,6 +30,7 @@ export const ERROS_ESCRITA = Object.freeze({
   CONEXAO_INVALIDA: 'conexao_invalida',
   DIAGRAMA_MUDOU: 'diagrama_mudou',
   NAO_MUDOU: 'nada_mudou',
+  SEM_LUGAR: 'sem_lugar',
 });
 
 function nomeado(nome, detalhe) {
@@ -109,6 +110,37 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
     return el;
   };
 
+  /**
+   * Criar SEM âncora: o elemento precisa de um lugar que o aceite, e quem diz quais aceitam é o
+   * bpmn-js (`lugaresParaCriar`).
+   *
+   * ⚠ Dois casos que parecem o mesmo e não são:
+   *  - **nenhum lugar**: o diagrama não recebe este tipo solto. Erro nomeado, sem desenhar nada.
+   *  - **mais de um** (uma colaboração tem um pool por participante): ADIVINHAR é pior que
+   *    perguntar — o processo do aluno nasceria no pool errado, e mover depois é trabalho que
+   *    ele não pediu. A ferramenta devolve os nomes para o agente perguntar em qual.
+   *
+   * Isto nasceu de um crash ao vivo (portão 4.5, 2026-11-14): criar solto numa colaboração
+   * estourava dentro do bpmn-js e deixava a forma desenhada com o XML quebrado — três vezes,
+   * porque o agente tentou de novo. Fantasma na tela é pior que recusa com nome.
+   */
+  const criarSemAncora = (tipoBpmn, dentro) => {
+    if (!dentro) {
+      const lugares = acesso.lugaresParaCriar(tipoBpmn);
+      if (!lugares.length) {
+        throw nomeado(ERROS_ESCRITA.SEM_LUGAR, 'este diagrama não recebe um elemento solto; use depoisDe');
+      }
+      if (lugares.length > 1) {
+        const nomes = lugares.map((l) => {
+          const r = resumir(l);
+          return r.nome ? `"${r.nome}" (${r.id})` : `${r.tipo} ${r.id}`;
+        }).join(', ');
+        throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `há mais de um lugar possível — diga em qual com dentroDe: ${nomes}`);
+      }
+    }
+    return acesso.criarSolto({ tipo: tipoBpmn, dentro });
+  };
+
   return {
     /**
      * Cria um elemento, de preferência ANCORADO num que já existe: `depoisDe` faz o bpmn-js
@@ -120,14 +152,30 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      * âncora, o elemento cai embaixo do que já está desenhado. Omitir a posição era o defeito:
      * o bpmn-js caía num ponto fixo e a tarefa nova nascia POR CIMA da vizinha.
      */
-    async criar_elemento({ tipo, nome, depoisDe } = {}) {
+    async criar_elemento({ tipo, nome, depoisDe, dentroDe } = {}) {
       exigirEdicao();
       const tipoBpmn = resolverTipo(tipo);
       const ancora = depoisDe ? exigirElemento(depoisDe, 'depoisDe') : null;
+      const dentro = !ancora && dentroDe ? exigirElemento(dentroDe, 'dentroDe') : null;
 
-      const criado = ancora
-        ? acesso.criarDepoisDe({ ancora, tipo: tipoBpmn })
-        : acesso.criarSolto({ tipo: tipoBpmn });
+      /**
+       * `sem_lugar_para_criar` é o aviso da camada de acesso de que o bpmn-js NÃO guardaria o
+       * elemento ali. Vale para os dois caminhos: o pai da âncora também pode recusar o tipo
+       * ("uma tarefa depois do pool X"). Erro nomeado em vez de forma desenhada com XML quebrado.
+       */
+      let criado;
+      try {
+        criado = ancora
+          ? acesso.criarDepoisDe({ ancora, tipo: tipoBpmn })
+          : criarSemAncora(tipoBpmn, dentro);
+      } catch (err) {
+        if (!/sem_lugar_para_criar/.test(err?.message ?? '')) throw err;
+        throw nomeado(
+          ERROS_ESCRITA.SEM_LUGAR,
+          ancora ? `não cabe um ${tipoCurto(tipoBpmn)} depois de ${ancora.id}`
+            : dentro ? `${dentro.id} não recebe este tipo` : 'não há onde criar',
+        );
+      }
 
       // Leitura de volta: é o registro que diz se existe, não a chamada que não deu erro.
       const confirmado = acesso.porId(criado?.id);

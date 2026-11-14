@@ -31,6 +31,7 @@ export function criarAcessoBpmn(modelador) {
     // que receberia num viewer. No-op silencioso faria o agente narrar uma criacao que nao houve.
     criarDepoisDe: () => { throw new Error('pagina_somente_leitura'); },
     criarSolto: () => { throw new Error('pagina_somente_leitura'); },
+    lugaresParaCriar: () => [],
     ligar: () => { throw new Error('pagina_somente_leitura'); },
     renomear: () => { throw new Error('pagina_somente_leitura'); },
     remover: () => { throw new Error('pagina_somente_leitura'); },
@@ -135,22 +136,85 @@ export function criarAcessoBpmn(modelador) {
   };
 
   /**
-   * Onde cai um elemento SOLTO (sem âncora): embaixo de tudo o que já está desenhado.
+   * Onde um elemento NOVO pode nascer — pergunta respondida pelo bpmn-js, não por nós.
    *
-   * ponytail: é um `max(y)+folga`, não um motor de disposição. Sem âncora não há de onde o
-   * bpmn-js pendurar, e a montagem guiada cria o início solto e PENDURA o resto nele — então
-   * esta é a única posição que escolhemos, e ela só precisa não nascer por cima.
+   * ⚠ Isto nasceu de um crash medido ao vivo (2026-11-14, portão 4.5): criar um evento de início
+   * sem âncora num diagrama de COLABORAÇÃO estourava
+   * `Cannot read properties of undefined (reading 'push')` — e deixava a forma desenhada na tela
+   * com o XML quebrado. A causa é do modelo BPMN, não um acidente: o `BpmnUpdater` guarda todo
+   * `bpmn:FlowElement` em `flowElements`, e uma `bpmn:Collaboration` **não tem** essa coleção
+   * (processo mora dentro de um pool). O agente tentou três vezes e deixou três fantasmas.
+   *
+   * O `rules` é a MESMA autoridade que decide se o aluno pode soltar a forma ali quando arrasta
+   * da paleta. Perguntar a ele é mais curto — e mais certo — do que uma lista de tipos nossa.
    */
-  const vagaAbaixoDeTudo = () => {
-    let formas = [];
+  let rules = null;
+  try {
+    rules = modelador.get('rules');
+  } catch { /* sem regras: só a raiz, como antes */ }
+
+  const aceita = (forma, alvo) => {
+    if (!alvo) return false;
+    if (!rules) return !alvo.waypoints && !alvo.labelTarget;
     try {
-      formas = (registry.getAll() ?? []).filter(
-        (e) => e?.parent && !e.labelTarget && Number.isFinite(e.y) && Number.isFinite(e.height),
-      );
-    } catch { /* registro inconsistente: cai no ponto de partida */ }
-    if (!formas.length) return { x: 220, y: 200 };
-    return { x: 220, y: Math.max(...formas.map((e) => e.y + e.height)) + 80 };
+      return rules.allowed('shape.create', { shape: forma, target: alvo }) !== false;
+    } catch {
+      return false;
+    }
   };
+
+  /** A forma pronta (com largura e altura) que as regras e a vaga precisam para decidir. */
+  const formaDe = (tipo) => (elementFactory
+    ? elementFactory.createShape({ type: tipo })
+    : { type: tipo, width: 100, height: 80 });
+
+  /**
+   * Candidatos a receber um elemento solto: a raiz e os filhos diretos dela (os pools). Raia de
+   * dentro de pool não entra na lista — para ela o aluno diz o nome e o agente passa `dentro`.
+   */
+  const candidatosPara = (forma) => {
+    let raiz = null;
+    try { raiz = canvas.getRootElement(); } catch { return []; }
+    const filhos = (raiz?.children ?? []).filter((e) => e && !e.waypoints && !e.labelTarget);
+    return [raiz, ...filhos].filter((alvo) => aceita(forma, alvo));
+  };
+
+  /**
+   * A vaga de um elemento SOLTO. Dentro de um pool ou raia, à direita do que já está lá e no meio
+   * da faixa; na raiz sem bordas, embaixo de tudo.
+   *
+   * ponytail: é `max + folga`, não um motor de disposição. Sem âncora não há de onde o bpmn-js
+   * pendurar, e a montagem guiada cria o início solto e PENDURA o resto nele — então esta é a
+   * única posição que escolhemos, e ela só precisa não nascer por cima.
+   */
+  const vagaSolta = (alvo, forma) => {
+    const medido = (e) => e && !e.waypoints && !e.labelTarget && Number.isFinite(e.x) && Number.isFinite(e.width);
+    const container = (e) => Array.isArray(e.children) && e.children.length > 0;
+
+    let desenhados = [];
+    try { desenhados = (registry.getAll() ?? []).filter(medido); } catch { /* registro inconsistente */ }
+
+    const dentroDeUmaCaixa = Number.isFinite(alvo?.x) && Number.isFinite(alvo?.width);
+    if (dentroDeUmaCaixa) {
+      /**
+       * ⚠ Quem está na raia NÃO é `alvo.children`.
+       *
+       * Numa colaboração o nó pertence ao POOL; a raia é uma faixa por cima. Medir `children` de
+       * uma raia dá lista VAZIA, e o elemento novo nasce na borda esquerda — em cima do primeiro
+       * evento que já estava lá (visto no print do portão 4.5, 2026-11-14: o início novo caiu
+       * sobre o "Order received"). O que vale é quem está DESENHADO dentro da caixa.
+       */
+      const ocupantes = desenhados.filter((e) => e !== alvo && !container(e)
+        && e.x + e.width > alvo.x && e.x < alvo.x + alvo.width
+        && e.y + e.height > alvo.y && e.y < alvo.y + alvo.height);
+      const direita = ocupantes.length ? Math.max(...ocupantes.map((e) => e.x + e.width)) : alvo.x;
+      return { x: direita + 60 + forma.width / 2, y: alvo.y + alvo.height / 2 };
+    }
+
+    if (!desenhados.length) return { x: 220, y: 200 };
+    return { x: 220, y: Math.max(...desenhados.map((e) => e.y + e.height)) + 80 };
+  };
+
 
   if (!registry || !eventBus) return inerte;
 
@@ -213,6 +277,12 @@ export function criarAcessoBpmn(modelador) {
       if (!elementFactory) return modeling.appendShape(ancora, atributos, null, alvo);
 
       const forma = elementFactory.createShape(atributos);
+      /**
+       * ⚠ O pai da ancora tambem pode NAO receber o tipo novo — "uma tarefa depois do pool X" e
+       * um pedido que o modelo faz. E' o mesmo fantasma do `criarSolto`: o bpmn-js desenha a
+       * forma e estoura ao guardar no XML. Perguntar antes custa uma linha.
+       */
+      if (!aceita(forma, alvo)) throw new Error('sem_lugar_para_criar');
       const novo = modeling.appendShape(ancora, forma, vagaDepoisDe(ancora, forma), alvo);
       // Criar fora da area visivel e, para o aluno, nao ter criado nada. O botao de append do
       // bpmn-js tambem rola ate o elemento novo.
@@ -221,12 +291,22 @@ export function criarAcessoBpmn(modelador) {
     },
 
     /**
-     * Sem ancora: embaixo do que ja existe (ver `vagaAbaixoDeTudo`). Diagrama vazio comeca em
-     * cima, que e onde o aluno esta olhando.
+     * Sem ancora. `dentro` e o elemento que vai receber (pool, raia, processo); sem ele, o
+     * primeiro candidato que as REGRAS do bpmn-js aceitarem.
+     *
+     * ⚠ Nunca a raiz por padrao: numa colaboracao a raiz nao guarda fluxo, e insistir nela
+     * desenha a forma na tela com o XML quebrado (ver `aceita`).
      */
-    criarSolto({ tipo }) {
-      const raiz = canvas.getRootElement();
-      return modeling.createShape({ type: tipo }, vagaAbaixoDeTudo(), raiz);
+    criarSolto({ tipo, dentro = null }) {
+      const forma = formaDe(tipo);
+      const alvo = dentro ?? candidatosPara(forma)[0] ?? null;
+      if (!alvo || !aceita(forma, alvo)) throw new Error('sem_lugar_para_criar');
+      return modeling.createShape(forma, vagaSolta(alvo, forma), alvo);
+    },
+
+    /** Os lugares que ACEITAM um elemento deste tipo. Quem decide e o `rules` do bpmn-js. */
+    lugaresParaCriar(tipo) {
+      return candidatosPara(formaDe(tipo));
     },
 
     /**

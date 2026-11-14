@@ -199,6 +199,57 @@ await new Promise((r) => setTimeout(r, 200));
 return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto', status: document.querySelector('.bpmn-assist__status').textContent };
 `;
 
+/**
+ * O MEDIDOR de sobreposicao, compartilhado por todo cenario que CRIA elemento.
+ *
+ * Mora aqui, e nao dentro de um passo, porque "nasceu por cima de alguem?" vale para qualquer
+ * escrita no diagrama - e porque as duas correcoes que ele ja custou (medir em coordenada de
+ * TELA; conteiner nao e vizinho) nao podem viver em duas copias que divergem.
+ */
+const MEDIR_SOBREPOSICAO = `
+// A CAIXA de cada forma, como o aluno a ve. Medir na TELA, nao no registro, e o ponto:
+// no registro a tarefa sobreposta estava CORRETA; ilegivel era o desenho.
+//
+// ⚠ getBoundingClientRect, nao getBBox: num <g transform="translate(x,y)"> o getBBox
+// devolve a caixa dos FILHOS, sem a translacao do proprio grupo — entao todo elemento
+// media (0,0) e "todo mundo sobrepoe todo mundo". Primeira versao deste medidor
+// reprovou o produto por isso (2026-11-14).
+window.__caixa = (id) => {
+  const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
+  if (!n) return null;
+  const r = n.getBoundingClientRect();
+  return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+};
+// Raia e pool sao CONTEINER, nao vizinho: o bpmn-js marca a area de acerto deles com
+// 'djs-hit-no-move' (forma comum usa 'djs-hit-all'). Medido em 2026-11-14: o botao de
+// append do PROPRIO bpmn-js poe a tarefa encostando 3 px na borda da raia de cima, porque
+// raias dividem borda. Contar isso como sobreposicao reprovava o produto por fazer
+// exatamente o que o bpmn-js faz — e escondia a pergunta que importa: nasceu por cima de
+// outra TAREFA?
+window.__conteiner = (id) => {
+  const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
+  const hit = n && n.querySelector('.djs-hit');
+  return !!hit && /djs-hit-no-move|djs-hit-stroke/.test(hit.getAttribute('class') || '');
+};
+// Com quem o elemento se sobrepoe. So' FORMAS comuns (um fluxo encosta na borda por
+// desenho), e conter nao e sobrepor.
+window.__sobrepoe = (id) => {
+  const a = window.__caixa(id);
+  if (!a) return null;
+  const folga = 4;
+  const contem = (p, q) => p.x <= q.x && p.y <= q.y && p.x + p.w >= q.x + q.w && p.y + p.h >= q.y + q.h;
+  return [...document.querySelectorAll('g.djs-shape[data-element-id]')]
+    .map((n) => n.getAttribute('data-element-id'))
+    .filter((outro) => {
+      if (outro === id || outro.endsWith('_label') || window.__conteiner(outro)) return false;
+      const b = window.__caixa(outro);
+      if (!b || !b.w || !b.h || contem(b, a) || contem(a, b)) return false;
+      return a.x + a.w - folga > b.x && b.x + b.w - folga > a.x
+        && a.y + a.h - folga > b.y && b.y + b.h - folga > a.y;
+    });
+};
+`;
+
 const CENARIOS = [
   {
     nome: 'modelador carrega com o ajudante montado',
@@ -1006,47 +1057,7 @@ if (chaveViva) {
          const dentro = document.querySelector('[data-element-id="' + id + '"]');
          return ((fora?.textContent ?? '') || (dentro?.textContent ?? '')).trim();
        };
-       // A CAIXA de cada forma, como o aluno a ve. Medir na TELA, nao no registro, e o ponto:
-       // no registro a tarefa sobreposta estava CORRETA; ilegivel era o desenho.
-       //
-       // ⚠ getBoundingClientRect, nao getBBox: num <g transform="translate(x,y)"> o getBBox
-       // devolve a caixa dos FILHOS, sem a translacao do proprio grupo — entao todo elemento
-       // media (0,0) e "todo mundo sobrepoe todo mundo". Primeira versao deste medidor
-       // reprovou o produto por isso (2026-11-14).
-       window.__caixa = (id) => {
-         const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
-         if (!n) return null;
-         const r = n.getBoundingClientRect();
-         return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
-       };
-       // Raia e pool sao CONTEINER, nao vizinho: o bpmn-js marca a area de acerto deles com
-       // 'djs-hit-no-move' (forma comum usa 'djs-hit-all'). Medido em 2026-11-14: o botao de
-       // append do PROPRIO bpmn-js poe a tarefa encostando 3 px na borda da raia de cima, porque
-       // raias dividem borda. Contar isso como sobreposicao reprovava o produto por fazer
-       // exatamente o que o bpmn-js faz — e escondia a pergunta que importa: nasceu por cima de
-       // outra TAREFA?
-       window.__conteiner = (id) => {
-         const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
-         const hit = n && n.querySelector('.djs-hit');
-         return !!hit && /djs-hit-no-move|djs-hit-stroke/.test(hit.getAttribute('class') || '');
-       };
-       // Com quem o elemento se sobrepoe. So' FORMAS comuns (um fluxo encosta na borda por
-       // desenho), e conter nao e sobrepor.
-       window.__sobrepoe = (id) => {
-         const a = window.__caixa(id);
-         if (!a) return null;
-         const folga = 4;
-         const contem = (p, q) => p.x <= q.x && p.y <= q.y && p.x + p.w >= q.x + q.w && p.y + p.h >= q.y + q.h;
-         return [...document.querySelectorAll('g.djs-shape[data-element-id]')]
-           .map((n) => n.getAttribute('data-element-id'))
-           .filter((outro) => {
-             if (outro === id || outro.endsWith('_label') || window.__conteiner(outro)) return false;
-             const b = window.__caixa(outro);
-             if (!b || !b.w || !b.h || contem(b, a) || contem(a, b)) return false;
-             return a.x + a.w - folga > b.x && b.x + b.w - folga > a.x
-               && a.y + a.h - folga > b.y && b.y + b.h - folga > a.y;
-           });
-       };
+       ${MEDIR_SOBREPOSICAO}
        window.__antes = window.__idsNaTela();
        return {
          ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && window.__antes.length > 5,
@@ -1157,6 +1168,89 @@ if (chaveViva) {
        };`,
     ],
   });
+  // ------------------------------------------------------- portao 4.5 (montagem guiada)
+  // O aluno DESCREVE um processo em tres frases e o diagrama tem de ganhar um processo: inicio,
+  // pelo menos duas tarefas e fim, LIGADOS. Caixa solta nao e processo - e e por isso que este
+  // portao le as LIGACOES do desenho, e nao so a contagem de elementos novos.
+  CENARIOS.push({
+    nome: 'AO VIVO: tres frases viram um processo ligado (portao 4.5)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    espera: 4500,
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${MEDIR_SOBREPOSICAO}
+       // A linha de base: tudo o que ja existia antes de o aluno descrever o processo dele.
+       window.__idsDe = (d) => d.nos.map((n) => n.id).concat(d.ligacoes.map((l) => l.id));
+       window.__antes = window.__idsDe(window.__bpmnAssist.desenho);
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && window.__antes.length > 5,
+         elementosAntes: window.__antes.length,
+       };`,
+
+      `// TRES FRASES, como o aluno escreveria: sem id, sem tipo, sem "crie um StartEvent".
+       // O criterio nao e a frase do agente - e o DESENHO ter ganho inicio, duas tarefas e fim
+       // com um caminho ligando os tres.
+       const r = await window.__resposta('Quero montar um processo novo de atendimento na raia clerk, do pool Pizza vendor. Ele comeca quando o cliente faz um pedido por telefone, depois o atendente registra o pedido e em seguida confirma o endereco. No fim o pedido e despachado e o processo termina.');
+       const d = window.__bpmnAssist.desenho;
+       const novos = d.nos.filter((n) => !window.__antes.includes(n.id));
+       const inicio = novos.find((n) => n.tipo === 'StartEvent');
+       const fim = novos.find((n) => n.tipo === 'EndEvent');
+       const tarefas = novos.filter((n) => /Task/.test(n.tipo));
+       // Caminho do inicio ate o fim pelas ligacoes: e isso que separa "processo" de "caixas".
+       const saidas = new Map();
+       for (const l of d.ligacoes) {
+         if (!saidas.has(l.de)) saidas.set(l.de, []);
+         saidas.get(l.de).push(l.para);
+       }
+       const caminho = (de, ate) => {
+         const visto = new Set();
+         const fila = [[de, [de]]];
+         while (fila.length) {
+           const [no, trilha] = fila.shift();
+           if (no === ate) return trilha;
+           if (visto.has(no)) continue;
+           visto.add(no);
+           for (const p of (saidas.get(no) || [])) fila.push([p, trilha.concat([p])]);
+         }
+         return null;
+       };
+       const trilha = inicio && fim ? caminho(inicio.id, fim.id) : null;
+       const naTrilha = trilha ? trilha.filter((id) => tarefas.some((t) => t.id === id)) : [];
+       // Ligado nao basta: tem de dar para LER. Um processo empilhado em cima do diagrama do
+       // aluno e tao inutil quanto nenhum - e foi o que o print da primeira corrida verde mostrou
+       // (o inicio novo nasceu sobre o "Order received", porque a vaga mediu a lista de filhos da
+       // raia, que numa colaboracao vem vazia).
+       const empilhados = novos
+         .map((n) => ({ id: n.id, sobre: window.__sobrepoe(n.id) }))
+         .filter((x) => Array.isArray(x.sobre) && x.sobre.length)
+         .map((x) => x.id + ' sobre ' + x.sobre.join(','));
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && !!inicio && !!fim
+           && tarefas.length >= 2 && naTrilha.length >= 2 && empilhados.length === 0,
+         ganhou: novos.map((n) => n.tipo + (n.nome ? ' "' + n.nome + '"' : '')),
+         nasceramEmpilhados: empilhados,
+         trilhaDoInicioAoFim: trilha,
+         tarefasNaTrilha: naTrilha.length,
+         ligacoesNovas: d.ligacoes
+           .filter((l) => !window.__antes.includes(l.id))
+           .map((l) => l.de + ' -> ' + l.para),
+         ferramentasChamadas: chamadas,
+         linhaDoTempo: window.__linhaDoTempo(),
+         respondeu: r.slice(0, 300),
+       };`,
+    ],
+  });
+
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');

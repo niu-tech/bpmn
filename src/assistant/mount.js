@@ -123,6 +123,28 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     get mensagens() { return session.messages; },
     /** A projeção crua do diagrama aberto, recalculada na leitura (F3). `null` sem modelador. */
     get diagrama() { return olho.atual(); },
+    /**
+     * O desenho CRU para quem precisa julgar: `{ nos, ligacoes }`, sem teto de amostra.
+     *
+     * Existe porque "o agente montou o processo" só é verificável se dá para perguntar **o que
+     * está ligado a quê** — e isso não aparece em lugar nenhum: o DOM desenha a linha, não as
+     * pontas, e a projeção do prompt é uma AMOSTRA com teto, feita para caber no contexto. Sem
+     * isto, um portão conta caixas e chama de processo um punhado de elementos soltos.
+     *
+     * Diagnóstico, como o resto deste objeto: não entra no prompt e não muda nada.
+     */
+    get desenho() {
+      const tipo = (e) => String(e?.type ?? '').replace('bpmn:', '');
+      const todos = acesso.elementos().filter((e) => e && !e.labelTarget);
+      return {
+        nos: todos
+          .filter((e) => !Array.isArray(e.waypoints))
+          .map((e) => ({ id: e.id, tipo: tipo(e), nome: e.businessObject?.name ?? null })),
+        ligacoes: todos
+          .filter((e) => Array.isArray(e.waypoints))
+          .map((c) => ({ id: c.id, tipo: tipo(c), de: c.source?.id ?? null, para: c.target?.id ?? null })),
+      };
+    },
     /** O último quadro que o modelo de fato recebeu. É o espelho do delta. */
     get contextoEnviado() { return session.contextoEnviado; },
     /** A corrida de simulação que o agente enxerga. Só leitura. */

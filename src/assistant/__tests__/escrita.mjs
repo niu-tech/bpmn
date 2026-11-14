@@ -33,7 +33,7 @@ import { report, test, testAsync } from '../../../tools/test-harness.mjs';
  * Dubla o bpmn-js de verdade, e não a nossa camada: aqui o que está sob teste INCLUI
  * `bpmn-api.js`, porque é ela que decide que só `modeling` escreve. */
 
-function criarModeladorFalso({ semVaga = false, updateLabelMudo = false } = {}) {
+function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras = null } = {}) {
   const raiz = { id: 'Process_1', type: 'bpmn:Process', businessObject: {} };
   const mapa = new Map([[raiz.id, raiz]]);
   const chamadas = [];
@@ -67,7 +67,7 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false } = {}) 
     },
 
     createShape(atributos, posicao, pai) {
-      chamadas.push({ fn: 'createShape', tipo: atributos.type, nome: atributos.name, posicao });
+      chamadas.push({ fn: 'createShape', tipo: atributos.type, nome: atributos.name, posicao, pai });
       return guardar({
         id: `${atributos.type.replace('bpmn:', '')}_${++seq}`,
         type: atributos.type,
@@ -145,6 +145,9 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false } = {}) 
       if (nome === 'modeling') return modeling;
       if (nome === 'canvas') return { getRootElement: () => raiz, scrollToElement() {} };
       if (nome === 'elementFactory' && !semVaga) return elementFactory;
+      // `rules` é a autoridade do bpmn-js sobre ONDE uma forma pode nascer. Ausente (o padrão
+      // destes dublês) = o acesso cai no comportamento antigo, só a raiz.
+      if (nome === 'rules' && regras) return { allowed: (acao, ctx) => acao === 'shape.create' && regras(ctx.shape, ctx.target) };
       throw new Error(`sem ${nome}`);
     },
   };
@@ -524,6 +527,108 @@ testAsync('desfazer devolve o diagrama ao que era: o que o agente criou sai do r
   assert.deepEqual(comandos, ['appendShape', 'updateLabel']);
   for (const id of [...mapa.keys()]) if (!antes.has(id)) mapa.delete(id);
   assert.deepEqual([...mapa.keys()].sort(), [...antes].sort());
+});
+
+/* ---------------------------------------------------------------- onde o solto pode nascer */
+
+/**
+ * Um diagrama de COLABORAÇÃO: a raiz não recebe fluxo, os dois pools recebem.
+ *
+ * ⚠ Isto dubla a regra que o bpmn-js aplica de verdade, e que custou um crash ao vivo (portão
+ * 4.5, 2026-11-14): `BpmnUpdater` guarda todo `bpmn:FlowElement` em `flowElements`, e uma
+ * `bpmn:Collaboration` não tem essa coleção. Criar lá desenhava a forma na tela e quebrava o XML.
+ */
+function colaboracaoFalsa() {
+  const falso = criarModeladorFalso({
+    regras: (forma, alvo) => alvo.type !== 'bpmn:Collaboration',
+  });
+  falso.raiz.type = 'bpmn:Collaboration';
+  const pool = (id, nome, y) => falso.guardar({
+    id, type: 'bpmn:Participant', parent: falso.raiz, businessObject: { name: nome },
+    x: 100, y, width: 600, height: 200, children: [],
+  });
+  falso.raiz.children = [pool('Pool_cliente', 'Pizza Customer', 100), pool('Pool_loja', 'Pizza vendor', 320)];
+  return falso;
+}
+
+testAsync('colaboração com dois pools: a ferramenta PERGUNTA em qual, e não desenha nada', async () => {
+  // Adivinhar o pool é pior que perguntar: o processo do aluno nasceria no lugar errado, e mover
+  // depois é trabalho que ele não pediu. O erro carrega os NOMES para o agente poder perguntar.
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.criar_elemento({ tipo: 'StartEvent', nome: 'Pedido por telefone' }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR && /Pizza Customer/.test(e.message) && /Pizza vendor/.test(e.message),
+  );
+  // E NADA foi desenhado: recusa com nome é melhor que fantasma na tela.
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'createShape'), []);
+});
+
+testAsync('com `dentroDe`, o elemento nasce DENTRO do pool escolhido', async () => {
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  const r = await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Pedido', dentroDe: 'Pool_loja' });
+
+  const criar = falso.chamadas.find((c) => c.fn === 'createShape');
+  assert.equal(criar.pai.id, 'Pool_loja');
+  // À direita do que já está no pool (vazio ⇒ a partir da borda) e no meio da faixa.
+  assert.deepEqual(criar.posicao, { x: 210, y: 420 });
+  assert.equal(r.criado.nome, 'Pedido');
+});
+
+testAsync('`dentroDe` que as regras recusam é `sem_lugar`, não um elemento quebrado', async () => {
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.criar_elemento({ tipo: 'StartEvent', dentroDe: falso.raiz.id }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR,
+  );
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'createShape'), []);
+});
+
+testAsync('na raia, a vaga olha quem está DESENHADO dentro dela — não a lista de filhos', async () => {
+  // ⚠ Print do portão 4.5 (2026-11-14): o início novo nasceu em cima do "Order received". Numa
+  // colaboração o nó pertence ao POOL e a raia é uma faixa por cima, então `children` da raia vem
+  // vazio e a vaga saía na borda esquerda, sobre quem já estava lá.
+  const falso = colaboracaoFalsa();
+  // Desenhado DENTRO do pool, mas pendurado na raiz: é esse o caso que a lista de filhos perde.
+  falso.guardar({
+    id: 'Event_ja_estava', type: 'bpmn:StartEvent', parent: falso.raiz, businessObject: { name: 'Order received' },
+    x: 140, y: 400, width: 36, height: 36,
+  });
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Pedido', dentroDe: 'Pool_loja' });
+
+  // À direita de quem já estava (borda em 140+36), mais a folga de 60 e meia largura da forma
+  // (o dublê da fábrica devolve 100x80 para qualquer tipo), e no meio vertical da faixa.
+  assert.deepEqual(falso.chamadas.find((c) => c.fn === 'createShape').posicao, { x: 286, y: 420 });
+});
+
+testAsync('âncora cujo pai não recebe o tipo é `sem_lugar` — e nada é desenhado', async () => {
+  // "uma tarefa depois do pool X" é um pedido que o modelo faz. O pai da âncora é a colaboração,
+  // que não guarda fluxo: sem este portão, o bpmn-js desenha a forma e estoura ao salvar.
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.criar_elemento({ tipo: 'Task', nome: 'Depois do pool', depoisDe: 'Pool_loja' }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR && /Pool_loja/.test(e.message),
+  );
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'appendShape' || c.fn === 'createShape'), []);
+});
+
+testAsync('processo simples: a raiz aceita, e o solto nasce nela sem perguntar nada', async () => {
+  const falso = criarModeladorFalso({ regras: () => true });
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  const r = await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Início' });
+
+  assert.equal(r.criado.tipo, 'StartEvent');
+  assert.equal(falso.chamadas.find((c) => c.fn === 'createShape').pai.id, 'Process_1');
 });
 
 /* ---------------------------------------------------------------- catálogo */

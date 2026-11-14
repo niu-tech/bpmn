@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint · Bloco 8</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 30px; max-width:64ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:36px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:34px; }
+
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 24px;
+    font-size:16.5px; color:var(--suave); max-width:62ch; }
+  .cita b { color:var(--tinta); font-weight:600; }
+
+  .fluxo { display:flex; flex-wrap:wrap; align-items:center; gap:8px; background:var(--papel);
+    border:1px solid var(--linha); border-radius:13px; padding:16px 18px; margin-bottom:12px; }
+  .no { font-size:13.5px; border:1px solid #cfd8e3; background:#f4f8fd; border-radius:7px;
+    padding:5px 10px; white-space:nowrap; }
+  .no.ev { border-radius:999px; background:#eef5e7; border-color:#cfe0bf; }
+  .seta { color:var(--fraco); font-size:13px; }
+
+  .lista { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .l { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .l:last-child { border-bottom:none; }
+  .l p { margin:0; font-size:14.5px; }
+  .l p b { font-weight:600; }
+  .l p span { display:block; color:var(--fraco); font-size:13px; margin-top:3px; }
+  .selo { font-size:12px; font-weight:600; white-space:nowrap; color:var(--verde);
+    background:var(--verde-fraco); border-radius:20px; padding:3px 10px; }
+  .selo.q { color:var(--ambar); background:var(--ambar-fraco); }
+
+  .bichos { display:grid; gap:12px; }
+  .bicho { background:var(--vinho-fraco); border:1px solid #f2d9d5; border-radius:13px; padding:15px 18px; }
+  .bicho b { display:block; font-size:14.5px; color:var(--vinho); margin-bottom:4px; }
+  .bicho p { margin:0 0 8px; font-size:14px; color:#4a4b54; }
+  .bicho p:last-child { margin-bottom:0; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+  .aberto p { margin:0 0 9px; }
+  .aberto p:last-child { margin-bottom:0; }
+
+  footer { margin-top:34px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros{grid-template-columns:1fr;} .l{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Bloco 8</span>
+  <h1>Três frases viram um processo — depois que o agente parou de deixar fantasmas na tela</h1>
+  <p class="sub">A montagem guiada (4.5) fechou: o aluno descreve o processo em prosa e o diagrama
+  ganha início, tarefas e fim, <b>ligados e legíveis</b>. O caminho até lá passou por um
+  <b>crash com rastro visível</b> — o pior tipo, porque a ferramenta dizia “falhou” e o desenho
+  ficava sujo.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>5 + 4</b><span>elementos e ligações criados a partir de três frases</span></div>
+    <div class="num ok"><b>0</b><span>empilhados: nada nasceu por cima de outra forma</span></div>
+    <div class="num ok"><b>526</b><span>testes verdes · dois portões ao vivo passando</span></div>
+  </div>
+
+  <section>
+    <h2>O que o aluno escreveu, e o que apareceu</h2>
+    <p class="cita">“Quero montar um processo novo de atendimento <b>na raia clerk</b>, do pool
+    Pizza vendor. Ele começa quando o cliente faz um pedido por telefone, depois o atendente
+    registra o pedido e em seguida confirma o endereço. No fim o pedido é despachado e o processo
+    termina.”</p>
+
+    <div class="fluxo">
+      <span class="no ev">Pedido por telefone recebido</span><span class="seta">→</span>
+      <span class="no">Registrar pedido</span><span class="seta">→</span>
+      <span class="no">Confirmar endereço</span><span class="seta">→</span>
+      <span class="no">Despachar pedido</span><span class="seta">→</span>
+      <span class="no ev">Pedido despachado</span>
+    </div>
+
+    <div class="lista">
+      <div class="l">
+        <p><b>O critério é o caminho, não a contagem.</b>
+        <span>O portão percorre as ligações do início ao fim e exige pelo menos duas tarefas
+        <i>na trilha</i>. Cinco caixas soltas passariam numa contagem; não passam aqui.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>Isso exigiu um diagnóstico novo.</b>
+        <span>O DOM desenha a linha, não as pontas, e a projeção que vai ao modelo é uma amostra
+        com teto. <code>__bpmnAssist.desenho</code> devolve nós e ligações crus — só leitura, fora
+        do prompt.</span></p>
+        <span class="selo">novo</span>
+      </div>
+      <div class="l">
+        <p><b>Cinco chamadas de <code>criar_elemento</code>, nenhuma de <code>conectar</code>.</b>
+        <span>O encadeamento saiu por <code>depoisDe</code>: a âncora posiciona e liga de uma vez,
+        que é exatamente o que a prosa do aluno descreve.</span></p>
+        <span class="selo">medido</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O crash que deixava rastro</h2>
+    <div class="bichos">
+      <div class="bicho">
+        <b>Três eventos de início fantasmas, e o XML quebrado</b>
+        <p>Na primeira corrida, <code>Cannot read properties of undefined (reading 'push')</code>
+        — três vezes. Criar um elemento <b>solto</b> numa colaboração: o bpmn-js guarda todo
+        <code>FlowElement</code> em <code>flowElements</code>, e uma <code>Collaboration</code>
+        não tem essa coleção (processo mora dentro de um pool). A forma era desenhada na tela e o
+        modelo quebrava — a ferramenta respondia “falhou”, o agente tentava de novo, e cada
+        tentativa deixava outro fantasma.</p>
+        <p>Agora quem decide onde cabe é o <code>rules</code> do bpmn-js: a mesma autoridade que
+        diz se o aluno pode soltar a forma ali quando arrasta da paleta. Um lugar possível, cria;
+        vários, <b>recusa com <code>sem_lugar</code> e devolve os nomes</b> — adivinhar o pool
+        colocaria o processo do aluno no lugar errado. Daí também o parâmetro novo
+        <code>dentroDe</code>. A mesma guarda vale para a âncora: <i>“uma tarefa depois do pool
+        X”</i> recusa em vez de desenhar.</p>
+      </div>
+      <div class="bicho">
+        <b>E o início nasceu em cima do “Order received”</b>
+        <p>Primeira corrida verde, print mostrando o contrário do que eu queria: dentro de uma
+        raia, a vaga media <code>children</code> — e numa colaboração o nó pertence ao <b>pool</b>,
+        a raia é só uma faixa por cima, com lista de filhos vazia. Resultado: vaga na borda
+        esquerda, sobre quem já estava lá. Agora a vaga olha quem está <b>desenhado</b> dentro da
+        caixa do contêiner.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Em aberto, dito no lugar certo</h2>
+    <div class="aberto">
+      <p><b>Dispor vários de uma vez (T11 / 5.1).</b> Um elemento acha a vaga sozinho; uma
+      sequência que não cabe em linha, ainda não. O empurrão tem teto declarado: seis passos para
+      a direita e devolve a vaga do bpmn-js.</p>
+      <p><b>Rótulo não entra na conta (T13).</b> O medidor compara formas, como o próprio bpmn-js.
+      Na montagem guiada uma tarefa encostou no rótulo <i>“receipt”</i> de um fluxo de mensagem:
+      legível, mas feio.</p>
+      <p><b>Criar com nome são dois <code>Ctrl+Z</code> (T12).</b> Juntar num comando só é
+      possível, mas pularia uma compatibilidade interna do bpmn-js — não vale o risco sem
+      incômodo medido na aula.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>TCC · ajudante BPMN · bloco 8</span>
+    <span>14 de novembro de 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
