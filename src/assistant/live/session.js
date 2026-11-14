@@ -80,6 +80,11 @@ export function createSession({
   let ready = false;
   let pending = [];            // o que tentou sair antes do setupComplete
   let attempts = 0;
+  /**
+   * Código de fechamento NOSSO para "o servidor ficou calado" (a faixa 4000-4999 é do aplicativo).
+   * Existe para o diário distinguir a queda que nós provocamos da que a rede provocou.
+   */
+  const CODIGO_SILENCIO = 4000;
   let connectTimer = null;
   let turnTimer = null;
   let closedByUs = false;
@@ -167,7 +172,26 @@ export function createSession({
      * O relógio existe para dizer *"pedi e não vieram"*. Nada pedido, nada a cobrar.
      */
     if (!turn && !pendente) return;
-    turnTimer = clock.setTimeout(() => fail('timeout', 'servidor calado após o setup'), cfg.idleTurnTimeoutMs);
+    /**
+     * ⚠ Silêncio no prazo NÃO é mais o fim da sessão.
+     *
+     * Antes virava `error: timeout` e a conversa parava ali: o aluno tinha de clicar em Começar
+     * de novo (dono, 2026-11-14: "está acontecendo frequentemente a queda da sessão e nós não
+     * estamos tratando isso, o que interrompe a conversa"). Mas servidor calado quase sempre é
+     * SOCKET MORTO — e para socket morto já existe caminho: fechar faz o laço de reconexão agir,
+     * com recuo e teto, e o setup novo volta com o contexto semeado.
+     *
+     * Só vira erro se o teto de reconexões estourar: aí o nome é `ws-closed`, que é a verdade,
+     * em vez de acusar o servidor de não responder.
+     */
+    turnTimer = clock.setTimeout(() => {
+      ev('state', 'silencio', `sem resposta em ${cfg.idleTurnTimeoutMs} ms — reabrindo a sessão`);
+      try {
+        ws?.close(CODIGO_SILENCIO, 'silencio');
+      } catch (err) {
+        fail('timeout', `servidor calado e o socket não fechou: ${err?.message ?? err}`);
+      }
+    }, cfg.idleTurnTimeoutMs);
   }
 
   function pausarRelogioDoTurno() {

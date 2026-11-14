@@ -69,7 +69,17 @@ export function createWidget({ session, credentials, onClose } = {}) {
   toggle.setAttribute('aria-controls', panelId);
 
   // ------------------------------------------------------------------ cabeçalho
-  const statusChip = el('span', { className: 'bpmn-assist__status', textContent: 'desligado' });
+  /**
+   * O SELO de estado, com ponto.
+   *
+   * ⚠ Era só uma palavra cinza ("ouvindo", "falando") e se perdia no cabeçalho — o aluno não
+   * sabia, de relance, se o ajudante estava ouvindo ou só ligado (dono, 2026-11-14: "vamos
+   * melhorar aquele 'Ouvindo' no header"). O ponto tem a cor do estado e PULSA enquanto há algo
+   * acontecendo, então o estado se lê sem ler.
+   */
+  const statusDot = el('i', { className: 'bpmn-assist__statusdot' });
+  const statusTxt = el('span', { className: 'bpmn-assist__statustxt', textContent: 'desligado' });
+  const statusChip = el('span', { className: 'bpmn-assist__status' }, [statusDot, statusTxt]);
   const closeBtn = el('button', { className: 'bpmn-assist__icon', type: 'button', textContent: '✕' });
   closeBtn.setAttribute('aria-label', 'Fechar o ajudante');
 
@@ -244,7 +254,13 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // conversa rola.
   // Menos regiões: a linha da chave e o diagnóstico saem do corpo e vão para o menu. Eles
   // fragmentavam o painel na vertical sem nunca serem a ação do momento.
-  menu.append(powerBtn, compacto, diagBox);
+  /**
+   * TESTAR A CONEXÃO: o aluno precisava de um jeito de saber se o problema é dele ou do servidor.
+   * Antes a única informação era "o servidor não respondeu", no meio de uma conversa morta.
+   */
+  const testarBtn = el('button', { className: 'bpmn-assist__btn', type: 'button', textContent: 'Testar conexão' });
+
+  menu.append(powerBtn, testarBtn, compacto, diagBox);
 
   const body = el('div', { className: 'bpmn-assist__body' }, [
     setupBlock, hint, empty, log,
@@ -378,7 +394,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
     dot.setAttribute('data-state', state);
     const label = STATE_LABELS[state] ?? state;
     const detail = state === 'error' ? `: ${describeError(reason)}` : '';
-    statusChip.textContent = `${label}${detail}`;
+    statusTxt.textContent = `${label}${detail}`;
+    statusChip.setAttribute('data-state', state);
+    statusDot.setAttribute('data-state', state);
 
     if (statusChip.textContent !== lastAnnounced) {
       liveRegion.textContent = `Ajudante ${statusChip.textContent}.`;
@@ -519,6 +537,20 @@ export function createWidget({ session, credentials, onClose } = {}) {
     menu.hidden = true;
     menuBtn.setAttribute('aria-expanded', 'false');
   });
+  testarBtn.addEventListener('click', async () => {
+    if (testarBtn.disabled) return;
+    testarBtn.disabled = true;
+    testarBtn.textContent = 'testando…';
+    try {
+      await session.testarConexao();
+    } finally {
+      testarBtn.disabled = false;
+      testarBtn.textContent = 'Testar conexão';
+      menu.hidden = true;                 // o resultado está na conversa, não no menu
+      menuBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
   pararBtn.addEventListener('click', () => session.stopMic());
   simBtn.addEventListener('click', () => session.confirmar(true));
   naoBtn.addEventListener('click', () => session.confirmar(false));

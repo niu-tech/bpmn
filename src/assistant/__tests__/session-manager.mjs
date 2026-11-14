@@ -93,6 +93,49 @@ function montar(deps = {}) {
   return { session, credentials, live, audio, vistas };
 }
 
+console.log('\n▶ a queda da sessão não para a conversa');
+
+testAsync('queda no meio da resposta: volta, avisa e REFAZ a pergunta digitada', async () => {
+  // ⚠ Relato do dono (2026-11-14): "está acontecendo frequentemente a queda da sessão e nós não
+  // estamos tratando isso, o que interrompe a conversa". A sessão volta sozinha (o socket calado
+  // reabre), mas a PERGUNTA ia junto: a bolha de "pensando…" ficava pendurada para sempre.
+  const { session, live } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('o que é um gateway exclusivo?');
+
+  // O setup aceito de novo NA MESMA sessão é o sinal de que esta é a reconexão.
+  live.ultima.pronta();
+
+  const sistema = session.messages.filter((m) => m.role === 'system').at(-1);
+  assert.match(sistema.text, /refiz a sua pergunta/i);
+  const repetidas = session.messages.filter((m) => m.role === 'user' && /gateway exclusivo/.test(m.text));
+  assert.equal(repetidas.length, 2, 'a pergunta perdida foi refeita');
+  // E uma só bolha de espera: a antiga sai quando a nova entra.
+  assert.equal(session.messages.filter((m) => m.rodando).length, 1);
+});
+
+testAsync('queda seguinte AVISA mas não refaz a mesma pergunta de novo', async () => {
+  const { session, live } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('o que é um gateway exclusivo?');
+  live.ultima.pronta();   // 1a queda: refaz
+  live.ultima.pronta();   // 2a queda: so avisa
+
+  const repetidas = session.messages.filter((m) => m.role === 'user' && /gateway exclusivo/.test(m.text));
+  assert.equal(repetidas.length, 2, 'duas e o teto: conexão instável não vira enxurrada');
+  assert.match(session.messages.filter((m) => m.role === 'system').at(-1).text, /repetir a pergunta/i);
+});
+
+testAsync('sem pergunta pendente, a volta é só um aviso curto', async () => {
+  const { session, live } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  live.ultima.pronta();
+  assert.match(session.messages.filter((m) => m.role === 'system').at(-1).text, /caiu e voltou/i);
+});
+
 console.log('\n▶ parar de falar');
 
 testAsync('"parar de falar" cala o RESTO do turno, não só a fila', async () => {

@@ -464,13 +464,39 @@ test('queda comum reconecta com recuo e PARA no teto', () => {
   assert.equal(MockSocket.instances.length, 3, 'original + 2 tentativas, e para');
 });
 
-test('silencio do servidor depois do setup vira timeout em vez de travar', () => {
+/**
+ * SILENCIO NAO MATA MAIS A SESSAO (dono, 2026-11-14: "esta acontecendo frequentemente a queda da
+ * sessao e nos nao estamos tratando isso, o que interrompe a conversa").
+ *
+ * Servidor calado quase sempre e socket morto, e para socket morto ja existe caminho: fechar com
+ * o nosso codigo (4000) faz o laco de reconexao agir. O aluno ve "conectando", nao "erro", e o
+ * setup novo volta com o contexto semeado.
+ */
+test('silencio depois do setup REABRE a sessao em vez de virar erro', () => {
   const { session, ws, clock } = ready();
   session.ask('p');
   ws.emit({ serverContent: { outputTranscription: { text: 'oi' } } });
   clock.flush();
+  assert.equal(ws.closed.code, 4000, 'o socket calado foi fechado por nos');
+  assert.equal(session.state, 'connecting', 'reconectando, nao morto');
+  clock.flush();   // o reabrir e agendado com recuo: sem a segunda volta do relogio ele nao roda
+  assert.ok(MockSocket.instances.length > 1, 'abriu um socket novo');
+});
+
+test('silencio que se repete ate o teto vira erro com o nome CERTO', () => {
+  // A trava nao pode virar "nunca mais reclamar": o que nao se recupera tem de aparecer - e com
+  // o nome da queda (ws-closed), nao acusando o servidor de nao responder.
+  const { session, ws, clock } = ready();
+  session.ask('p');
+  ws.emit({ serverContent: { outputTranscription: { text: 'oi' } } });
+  for (let i = 0; i < 6; i++) {
+    clock.flush();
+    const ultimo = MockSocket.instances.at(-1);
+    if (ultimo && !ultimo.closed) ultimo.serverClose(4000);
+    clock.flush();
+  }
   assert.equal(session.state, 'error');
-  assert.equal(session.reason, 'timeout');
+  assert.match(session.reason, /^ws-closed:/);
 });
 
 /* -------------------------------------------------------------------------------------------
@@ -513,13 +539,13 @@ test('turno INTERROMPIDO e vazio espera a geracao seguinte, como o de ferramenta
 });
 
 test('o relogio continua valendo para o que FOI pedido e nao veio', () => {
-  // A trava nao pode virar "nunca mais reclamar": turno aberto e servidor calado segue erro.
+  // A trava do turno fechado nao pode virar "nunca mais reclamar": turno ABERTO e servidor
+  // calado continua sendo tratado - o que mudou e o remedio (reabrir), nao o diagnostico.
   const { session, ws, clock } = ready();
   session.ask('p');
   ws.emit({ serverContent: { outputTranscription: { text: 'oi' } } });
   clock.flush();
-  assert.equal(session.state, 'error');
-  assert.equal(session.reason, 'timeout');
+  assert.equal(ws.closed.code, 4000, 'o relogio agiu sobre o que foi pedido e nao veio');
 });
 
 test('close explicito encerra, nao reconecta e esvazia a fila', () => {

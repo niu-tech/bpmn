@@ -1211,6 +1211,29 @@ if (chaveViva) {
          ferramentasChamadas: chamadas,
          linhaDoTempo: window.__linhaDoTempo(),
        };`,
+
+      `// 4. TESTAR A CONEXAO (pedido do dono, 2026-11-14): em vez de so dizer que o servidor
+       // nao respondeu, o aluno tem como perguntar AGORA se a conexao esta de pe. O teste abre
+       // um socket proprio, espera o setup ser ACEITO e fecha - sem gastar turno.
+       [...document.querySelectorAll('.bpmn-assist__head button')]
+         .find((b) => b.textContent.trim() === '⋯').click();
+       await new Promise((r2) => setTimeout(r2, 250));
+       const botao = [...document.querySelectorAll('.bpmn-assist__menu button')]
+         .find((b) => /testar conex/i.test(b.textContent));
+       if (!botao) return { ok: false, erro: 'nao achei o botao de testar conexao no menu' };
+       botao.click();
+       let nota = null;
+       for (let i = 0; i < 60 && !nota; i++) {
+         await new Promise((r2) => setTimeout(r2, 500));
+         nota = window.__bpmnAssist.mensagens
+           .filter((m) => m.role === 'system' && /conex/i.test(m.text || ''))
+           .at(-1) ?? null;
+       }
+       return {
+         ok: Boolean(nota) && /aceitou a sess/i.test(nota.text),
+         resultadoDoTeste: nota ? nota.text : null,
+         rede: window.__linhaDoTempo().filter((l) => l.startsWith('rede.')),
+       };`,
     ],
   });
   // ------------------------------------------------------- portao 4.5 (montagem guiada)

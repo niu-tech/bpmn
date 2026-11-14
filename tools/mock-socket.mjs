@@ -24,10 +24,19 @@ export class MockSocket {
     this.sent.push(JSON.parse(payload));
   }
 
+  /**
+   * Fechar AVISA quem fechou — como o navegador faz.
+   *
+   * ⚠ Este dublê registrava o fechamento e ficava calado, e por isso um `ws.close()` feito pelo
+   * PRODUTO não acordava o `onclose` dele: o caminho de reconexão existia e nenhum teste passava
+   * por ele a partir daí. Apareceu em 2026-11-14, quando o silêncio do servidor passou a fechar
+   * o socket para reabrir em vez de matar a sessão.
+   */
   close(code = 1000, reason = '') {
     if (this.readyState === 3) return;
     this.readyState = 3;
     this.closed = { code, reason };
+    this.onclose?.({ code, reason, wasClean: true });
   }
 
   // --- gatilhos do teste ---

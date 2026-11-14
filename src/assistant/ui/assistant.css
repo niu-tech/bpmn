@@ -105,12 +105,39 @@
 }
 .bpmn-assist__head h2 { margin: 0; font-size: 14px; flex: 1; }
 
+/* O selo de estado: ponto colorido + palavra. O ponto pulsa enquanto ha algo acontecendo -
+   ouvir, falar, consultar ou conectar -, entao o estado se le' de relance. */
 .bpmn-assist__status {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.07);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #475569;
   white-space: nowrap;
+}
+.bpmn-assist__statusdot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #94a3b8;
+  flex: none;
+}
+.bpmn-assist__statusdot[data-state="ready"] { background: #3fb950; }
+.bpmn-assist__statusdot[data-state="listening"] { background: #0f766e; }
+.bpmn-assist__statusdot[data-state="speaking"] { background: #7c3aed; }
+.bpmn-assist__statusdot[data-state="tool"],
+.bpmn-assist__statusdot[data-state="connecting"],
+.bpmn-assist__statusdot[data-state="closing"] { background: #d29922; }
+.bpmn-assist__statusdot[data-state="error"] { background: #b42318; }
+.bpmn-assist__status[data-state="listening"] { background: rgba(15, 118, 110, .10); color: #0f766e; }
+.bpmn-assist__status[data-state="speaking"] { background: rgba(124, 58, 237, .10); color: #6d28d9; }
+.bpmn-assist__status[data-state="error"] { background: rgba(180, 35, 24, .10); color: #b42318; }
+.bpmn-assist__statusdot[data-state="listening"],
+.bpmn-assist__statusdot[data-state="speaking"],
+.bpmn-assist__statusdot[data-state="tool"],
+.bpmn-assist__statusdot[data-state="connecting"] { animation: bpmn-assist-pulso 1.4s ease-in-out infinite; }
+@keyframes bpmn-assist-pulso {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .45; transform: scale(.78); }
 }
 
 .bpmn-assist__icon {
@@ -286,12 +313,12 @@
 }
 .bpmn-assist__acoes .bpmn-assist__btn { flex: 1; }
 .bpmn-assist button.bpmn-assist__btn--calar {
-  background: #fff;
-  border-color: rgba(180, 35, 24, 0.35);
-  color: #b42318;
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
   font-weight: 600;
 }
-.bpmn-assist button.bpmn-assist__btn--calar:hover:not(:disabled) { background: #fdf2f1; }
+.bpmn-assist button.bpmn-assist__btn--calar:hover:not(:disabled) { background: #1e293b; }
 .bpmn-assist__composer textarea { resize: none; height: 42px; flex: 1; }
 
 /* ---- o MICROFONE, dentro do compositor ------------------------------------------------------
@@ -579,18 +606,23 @@
 .bpmn-assist__voz .bpmn-assist__bar { width: 3px; height: 26px; background: var(--cor-ouvindo); }
 .bpmn-assist__voz--falando .bpmn-assist__bar { background: var(--cor-falando); }
 
-/* O unico botao vermelho da tela, e ele ENCERRA. */
+/* DOIS botoes de parar coexistem enquanto ele responde, e eles param coisas DIFERENTES:
+   este, redondo, ENCERRA a conversa por voz; o "Parar de falar", embaixo, so' cala a resposta
+   em curso. Os dois cheios de vermelho brigavam na mesma faixa (dono, 2026-11-14: "pode agora
+   corrigir o botao de stop"), entao a hierarquia agora e' por PESO, nao por cor:
+     - calar a resposta e' a acao do momento  -> botao solido, escuro;
+     - encerrar a voz e' saida              -> contorno vermelho, sem preenchimento. */
 .bpmn-assist__parar {
   flex: none;
   width: 44px; height: 44px;              /* alvo de toque, acima do minimo WCAG */
   border-radius: 999px;
-  border: 1px solid var(--cor-erro);
-  background: var(--cor-erro);
-  color: #fff;
-  font-size: 13px;
+  border: 1px solid rgba(180, 35, 24, 0.45);
+  background: #fff;
+  color: var(--cor-erro);
+  display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
 }
-.bpmn-assist__parar:hover { background: #991b1b; }
+.bpmn-assist__parar:hover { background: #fdf2f1; border-color: var(--cor-erro); }
 .bpmn-assist__parar:focus-visible { outline: 3px solid #0b4ea2; outline-offset: 2px; }
 
 /* O microfone do compositor deixa de ser vermelho: ele COMECA a escuta, nao encerra nada. */

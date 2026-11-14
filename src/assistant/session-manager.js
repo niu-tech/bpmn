@@ -352,6 +352,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     return null;
   }
 
+  /**
+   * A pergunta que está esperando resposta AGORA, se houver.
+   *
+   * É a última bolha de assistente ainda "rodando" (o "pensando…") e a pergunta imediatamente
+   * antes dela. Serve para a reconexão saber o que foi perdido na queda.
+   */
+  function perguntaSemResposta() {
+    const espera = messages.filter((m) => m.role === 'assistant' && m.rodando).at(-1);
+    if (!espera) return null;
+    for (let i = messages.indexOf(espera) - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') return messages[i];
+    }
+    return null;
+  }
+
   /** A bolha do assistente DAQUELE turno, se já existir. */
   function bolhaDoTurno(n) {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -653,7 +668,36 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
        */
       onSetupComplete: ({ reconectou }) => {
         chaveJaAbriuSessao = true;
-        if (reconectou) semearContexto(contextoAtual());
+        if (!reconectou) return;
+        // Sessão nova no lugar da que caiu: o modelo precisa do diagrama e da conversa de volta.
+        semearContexto(contextoAtual());
+
+        /**
+         * A pergunta que ficou sem resposta volta a ser feita — UMA vez.
+         *
+         * ⚠ Sem isto, a queda levava a pergunta junto: a bolha de "pensando…" ficava pendurada
+         * e o aluno tinha de redigitar. Só vale para pergunta DIGITADA: a falada não dá para
+         * reenviar (o áudio já foi), e aí o aviso pede que ele repita.
+         */
+        const perdida = perguntaSemResposta();
+        if (!perdida) {
+          note('A conexão caiu e voltou. Pode continuar.', 'context-reset');
+          return;
+        }
+        if (perdida.via === 'texto' && !perdida.reenviada) {
+          perdida.reenviada = true;
+          tirarEspera();
+          note('A conexão caiu no meio da resposta. Voltei e refiz a sua pergunta.', 'context-reset');
+          const antes = messages.length;
+          api.ask(perdida.text);
+          // A pergunta refeita nasce MARCADA: uma queda seguinte avisa, mas não reenvia de novo.
+          // Conexão instável refazendo a mesma pergunta a cada queda vira enxurrada de resposta.
+          const nova = messages.slice(antes).find((m) => m.role === 'user');
+          if (nova) nova.reenviada = true;
+          return;
+        }
+        tirarEspera();
+        note('A conexão caiu no meio da resposta. Voltei — pode repetir a pergunta.', 'context-reset');
       },
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
@@ -1072,6 +1116,61 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * de a promessa resolver — é esse caminho único que garante a checagem de versão do diagrama
      * (H14) valer para todo clique.
      */
+    /**
+     * TESTA A CONEXÃO sem gastar um turno.
+     *
+     * Abre uma sessão só para o aperto de mão e fecha assim que o servidor ACEITA o setup. É o
+     * que separa as três coisas que quebram e que a tela antes resumia em "o servidor não
+     * respondeu": a rede (o socket nem abre), a chave (o servidor recusa) e o modelo (o setup
+     * não é aceito). Devolve o tempo, porque "demorou 8 s" e "respondeu em 300 ms" são
+     * diagnósticos diferentes.
+     *
+     * Não toca na sessão em curso: é um socket próprio, que morre no fim do teste.
+     */
+    async testarConexao({ tetoMs = 15000 } = {}) {
+      if (!credentials.ready) return { ok: false, erro: 'sem chave guardada nesta aba' };
+      const inicio = Date.now();
+      const quanto = () => Date.now() - inicio;
+
+      return new Promise((resolve) => {
+        let teste = null;
+        let decidido = false;
+        const acabar = (r) => {
+          if (decidido) return;
+          decidido = true;
+          try { teste?.close(); } catch { /* já fechada */ }
+          diag.record('rede', 'teste', r.ok ? `ok em ${r.ms} ms` : `falhou: ${r.erro}`);
+          // O resultado vai para a CONVERSA: é lá que o aluno estava olhando quando desconfiou.
+          note(
+            r.ok
+              ? `Conexão testada agora: o servidor aceitou a sessão em ${r.ms} ms.`
+              : `Teste de conexão: ${r.erro}.`,
+            r.ok ? 'info' : 'error',
+          );
+          resolve(r);
+        };
+
+        const relogio = setTimeout(() => acabar({ ok: false, erro: 'sem resposta no prazo', ms: quanto() }), tetoMs);
+        relogio?.unref?.();
+
+        try {
+          teste = sessionFactory({
+            apiKey: credentials.use(),
+            // O MESMO setup da sessao de verdade: sonda com aperto de mao diferente nao prova o
+            // aperto de mao do produto. E o `buildSetup` recusa sem prompt, com razao.
+            setupOptions: promptDoPerfil(contextoAtual('texto')),
+            onSetupComplete: () => acabar({ ok: true, ms: quanto() }),
+            onState: ({ state: s, reason: r }) => {
+              if (s === 'error') acabar({ ok: false, erro: describeError(r) ?? r, ms: quanto() });
+            },
+          });
+          teste.start();
+        } catch (err) {
+          acabar({ ok: false, erro: err?.message ?? String(err), ms: quanto() });
+        }
+      });
+    },
+
     /** Cala a resposta em curso. Devolve false quando não havia nada tocando. */
     pararDeFalar() {
       return pararDeFalar();
