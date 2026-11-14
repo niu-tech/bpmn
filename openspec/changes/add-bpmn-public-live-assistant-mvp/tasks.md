@@ -213,8 +213,11 @@
 
 ## Futuro — fora do MVP
 
-- [ ] F.1 RAG sobre a norma BPMN
+- [x] F.1 RAG sobre a norma BPMN — **substituída** pela decisão de 2026-11-12: a norma entra como
+      acervo **OKF autoral citável** (change `add-bpmn-norm-knowledge-base`, fase FK), não por RAG
 - [ ] F.2 MCP
-- [ ] F.3 Tools read-only de XML do diagrama e de métricas da simulação
-- [ ] F.4 Edição de diagrama por agente
+- [x] F.3 Tools read-only de XML do diagrama e de métricas da simulação — **feito** na F6
+      (`descrever_diagrama`, `buscar_elemento`, `detalhar_elemento`, `resumir_simulacao`)
+- [x] F.4 Edição de diagrama por agente — **feito** na F7, com confirmação para remover e tudo
+      por `modeling` (o Ctrl+Z do aluno alcança o que o agente fez)
 - [ ] F.5 Memória durável entre sessões

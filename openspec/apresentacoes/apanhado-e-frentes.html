@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apanhado e frentes · ajudante BPMN</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+    --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:900px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:32px; line-height:1.14; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 30px; max-width:66ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:36px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:14px 16px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:36px; }
+
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 22px;
+    font-size:16.5px; color:var(--suave); max-width:64ch; }
+  .cita b { color:var(--tinta); font-weight:600; }
+
+  .lista { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .l { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .l:last-child { border-bottom:none; }
+  .l p { margin:0; font-size:14.5px; }
+  .l p b { font-weight:600; }
+  .l p span { display:block; color:var(--fraco); font-size:13px; margin-top:3px; }
+  .selo { font-size:12px; font-weight:600; white-space:nowrap; color:var(--verde);
+    background:var(--verde-fraco); border-radius:20px; padding:3px 10px; }
+  .selo.q { color:var(--ambar); background:var(--ambar-fraco); }
+  .selo.n { color:var(--azul); background:var(--azul-fraco); }
+
+  .trilho { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .f { font-size:12.5px; border-radius:8px; padding:5px 10px; border:1px solid var(--linha);
+    background:var(--papel); color:var(--suave); }
+  .f.ok { background:var(--verde-fraco); border-color:#d9e7cd; color:var(--verde); font-weight:600; }
+  .f.agora { background:var(--azul-fraco); border-color:#cfdcec; color:var(--azul); font-weight:600; }
+
+  .frente { background:var(--papel); border:1px solid var(--linha); border-left:3px solid var(--azul);
+    border-radius:0 13px 13px 0; padding:15px 18px; margin-bottom:11px; }
+  .frente b { font-size:15px; display:block; margin-bottom:3px; }
+  .frente .onde { font-size:12.5px; color:var(--fraco); font-family:Consolas,monospace; }
+  .frente p { margin:7px 0 0; font-size:14px; color:#4a4b54; }
+  .frente.menor { border-left-color:#b9bac3; }
+
+  .bicho { background:var(--vinho-fraco); border:1px solid #f2d9d5; border-radius:13px; padding:15px 18px; }
+  .bicho b { display:block; font-size:14.5px; color:var(--vinho); margin-bottom:4px; }
+  .bicho p { margin:0 0 8px; font-size:14px; color:#4a4b54; }
+  .bicho p:last-child { margin-bottom:0; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+  .aberto p { margin:0 0 9px; }
+  .aberto p:last-child { margin-bottom:0; }
+
+  footer { margin-top:34px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:780px){ .numeros{grid-template-columns:repeat(2,1fr);} .l{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Apanhado · blocos 6 a 9</span>
+  <h1>Do retorno da pesquisa visual até aqui — e as frentes que ficam abertas</h1>
+  <p class="sub">Cinco commits desde que as referências visuais entraram no repositório
+  (<code>7ba6ce4</code>). Nesse trecho o ajudante ganhou um painel redesenhado, <b>passou a mexer
+  no diagrama</b> e aprendeu a montar um processo a partir de três frases. A change
+  <code>add-bpmn-diagram-tools</code> está <b>fechada</b>.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>F7 ✅</b><span>escrita no diagrama, fechada e provada ao vivo</span></div>
+    <div class="num ok"><b>526</b><span>testes verdes · 2 portões ao vivo</span></div>
+    <div class="num"><b>10 + 6</b><span>defeitos achados: no produto e no que mede</span></div>
+    <div class="num"><b>6</b><span>frentes abertas, listadas abaixo</span></div>
+  </div>
+
+  <section>
+    <h2>Onde o projeto está</h2>
+    <div class="trilho">
+      <span class="f ok">F0 transporte</span>
+      <span class="f ok">F1 despacho</span>
+      <span class="f ok">F2 prompt</span>
+      <span class="f ok">F3 enxerga a tela</span>
+      <span class="f ok">F4 continuidade</span>
+      <span class="f ok">F5 guardrails</span>
+      <span class="f ok">F6 leitura</span>
+      <span class="f ok">F7 escrita</span>
+      <span class="f agora">F8 tutor</span>
+      <span class="f">FK norma citável</span>
+    </div>
+    <p class="cita">Metade do portão F8 <b>já está provada</b>: três frases do aluno viraram
+    início, três tarefas e fim, ligados e legíveis. O que falta não é mecânica — é a pedagogia:
+    <b>propor antes de aplicar</b>.</p>
+  </section>
+
+  <section>
+    <h2>O que entrou nestes quatro blocos</h2>
+    <div class="lista">
+      <div class="l">
+        <p><b>Painel redesenhado a partir da pesquisa.</b>
+        <span>Uma ação principal por estado: em voz não existe mais “Enviar”, o launcher some com
+        o painel aberto, <code>Encerrar</code> saiu para um menu <code>⋯</code>, a escuta deixou
+        de ser vermelha e a tela da chave avisa que ela aparece nas ferramentas de rede.</span></p>
+        <span class="selo">bloco 6</span>
+      </div>
+      <div class="l">
+        <p><b>As quatro ferramentas que escrevem (F7).</b>
+        <span><code>criar_elemento</code> · <code>conectar</code> · <code>renomear</code> ·
+        <code>remover</code>, tudo por <code>modeling</code> — é o que faz o <code>Ctrl+Z</code>
+        do aluno alcançar o trabalho do agente. Apagar <b>pergunta antes</b>, e a pergunta carrega
+        a versão do diagrama: se o desenho mudou no meio, recusa.</span></p>
+        <span class="selo">bloco 6</span>
+      </div>
+      <div class="l">
+        <p><b>A dívida F5 fechou — e era mensagem falsa.</b>
+        <span>A linha do tempo mostrou 25 quadros de áudio chegando depois de o turno fechar: o
+        servidor respondia, e cada quadro re-armava o relógio de um turno que já não existia,
+        acusando “servidor calado” 45 s depois.</span></p>
+        <span class="selo">bloco 7</span>
+      </div>
+      <div class="l">
+        <p><b>Onde o elemento novo nasce.</b>
+        <span>A vaga passou a sair do evento <code>autoPlace</code> — o mesmo que o botão de
+        append do aluno dispara — com um empurrão nosso para a direita quando um vizinho solto
+        ocupa o lugar. Sem âncora, o elemento cai embaixo do que já está desenhado.</span></p>
+        <span class="selo">bloco 7</span>
+      </div>
+      <div class="l">
+        <p><b>Três frases viram um processo.</b>
+        <span>O aluno descreve em prosa e o diagrama ganha início, tarefas e fim <b>ligados</b>.
+        O portão percorre as ligações: cinco caixas soltas passariam numa contagem, não
+        passam aqui.</span></p>
+        <span class="selo">bloco 8</span>
+      </div>
+      <div class="l">
+        <p><b>O layout que não precisou ser escrito.</b>
+        <span>A cadeia cabe no pool, não empilha e anda em ordem de leitura — e quem cresce o pool
+        (885 → ~1386 px) é o <code>BpmnAutoResize</code> do próprio bpmn-js.</span></p>
+        <span class="selo">bloco 9</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O padrão que se repetiu — e que vale para o texto do TCC</h2>
+    <div class="bicho">
+      <b>O instrumento mentiu quase tantas vezes quanto o produto</b>
+      <p><b>Dez defeitos no produto</b>, e os dois piores eram de honestidade: a tarefa nascia
+      anônima na tela enquanto o agente narrava o nome (a leitura de volta conferia o campo
+      errado e <i>assinava</i> a mentira), e criar um elemento solto numa colaboração quebrava o
+      XML <b>deixando a forma desenhada</b> — a ferramenta dizia “falhou” e o desenho ficava sujo.</p>
+      <p><b>Seis defeitos no que mede</b>: o medidor de sobreposição lia caixas sem a translação
+      do grupo (“todo mundo sobrepõe todo mundo”); contava raia e pool como vizinhos e reprovava
+      o produto por fazer o que o bpmn-js faz; procurava elementos por padrão de <code>id</code>
+      num diagrama cujos ids são <code>_6-53</code>; reprovou uma pergunta <b>certa</b> do agente;
+      e o harness de teste <b>não sabia reprovar</b> — teste assíncrono vermelho saía com código 0.</p>
+      <p>A conclusão não é “errei muito”: é que <b>sem a medição, metade disso passaria por
+      pronto</b> — e que uma medição não verificada reprova trabalho correto com a mesma
+      facilidade com que aprova trabalho quebrado. Os dois lados viraram regra no repositório.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>As frentes abertas</h2>
+
+    <div class="frente">
+      <b>1 · F8 — o tutor <span class="selo n">recomendada</span></b>
+      <span class="onde">give-bpmn-assistant-an-agent-harness · 8.1 a 8.5 · 11 caixas</span>
+      <p>É o que transforma a ferramenta em <b>tutor</b>, que é o tema do TCC: ensinar com o
+      diagrama aberto como exemplo, recomendar quando há escolha, montar em passos que o aluno
+      aceita e <b>não mexer no que não foi pedido</b>. A mecânica já está provada — falta a
+      camada de proposta (“é isto que eu faria; aplico?”) e o portão F8 na bateria.</p>
+    </div>
+
+    <div class="frente">
+      <b>2 · FK — conhecimento citável</b>
+      <span class="onde">add-bpmn-norm-knowledge-base · 0 de 31 caixas</span>
+      <p>Acervo autoral de BPMN em formato aberto, servido como arquivo estático, com
+      <code>consultar_norma</code> escolhida por function calling e <b>chave de citação conferida
+      pelo aplicativo</b>. É a diferença entre “o modelo acha” e “o acervo diz, e aqui está onde”.
+      Change inteira intocada — e independente da F8.</p>
+    </div>
+
+    <div class="frente">
+      <b>3 · Acabamento do painel</b>
+      <span class="onde">refine-assistant-panel-ui · 6 caixas</span>
+      <p>Escala de espaçamento e raios, introdução com uma ação primária, consentimento
+      <b>não</b> pré-marcado com link de onde tirar a chave, e os prints lado a lado
+      (antes × depois) que a change pede como prova.</p>
+    </div>
+
+    <div class="frente">
+      <b>4 · Duas pontas da Trilha H</b>
+      <span class="onde">harvest-proven-voice-foundations · 6.4 e 6.5</span>
+      <p>Cartões clicáveis no resultado da ferramenta (hoje o resultado é texto) e o selo
+      “ouvindo” que ainda aparece numa sessão sem microfone.</p>
+    </div>
+
+    <div class="frente menor">
+      <b>5 · As duas que a change de escrita deixou no registro</b>
+      <span class="onde">open-items.md · E1 e E2</span>
+      <p><b>E1 — desfazer em bloco:</b> “desfaça tudo o que você acabou de fazer”. Hoje é comando
+      a comando (e criar com nome são dois). <b>E2 — sugestão proativa</b> ao abrir um diagrama
+      com problema: o agente já enxerga e já sabe ler regra; falta o limite entre ajudar e ser
+      chato. E2 é ponte natural para a F8.</p>
+    </div>
+
+    <div class="frente menor">
+      <b>6 · O que só o dono fecha</b>
+      <span class="onde">open-items.md · D1–D5, K-E, K-F, K-G</span>
+      <p>Publicação definitiva na VPS (domínio, secrets, ambiente <code>production</code>,
+      primeira publicação, rollback ensaiado) e a parte escrita: conversa com o orientador,
+      declaração de reúso de trabalho anterior e a <b>licença do bpmn-js</b> no texto — a marca
+      d’água já está preservada no código por exigência dela.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Medições que continuam faltando</h2>
+    <div class="aberto">
+      <p><b>Voz humana em microfone físico (M1).</b> O teste usa fala sintética pt-BR entrando
+      pelo caminho real do microfone: mede o produto, não a pessoa.</p>
+      <p><b>Negação de microfone, queda de rede e expiração de sessão (M3, M4, M5).</b> Os três
+      caminhos de erro existem em unidade e nunca foram exercitados ao vivo.</p>
+      <p><b>Quantas sessões a chave aguenta em sequência (M7).</b> Importa pelo produto: o aluno
+      traz a própria chave e vai bater nesse limite — e a tela precisa dizer qual dos três foi.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>TCC · ajudante BPMN · apanhado dos blocos 6 a 9 e frentes</span>
+    <span>14 de novembro de 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

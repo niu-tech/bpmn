@@ -186,17 +186,29 @@ quando a métrica é de uma versão anterior do diagrama).
 > servidor não respondeu"*. Turno de ferramenta agora é **intermediário**: não fecha o turno do
 > aluno (`open-items.md` §3e).
 
-### F7 — Ferramentas de escrita
+### F7 — Ferramentas de escrita  ✅ 2026-11-14
 `criar_elemento` · `conectar` · `renomear` · `remover` com confirmação carimbada pela versão do
 diagrama. Tudo por `modeling`, para entrar no Ctrl+Z do aluno.
 
 > **Portão F7** — AO VIVO: *"crie uma tarefa chamada Receber pedido depois do evento de início"*
 > cria e conecta de verdade; Ctrl+Z desfaz; e uma confirmação de remoção respondida depois de o
 > diagrama mudar é **recusada**.
+>
+> **Passou** (change `add-bpmn-diagram-tools`, fechada). Dois defeitos que só o print pegou, e
+> ambos de honestidade: a tarefa nascia **anônima** na tela enquanto o agente narrava o nome (a
+> leitura de volta conferia o campo errado) e criar solto numa colaboração **quebrava o XML
+> deixando a forma desenhada**. Quem decide onde o elemento cabe passou a ser o `rules` do
+> bpmn-js, e a vaga sai do evento `autoPlace` — o mesmo do botão de append do aluno.
 
 ### F8 — Tutor
 Ensina com o diagrama como exemplo · propõe a representação a partir de uma descrição · recomenda
 quando há escolha · monta em passos que o aluno aceita · propõe sem decidir pelo aluno.
+
+> ⚠ **Metade do portão F8 já está provada** (2026-11-14, cenário 4.5): três frases do aluno
+> viraram início, três tarefas e fim **ligados, legíveis, dentro do pool e em ordem de leitura**.
+> O que falta é a camada que torna isso um TUTOR: **propor antes de aplicar** (proposta nomeada
+> que o aluno aceita), explicar a escolha, e não mexer no que não foi pedido. A mecânica existe;
+> a pedagogia, não.
 
 > **Portão F8** — AO VIVO: descrever um processo em três frases produz uma **proposta nomeada**;
 > ao aceitar, o diagrama ganha início, tarefas e fim ligados; e o agente não mexe no que não foi

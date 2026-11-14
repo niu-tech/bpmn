@@ -1,3 +1,12 @@
+> ## ✅ CONCLUÍDA em 2026-11-14
+>
+> **F6 (leitura) e F7 (escrita) fechadas e provadas AO VIVO**, nos dois portões da bateria:
+> criar/ligar/recusar-remoção (F7) e três frases virando um processo ligado, legível, dentro do
+> pool e em ordem de leitura (4.5 + 5.1). 526 testes verdes.
+>
+> O que esta change deixou para depois está em `openspec/open-items.md` (T12, T13, E1, E2) —
+> nada ficou só nesta pasta.
+>
 > Fases do `openspec/roadmap.md`: bloco 2 = **F6** (leitura), bloco 3 = **F7** (escrita).
 > O portao de F6 e o gate de voz com ferramenta read-only.
 
@@ -162,7 +171,10 @@
       Reprovar isso era reprovar o produto por fazer exatamente o que o bpmn-js faz.
       **Medido com o portão corrigido**: `Activity_039d4gg = "Receber pedido"` no desenho, com o
       nome, e `nasceuPorCimaDe: []`
-- [ ] 4.6 `open-items.md` atualizado
+- [x] 4.6 `open-items.md` atualizado: entraram **T10** (o harness não sabia reprovar teste
+      assíncrono — corrigido), **T12** (criar com nome são dois `Ctrl+Z`), **T13** (a
+      sobreposição medida ignora rótulo) e, saindo com prova, **T11** (dispor vários de uma vez —
+      fechado em 5.1). As duas pontas que esta change decidiu não fazer viraram **E1** e **E2**
 
 ## 5. Depois (fora desta change)
 
@@ -179,5 +191,6 @@
       O portão exige as quatro coisas juntas: **ligado**, **legível** (nada empilhado), **dentro
       do pool** e **em ordem de leitura** — um processo linear desenhado fora de ordem está
       ligado, cabe e não sobrepõe ninguém, e mesmo assim o aluno não consegue ler
-- [ ] 5.2 Desfazer em bloco ("desfaça tudo o que você acabou de fazer")
-- [ ] 5.3 Sugestão proativa ao abrir um diagrama com problema de modelagem
+- [x] 5.2 e 5.3 **movidas para o registro** (`open-items.md`, **E1** desfazer em bloco e **E2**
+      sugestão proativa): são frentes próprias, não pontas desta change. Ficar aqui, numa pasta
+      fechada, seria o mesmo que sumir
