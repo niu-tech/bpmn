@@ -67,10 +67,33 @@
 
 ## 3. Fundação do prompt e da memória
 
-- [ ] 3.1 **H8 · orçamento e diagnóstico do prompt**, e com ele a medição do teto do quadro de
-      contexto — a tarefa 2.4 do harness, que nunca rodou
-- [ ] 3.2 **H9 · idioma por preferência** do aluno, tirando o idioma da prosa do prompt
-- [ ] 3.3 **H10 · memória com escopo e consolidação**, pré-requisito do tutor da F8
+- [x] 3.1 **H8 · diagnóstico do prompt** — `diagnosticoDoPrompt(ctx)` conta o que o prompt de fato
+      levou, por seção, e **soma o que foi cortado**. O teto por seção já cortava e já avisava no
+      texto; o que faltava era alguém somar — sem isso, um diagrama grande empurrava o quadro para
+      perto do limite e a única pista era a resposta do modelo ficar estranha.
+- [x] 3.1b **O teto do quadro de contexto, medido** (tarefa 2.4 do harness, que nunca tinha
+      rodado): **256 KB aceitos**, com resposta entre 24 e 88 ms em todos os degraus — 4, 16, 64,
+      128 e 256. Não medimos acima porque já são ~180× o nosso teto de seção (1400 caracteres).
+      **O limite do quadro não é o fio**: é custo, latência e atenção do modelo. A amostra de 25
+      elementos é conservadora por escolha de qualidade, não por limite de protocolo.
+      ⚠ A ferramenta nunca tinha rodado e tinha DOIS defeitos: `String(ev.data)` virava
+      `"[object Blob]"` (o `setupComplete` nunca era reconhecido e o servidor fechava por
+      inatividade — com uma mensagem que parece credencial) e faltava `binaryType`
+- [x] 3.2 **H9 · o idioma virou valor** — `ctx.idioma`, com `IDIOMA_PADRAO` em pt-BR e a âncora
+      ainda repetida no fim (ela só funciona repetida: o diagrama costuma estar em inglês e puxa o
+      modelo). Enquanto era prosa escrita à mão, mudá-lo exigia reeditar a identidade inteira.
+      ⚠ **O seletor na tela NÃO foi feito**, de propósito: a interface está sendo redesenhada, e
+      construir um controle para jogar fora na semana seguinte é desperdício. Quem ligar o seletor
+      troca `ctx.idioma` e pronto
+- [x] 3.3 **H10 · a memória não esquece mais em silêncio** — o teto descartava o item mais antigo
+      sem ninguém saber: nem o aluno, nem o modelo, nem o diagnóstico. Para o tutor da F8 isso é
+      perder o que o aluno disse no começo, que é o que define o processo dele. Agora o descarte é
+      contado por categoria e **sai no resultado da própria ferramenta**, para o modelo decidir se
+      vale relembrar.
+      ⚠ **Escopo e consolidação da cápsula NÃO se aplicam**: lá a memória persiste em SQLite entre
+      sessões; aqui o produto promete em texto que **nada sai da aba**. E resumir dois lembretes
+      num só é decisão de SIGNIFICADO — quem decide o que lembrar aqui é o modelo (constituição
+      §III), não um algoritmo nosso
 
 ## 4. Evidência
 

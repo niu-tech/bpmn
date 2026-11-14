@@ -72,6 +72,29 @@ export function renderizarSecoes(ctx, { tier = null, secoes = SECOES } = {}) {
   return saida;
 }
 
+/**
+ * O que o prompt de fato levou — por seção, com o que foi cortado (H8).
+ *
+ * Existe porque "o prompt tem as seções certas" é uma afirmação que ninguém conferia: o teto por
+ * seção já corta e já avisa no texto, mas **nada somava**. Sem isto, um diagrama grande empurrava
+ * o quadro para perto do limite e a única pista era a resposta do modelo ficar estranha.
+ *
+ * É relatório, não controle: não decide o que entra, só conta o que entrou.
+ */
+export function diagnosticoDoPrompt(ctx, opcoes = {}) {
+  const secoes = renderizarSecoes(ctx, opcoes);
+  const total = renderizar(ctx, opcoes).length;
+  return {
+    perfil: ctx.perfil ?? null,
+    tier: opcoes.tier ?? 'tudo',
+    caracteres: total,
+    secoes: secoes.map((s) => ({ id: s.id, tier: s.tier, caracteres: s.texto.length, cortou: s.cortou })),
+    // O que importa num relance: alguma seção perdeu conteúdo?
+    cortadas: secoes.filter((s) => s.cortou > 0).map((s) => ({ id: s.id, cortou: s.cortou })),
+    caracteresCortados: secoes.reduce((n, s) => n + s.cortou, 0),
+  };
+}
+
 /** O prompt inteiro, como texto. Determinístico para um mesmo `ctx`. */
 export function renderizar(ctx, opcoes = {}) {
   return renderizarSecoes(ctx, opcoes)

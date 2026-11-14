@@ -15,6 +15,7 @@ import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
 import { createWidget } from './ui/widget.js';
 import { citacoesFaladas } from './agent/fala.js';
+import { diagnosticoDoPrompt } from './agent/render.js';
 import { startCapture } from './live/audio.js';
 
 const MARK = 'bpmnAssistantMounted';
@@ -157,6 +158,8 @@ export function mountAssistant({ container = document.body, debug = false, pagin
      * disse. Zero é o contrato.
      */
     citacoesFaladas: (texto) => citacoesFaladas(texto),
+    /** O que o prompt de AGORA leva, por seção, e o que foi cortado (H8). Só leitura. */
+    diagnosticoDoPrompt: (opcoes) => diagnosticoDoPrompt(session.contexto, opcoes),
     pararMicrofone: () => session.stopMic(),
     /**
      * Abre o microfone pelo diagnóstico — é o que torna o barge-in provável SEM calibração: com a

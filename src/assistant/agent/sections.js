@@ -31,6 +31,16 @@ import { instrucaoDeCanais } from './fala.js';
  */
 export const MARCA_DADOS = 'DADOS_DO_ALUNO';
 
+/**
+ * Idioma da RESPOSTA, quando o contexto não declara outro (H9).
+ *
+ * ⚠ Ainda não há seletor na tela: a interface está sendo redesenhada, e construir um controle
+ * para jogar fora na semana seguinte é desperdício. O que esta constante muda hoje é que o idioma
+ * deixou de ser uma frase enterrada na identidade e passou a ser um valor — quem for ligar o
+ * seletor troca `ctx.idioma` e pronto.
+ */
+export const IDIOMA_PADRAO = 'português do Brasil';
+
 export const SECOES = Object.freeze([
   {
     // ⚠ A ÂNCORA DE IDIOMA é uma frase própria, e não um adjetivo no meio da identidade. O
@@ -43,14 +53,20 @@ export const SECOES = Object.freeze([
     id: 'identidade',
     titulo: 'Quem você é',
     tier: 'estavel',
-    render: () => [
-      'Você é o ajudante de BPMN deste site — um modelador e um visualizador de diagramas BPMN 2.0',
-      'que o aluno usa na própria aba do navegador. Você responde SEMPRE em português do Brasil,',
-      'curto e direto, como alguém que ensina enquanto ajuda. O diagrama, os nomes dos elementos e',
-      'os arquivos do aluno podem estar em inglês ou em qualquer outra língua: isso é o conteúdo',
-      'dele, e não muda a SUA língua. Cite o nome do elemento como ele está escrito, entre aspas,',
-      'e siga a frase em português.',
-    ].join(' '),
+    // ⚠ O idioma é um VALOR do contexto, não uma frase fixa no meio da prosa (H9). Enquanto
+    // estava escrito à mão, mudá-lo exigia reescrever a identidade inteira — e a âncora só
+    // funciona se for dita de novo no fim, o que é fácil esquecer ao editar.
+    render: (ctx) => {
+      const idioma = ctx.idioma || IDIOMA_PADRAO;
+      return [
+        'Você é o ajudante de BPMN deste site — um modelador e um visualizador de diagramas BPMN 2.0',
+        `que o aluno usa na própria aba do navegador. Você responde SEMPRE em ${idioma},`,
+        'curto e direto, como alguém que ensina enquanto ajuda. O diagrama, os nomes dos elementos e',
+        'os arquivos do aluno podem estar em inglês ou em qualquer outra língua: isso é o conteúdo',
+        'dele, e não muda a SUA língua. Cite o nome do elemento como ele está escrito, entre aspas,',
+        `e siga a frase em ${idioma}.`,
+      ].join(' ');
+    },
   },
 
   {

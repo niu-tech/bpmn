@@ -33,6 +33,18 @@ export const ERROS_MEMORIA = Object.freeze({
 export function criarMemoria({ teto = TETO_PADRAO, agora = () => Date.now() } = {}) {
   /** @type {Record<string, Array<{texto: string, turno: number|null, em: number}>>} */
   const itens = { fato: [], decisao: [], preferencia: [] };
+  /**
+   * Quantos itens o teto já descartou, por categoria.
+   *
+   * O descarte era SILENCIOSO: o nono fato empurrava o primeiro para fora e ninguém ficava
+   * sabendo — nem o aluno, nem o modelo, nem o diagnóstico. Para o tutor (F8) isso é perder o que
+   * o aluno disse no começo da conversa, que é justamente o que define o processo dele.
+   *
+   * Não consolidamos nem resumimos o que sai: julgar o que dois lembretes têm em comum é decisão
+   * de SIGNIFICADO, e quem decide o que lembrar aqui é o modelo (constituição §III). O que o
+   * código deve fazer é não esconder que esqueceu.
+   */
+  const esquecidos = { fato: 0, decisao: 0, preferencia: 0 };
 
   return {
     /**
@@ -56,8 +68,18 @@ export function criarMemoria({ teto = TETO_PADRAO, agora = () => Date.now() } = 
       const item = { texto: t, turno: Number.isFinite(turno) ? turno : null, em: agora() };
       itens[cat].push(item);
       const sobra = itens[cat].length - teto;
-      if (sobra > 0) itens[cat].splice(0, sobra);
-      return { ok: true, item, total: itens[cat].length };
+      if (sobra > 0) {
+        itens[cat].splice(0, sobra);
+        esquecidos[cat] += sobra;
+      }
+      // O modelo recebe o aviso no resultado da própria ferramenta: é ele que decide se vale
+      // relembrar o que saiu, e sem isto ele nem sabe que saiu.
+      return {
+        ok: true,
+        item,
+        total: itens[cat].length,
+        ...(sobra > 0 ? { esqueceu: sobra, esquecidosNaCategoria: esquecidos[cat] } : {}),
+      };
     },
 
     /**
@@ -76,6 +98,11 @@ export function criarMemoria({ teto = TETO_PADRAO, agora = () => Date.now() } = 
 
     get total() {
       return CATEGORIAS.reduce((n, c) => n + itens[c].length, 0);
+    },
+
+    /** O que o teto já descartou. Zero em tudo = nada foi perdido nesta aba. */
+    get esquecidos() {
+      return { ...esquecidos, total: CATEGORIAS.reduce((n, c) => n + esquecidos[c], 0) };
     },
 
     limpar() {

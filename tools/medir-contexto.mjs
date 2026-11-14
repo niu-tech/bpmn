@@ -46,6 +46,8 @@ const PROMPT = 'Você responde em uma palavra. Nada além disso.';
 const encher = (kb) => 'elemento de teste do quadro de contexto. '.repeat(Math.ceil((kb * 1024) / 40)).slice(0, kb * 1024);
 
 const ws = new WebSocket(socketUrl(chave));
+// Sem isto o quadro chega como Blob e `Buffer.from` estoura com ERR_INVALID_ARG_TYPE.
+ws.binaryType = 'arraybuffer';
 const medidas = [];
 let degrau = -1;
 let pronto = false;
@@ -104,7 +106,12 @@ ws.onopen = () => {
 };
 
 ws.onmessage = (ev) => {
-  const frame = parseServerFrame(typeof ev.data === 'string' ? ev.data : String(ev.data));
+  // ⚠ No Node o quadro chega como ArrayBuffer/Blob, e `String(ev.data)` vira "[object Blob]": o
+  // `setupComplete` nunca era reconhecido, nada mais era enviado, e o servidor fechava por
+  // INATIVIDADE — com a mensagem "o socket fechou antes do setup", que parece credencial e e
+  // decodificacao. Medido em 2026-11-14, na primeira vez que esta ferramenta rodou.
+  const cru = typeof ev.data === 'string' ? ev.data : Buffer.from(ev.data).toString('utf8');
+  const frame = parseServerFrame(cru);
   if (frame.kind === 'ready') {
     pronto = true;
     console.log('sessao pronta. medindo o teto do clientContent:\n');
