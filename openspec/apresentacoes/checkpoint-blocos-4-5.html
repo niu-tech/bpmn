@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint · Blocos 4 e 5</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:62ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+
+  .feito { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .f { display:grid; grid-template-columns:42px 1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .f:last-child { border-bottom:none; }
+  .cod { font-size:11.5px; font-weight:700; color:var(--verde); background:var(--verde-fraco);
+    border-radius:7px; padding:4px 0; text-align:center; }
+  .f p { margin:0; font-size:14.5px; }
+  .f p b { font-weight:600; }
+  .f p span { display:block; color:var(--fraco); font-size:13px; margin-top:2px; }
+  .prova { font-size:12.5px; color:var(--verde); font-weight:600; white-space:nowrap; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .f{grid-template-columns:42px 1fr;} .prova{grid-column:2;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Checkpoint · 14 nov 2026</div>
+  <h1>Blocos 4 e 5:<br>a evidência, e um achado de licença</h1>
+  <p class="sub">O diário das corridas, o inventário de dependências — e, na primeira execução
+  dele, a descoberta de que o projeto estava violando a licença do <code>bpmn-js</code>.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>7 / 9</b><span>bateria ao vivo</span></div>
+    <div class="num"><b>22</b><span>suítes, zero falhas</span></div>
+    <div class="num ok"><b>9 / 378</b><span>dependências diretas / com transitivas</span></div>
+  </div>
+
+  <section>
+    <h2>O achado que importa</h2>
+    <div class="aberto">
+      <b>O <code>bpmn-js</code> não é MIT.</b> A licença exige que a marca d'água do bpmn.io não
+      seja removida, alterada <b>nem visualmente sobreposta</b>. O painel do ajudante cobria a
+      marca <b>nas duas páginas</b> — medido: marca em y=864, painel até y=886.<br><br>
+      Corrigido com um piso de 44 px na reserva do rodapé, escrito no código como exigência de
+      <b>licença e não de estética</b>, para ninguém baixar o número e ganhar altura de painel
+      perdendo o direito de publicar. Falta a parte de texto, na dissertação (K-G).<br><br>
+      <b>É o motivo de o inventário existir.</b> Na primeira execução ele achou uma condição que o
+      projeto quebrava havia meses, sem ninguém saber.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que foi feito</h2>
+    <div class="feito">
+      <div class="f"><span class="cod">H5</span>
+        <p><b>Diário das corridas</b>
+        <span>o <code>resultado.json</code> é da última e a seguinte o apaga; a dissertação precisa de registro com data. Áudio, chave e texto parcial não entram — e a invariante é do código, não da boa intenção</span></p>
+        <span class="prova">9 testes</span></div>
+
+      <div class="f"><span class="cod">H12</span>
+        <p><b>Inventário gerado, não escrito</b>
+        <span>versão real do lock, licença real do pacote. Tabela à mão envelhece na primeira atualização e passa a mentir com cara de rigor</span></p>
+        <span class="prova">docs/INVENTARIO.md</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dois defeitos meus que a bateria encontrou</h2>
+    <div class="aberto" style="background:#fdf7ec">
+      <b>A bolha de espera quebrou o teste.</b> "pensando…" é uma mensagem de assistente estável, e
+      o laço a leu como resposta pronta em 1 s — 6 de 9 na corrida anterior. Agora o teste descarta
+      bolha em curso e espera o <b>fim declarado pelo produto</b>, em vez de "o texto parou de
+      mudar": uma pausa do modelo é indistinguível do fim.<br><br>
+      <b>E a regra estrutural da semana passada tinha um furo.</b> "Nunca aceitou o setup nesta
+      sessão" não é "a chave não presta": numa corrida longa o servidor recusa <i>sessões</i>, e o
+      aluno era mandado trocar uma chave que funciona. Agora a pergunta é se a chave já abriu
+      sessão <b>nesta aba</b>.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que vem agora</h2>
+    <div class="proximo">
+      <div class="p"><b>F7 · ferramentas de escrita</b><span>criar, conectar, renomear, remover — com H1 e o contrato na tela no lugar</span></div>
+      <div class="p"><b>UI</b><span>quando a pesquisa visual voltar</span></div>
+      <div class="p"><b>Aberto: F5</b><span>o timeout de silêncio em texto, que ainda não tem causa medida</span></div>
+      <div class="p"><b>Aberto: M7</b><span>quantas sessões a chave aguenta em sequência — agora com sintoma nomeado</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>harvest-proven-voice-foundations</code> · blocos 4 e 5</span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>
