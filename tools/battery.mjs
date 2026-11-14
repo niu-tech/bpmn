@@ -1006,6 +1006,47 @@ if (chaveViva) {
          const dentro = document.querySelector('[data-element-id="' + id + '"]');
          return ((fora?.textContent ?? '') || (dentro?.textContent ?? '')).trim();
        };
+       // A CAIXA de cada forma, como o aluno a ve. Medir na TELA, nao no registro, e o ponto:
+       // no registro a tarefa sobreposta estava CORRETA; ilegivel era o desenho.
+       //
+       // ⚠ getBoundingClientRect, nao getBBox: num <g transform="translate(x,y)"> o getBBox
+       // devolve a caixa dos FILHOS, sem a translacao do proprio grupo — entao todo elemento
+       // media (0,0) e "todo mundo sobrepoe todo mundo". Primeira versao deste medidor
+       // reprovou o produto por isso (2026-11-14).
+       window.__caixa = (id) => {
+         const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
+         if (!n) return null;
+         const r = n.getBoundingClientRect();
+         return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+       };
+       // Raia e pool sao CONTEINER, nao vizinho: o bpmn-js marca a area de acerto deles com
+       // 'djs-hit-no-move' (forma comum usa 'djs-hit-all'). Medido em 2026-11-14: o botao de
+       // append do PROPRIO bpmn-js poe a tarefa encostando 3 px na borda da raia de cima, porque
+       // raias dividem borda. Contar isso como sobreposicao reprovava o produto por fazer
+       // exatamente o que o bpmn-js faz — e escondia a pergunta que importa: nasceu por cima de
+       // outra TAREFA?
+       window.__conteiner = (id) => {
+         const n = document.querySelector('g.djs-shape[data-element-id="' + id + '"]');
+         const hit = n && n.querySelector('.djs-hit');
+         return !!hit && /djs-hit-no-move|djs-hit-stroke/.test(hit.getAttribute('class') || '');
+       };
+       // Com quem o elemento se sobrepoe. So' FORMAS comuns (um fluxo encosta na borda por
+       // desenho), e conter nao e sobrepor.
+       window.__sobrepoe = (id) => {
+         const a = window.__caixa(id);
+         if (!a) return null;
+         const folga = 4;
+         const contem = (p, q) => p.x <= q.x && p.y <= q.y && p.x + p.w >= q.x + q.w && p.y + p.h >= q.y + q.h;
+         return [...document.querySelectorAll('g.djs-shape[data-element-id]')]
+           .map((n) => n.getAttribute('data-element-id'))
+           .filter((outro) => {
+             if (outro === id || outro.endsWith('_label') || window.__conteiner(outro)) return false;
+             const b = window.__caixa(outro);
+             if (!b || !b.w || !b.h || contem(b, a) || contem(a, b)) return false;
+             return a.x + a.w - folga > b.x && b.x + b.w - folga > a.x
+               && a.y + a.h - folga > b.y && b.y + b.h - folga > a.y;
+           });
+       };
        window.__antes = window.__idsNaTela();
        return {
          ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && window.__antes.length > 5,
@@ -1025,10 +1066,26 @@ if (chaveViva) {
        const criado = novos.find((id) => window.__rotulo(id).toLowerCase().includes('receber pedido'))
          ?? novos.find((id) => /Task|Activity/i.test(id)) ?? null;
        window.__criado = criado;
+       // ⚠ Metade 2 do passo (achado no print de 2026-11-14): num diagrama de 48 elementos a
+       // tarefa criada nasceu POR CIMA da vizinha. Estar no registro nao e estar legivel na
+       // tela — se o aluno nao enxerga o que o agente criou, a criacao nao serviu de nada.
+       const sobre = criado ? window.__sobrepoe(criado) : null;
+       // ⚠ Metade 3: o NOME tem de estar no desenho. O agente narrava "criei a tarefa «Receber
+       // pedido»" e a forma estava anonima na tela — a leitura de volta conferia o atributo da
+       // forma, nao o que o desenho mostra. Nome ausente aqui e a criacao mentindo.
+       const rotulo = criado ? window.__rotulo(criado) : '';
        window.__antes = window.__idsNaTela();
        return {
-         ok: !r.startsWith('[FALHA DO SERVICO]') && chamadas.includes('criar_elemento') && !!criado,
+         ok: !r.startsWith('[FALHA DO SERVICO]') && chamadas.includes('criar_elemento') && !!criado
+           && Array.isArray(sobre) && sobre.length === 0
+           && /receber pedido/i.test(rotulo),
          chamouCriar: chamadas.includes('criar_elemento'),
+         nomeNoDesenho: rotulo,
+         nasceuPorCimaDe: sobre,
+         caixaDoCriado: criado ? window.__caixa(criado) : null,
+         // Caixa de cada acusado: sem isto, "nasceu por cima de _6-650" nao diz se _6-650 e uma
+         // tarefa vizinha ou a raia inteira — e eu gastei duas corridas para descobrir.
+         caixasAcusadas: (sobre ?? []).map((x) => x + '=' + JSON.stringify(window.__caixa(x))),
          apareceuNoDesenho: criado ? criado + ' = "' + window.__rotulo(criado) + '"' : null,
          novosNoDesenho: novos,
          // A linha da ferramenta na tela: o aluno tem de ver o que mudou, com o nome.

@@ -14,7 +14,11 @@
  *    de então pode ser outro elemento agora;
  *  - **página que só lê recusa as quatro**, mesmo que a declaração tenha vazado;
  *  - o tipo da ligação **não é escolhido por nós**: entre pools o bpmn-js faz `MessageFlow`, e o
- *    retorno diz qual nasceu.
+ *    retorno diz qual nasceu;
+ *  - **a VAGA também não é escolhida por nós**: o elemento ancorado nasce onde o `autoPlace` do
+ *    bpmn-js disser, que é o mesmo serviço do botão de append do aluno. Omitir a posição cai no
+ *    `AppendBehavior`, que usa um ponto fixo e nasce POR CIMA do vizinho num diagrama cheio
+ *    (print do portão F7, 2026-11-14).
  *
  * Run: node src/assistant/__tests__/escrita.mjs
  */
@@ -29,7 +33,7 @@ import { report, test, testAsync } from '../../../tools/test-harness.mjs';
  * Dubla o bpmn-js de verdade, e não a nossa camada: aqui o que está sob teste INCLUI
  * `bpmn-api.js`, porque é ela que decide que só `modeling` escreve. */
 
-function criarModeladorFalso() {
+function criarModeladorFalso({ semVaga = false, updateLabelMudo = false } = {}) {
   const raiz = { id: 'Process_1', type: 'bpmn:Process', businessObject: {} };
   const mapa = new Map([[raiz.id, raiz]]);
   const chamadas = [];
@@ -39,7 +43,7 @@ function criarModeladorFalso() {
 
   const modeling = {
     appendShape(ancora, atributos, posicao, pai) {
-      chamadas.push({ fn: 'appendShape', tipo: atributos.type, nome: atributos.name, de: ancora.id });
+      chamadas.push({ fn: 'appendShape', tipo: atributos.type, nome: atributos.name, de: ancora.id, posicao });
       const novo = guardar({
         id: `${atributos.type.replace('bpmn:', '')}_${++seq}`,
         type: atributos.type,
@@ -96,6 +100,9 @@ function criarModeladorFalso() {
 
     updateLabel(el, nome) {
       chamadas.push({ fn: 'updateLabel', id: el.id, nome });
+      // `updateLabelMudo` finge o bpmn-js aceitando a chamada e não pondo o nome no desenho —
+      // que foi exatamente o que aconteceu ao vivo quando o nome ia junto na criação.
+      if (updateLabelMudo) return;
       el.businessObject = { ...(el.businessObject ?? {}), name: nome };
     },
 
@@ -105,15 +112,39 @@ function criarModeladorFalso() {
     },
   };
 
+  /**
+   * A fábrica e o evento `autoPlace`, como o bpmn-js os entrega: a fábrica monta a forma com
+   * largura e altura (é com elas que se pergunta "cabe aqui?"), e o evento devolve a vaga que o
+   * botão de append do aluno usaria. Aqui a base é fixa — o que os testes provam é que ela vem
+   * do bpmn-js e que o empurrão só acontece quando ela está ocupada.
+   */
+  const elementFactory = {
+    createShape(atributos) {
+      chamadas.push({ fn: 'elementFactory.createShape', tipo: atributos.type });
+      return { ...atributos, width: 100, height: 80 };
+    },
+  };
+
+  const eventBus = {
+    on() {},
+    off() {},
+    fire(nome, dados) {
+      if (nome !== 'autoPlace') return undefined;
+      chamadas.push({ fn: 'consulta.vaga', de: dados?.source?.id });
+      return { x: (dados?.source?.x ?? 0) + 180, y: dados?.source?.y ?? 0 };
+    },
+  };
+
   const modelador = {
     get(nome) {
       if (nome === 'elementRegistry') {
         return { getAll: () => [...mapa.values()], get: (id) => mapa.get(id) ?? null };
       }
       if (nome === 'selection') return { get: () => [] };
-      if (nome === 'eventBus') return { on() {}, off() {} };
+      if (nome === 'eventBus') return semVaga ? { on() {}, off() {} } : eventBus;
       if (nome === 'modeling') return modeling;
-      if (nome === 'canvas') return { getRootElement: () => raiz };
+      if (nome === 'canvas') return { getRootElement: () => raiz, scrollToElement() {} };
+      if (nome === 'elementFactory' && !semVaga) return elementFactory;
       throw new Error(`sem ${nome}`);
     },
   };
@@ -138,8 +169,8 @@ function criarViewerFalso() {
   };
 }
 
-function montar({ confirmar = async () => true } = {}) {
-  const falso = criarModeladorFalso();
+function montar({ confirmar = async () => true, semVaga = false, updateLabelMudo = false } = {}) {
+  const falso = criarModeladorFalso({ semVaga, updateLabelMudo });
   const acesso = criarAcessoBpmn(falso.modelador);
   const pedidos = [];
   const exec = criarExecutoresDeEscrita({
@@ -180,12 +211,118 @@ testAsync('criar com âncora devolve o elemento E a ligação que nasceu junto',
   assert.ok(mapa.has(r.criado.id));
 });
 
-testAsync('criar sem âncora usa a posição fixa — e o retorno não finge que ligou algo', async () => {
-  const { exec, chamadas } = montar();
+testAsync('a VAGA do elemento ancorado vem do bpmn-js, não de um cálculo nosso', async () => {
+  // ⚠ Este teste nasceu de um PRINT: no diagrama de 48 elementos da pizzaria, a tarefa criada
+  // apareceu por cima da vizinha. A causa não era a vaga errada — era vaga NENHUMA: posição
+  // ausente faz o `AppendBehavior` do bpmn-js usar `source.x + width + 80` sem olhar o que já
+  // está desenhado. A vaga sai do evento `autoPlace`, o mesmo do botão de append do aluno.
+  const { exec, chamadas, raiz, guardar } = montar();
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, x: 100, y: 200, width: 36, height: 36, incoming: [], outgoing: [] });
+
+  await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
+
+  const nomes = chamadas.map((c) => c.fn);
+  assert.ok(nomes.includes('consulta.vaga'), nomes.join(','));
+  const append = chamadas.find((c) => c.fn === 'appendShape');
+  // O essencial: NUNCA mais `null`. Posição ausente é o defeito, não um detalhe.
+  // Vaga livre ⇒ é a do bpmn-js, intacta: o empurrão só existe quando ela está ocupada.
+  assert.deepEqual(append.posicao, { x: 280, y: 200 });
+  assert.ok(nomes.indexOf('consulta.vaga') < nomes.indexOf('appendShape'));
+});
+
+testAsync('vaga ocupada por vizinho NÃO ligado: empurra para a direita até caber', async () => {
+  // ⚠ O teto do bpmn-js, medido ao vivo (2026-11-14): a busca de vaga dele só desvia do que está
+  // LIGADO à âncora. Um vizinho solto parado na vaga é ignorado, e a tarefa nasce por cima dele
+  // (`_6-650`, no portão F7). Direita, não para baixo: mantém a raia e a ordem de leitura.
+  const { exec, chamadas, raiz, guardar } = montar();
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, x: 100, y: 200, width: 36, height: 36, incoming: [], outgoing: [] });
+  // A vaga do bpmn-js seria o centro (280,200) ⇒ caixa 230..330 × 160..240. Este vizinho ocupa.
+  guardar({ id: 'Task_parado', type: 'bpmn:Task', parent: raiz, businessObject: { name: 'Parado' }, x: 250, y: 160, width: 100, height: 80 });
+
+  await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
+
+  // Um passo de largura + folga: 280 + 100 + 40.
+  assert.deepEqual(chamadas.find((c) => c.fn === 'appendShape').posicao, { x: 420, y: 200 });
+});
+
+testAsync('raia NÃO é obstáculo: o elemento não foge da vaga por estar dentro de um pool', async () => {
+  // ⚠ Medido ao vivo em 2026-11-14: o botão de append do PRÓPRIO bpmn-js põe a tarefa no mesmo
+  // ponto que nós e ela encosta 3 px na borda da raia de cima — raias dividem borda. Enquanto a
+  // raia contava como vaga ocupada, o empurrão corria os seis passos e desistia em TODO diagrama
+  // com pools, que é o formato do diagrama da aula.
+  const { exec, chamadas, raiz, guardar } = montar();
+  const inicio = guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, x: 100, y: 200, width: 36, height: 36, incoming: [], outgoing: [] });
+  // A raia cobre a vaga inteira e TEM FILHOS — é o fundo onde o elemento mora, não um vizinho.
+  guardar({ id: 'Lane_1', type: 'bpmn:Lane', parent: raiz, businessObject: { name: 'clerk' }, x: 60, y: 150, width: 800, height: 124, children: [inicio] });
+
+  await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
+
+  // A vaga do bpmn-js, intacta: nada de empurrão.
+  assert.deepEqual(chamadas.find((c) => c.fn === 'appendShape').posicao, { x: 280, y: 200 });
+});
+
+testAsync('modelador montado SEM o módulo de vaga ainda cria — degrada, não quebra', async () => {
+  const { exec, chamadas, raiz, guardar } = montar({ semVaga: true });
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
+
+  const r = await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
+
+  assert.equal(r.criado.tipo, 'Task');
+  // Sem o serviço cai no append cru: cria e liga, no ponto fixo. Pior colocação, mesma garantia.
+  const append = chamadas.find((c) => c.fn === 'appendShape');
+  assert.ok(append);
+  assert.equal(append.posicao, null);
+});
+
+testAsync('criar sem âncora cai EMBAIXO do que já está desenhado — e o retorno não finge que ligou algo', async () => {
+  const { exec, chamadas, raiz, guardar } = montar();
+  // Sem âncora não há de onde o bpmn-js pendurar, então a posição é nossa: ela só precisa não
+  // nascer por cima. `220,200` fixo colocava o elemento solto sobre o diagrama do aluno.
+  guardar({ id: 'Task_fundo', type: 'bpmn:Task', parent: raiz, businessObject: {}, x: 300, y: 400, width: 100, height: 80 });
+
   const r = await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Início' });
+
   assert.equal(r.ligadoA, null);
   assert.equal(r.ligacao, null);
-  assert.equal(chamadas.at(-1).fn, 'createShape');
+  const criar = chamadas.find((c) => c.fn === 'createShape');
+  assert.ok(criar.posicao.y > 480, JSON.stringify(criar.posicao));
+});
+
+testAsync('diagrama vazio começa em cima, onde o aluno está olhando', async () => {
+  const { exec, chamadas } = montar();
+  await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Início' });
+  assert.deepEqual(chamadas.find((c) => c.fn === 'createShape').posicao, { x: 220, y: 200 });
+});
+
+/* ---------------------------------------------------------------- o nome CHEGA no desenho */
+
+testAsync('o nome vai num comando PRÓPRIO — `updateLabel`, não atributo da criação', async () => {
+  // ⚠ Print do portão F7 (2026-11-14): a tarefa nasceu ANÔNIMA na tela e o agente narrou o nome.
+  // `createShape({ type, name })` deixa o `name` na forma e nunca no `businessObject`, que é o
+  // que o desenho lê — e o rótulo externo de evento e gateway só existe se alguém o criar.
+  const { exec, chamadas, raiz, guardar } = montar();
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
+
+  const r = await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
+
+  // Nenhuma chamada de criação carrega `name`: o nome não viaja por atributo.
+  for (const c of chamadas.filter((x) => x.fn === 'appendShape' || x.fn === 'createShape')) {
+    assert.equal(c.nome, undefined, c.fn);
+  }
+  const rotulo = chamadas.find((c) => c.fn === 'updateLabel');
+  assert.equal(rotulo.nome, 'Receber pedido');
+  assert.equal(r.criado.nome, 'Receber pedido');
+});
+
+testAsync('nome que não pegou no desenho é `nada_mudou` — a criação não assina o que não vê', async () => {
+  // O modelador aceita a chamada e não muda nada: o jeito mais fácil de o instrumento mentir.
+  const { exec, raiz, guardar } = montar({ updateLabelMudo: true });
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
+
+  await assert.rejects(
+    () => exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' }),
+    (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /Receber pedido/.test(e.message),
+  );
 });
 
 testAsync('tipo fora da lista é erro NOMEADO e a lista aceita vem na mensagem', async () => {
@@ -355,9 +492,19 @@ testAsync('nenhuma das quatro toca XML ou `businessObject` direto (tarefa 3.5)',
   await exec.remover({ id: 'B' });
 
   // Só verbos do `modeling` — é o que garante que o `Ctrl+Z` do aluno desfaça tudo isso.
-  const permitidos = new Set(['appendShape', 'createShape', 'connect', 'updateLabel', 'removeElements']);
+  //
+  // `consulta.vaga` e `elementFactory.createShape` entram na lista porque NÃO escrevem: a
+  // primeira só pergunta ao bpmn-js onde cabe, a segunda só monta o objeto. O que
+  // a lista proíbe continua sendo o mesmo — XML na mão, `businessObject` direto, qualquer
+  // caminho que o `commandStack` não veja.
+  const permitidos = new Set([
+    'appendShape', 'createShape', 'connect', 'updateLabel', 'removeElements',
+    'consulta.vaga', 'elementFactory.createShape',
+  ]);
   assert.deepEqual(chamadas.filter((c) => !permitidos.has(c.fn)), []);
-  assert.equal(chamadas.length, 4);
+  // 5 comandos para 4 operações: criar com nome são dois (a forma e o rótulo), e ligar,
+  // renomear e remover são um cada. A vaga não conta — ela não escreve.
+  assert.equal(chamadas.filter((c) => c.fn !== 'consulta.vaga' && c.fn !== 'elementFactory.createShape').length, 5);
 });
 
 testAsync('desfazer devolve o diagrama ao que era: o que o agente criou sai do registro (gate 4.1)', async () => {
@@ -370,9 +517,11 @@ testAsync('desfazer devolve o diagrama ao que era: o que o agente criou sai do r
   const r = await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
   assert.ok(!antes.has(r.criado.id));
 
-  // Desfaz na mão o que o único comando registrou — o espelho do que o commandStack faria.
-  const comando = chamadas.at(-1);
-  assert.equal(comando.fn, 'appendShape');
+  // Desfaz na mão o que os comandos registraram — o espelho do que o commandStack faria.
+  // A vaga vem antes do append e não é comando. Criar COM nome são dois: a forma e o rótulo,
+  // então o aluno desfaz duas vezes. É o preço de o nome chegar ao desenho.
+  const comandos = chamadas.filter((c) => c.fn === 'appendShape' || c.fn === 'updateLabel').map((c) => c.fn);
+  assert.deepEqual(comandos, ['appendShape', 'updateLabel']);
   for (const id of [...mapa.keys()]) if (!antes.has(id)) mapa.delete(id);
   assert.deepEqual([...mapa.keys()].sort(), [...antes].sort());
 });

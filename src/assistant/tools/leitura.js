@@ -33,8 +33,18 @@ function tipoCurto(type) {
   return t.startsWith('bpmn:') ? t.slice(5) : t;
 }
 
+/**
+ * O nome de um elemento é o do `businessObject` — e SÓ ele.
+ *
+ * ⚠ Havia um `?? el.name` aqui, e ele mentia. `elementFactory.createShape({ type, name })` deixa
+ * o `name` como atributo da FORMA e nunca o leva ao `businessObject`; o desenho lê o
+ * businessObject, então a tarefa nascia em branco na tela — e a leitura de volta, caindo no
+ * atributo da forma, devolvia o nome pedido e dizia que tinha dado certo. Confirmação que lê o
+ * campo errado é pior que confirmação nenhuma: ela ASSINA a mentira (print do portão F7,
+ * 2026-11-14, tarefa criada sem rótulo com o agente narrando o nome).
+ */
 function nomeDe(el) {
-  const n = el?.businessObject?.name ?? el?.name ?? null;
+  const n = el?.businessObject?.name ?? null;
   const t = typeof n === 'string' ? n.trim() : '';
   return t.length ? t : null;
 }

@@ -57,9 +57,10 @@
 - [x] 3.1 `criar_elemento` — tipo (lista fechada de 18), nome e âncora. Com âncora o bpmn-js
       posiciona **e já liga** (`appendShape`), que é o que o aluno pede em palavras ("uma tarefa
       depois do início"); o retorno diz que a ligação existe, para o agente não ligar de novo.
-      ⚠ **Direção ficou de fora**, e sem âncora a posição é FIXA: espalhar elemento solto sem
-      sobrepor é layout automático (tarefa 5.1, fora desta change). Está dito no código e na
-      declaração ao modelo — o que não dá é prometer ao agente uma colocação que não existe
+      ⚠ **Direção ficou de fora.** A COLOCAÇÃO mudou em 2026-11-14 (ver 4.5): com âncora a vaga
+      vem do bpmn-js — o mesmo evento `autoPlace` que o botão de append do aluno usa — e sem
+      âncora o elemento cai embaixo do que já está desenhado. Está dito no código e na declaração
+      ao modelo; o que não dá é prometer ao agente uma colocação que não existe
 - [x] 3.2 `conectar` — e **nós não escolhemos o tipo**. A regra do BPMN mora no bpmn-js: entre
       pools nasce `MessageFlow`, no mesmo processo `SequenceFlow`. A ferramenta manda conectar e
       **lê de volta o tipo que nasceu**; é desse FATO que sai a explicação ao aluno, não de um
@@ -85,14 +86,27 @@
 
 ## 4. Prova
 
-- [x] 4.1 `src/assistant/__tests__/escrita.mjs` (21 casos): desfazer alcança o que o agente
+- [x] 4.1 `src/assistant/__tests__/escrita.mjs` (28 casos): desfazer alcança o que o agente
       criou, as quatro recusam num viewer (mesmo com declaração vazada), `diagrama_mudou`,
       recusa do aluno preservando o elemento, e o guarda de que nada toca XML. O dublê é do
-      **bpmn-js**, não da nossa camada — porque aqui quem está sob teste inclui `bpmn-api.js`
+      **bpmn-js**, não da nossa camada — porque aqui quem está sob teste inclui `bpmn-api.js`.
+      ⚠ **O harness não sabia reprovar** (achado em 2026-11-14 ao escrever estes casos): `report()`
+      roda na última linha do arquivo e as promessas de `testAsync` resolvem DEPOIS, então teste
+      assíncrono reprovado imprimia o ✖ e o processo saía **0** — e `npm test` encadeia os
+      arquivos com `&&`. Todas as provas de escrita são assíncronas: ficavam fora da conta E fora
+      do veredito. Consertado com um gancho de saída em `tools/test-harness.mjs`, provado com um
+      arquivo que reprova de propósito (exit 1). Resultado que não pode falhar não é prova
 - [x] 4.2 **Medido** (2026-11-14, página do modelador): pedido nas palavras do aluno, sem id —
       o agente chamou `criar_elemento`, e `Activity_0xd2gk8` + `Flow_0p25lx7` apareceram **no
       desenho**. Na tela: *"criei task «Receber pedido» depois de «Order received»"*.
-      O critério é o elemento no registro, nunca a frase do agente
+      O critério é o elemento no registro, nunca a frase do agente.
+      ⚠ **Defeito que só o PRINT pegou** (2026-11-14): a tarefa nascia **anônima** no desenho e o
+      agente narrava o nome. `name` passado na criação fica como atributo da FORMA e nunca chega
+      ao `businessObject` — que é o que o desenho lê —, e a leitura de volta caía no mesmo
+      atributo, então **assinava a mentira**. O nome virou um comando próprio (`updateLabel`, que
+      também cria o rótulo externo de evento e gateway) e é conferido no registro: não pegou,
+      `nada_mudou`. Custo declarado: criar com nome são dois `Ctrl+Z`. O portão passou a exigir o
+      nome **no desenho**, não no retorno da ferramenta
 - [x] 4.3 **Medido**: a pergunta apareceu — *"Apagar «Receber pedido» (task) · Activity_0xd2gk8 do
       diagrama?"* —, o compositor saiu da tela, `Cancelar` clicado, **o elemento continua lá**, e
       a linha da ferramenta virou *"não removi «Receber pedido» — você não confirmou"*
@@ -107,15 +121,28 @@
       criação aparecia sem nome
 - [ ] 4.5 Cenário de montagem guiada: descrever um processo em 3 frases e verificar que o diagrama
       ganhou início, ao menos duas tarefas e fim, ligados.
-      ⚠ **Pré-requisito achado no print**: num diagrama cheio, `appendShape` colocou a tarefa nova
-      **por cima** de outra. A montagem guiada cria vários elementos seguidos, então ela depende
-      do layout automático (5.1) ou de uma colocação que respeite o que já está desenhado
+      ✅ **Pré-requisito FECHADO em 2026-11-14.** Com âncora, a vaga sai do evento `autoPlace` do
+      bpmn-js — o mesmo que o botão de append do aluno dispara; sem âncora, o elemento cai
+      embaixo do que já está desenhado. Omitir a posição caía no `AppendBehavior`, que usa um
+      ponto FIXO sem olhar o desenho.
+      ⚠ Teto do bpmn-js: a busca de vaga dele só desvia do que está **ligado** à âncora, então
+      sobrou um empurrão nosso para a direita — seis passos e desiste, devolvendo a vaga dele.
+      ⚠ **Duas correções no INSTRUMENTO antes de ele poder julgar o produto** (a terceira e a
+      quarta desta change): (a) `getBBox()` num `<g transform>` devolve a caixa dos FILHOS, sem a
+      translação do próprio grupo — todo elemento media (0,0) e "todo mundo sobrepunha todo
+      mundo"; é `getBoundingClientRect`. (b) raia e pool são **contêiner**, não vizinho: medido no
+      próprio bpmn-js (botão de append do aluno, sem gastar sessão), a tarefa nasce no mesmo
+      ponto que a nossa e encosta 3 px na borda da raia de cima, porque raias dividem borda.
+      Reprovar isso era reprovar o produto por fazer exatamente o que o bpmn-js faz.
+      **Medido com o portão corrigido**: `Activity_039d4gg = "Receber pedido"` no desenho, com o
+      nome, e `nasceuPorCimaDe: []`
 - [ ] 4.6 `open-items.md` atualizado
 
 ## 5. Depois (fora desta change)
 
 - [ ] 5.1 Layout automático quando o agente cria vários elementos de uma vez.
-      **Deixou de ser teórico**: o print do portão F7 mostra a tarefa criada sobreposta a outra,
-      num diagrama de 48 elementos
+      Um elemento sozinho **já não precisa disto** (2026-11-14): a vaga vem do bpmn-js e o
+      empurrão cobre o vizinho solto parado nela. O que resta aqui é dispor **vários** de uma vez,
+      e o teto conhecido do empurrão: seis passos para a direita e desiste
 - [ ] 5.2 Desfazer em bloco ("desfaça tudo o que você acabou de fazer")
 - [ ] 5.3 Sugestão proativa ao abrir um diagrama com problema de modelagem

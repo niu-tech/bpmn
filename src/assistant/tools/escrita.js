@@ -59,8 +59,18 @@ function tipoCurto(type) {
   return t.startsWith('bpmn:') ? t.slice(5) : t;
 }
 
+/**
+ * O nome de um elemento é o do `businessObject` — e SÓ ele.
+ *
+ * ⚠ Havia um `?? el.name` aqui, e ele mentia. `elementFactory.createShape({ type, name })` deixa
+ * o `name` como atributo da FORMA e nunca o leva ao `businessObject`; o desenho lê o
+ * businessObject, então a tarefa nascia em branco na tela — e a leitura de volta, caindo no
+ * atributo da forma, devolvia o nome pedido e dizia que tinha dado certo. Confirmação que lê o
+ * campo errado é pior que confirmação nenhuma: ela ASSINA a mentira (print do portão F7,
+ * 2026-11-14, tarefa criada sem rótulo com o agente narrando o nome).
+ */
 function nomeDe(el) {
-  const n = el?.businessObject?.name ?? el?.name ?? null;
+  const n = el?.businessObject?.name ?? null;
   const t = typeof n === 'string' ? n.trim() : '';
   return t.length ? t : null;
 }
@@ -105,8 +115,10 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      * posicionar e JÁ LIGAR o novo elemento ao anterior, que é o que o aluno pede em palavras
      * ("uma tarefa depois do início").
      *
-     * ponytail: sem âncora, posição fixa. Espalhar elemento solto sem sobrepor é layout
-     * automático — tarefa 5.1, fora desta change de propósito.
+     * ⚠ A POSIÇÃO não é escolhida aqui nem na camada por cálculo nosso: com âncora, quem diz
+     * onde cabe é o `autoPlace` do bpmn-js (o mesmo serviço do botão de append do aluno); sem
+     * âncora, o elemento cai embaixo do que já está desenhado. Omitir a posição era o defeito:
+     * o bpmn-js caía num ponto fixo e a tarefa nova nascia POR CIMA da vizinha.
      */
     async criar_elemento({ tipo, nome, depoisDe } = {}) {
       exigirEdicao();
@@ -114,12 +126,30 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
       const ancora = depoisDe ? exigirElemento(depoisDe, 'depoisDe') : null;
 
       const criado = ancora
-        ? acesso.criarDepoisDe({ ancora, tipo: tipoBpmn, nome })
-        : acesso.criarSolto({ tipo: tipoBpmn, nome });
+        ? acesso.criarDepoisDe({ ancora, tipo: tipoBpmn })
+        : acesso.criarSolto({ tipo: tipoBpmn });
 
       // Leitura de volta: é o registro que diz se existe, não a chamada que não deu erro.
       const confirmado = acesso.porId(criado?.id);
       if (!confirmado) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o elemento não apareceu no registro');
+
+      /**
+       * O NOME é um comando à parte, de propósito.
+       *
+       * Passá-lo junto na criação não funciona: ele fica como atributo da forma e o desenho
+       * continua em branco. Quem põe nome no diagrama é `modeling.updateLabel` — e é ele também
+       * que CRIA o rótulo externo de evento e gateway, que a criação sozinha não cria.
+       *
+       * ponytail: dois comandos ⇒ dois `Ctrl+Z` para desfazer uma criação com nome. É o preço de
+       * usar o verbo certo; o errado deixava a forma anônima na tela do aluno.
+       */
+      const rotulo = typeof nome === 'string' ? nome.trim() : '';
+      if (rotulo) {
+        acesso.renomear({ el: confirmado, nome: rotulo });
+        if (nomeDe(acesso.porId(confirmado.id)) !== rotulo) {
+          throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o elemento nasceu sem o nome "${rotulo}"`);
+        }
+      }
 
       const { entradas } = acesso.entradasESaidas(confirmado.id);
       return {

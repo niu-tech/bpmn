@@ -34,11 +34,30 @@ export async function testAsync(name, fn) {
   }
 }
 
+/**
+ * Veredito do arquivo.
+ *
+ * ⚠ O gancho de saída não é enfeite. `testAsync` devolve uma promessa que NINGUÉM espera: o
+ * arquivo chama `report()` na última linha e termina, e as promessas resolvem depois. Sem o
+ * gancho, um teste assíncrono reprovado imprimia o ✖ no console e o processo saía **0** — e como
+ * `npm test` encadeia os arquivos com `&&`, a suíte inteira seguia verde com um guard quebrado.
+ * Resultado que não pode falhar não é prova (achado em 2026-11-14, quando as novas provas de
+ * escrita — todas assíncronas — ficaram fora da conta impressa).
+ */
 export function report(title) {
+  const noReport = { passed, falhas: failures.length };
   console.log('\n' + '='.repeat(40));
   console.log(`${title}: ${passed} passed, ${failures.length} failed`);
   console.log('='.repeat(40));
   if (failures.length) process.exitCode = 1;
+
+  process.once('exit', () => {
+    const tardios = (passed + failures.length) - (noReport.passed + noReport.falhas);
+    const reprovados = failures.length - noReport.falhas;
+    if (tardios > 0) console.log(`${title}: +${tardios} assíncronos, ${reprovados} failed`);
+    if (failures.length) process.exitCode = 1;
+  });
+
   return failures.length === 0;
 }
 

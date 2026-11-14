@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkpoint · Bloco 7</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 30px; max-width:64ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:36px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:34px; }
+
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 24px;
+    font-size:16.5px; color:var(--suave); max-width:62ch; }
+  .cita b { color:var(--tinta); font-weight:600; }
+
+  .lista { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .l { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .l:last-child { border-bottom:none; }
+  .l p { margin:0; font-size:14.5px; }
+  .l p b { font-weight:600; }
+  .l p span { display:block; color:var(--fraco); font-size:13px; margin-top:3px; }
+  .selo { font-size:12px; font-weight:600; white-space:nowrap; color:var(--verde);
+    background:var(--verde-fraco); border-radius:20px; padding:3px 10px; }
+  .selo.q { color:var(--ambar); background:var(--ambar-fraco); }
+
+  .bichos { display:grid; gap:12px; }
+  .bicho { background:var(--vinho-fraco); border:1px solid #f2d9d5; border-radius:13px; padding:15px 18px; }
+  .bicho b { display:block; font-size:14.5px; color:var(--vinho); margin-bottom:4px; }
+  .bicho p { margin:0 0 8px; font-size:14px; color:#4a4b54; }
+  .bicho p:last-child { margin-bottom:0; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+  .aberto p { margin:0 0 9px; }
+  .aberto p:last-child { margin-bottom:0; }
+
+  footer { margin-top:34px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros{grid-template-columns:1fr;} .l{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Bloco 7</span>
+  <h1>Onde o elemento novo nasce — e por que o instrumento mentiu quatro vezes antes de deixar
+  o produto passar</h1>
+  <p class="sub">Uma pergunta pequena (“a tarefa criada não pode nascer por cima de outra”) que
+  abriu <b>dois defeitos do produto</b> — um deles o agente narrando um nome que não estava na
+  tela — e <b>quatro defeitos do que mede</b>, inclusive um que deixava teste reprovado passar
+  como verde.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>0</b><span>sobreposições na tarefa criada, no diagrama de 48 elementos</span></div>
+    <div class="num ok"><b>520</b><span>testes verdes — 24 deles invisíveis até hoje</span></div>
+    <div class="num"><b>1 de 1</b><span>portão F7 ao vivo, com os critérios novos</span></div>
+  </div>
+
+  <section>
+    <h2>A vaga não é nossa</h2>
+    <p class="cita">O conserto não foi calcular onde o elemento cabe. Foi <b>parar de não
+    dizer</b>: sem posição, o bpmn-js usa um ponto fixo — <code>x + largura + 80</code> — e
+    empilha. Pedir a vaga a ele é o mesmo evento que o <b>botão de append do aluno</b> dispara.</p>
+
+    <div class="lista">
+      <div class="l">
+        <p><b>Com âncora: a vaga vem do evento <code>autoPlace</code>.</b>
+        <span>Direção, distância e desvio saem do bpmn-js. A prova de que é o mesmo caminho do
+        aluno: cliquei o botão de append dele no mesmo evento de início e a tarefa caiu no
+        <i>mesmo ponto</i> — sem gastar uma sessão de API para descobrir isso.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>Sem âncora: embaixo do que já está desenhado.</b>
+        <span>Era um ponto fixo <code>220,200</code>, que caía sobre o diagrama do aluno. Agora é
+        o maior <code>y</code> + folga; diagrama vazio começa em cima, onde ele está olhando.</span></p>
+        <span class="selo">medido</span>
+      </div>
+      <div class="l">
+        <p><b>O teto do bpmn-js, e o empurrão que ele pede.</b>
+        <span>A busca de vaga dele só desvia do que está <b>ligado</b> à âncora — um vizinho solto
+        parado na vaga é ignorado. Daí um empurrão para a direita (direção da leitura, mantém a
+        raia): seis passos e desiste, devolvendo a vaga dele.</span></p>
+        <span class="selo">medido</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que o print mostrou e nenhum teste veria</h2>
+    <div class="bichos">
+      <div class="bicho">
+        <b>A tarefa nasceu anônima — e a confirmação assinou embaixo</b>
+        <p>Na tela: um retângulo em branco. No chat: <i>“Criei a tarefa «Receber pedido»”</i>. O
+        <code>name</code> passado na criação fica como atributo da <b>forma</b> e nunca chega ao
+        <code>businessObject</code>, que é o que o desenho lê.</p>
+        <p>O pior não é o nome sumido: é que a nossa leitura de volta — a regra que existe
+        justamente para o agente não narrar o que não houve — <b>lia o mesmo atributo errado</b> e
+        devolvia “deu certo”. Confirmação que confere o campo errado é pior que confirmação
+        nenhuma. Agora o nome é um comando próprio (<code>updateLabel</code>, que também cria o
+        rótulo externo de evento e gateway) e é conferido no registro.</p>
+      </div>
+      <div class="bicho">
+        <b>Teste assíncrono reprovado saía com código 0</b>
+        <p>O veredito de cada arquivo é impresso na última linha; as promessas de
+        <code>testAsync</code> resolvem <b>depois</b> dela. O ✖ aparecia no console e o processo
+        saía <b>0</b> — e a suíte encadeia os arquivos com <code>&amp;&amp;</code>. As 24 provas
+        de escrita são todas assíncronas: estavam fora da conta <i>e</i> fora do veredito.</p>
+        <p>Consertado com um gancho de saída, e provado com um arquivo que reprova de propósito.
+        Resultado que não pode falhar não é prova.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>E o instrumento reprovou o produto duas vezes por erro próprio</h2>
+    <div class="lista">
+      <div class="l">
+        <p><b><code>getBBox()</code> não inclui a translação do próprio grupo.</b>
+        <span>Num <code>&lt;g transform="translate(x,y)"&gt;</code> ele devolve a caixa dos
+        filhos. Todo elemento media <code>(0,0)</code>, então “todo mundo sobrepunha todo mundo” —
+        e o portão acusou quatro vizinhos que não existiam.</span></p>
+        <span class="selo q">corrigido</span>
+      </div>
+      <div class="l">
+        <p><b>Raia e pool são contêiner, não vizinho.</b>
+        <span>O acusado da vez era <code>_6-650</code> — a raia <i>clerk</i>. O botão de append do
+        próprio bpmn-js encosta 3&nbsp;px na borda da raia de cima, porque raias dividem borda.
+        Reprovar isso é reprovar o produto por fazer exatamente o que o bpmn-js faz.</span></p>
+        <span class="selo q">corrigido</span>
+      </div>
+      <div class="l">
+        <p><b>O portão agora exige o nome <i>no desenho</i>.</b>
+        <span>Não no retorno da ferramenta — era o retorno que mentia. E, quando acusa
+        sobreposição, imprime a caixa de cada acusado: duas corridas se foram porque
+        <i>“nasceu por cima de _6-650”</i> não dizia se <code>_6-650</code> era uma tarefa ou a
+        raia inteira.</span></p>
+        <span class="selo">novo</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Em aberto</h2>
+    <div class="aberto">
+      <p><b>Layout de vários de uma vez (5.1).</b> Um elemento sozinho já não precisa disso. O que
+      falta é dispor uma sequência inteira — e o teto declarado do empurrão: seis passos e
+      desiste.</p>
+      <p><b>Montagem guiada (4.5).</b> O pré-requisito caiu: dá para descrever um processo em três
+      frases e ver o diagrama crescer sem empilhar. É o próximo cenário ao vivo.</p>
+      <p><b>Criar com nome são dois <code>Ctrl+Z</code>.</b> A forma e o rótulo entram como
+      comandos separados. É o preço de o nome chegar ao desenho — está dito no código, e é
+      candidato a virar um comando só se incomodar na aula.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>TCC · ajudante BPMN · bloco 7</span>
+    <span>14 de novembro de 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
