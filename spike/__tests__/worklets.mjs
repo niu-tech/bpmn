@@ -127,9 +127,9 @@ console.log('\n▶ playback-worklet (PROVA B)');
 const playback = loadWorklet('playback-worklet.js');
 
 /** Instancia e devolve o no + atalhos para empurrar e consumir. */
-function player({ sampleRate = 24000, primeMs = 120, rePrimeMs } = {}) {
+function player({ sampleRate = 24000, primeMs = 120, rePrimeMs, maxSeconds } = {}) {
   const { Ctor } = loadWorklet('playback-worklet.js', { sampleRate });
-  const node = new Ctor({ processorOptions: { sourceRate: 24000, primeMs, rePrimeMs } });
+  const node = new Ctor({ processorOptions: { sourceRate: 24000, primeMs, rePrimeMs, maxSeconds } });
   const out = new Float32Array(128);
   return {
     node,
@@ -177,6 +177,62 @@ test('flush NAO deixa o estado de recuperacao ligado', () => {
   assert.equal(p.node.recuperando, false, 'interrupcao e comeco novo, nao continuacao de furo');
 });
 
+/**
+ * O ATROPELO (relato do dono, 2026-11-14, com a voz nova: "ela vai cortando em pedacos muito
+ * pequenos e vai falando por cima dela mesma... o inicio fala bem, o meio embola").
+ *
+ * O desenho tinha um teto de 8 s no anel, e o Gemini Live entrega o turno INTEIRO em rajada -
+ * ele gera audio mais rapido que o tempo real. Uma resposta de 30 s chega em poucos segundos,
+ * o leitor sai a 1x, e o escritor passa por cima: a politica de cheio descartava o MAIS ANTIGO,
+ * ou seja, o pedaco que ainda ia ser falado. Dai o inicio sair certo (cabe nos 8 s), o meio
+ * virar picote e o fim voltar.
+ *
+ * Estes dois casos sao a prova: nenhuma amostra pode ser descartada, e a fala tem de sair
+ * INTEIRA e EM ORDEM.
+ */
+test('turno longo em RAJADA nao perde amostra (o atropelo de 2026-11-14)', () => {
+  const p = player({ primeMs: 240, rePrimeMs: 120 });
+  const quadro = (n, v) => { const a = new Int16Array(n); a.fill(v); return a; };
+
+  // 30 s de fala a 24 kHz, em quadros de ~860 ms - a forma medida no portao F7 (29 quadros
+  // para uma resposta de ~25 s). Tudo empurrado ANTES de tocar, que e como a rajada chega.
+  const porQuadro = Math.round(24000 * 0.86);
+  const quantos = Math.ceil((24000 * 30) / porQuadro);
+  for (let i = 0; i < quantos; i++) p.push(quadro(porQuadro, 1000 + i));
+
+  p.node.port.onmessage({ data: { type: 'stats' } });
+  const stats = p.msgs().at(-1);
+  assert.equal(stats.overflowDropped, 0,
+    `a rajada perdeu ${stats.overflowDropped} amostras antes de tocar (anel pequeno demais)`);
+});
+
+test('a fala sai INTEIRA e em ordem: nenhum pedaco sumido, nenhum repetido', () => {
+  const p = player({ primeMs: 240, rePrimeMs: 120 });
+  // Cada quadro tem um valor proprio: da para ver, na saida, se algum sumiu ou voltou atras.
+  const porQuadro = Math.round(24000 * 0.86);
+  const quantos = 35;
+  for (let i = 0; i < quantos; i++) {
+    const a = new Int16Array(porQuadro); a.fill((i + 1) * 100);
+    p.push(a);
+  }
+
+  // Drena tudo, em blocos de 128 como o navegador faz.
+  const vistos = [];
+  for (let i = 0; i < 40000; i++) {
+    const bloco = p.pull();
+    for (const v of bloco) {
+      const marca = Math.round((v * 32768) / 100);
+      if (marca > 0 && vistos.at(-1) !== marca) vistos.push(marca);
+    }
+    if (vistos.length === quantos && p.node.size === 0) break;
+  }
+
+  // Os valores de marca, na ordem em que sairam, sem a interpolacao entre dois quadros.
+  const ordem = vistos.filter((v, i) => i === 0 || v !== vistos[i - 1]);
+  assert.deepEqual(ordem, Array.from({ length: quantos }, (_, i) => i + 1),
+    'a fala saiu picotada ou fora de ordem');
+});
+
 test('registra bpmn-playback', () => {
   assert.equal(playback.name, 'bpmn-playback');
 });
@@ -203,14 +259,17 @@ test('underflow e CONTADO e volta a esperar o prime', () => {
   assert.equal(stats.primed, false, 'deveria ter voltado a esperar o buffer de partida');
 });
 
+// O teto EXISTE (memoria tem de ter limite), mas o tamanho mudou de 8 s para 60 s em
+// 2026-11-14: com 8 s ele comia o MEIO de toda resposta longa, que e o bug do atropelo.
+// Aqui o anel e miniatura (1 s) de proposito - o que se prova e a barreira, nao o tamanho.
 test('overflow DESCARTA o mais antigo em vez de crescer sem teto', () => {
-  const p = player({ primeMs: 0 });
-  const ringSamples = 24000 * 8;
+  const p = player({ primeMs: 0, maxSeconds: 1 });
+  const ringSamples = 24000 * 1;
   p.push(Int16Array.from({ length: ringSamples + 5000 }, () => 10000));
   p.node.port.onmessage({ data: { type: 'stats' } });
   const stats = p.msgs().find((m) => m.type === 'stats');
   assert.ok(stats.overflowDropped >= 5000, `esperava descarte, veio ${stats.overflowDropped}`);
-  assert.ok(stats.bufferedMs <= 8000, 'o buffer nao pode passar do teto do ring');
+  assert.ok(stats.bufferedMs <= 1000, 'o buffer nao pode passar do teto do ring');
 });
 
 test('flush descarta o que nao saiu (cancelamento / barge-in)', () => {

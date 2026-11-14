@@ -151,23 +151,34 @@ export function createWidget({ session, credentials, onClose } = {}) {
   ]);
 
   // ------------------------------------------------------------------ modo + liga/desliga
-  const modeText = el('button', { className: 'bpmn-assist__seg', type: 'button', textContent: 'Texto' });
-  const modeVoice = el('button', { className: 'bpmn-assist__seg', type: 'button', textContent: 'Voz' });
-  modeText.setAttribute('aria-pressed', 'true');
-  modeVoice.setAttribute('aria-pressed', 'false');
-  const modeGroup = el('div', { className: 'bpmn-assist__segs', role: 'group' }, [modeText, modeVoice]);
-  modeGroup.setAttribute('aria-label', 'Modo de conversa');
-
+  /**
+   * ⚠ NÃO existe mais seletor "Texto / Voz" no topo.
+   *
+   * O modo não é uma preferência que o aluno declara antes de falar: ele é consequência do que
+   * ele FAZ. Escreveu e mandou, é texto; clicou no microfone ao lado de "Enviar", é voz. O
+   * seletor ocupava a barra mais nobre da janela para perguntar algo que o próprio gesto já
+   * responde (pedido do dono, 2026-11-14).
+   */
   // ⚠ O ÚNICO botão de ação. Guarda a chave (se houver uma digitada) e conecta; vira "Encerrar".
   const powerBtn = el('button', { className: 'bpmn-assist__btn bpmn-assist__btn--primary', type: 'button', textContent: 'Começar' });
 
-  // `powerBtn` ANDA: enquanto é "Começar" ele é a ação principal e fica na barra; virando
+  // `powerBtn` ANDA: enquanto é "Começar" ele é a ação principal e fica no rodapé; virando
   // "Encerrar" ele deixa de ser do turno e vai para o menu. Um elemento, dois lugares — porque o
   // que muda não é o botão, é a importância dele.
-  const barraTopo = el('div', { className: 'bpmn-assist__row' }, [modeGroup, powerBtn]);
+  /** As ações do rodapé: "Começar" antes de conectar, "Parar de falar" enquanto ele responde. */
+  const acoes = el('div', { className: 'bpmn-assist__acoes' });
 
   // ------------------------------------------------------------------ falar + medidor
   const talkBtn = el('button', { className: 'bpmn-assist__mic', type: 'button', textContent: '●' });
+  /**
+   * PARAR DE FALAR. Não é encerrar a sessão nem fechar o microfone: é calar a resposta em curso.
+   *
+   * Faltava (pedido do dono, 2026-11-14: "não temos um botão para o ajudante parar de falar").
+   * Sem ele, o único jeito de interromper era falar por cima — e no modo texto nem isso.
+   */
+  const calarBtn = el('button', {
+    className: 'bpmn-assist__btn bpmn-assist__btn--calar', type: 'button', textContent: 'Parar de falar',
+  });
   talkBtn.setAttribute('aria-pressed', 'false');
 
   const barras = PERFIL.map(() => el('span', { className: 'bpmn-assist__bar' }));
@@ -215,9 +226,6 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // falar para fora da tela: "a gente fala e aí tem que subir a conversa toda para falar de
   // novo" (dono, 2026-11-11). Controle que se usa a cada turno mora no rodapé fixo; só a
   // conversa rola.
-  // ⚠ `barraTopo` (Texto/Voz/Encerrar) saiu do corpo ROLÁVEL: ela sumia da tela assim que a
-  // conversa crescia, e aí trocar de modo exigia rolar tudo de volta. Controle que se usa a
-  // qualquer momento fica FIXO; só a conversa rola. Mesma razão que já tirou o microfone daqui.
   // Menos regiões: a linha da chave e o diagnóstico saem do corpo e vão para o menu. Eles
   // fragmentavam o painel na vertical sem nunca serem a ação do momento.
   menu.append(powerBtn, compacto, diagBox);
@@ -250,27 +258,12 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const faixaVoz = el('div', { className: 'bpmn-assist__voz' }, [vozEstado, meter, pararBtn]);
 
   /**
-   * O CONTRATO, escrito para o aluno (H7).
-   *
-   * Vem do painel do Orbit, que diz embaixo do compositor o que o agente faz e o que depende da
-   * pessoa. Enquanto só lemos, o texto é "ele lê, não altera"; quando a escrita entrar (F7), esta
-   * é a linha que passa a dizer que ele PROPÕE e o aluno confirma — e ela entra JUNTO da escrita,
-   * não depois, porque poder sem contrato na tela é o aluno descobrindo por acidente.
+   * ⚠ A linha de contrato SAIU do rodapé (pedido do dono, 2026-11-14: "essa mensagem embaixo…
+   * polui a tela"). Ela dizia, a cada tela, o que o ajudante pode fazer no diagrama — informação
+   * de PRIMEIRA vez, cobrando espaço para sempre. O que o aluno precisa ver todo dia é a
+   * conversa; o que o ajudante faz sem pedir ele descobre no momento em que acontece, e o
+   * destrutivo continua perguntando antes.
    */
-  const contrato = el('p', { className: 'bpmn-assist__contrato' });
-
-  /**
-   * Duas frases, e a que vale é a que a POLÍTICA permite — nunca a página onde eu acho que estou.
-   *
-   * ⚠ Onde ele escreve, o contrato tem de dizer o que ele faz SOZINHO e o que pede: criar, ligar
-   * e renomear acontecem na hora; apagar pergunta antes. Prometer que ele "não altera nada" numa
-   * tela onde ele altera é a pior linha possível — o aluno confia nela e descobre o contrário
-   * olhando o próprio desenho.
-   */
-  const CONTRATO = {
-    le: 'Ele lê o seu diagrama para explicar — não altera nada. O que muda no desenho é você que faz.',
-    escreve: 'Ele pode criar, ligar e renomear no seu diagrama, e você desfaz com Ctrl+Z. Para apagar, ele pergunta antes.',
-  };
 
   /**
    * A confirmação de uma ação destrutiva (F7, tarefa 3.4).
@@ -294,9 +287,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
   confirmaBox.setAttribute('role', 'alertdialog');
   confirmaBox.setAttribute('aria-live', 'assertive');
 
-  const rodape = el('div', { className: 'bpmn-assist__footer' }, [confirmaBox, faixaVoz, micLabel, composer, contrato]);
+  const rodape = el('div', { className: 'bpmn-assist__footer' }, [confirmaBox, faixaVoz, micLabel, composer, acoes]);
 
-  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, menu, barraTopo, body, rodape, liveRegion]);
+  // O olho do aluno fica EMBAIXO: é de lá que saem enviar, falar, começar e parar.
+  const panel = el('div', { className: 'bpmn-assist__panel', id: panelId }, [head, menu, body, rodape, liveRegion]);
   panel.hidden = true;
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'false');     // o diagrama continua utilizável de propósito
@@ -347,7 +341,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
     if (credentials.lastRejection === 'bad-key') {
       return 'O Google recusou essa chave. Confira em aistudio.google.com e informe de novo em "trocar".';
     }
-    if (state === 'error') return `Não deu: ${describeError(reason)}.`;
+    // ⚠ O erro NÃO se repete aqui: ele já está no alto, do lado do nome do ajudante, e já
+    // virou linha na conversa. Três cópias da mesma frase na mesma tela (pedido do dono,
+    // 2026-11-14: "ela tá duplicada hoje, tá lá embaixo, lá em cima; só precisa estar lá em
+    // cima") não informam mais — só empurram a conversa para fora da tela.
     return '';
   }
 
@@ -359,7 +356,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   }
 
   function render(view) {
-    const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null, podeEscrever = false } = view;
+    const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null, falando = false } = view;
 
     dot.setAttribute('data-state', state);
     const label = STATE_LABELS[state] ?? state;
@@ -378,19 +375,19 @@ export function createWidget({ session, credentials, onClose } = {}) {
     consent.checked = credentials.consented;
     trocarKey.disabled = busy;
 
-    modeText.setAttribute('aria-pressed', String(mode === 'texto'));
-    modeVoice.setAttribute('aria-pressed', String(mode === 'voz'));
-    modeText.disabled = busy;
-    modeVoice.disabled = busy;
-
-    // UM botão, dois papéis — e dois LUGARES. Como "Começar" ele é a ação principal e fica na
-    // barra; como "Encerrar" ele é manutenção e vai para o menu, longe do seletor de modo.
+    // UM botão, dois papéis — e dois LUGARES. Como "Começar" ele é a ação principal e fica no
+    // RODAPÉ, junto do resto do que se clica; como "Encerrar" ele é manutenção e vai para o menu.
     powerBtn.textContent = canAsk ? 'Encerrar sessão' : 'Começar';
     powerBtn.classList.toggle('bpmn-assist__btn--primary', !canAsk);
     powerBtn.classList.toggle('bpmn-assist__btn--perigo', canAsk);
     powerBtn.disabled = busy || (!canAsk && !credentials.hasKey && !keyInput.value);
-    const ondeDeveEstar = canAsk ? menu : barraTopo;
+    const ondeDeveEstar = canAsk ? menu : acoes;
     if (powerBtn.parentElement !== ondeDeveEstar) ondeDeveEstar.append(powerBtn);
+
+    // Parar de falar só existe enquanto há fala. Fora disso, nem ocupa linha.
+    if (calarBtn.parentElement !== acoes) acoes.append(calarBtn);
+    calarBtn.hidden = !falando;
+    acoes.hidden = Boolean(confirmacao) || (!falando && canAsk);
 
     // ⚠ UMA AÇÃO PRINCIPAL POR ESTADO. Ouvindo, o rodapé é a faixa de voz — sem campo de texto e
     // sem "Enviar", porque não há mensagem para enviar. Digitando, não existe controle de gravação.
@@ -415,8 +412,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
     composer.hidden = perguntando || !canAsk || emVoz;
     micLabel.hidden = perguntando || !(mode === 'voz' && canAsk) || micOn;
 
-    // O microfone no compositor é só para COMEÇAR a falar; quem para é o botão da faixa.
-    talkBtn.hidden = perguntando || !(mode === 'voz' && canAsk);
+    // O microfone é a PORTA da voz: clicar nele é que leva a sessão para o modo voz. Por isso
+    // ele aparece no modo texto também — era o seletor lá de cima que fazia esse papel.
+    talkBtn.hidden = perguntando || !canAsk;
     talkBtn.textContent = '●';
     talkBtn.setAttribute('aria-label', 'Falar com o ajudante');
     talkBtn.title = 'Falar com o ajudante';
@@ -458,8 +456,6 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // atribuição aqui, e ela vencia por ser a última: em voz o campo de texto voltava à tela com
     // "Enviar" ao lado do medidor — exatamente o defeito que esta change existe para remover. Em
     // tela estava lá; no DOM eu tinha "corrigido".
-    contrato.textContent = podeEscrever ? CONTRATO.escreve : CONTRATO.le;
-    contrato.hidden = perguntando || !canAsk;
     sendBtn.disabled = !canAsk;
     input.disabled = !canAsk;
 
@@ -533,9 +529,16 @@ export function createWidget({ session, credentials, onClose } = {}) {
   consent.addEventListener('change', () => credentials.setConsent(consent.checked));
   trocarKey.addEventListener('click', () => session.forgetKey());
 
-  modeText.addEventListener('click', () => session.switchMode('texto'));
-  modeVoice.addEventListener('click', () => session.switchMode('voz'));
-  talkBtn.addEventListener('click', () => (session.micOn ? session.stopMic() : session.startMic()));
+  /**
+   * O microfone é o que ABRE a voz: sem seletor de modo, este clique é a troca de modo.
+   * Clicar de novo fecha o microfone — e a sessão continua, agora para texto.
+   */
+  talkBtn.addEventListener('click', async () => {
+    if (session.micOn) { await session.stopMic(); return; }
+    if (session.mode !== 'voz') await session.switchMode('voz');
+    await session.startMic();
+  });
+  calarBtn.addEventListener('click', () => session.pararDeFalar());
 
   const submit = () => {
     if (session.ask(input.value)) input.value = '';
@@ -553,6 +556,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
       micOn: session.micOn, level: session.level ?? 0,
       busy: session.state === 'connecting' || session.state === 'closing',
       canAsk: ['ready', 'listening', 'speaking'].includes(session.state),
+      falando: session.state === 'speaking',
       messages: session.messages,
     };
   }

@@ -259,6 +259,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * sem contrato na tela é o aluno descobrindo por acidente.
      */
     podeEscrever: ferramentasPermitidas(contextoAtual()).some((f) => f.escreve),
+    // O botão de parar só existe enquanto há o que parar.
+    falando: state === 'speaking' && !calado,
     busy: state === 'connecting' || state === 'closing',
     canAsk: (state === 'ready' || state === 'listening' || state === 'speaking'),
     messages: messages.slice(),
@@ -281,6 +283,34 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * esperar o `interrupted` voltar do servidor. A decisão é do detector (puro, em `live/audio.js`);
    * este lugar só age.
    */
+  /**
+   * O aluno mandou PARAR DE FALAR.
+   *
+   * ⚠ Esvaziar a fila não basta: o servidor continua mandando os quadros do resto da resposta, e
+   * meio segundo depois a voz volta sozinha — o botão pareceria quebrado. Então o pedido vale
+   * até o fim DESTE turno: o que chegar depois é descartado e contado.
+   *
+   * Não é interrupção de protocolo (o modelo não precisa saber que ninguém está ouvindo) nem
+   * barge-in (ninguém falou por cima). É o aluno dizendo "chega" — e o silêncio é imediato.
+   */
+  let calado = false;
+
+  function pararDeFalar() {
+    if (!speaker) return false;
+    calado = true;
+    speaker.flush();
+    diag.state('parar-de-falar', 'pedido do aluno');
+    publish();
+    return true;
+  }
+
+  /** Turno novo: o "chega" do turno anterior não cala a resposta seguinte. */
+  function voltarAFalar(motivo) {
+    if (!calado) return;
+    calado = false;
+    diag.state('volta-a-falar', motivo);
+  }
+
   function bargeInLocal(rms) {
     if (!detectorDeFala.quadro(rms)) return false;
     speaker?.flush();
@@ -401,11 +431,46 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * so um deles e fechado no teardown. Virou possivel no mesmo dia em que o microfone passou a
    * abrir sozinho no modo voz: o automatico e o clique do aluno disputam este trecho.
    */
+  /**
+   * A vigia da saúde do som: um retrato a cada 3 s no diário.
+   *
+   * ⚠ Ela nascia na TROCA DE MODO, e por isso não existia numa sessão de texto — que é
+   * justamente onde o dono ouviu a fala picotada (a resposta vem em áudio nos dois modos). O
+   * portão lia `null` e passava: instrumento calado parecendo instrumento verde. Agora ela
+   * começa junto do alto-falante, que é quem ela mede.
+   */
+  function vigiarSom() {
+    if (relogioDeSom) clearInterval(relogioDeSom);
+    speaker?.stats?.();                       // a primeira leitura não espera 3 s
+    relogioDeSom = setInterval(() => {
+      if (!speaker) return;
+      speaker.stats?.();
+    }, 3000);
+    // ⚠ No Node (teste), um `setInterval` vivo SEGURA o processo: a suíte parou de terminar no
+    // instante em que esta vigia passou a nascer com o alto-falante. No navegador `unref` não
+    // existe, e o `?.` resolve. Relógio de diagnóstico não decide quando o programa acaba.
+    relogioDeSom?.unref?.();
+  }
+
   function ensureSpeaker() {
     if (speaker) return Promise.resolve(speaker);
     if (!speakerEmVoo) {
-      speakerEmVoo = Promise.resolve(playbackFactory({ onStats: (s) => { lastStats = s; } }))
-        .then((s) => { speaker = s; speakerEmVoo = null; return s; })
+      speakerEmVoo = Promise.resolve(playbackFactory({
+        /**
+         * ⚠ A linha do diário sai AQUI, na resposta — não no relógio que pergunta.
+         *
+         * O relógio perguntava e lia `lastStats` no mesmo instante: na primeira volta a
+         * resposta ainda não tinha chegado, e num turno curto não havia segunda volta. O
+         * portão ao vivo lia `null` e eu quase tomei ausência de medida por medida boa.
+         */
+        onStats: (s) => {
+          lastStats = s;
+          diag.record('som', 'buffer',
+          `ms=${s.bufferedMs} furos=${s.underflows} descartados=${s.overflowDropped}`,
+          );
+        },
+      }))
+        .then((s) => { speaker = s; speakerEmVoo = null; vigiarSom(); return s; })
         .catch((err) => { speakerEmVoo = null; throw err; });
     }
     return speakerEmVoo;
@@ -592,6 +657,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
+        // Fim de turno é o retrato que interessa: o que acabou de ser falado saiu inteiro?
+        if (s === 'ready') speaker?.stats?.();
         setState(s, r);
         // Pedido do dono (2026-11-11): "clicar em voz já poderia aparecer a parada de voz" — ou
         // seja, escolher voz é começar a falar, não desbloquear mais um botão. Consome a marca
@@ -700,6 +767,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
       onAudio: async (b64) => {
         fecharFala('áudio do modelo');
+        // O aluno mandou parar: o resto deste turno não toca. Contado, não silenciado às escuras.
+        if (calado) { diag.ws('audio-descartado', 'aluno mandou parar'); return; }
         // Em escuta contínua o microfone FICA ABERTO aqui — é o que permite interromper falando
         // por cima. Só a rede de segurança fecha.
         if (meiaDuplex && mic) fecharMicrofone('meia-duplex: modelo respondendo');
@@ -823,12 +892,6 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       interrupcoesSeguidas = 0;
       // Saúde da reprodução no diário: é o que transforma "a fala trava" em um número
       // (`underflows`) em vez de uma impressão.
-      if (relogioDeSom) clearInterval(relogioDeSom);
-      relogioDeSom = setInterval(() => {
-        if (!speaker) return;
-        speaker.stats?.();
-        if (lastStats) diag.record('som', 'buffer', `ms=${lastStats.bufferedMs} furos=${lastStats.underflows}`);
-      }, 3000);
       micAutomatico = targetMode === 'voz';
       await teardown();
       mode = targetMode;
@@ -896,6 +959,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // Sessao que nao devolve identidade (duble antigo, implementacao futura) ainda conta um
       // turno: o numero e nosso, e perder a contagem quebraria desde o aviso de troca de modo
       // ate a origem do que o modelo mandar guardar.
+      voltarAFalar('pergunta nova');
       const daSessao = session.ask(q, delta);
       const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);
       push({ role: 'user', text: q, via: 'texto', turn: n });
@@ -919,6 +983,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       try {
         await (await ensureSpeaker()).resume();   // o mesmo gesto libera o alto-falante
         turnSeq++;
+        voltarAFalar('microfone aberto');
         // Abrir o microfone é começar um turno: o estado da tela tem de chegar antes da fala.
         atualizarContexto();
         diag.mic('open');
@@ -1007,6 +1072,11 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * de a promessa resolver — é esse caminho único que garante a checagem de versão do diagrama
      * (H14) valer para todo clique.
      */
+    /** Cala a resposta em curso. Devolve false quando não havia nada tocando. */
+    pararDeFalar() {
+      return pararDeFalar();
+    },
+
     confirmar(sim) {
       fecharConfirmacao(sim);
     },

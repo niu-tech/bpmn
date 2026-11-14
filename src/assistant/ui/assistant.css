@@ -118,16 +118,12 @@
 }
 .bpmn-assist__icon:focus-visible { outline: 2px solid #1f6feb; outline-offset: 1px; }
 
-.bpmn-assist__body { padding: 12px 14px; overflow: auto; flex: 1; }
+.bpmn-assist__body { padding: 14px 14px 16px; overflow: auto; flex: 1; background: #fbfcfe; }
 
 /* Texto/Voz/Encerrar: fixos sob o cabeçalho. No corpo rolável eles sumiam assim que a conversa
    crescia, e trocar de modo exigia rolar tudo de volta. */
-.bpmn-assist__panel > .bpmn-assist__row {
-  flex: none;
-  margin: 0;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
+/* A barra do topo (Texto/Voz/Encerrar) nao existe mais: o modo vem do GESTO (escrever ou
+   clicar no microfone), e o que se clica mora no rodape. */
 
 /* ---------------------------------------------------------------- chave */
 
@@ -190,37 +186,73 @@
   background: #1f6feb; border-color: #1f6feb; color: #fff;
 }
 .bpmn-assist button.bpmn-assist__btn--primary:hover:not(:disabled) { background: #1a60cf; }
-.bpmn-assist button.bpmn-assist__seg[aria-pressed="true"] {
-  background: #0f172a; border-color: #0f172a; color: #fff;
-}
-
 /* ---------------------------------------------------------------- conversa */
 
+/* A conversa tem DUAS vozes e um narrador, e os tres nao podem parecer a mesma coisa.
+   A bolha (aluno, ajudante) e um objeto: fundo, raio e cantos que apontam para quem falou.
+   A NOTA do sistema ("modo texto: sessao nova...") e um recado do aplicativo: linha fina,
+   centrada, sem fundo - ela nao disputa com a conversa. Era isso que estava mal diagramado
+   (dono, 2026-11-14: "esse texto ele ta mal diagramado com o texto da bolha"). */
 .bpmn-assist__log {
-  display: flex; flex-direction: column; gap: 8px;
-  margin: 10px 0 0;
+  display: flex; flex-direction: column; gap: 10px;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .bpmn-assist__msg {
-  padding: 7px 10px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.45;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.bpmn-assist__msg--user { background: #e8f0fe; align-self: flex-end; max-width: 88%; }
-.bpmn-assist__msg--assistant { background: #f1f5f9; align-self: flex-start; max-width: 92%; }
-.bpmn-assist__msg--system { background: transparent; font-size: 11.5px; color: #64748b; padding: 2px 0; }
-.bpmn-assist__msg--error { color: #b91c1c; }
-.bpmn-assist__msg--context-reset {
-  color: #92400e;
-  background: rgba(210, 153, 34, 0.12);
-  border-radius: 8px; padding: 6px 10px;
+.bpmn-assist__msg--user {
+  background: #1f6feb;
+  color: #fff;
+  align-self: flex-end;
+  max-width: 85%;
+  border-bottom-right-radius: 5px;
 }
-.bpmn-assist__via { font-size: 10.5px; opacity: .65; display: block; }
+.bpmn-assist__msg--assistant {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  align-self: flex-start;
+  max-width: 92%;
+  border-bottom-left-radius: 5px;
+}
+/* Nota do aplicativo: largura inteira, centrada, discreta - e com ar em volta, para nao
+   parecer rodape da bolha de cima. */
+.bpmn-assist__msg--system {
+  background: transparent;
+  align-self: stretch;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #8a8f98;
+  padding: 2px 10%;
+  margin: 2px 0;
+}
+.bpmn-assist__msg--error { color: #b42318; }
+.bpmn-assist__msg--context-reset {
+  color: #8a4b12;
+  background: rgba(210, 153, 34, 0.10);
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: left;
+}
+/* "por voz" / "digitado": etiqueta da bolha, nao frase. */
+.bpmn-assist__via {
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .6;
+  display: block;
+  margin-bottom: 2px;
+}
+.bpmn-assist__msg--user .bpmn-assist__via { opacity: .75; }
 
 .bpmn-assist__empty { font-size: 12px; color: #64748b; margin: 10px 0 0; }
 
@@ -237,8 +269,24 @@
   display: flex;
   gap: 8px;
   align-items: flex-end;
-  padding: 12px 14px 10px;
+  padding: 12px 14px;
 }
+
+/* As ACOES do rodape: "Comecar" antes de conectar, "Parar de falar" enquanto ele responde.
+   Linha propria, embaixo de tudo - e o olho do aluno ja' esta' aqui. */
+.bpmn-assist__acoes {
+  display: flex;
+  gap: 8px;
+  padding: 0 14px 12px;
+}
+.bpmn-assist__acoes .bpmn-assist__btn { flex: 1; }
+.bpmn-assist button.bpmn-assist__btn--calar {
+  background: #fff;
+  border-color: rgba(180, 35, 24, 0.35);
+  color: #b42318;
+  font-weight: 600;
+}
+.bpmn-assist button.bpmn-assist__btn--calar:hover:not(:disabled) { background: #fdf2f1; }
 .bpmn-assist__composer textarea { resize: none; height: 42px; flex: 1; }
 
 /* ---- o MICROFONE, dentro do compositor ------------------------------------------------------
@@ -349,26 +397,6 @@
 
 /* ---------------------------------------------------------------- modo (segmentado) */
 
-.bpmn-assist__segs {
-  display: inline-flex;
-  border: 1px solid rgba(15, 23, 42, 0.18);
-  border-radius: 8px;
-  overflow: hidden;
-  flex: none;
-}
-.bpmn-assist button.bpmn-assist__seg {
-  padding: 7px 14px;
-  border: 0;
-  border-right: 1px solid rgba(15, 23, 42, 0.12);
-  background: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-.bpmn-assist button.bpmn-assist__seg:last-child { border-right: 0; }
-.bpmn-assist button.bpmn-assist__seg:hover:not(:disabled) { background: #f1f5f9; }
-.bpmn-assist button.bpmn-assist__seg:focus-visible { outline: 2px solid #1f6feb; outline-offset: -2px; }
-.bpmn-assist button.bpmn-assist__seg:disabled { opacity: .5; cursor: not-allowed; }
-
 .bpmn-assist__row { align-items: center; }
 
 /* ---------------------------------------------------------------- falar + medidor
@@ -456,14 +484,6 @@
   50%      { opacity: 1; }
 }
 
-/* ---- o CONTRATO, embaixo do compositor (H7) ------------------------------------------------ */
-.bpmn-assist__contrato {
-  margin: 6px 2px 0;
-  font-size: .74rem;
-  line-height: 1.45;
-  color: #64748b;
-}
-
 /* ---- o minimizado diz o que o ajudante FAZ ------------------------------------------------- */
 .bpmn-assist__toggletxt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; }
 .bpmn-assist__toggletxt strong { font-weight: 600; }
@@ -503,7 +523,6 @@
 .bpmn-assist__status { font-size: 12.5px; }
 .bpmn-assist__hint,
 .bpmn-assist__compact,
-.bpmn-assist__contrato,
 .bpmn-assist__miclabel { font-size: 12.5px; color: var(--cor-secundaria); }
 .bpmn-assist__head h2 { font-size: 17px; }
 

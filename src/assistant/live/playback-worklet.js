@@ -15,7 +15,23 @@ class BpmnPlayback extends AudioWorkletProcessor {
     // por 120 ms. Pego por teste.
     this.srcRate = po.sourceRate || 24000;
     this.step = this.srcRate / sampleRate;
-    this.ring = new Float32Array(this.srcRate * 8);   // ~8 s: teto, não fila infinita
+    /**
+     * O anel guarda um TURNO INTEIRO, não alguns segundos.
+     *
+     * ⚠ Aqui havia um teto de 8 s, e ele picotava a fala (relato do dono, 2026-11-14: "vai
+     * cortando em pedaços muito pequenos e falando por cima dela mesma; o início fala bem, o
+     * meio embola"). A causa é a forma de entrega: o Gemini Live gera áudio MAIS RÁPIDO que o
+     * tempo real e manda o turno em rajada — 30 s de fala chegam em poucos segundos. O leitor
+     * sai a 1×, o escritor passa por cima, e a política de cheio descartava o MAIS ANTIGO, que
+     * é justamente o pedaço que ainda ia ser falado. Medido no teste da rajada: **530.400
+     * amostras descartadas**, 22 s de fala, num turno de 30 s.
+     *
+     * 60 s a 24 kHz são 5,8 MB — caro para um buffer, barato para não comer a frase do meio.
+     * O descarte continua existindo como última barreira (memória tem de ter teto), mas agora
+     * ele é um caso de turno absurdo, não o caminho normal de toda resposta longa.
+     */
+    this.maxSeconds = po.maxSeconds || 60;
+    this.ring = new Float32Array(this.srcRate * this.maxSeconds);
     this.w = 0; this.r = 0; this.size = 0; this.pos = 0;
     this.written = 0; this.consumed = 0;
     // ⚠ DOIS limiares, não um. O de PARTIDA (`primeMs`) é quanto esperar antes da primeira

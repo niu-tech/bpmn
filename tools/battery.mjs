@@ -1089,7 +1089,19 @@ if (chaveViva) {
        // ⚠ O evento de inicio vai NOMEADO. Sem o nome, o agente respondeu — com razao — "temos
        // dois eventos de inicio, «Hungry for pizza» e «Order received», qual deles?", e o passo
        // reprovou uma pergunta CERTA. O nome e o que o aluno le na tela, nao um id.
-       const r = await window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início "Order received".');
+       // ⚠ O botao de PARAR DE FALAR so existe enquanto ela fala, entao o portao tem de olhar
+       // DURANTE a resposta - depois dela nao prova nada. Faltava o botao inteiro ate 2026-11-14
+       // ("a gente nao tem um botao para o ajudante parar de falar").
+       let pronto = false;
+       const emCurso = window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início "Order received".')
+         .then((x) => { pronto = true; return x; });
+       let botaoDePararNaTela = false;
+       for (let i = 0; i < 200 && !botaoDePararNaTela && !pronto; i++) {
+         await new Promise((r2) => setTimeout(r2, 200));
+         const b = document.querySelector('.bpmn-assist__btn--calar');
+         botaoDePararNaTela = Boolean(b && !b.hidden && b.offsetParent !== null);
+       }
+       const r = await emCurso;
        const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
        const novos = window.__idsNaTela().filter((id) => !window.__antes.includes(id));
        const criado = novos.find((id) => window.__rotulo(id).toLowerCase().includes('receber pedido'))
@@ -1103,12 +1115,27 @@ if (chaveViva) {
        // pedido»" e a forma estava anonima na tela — a leitura de volta conferia o atributo da
        // forma, nao o que o desenho mostra. Nome ausente aqui e a criacao mentindo.
        const rotulo = criado ? window.__rotulo(criado) : '';
+       // ⚠ A SAUDE DO SOM, do diario da propria sessao. A resposta do modelo chega em audio
+       // mesmo no modo texto, e ate 2026-11-14 o diario contava so os FUROS (buffer vazio) -
+       // o defeito era o contrario, DESCARTE por buffer cheio: o anel de 8 s jogava fora o meio
+       // de toda resposta longa e a fala saia picotada ("falando por cima dela mesma").
+       const linha = window.__linhaDoTempo();
+       const som = linha.filter((l) => l.startsWith('som.buffer')).at(-1) ?? null;
+       // ⚠ Falta de leitura NAO e aprovacao. Se houve audio e o diario nao tem a linha de saude,
+       // o portao reprova - foi assim que a primeira versao deste criterio passou verde sem
+       // medir nada (2026-11-14).
+       const tocouAudio = linha.some((l) => l.startsWith('ws.audio'));
+       const descartou = tocouAudio && (!som || !/descartados=0( |$)/.test(som));
        window.__antes = window.__idsNaTela();
        return {
          ok: !r.startsWith('[FALHA DO SERVICO]') && chamadas.includes('criar_elemento') && !!criado
            && Array.isArray(sobre) && sobre.length === 0
-           && /receber pedido/i.test(rotulo),
+           && /receber pedido/i.test(rotulo)
+           && !descartou
+           && botaoDePararNaTela,
          chamouCriar: chamadas.includes('criar_elemento'),
+         botaoDePararNaTela,
+         saudeDoSom: som,
          nomeNoDesenho: rotulo,
          nasceuPorCimaDe: sobre,
          caixaDoCriado: criado ? window.__caixa(criado) : null,

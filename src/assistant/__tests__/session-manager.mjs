@@ -55,7 +55,7 @@ function fakeLive() {
 }
 
 function fakeAudio() {
-  const estado = { micsAbertos: 0, micsFechados: 0, playbacksAbertos: 0, playbacksFechados: 0, flushes: 0, negarMic: null };
+  const estado = { micsAbertos: 0, micsFechados: 0, playbacksAbertos: 0, playbacksFechados: 0, flushes: 0, quadrosTocados: 0, negarMic: null };
   const startCapture = async ({ onFrame }) => {
     if (estado.negarMic) { const e = new Error('negado'); e.reason = estado.negarMic; throw e; }
     estado.micsAbertos++;
@@ -65,7 +65,7 @@ function fakeAudio() {
   const startPlayback = async () => {
     estado.playbacksAbertos++;
     return {
-      push() {}, flush() { estado.flushes++; }, stats() {},
+      push() { estado.quadrosTocados++; }, flush() { estado.flushes++; }, stats() {},
       resume: async () => {}, state: 'running',
       stop: async () => { estado.playbacksFechados++; },
     };
@@ -92,6 +92,40 @@ function montar(deps = {}) {
   });
   return { session, credentials, live, audio, vistas };
 }
+
+console.log('\n▶ parar de falar');
+
+testAsync('"parar de falar" cala o RESTO do turno, não só a fila', async () => {
+  // ⚠ Esvaziar a fila sozinho faria o botão parecer quebrado: o servidor continua mandando os
+  // quadros do resto da resposta, e meio segundo depois a voz volta. O pedido do aluno vale até
+  // o fim deste turno (relato do dono, 2026-11-14: "não temos um botão para o ajudante parar de
+  // falar").
+  const { session, live, audio } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('me explica o diagrama');
+  live.ultima.audio('AAAA');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(audio.estado.quadrosTocados, 1, 'estava falando');
+
+  assert.equal(session.pararDeFalar(), true);
+  assert.equal(audio.estado.flushes, 1, 'o que já estava na fila morre agora');
+
+  live.ultima.audio('BBBB');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(audio.estado.quadrosTocados, 1, 'o que chega depois do "chega" não toca');
+
+  // E o silêncio é DESTE turno: a próxima pergunta é respondida em voz normalmente.
+  session.ask('e agora?');
+  live.ultima.audio('CCCC');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(audio.estado.quadrosTocados, 2, 'turno novo volta a falar');
+});
+
+testAsync('sem nada tocando, parar de falar não finge que parou', async () => {
+  const { session } = montar();
+  assert.equal(session.pararDeFalar(), false);
+});
 
 console.log('\n▶ o contrato na tela diz a verdade');
 
