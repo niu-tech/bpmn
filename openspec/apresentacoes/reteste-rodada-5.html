@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Reteste · rodada 5</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --vinho-fraco:#fcefed;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:14px/1.45 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:860px; margin:0 auto; padding:24px 26px 26px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:11px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:24px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:22px; line-height:1.12; letter-spacing:-.02em; font-weight:600; margin:9px 0 5px; }
+  .sub { font-size:13.5px; color:var(--suave); margin:0 0 14px; max-width:80ch; }
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:12px; overflow:hidden; font-size:12.6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:6px 11px; border-bottom:1px solid var(--linha); }
+  td { padding:7px 11px; border-bottom:1px solid #f1f1f5; vertical-align:top; color:#3f4049; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--tinta); font-weight:600; }
+  .cx { width:20px; color:var(--fraco); font-size:14px; text-align:center; }
+  .fala { width:38%; color:var(--tinta); }
+  .fala em { color:var(--suave); font-style:normal; font-size:12.2px; }
+  .causa { background:#f3f4f6; color:#44464f; font-size:11.5px; padding:2px 6px;
+    border-radius:5px; display:inline-block; margin-top:3px; }
+  .aberto { margin-top:14px; background:var(--ambar-fraco); border:1px solid #f0d9b5;
+    border-radius:12px; padding:12px 15px; font-size:12.8px; color:#5d4320; }
+  .aberto b { color:var(--ambar); }
+  .aberto li { margin-bottom:6px; }
+  footer { margin-top:16px; padding-top:12px; border-top:1px solid var(--linha);
+    font-size:11.8px; color:var(--fraco); }
+  @media print { body { background:#fff; } .env { padding:0 0 6px; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Reteste · rodada 5</span>
+  <h1>A seleção, o rodapé e a seta que cruzava</h1>
+  <p class="sub">A aba já foi recarregada. Em cinza, a causa — e desta vez a da seleção é
+  constrangedora: eu tinha consertado <i>um</i> dos três lugares que diziam “um só”.</p>
+
+  <table>
+    <tr><th class="cx">✓</th><th class="fala">Você faz</th><th>Tem de acontecer</th></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Selecione <b>quatro</b> (Shift ou laço) e diga</em> <b>“alinha esses”</b></td>
+        <td>Ele usa os quatro. A linha de leitura mostra <b>“selecionados: A, B, C, D”</b>.
+        <div class="causa">causa: a projeção do prompt eu já tinha corrigido — mas a <b>nota da página</b> (“o aluno selecionou X… é este”) e a <b>leitura</b> continuavam nomeando só o primeiro. Eram elas que ele lia.</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Mute o microfone e olhe o rodapé inteiro</em></td>
+        <td><b>Uma</b> linha sobre o estado da voz — a faixa. A frase “o ajudante está
+        respondendo…” não aparece mais embaixo dela.
+        <div class="causa">causa: as duas linhas eram independentes e não se falavam</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Com ele falando, clique no</em> <b>quadrado vermelho</b> <em>(encerrar a voz)</em></td>
+        <td>Para de falar <b>na hora</b> e volta para a tela de escrever, em silêncio.
+        <div class="causa">causa: o stop fechava só o microfone — a resposta seguia tocando</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Repare que o botão largo</em> <b>“Parar de falar”</b> <em>sumiu da faixa de voz</em></td>
+        <td>Calar agora é o <b>ícone de som</b>, que também corta a resposta em curso. Em modo
+        texto o botão continua existindo.</td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><b>“Põe uma tarefa Notify delay entre o 60 minutes e o Ask for the pizza”</b></td>
+        <td>Entra no meio, abre espaço <b>e as setas da região são redesenhadas</b> — nenhuma
+        linha passa por cima da tarefa nova.
+        <div class="causa">causa: inserir não mexia nas <i>outras</i> ligações; a do laço do gateway continuava com o traçado antigo, cruzando o elemento. Mover a forma não resolvia porque ninguém recalculava a linha.</div></td></tr>
+  </table>
+
+  <div class="aberto">
+    <b>Ainda em aberto</b>, na ordem:
+    <ol style="margin:6px 0 0;padding-left:18px">
+      <li><b>Mover um elemento que já existe para o meio do fluxo</b> — hoje o modelo cria outro.</li>
+      <li><b>“Pode continuar” retomando o assunto certo.</b></li>
+      <li><b>A sua fala cortada quando você pausa pensando</b> (o servidor fecha o turno na pausa).</li>
+      <li><b>Voltar a falar no meio da resposta</b> depois do “só texto”: o áudio daquele trecho
+      foi descartado e não volta. Só a próxima resposta sai falada — é limite do protocolo, não
+      escolha nossa.</li>
+      <li><b>A tela base</b> — na outra conversa, pelo handoff.</li>
+    </ol>
+  </div>
+
+  <footer>
+    Ajudante BPMN (TCC) · rodada 5, 2026-11-15 · commit <code>9340479</code> em <code>main</code> ·
+    provas: nota da página com 4 nomes, portão do navegador (vão 27 px, sobreposição 0, setas=1)
+  </footer>
+</div>
+</body>
+</html>
