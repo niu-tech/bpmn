@@ -927,7 +927,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
       state: session.state, reason: session.reason, mode: session.mode,
       micOn: session.micOn, level: session.level ?? 0,
       busy: session.state === 'connecting' || session.state === 'closing',
-      canAsk: ['ready', 'listening', 'speaking'].includes(session.state),
+      canAsk: ['ready', 'listening', 'speaking', 'dormindo'].includes(session.state),
       falando: session.state === 'speaking',
       messages: session.messages,
     };

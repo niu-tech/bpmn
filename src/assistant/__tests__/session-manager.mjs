@@ -64,6 +64,15 @@ function fakeLive() {
         opts.onState?.({ state, reason: null });
       },
       fimDeTurno() { state = 'ready'; opts.onState?.({ state, reason: null }); },
+      /** Fecho por INATIVIDADE: o transporte dorme em vez de brigar pela vaga (portao M4). */
+      dorme() { state = 'dormindo'; opts.onState?.({ state, reason: 'inatividade' }); },
+      /** O envio ACORDA a sessao: o setup volta com a alca, e nada se perdeu. */
+      acorda() {
+        state = 'ready';
+        s.setups++;
+        opts.onSetupComplete?.({ reconectou: true, retomou: true, acordou: true });
+        opts.onState?.({ state, reason: null });
+      },
       falha(reason) { state = 'error'; opts.onState?.({ state, reason }); },
       texto(t, extra = {}) { opts.onText?.({ text: t, fallback: false, complete: false, ...extra }); },
       legenda(t, side = 'output') { opts.onTranscript?.({ side, text: t }); },
@@ -114,6 +123,54 @@ function montar(deps = {}) {
   });
   return { session, credentials, live, audio, vistas };
 }
+
+console.log('\n▶ a sessão que dorme (fecho por inatividade)');
+
+testAsync('dormindo, o aluno AINDA pode perguntar — e é a pergunta que acorda', async () => {
+  /**
+   * Medido ao vivo no portão M4 (2026-11-15): o servidor fecha a sessão do aluno que está LENDO
+   * com `1008 Session closed due to client inactivity` — aos 74 s na primeira corrida, aos 119 s
+   * na segunda. O transporte passou a DORMIR nessa hora (em vez de reabrir e disputar a vaga do
+   * fio morto, o que terminava em *"o limite de sessões da sua chave foi atingido"*).
+   *
+   * Só que dormir desligava a caixa de texto: `canAsk` não conhecia o estado novo, e o aluno
+   * ficava olhando um campo morto sem nada ter acontecido na tela. O conserto do sono não
+   * chegava a ninguém.
+   */
+  const { session, live, vistas } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  live.ultima.dorme();
+
+  assert.equal(session.state, 'dormindo');
+  assert.equal(vistas.at(-1).canAsk, true, 'a caixa de texto continua viva: o envio é que acorda');
+
+  assert.equal(session.ask('e o gateway paralelo?'), true, 'a pergunta foi aceita');
+  assert.ok(
+    live.ultima.enviados.some((e) => e.tipo === 'texto' && /paralelo/.test(e.t)),
+    'ela desceu ao transporte, que a enfileira e reabre',
+  );
+});
+
+testAsync('DESPERTAR não é queda: nenhum aviso de conexão, e a pergunta não é refeita', async () => {
+  // O gerente refaz a pergunta perdida quando a sessão CAI no meio da resposta. No despertar, a
+  // pergunta está na fila e acabou de sair: refazer aqui mandaria a MESMA pergunta duas vezes, e
+  // o aviso "a conexão caiu" seria um aviso mentindo — o tipo que o aluno aprende a ignorar.
+  const { session, live } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  live.ultima.dorme();
+  session.ask('e o gateway paralelo?');
+  live.ultima.acorda();
+
+  const perguntas = live.ultima.enviados.filter((e) => e.tipo === 'texto');
+  assert.equal(perguntas.length, 1, 'uma pergunta, uma vez');
+  const avisos = session.messages.filter((m) => m.role === 'system').map((m) => m.text);
+  assert.equal(
+    avisos.filter((t) => /conexão caiu/i.test(t)).length, 0,
+    'nada caiu na cara do aluno, então nada é dito',
+  );
+});
 
 console.log('\n▶ a queda da sessão não para a conversa');
 
@@ -676,6 +733,17 @@ await (async () => {
     assert.equal(session.reason, 'mic-denied');
     assert.equal(session.micOn, false);
     assert.match(session.messages.at(-1).text, /microfone/i);
+    /**
+     * ⚠ "SEM DERRUBAR A SESSAO" passou a ser medido, e nao so' prometido no titulo.
+     *
+     * Marcar a SESSAO como `error` desliga a caixa de texto (`canAsk`): quem clicava em
+     * "Bloquear" no aviso do navegador perdia o ajudante inteiro, inclusive o modo TEXTO, que nao
+     * tem nada a ver com microfone. Achado no portao M3 (2026-11-15), no navegador de verdade,
+     * com `getUserMedia` recusando como o Chrome recusa: `estado: error`, `podeEscrever: false`.
+     * O teste daqui dizia "sem derrubar" e nao conferia nada disso.
+     */
+    assert.notEqual(session.state, 'error', 'a sessao Live segue de pe: o que falhou foi a VOZ');
+    assert.equal(session.ask('posso continuar escrevendo?'), true, 'o modo texto continua vivo');
     forgetSecrets();
   });
 

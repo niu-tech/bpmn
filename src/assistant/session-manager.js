@@ -39,6 +39,8 @@ export const MODES = /** @type {const} */ (['texto', 'voz']);
 /** Rótulos para a UI. Estado técnico vira frase curta em pt-BR. */
 export const STATE_LABELS = {
   idle: 'desligado',
+  // DORMINDO: sem socket por inatividade, mas a conversa continua — a próxima pergunta acorda.
+  dormindo: 'em espera',
   connecting: 'conectando',
   ready: 'pronto',
   listening: 'ouvindo',
@@ -565,7 +567,12 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     // O botão de parar só existe enquanto há o que parar.
     falando: state === 'speaking' && !calado,
     busy: state === 'connecting' || state === 'closing',
-    canAsk: (state === 'ready' || state === 'listening' || state === 'speaking'),
+    // `dormindo` também pergunta: a sessão dorme por inatividade e é o PRÓPRIO envio que a
+    // acorda, retomando a mesma conversa. Sem isto, o fecho do servidor desligava a caixa de
+    // texto na cara do aluno e o conserto do sono não chegava a ninguém (medido ao vivo:
+    // o servidor fecha aos ~2 min de leitura, portão M4).
+    canAsk: (state === 'ready' || state === 'listening' || state === 'speaking'
+             || state === 'dormindo'),
     messages: messages.slice(),
   });
 
@@ -1089,8 +1096,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
        * O sinal é o SETUP ACEITO, não o estado `ready`: o estado volta ao fim de cada turno, e
        * ouvi-lo re-semearia contexto e histórico a cada pergunta.
        */
-      onSetupComplete: ({ reconectou, retomou }) => {
+      onSetupComplete: ({ reconectou, retomou, acordou }) => {
         chaveJaAbriuSessao = true;
+        /**
+         * DESPERTAR: a sessão dormia (fecho por inatividade) e a pergunta do aluno a reabriu. Nada
+         * caiu, nada se perdeu — o frame dele está na fila e acabou de sair, com o contexto dentro
+         * (o `ask` manda delta e pergunta no MESMO frame). Logo: nenhum aviso de queda, nenhuma
+         * semeadura e nenhum reenvio — reenviar aqui mandaria a mesma pergunta duas vezes.
+         */
+        if (acordou) { diag.state('despertou', 'mesma sessão: histórico preservado no servidor'); return; }
         if (!reconectou) return;
         if (retomou) {
           /**
@@ -1609,7 +1623,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     ask(text) {
       const q = String(text ?? '').trim();
       if (!q) return false;
-      if (!session || !(state === 'ready' || state === 'listening' || state === 'speaking')) {
+      if (!session || !(state === 'ready' || state === 'listening' || state === 'speaking'
+                        || state === 'dormindo')) {
         note('conecte antes de perguntar.', 'error');
         return false;
       }
@@ -1694,7 +1709,24 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         level = 0;
         diag.mic('falhou', err?.reason ?? err?.message);
         const motivo = err?.reason ?? 'unknown';
-        setState('error', motivo);
+        /**
+         * ⚠ MICROFONE NEGADO NÃO MATA A CONVERSA.
+         *
+         * Isto marcava a SESSÃO como `error`, e `error` desliga a caixa de texto (`canAsk`): quem
+         * clicava em "Bloquear" no aviso do navegador perdia o ajudante inteiro, inclusive o modo
+         * texto, que não tem nada a ver com microfone. Medido no portão M3 (2026-11-15) com o
+         * `getUserMedia` recusando como o Chrome recusa: `estado: error`, `podeEscrever: false`.
+         *
+         * O que falhou foi a ENTRADA DE VOZ, e é isso que se diz. A sessão Live segue de pé — ela
+         * foi aceita antes do microfone — e o aluno continua conversando por escrito. Só se a
+         * própria sessão tiver morrido o estado vira erro.
+         */
+        if (state === 'ready' || state === 'listening' || state === 'speaking' || state === 'dormindo') {
+          reason = motivo;   // o diagnóstico guarda a causa sem derrubar a conversa
+          publish();
+        } else {
+          setState('error', motivo);
+        }
         note(`microfone: ${describeError(motivo) ?? motivo}`, 'error');
         return false;
       }

@@ -80,6 +80,17 @@ export function createSession({
    * `retomou` diz que ele reabriu com a ALÇA, ou seja, no mesmo fio de conversa (T17).
    */
   onSetupComplete,
+  /**
+   * A REDE DO NAVEGADOR, injetável como o relógio e o socket: `online` diz se há rota, e
+   * `aoVoltar` chama de volta quando ela retorna. O default é o próprio navegador — sem
+   * `navigator` (Node, teste), assume-se que há rede, que é o comportamento de antes.
+   */
+  rede = {
+    get online() { return typeof navigator === 'undefined' ? true : navigator.onLine !== false; },
+    aoVoltar(fn) {
+      try { globalThis.addEventListener?.('online', fn, { once: true }); } catch { /* sem DOM */ }
+    },
+  },
   // Diário da sessão: um evento por frame que entra e por frame que sai. É o que transforma
   // "o modelo foi interrompido" numa sequência (`out.audio x12 -> ws.interrupted`) que diz a
   // CAUSA. Opcional: sem ele a sessão funciona igual.
@@ -170,7 +181,15 @@ export function createSession({
   let usoTotal = { entrada: 0, saida: 0, total: 0, turnos: 0 };
   /** Carimbo de tempo, injetável como o resto do relógio: teste mede ordem, não espera. */
   const agora = () => (typeof clock.now === 'function' ? clock.now() : Date.now());
-  let setupsAceitos = 0;       // quantos setups o servidor ja aceitou nesta sessao (reconexao > 1)        // contagem de tokens do último turno (custo é a cota do aluno)
+  let setupsAceitos = 0;       // quantos setups o servidor ja aceitou nesta sessao (reconexao > 1)
+  /**
+   * DORMINDO: o servidor devolveu a sessão por inatividade e nós **não** reabrimos — a alça fica
+   * guardada e o próximo envio acorda a conversa. É o estado de quem está lendo a resposta: zero
+   * socket, zero vaga ocupada, e o fio intacto.
+   */
+  let dormindo = false;
+  let acordando = false;      // este setup é de um despertar, não de uma queda
+  let esperandoARede = false; // já há uma espera de rede armada (uma por queda)        // contagem de tokens do último turno (custo é a cota do aluno)
 
   const log = (...parts) => onLog?.(parts.map((p) => redact(p)).join(' '));
   const ev = (src, kind, detail) => { try { onEvent?.(src, kind, detail); } catch { /* diário nunca derruba a sessão */ } };
@@ -271,8 +290,48 @@ export function createSession({
     if (ferramentasEmVoo === 0) armTurnTimer();
   }
 
+  /**
+   * ESPERAR A REDE VOLTAR, em vez de queimar as reconexões contra um cabo desligado.
+   *
+   * ⚠ Medido em 2026-11-15 com a rede cortada de verdade (`tools/probe-offline.mjs` e o portão
+   * M4): o teto de 3 reconexões com recuo de 500 ms se esgota em **3,5 segundos**. Qualquer
+   * quedinha de Wi-Fi mais longa que isso matava a sessão para sempre — e o aluno levava um erro
+   * nomeado culpando o socket, quando o que faltava era internet que voltaria sozinha.
+   *
+   * O navegador JÁ sabe disso e JÁ avisa: `navigator.onLine` e o evento `online`. Enquanto ele
+   * diz que não há rede, nenhuma tentativa conta; quando a rede volta, a sessão reabre COM a
+   * alça e a conversa continua de onde parou (T20).
+   */
+  function esperarARedeVoltar() {
+    if (esperandoARede) return;
+    esperandoARede = true;
+    ev('ws', 'sem-rede', 'o navegador está offline: esperando a rede voltar');
+    setState('connecting', 'sem-rede');
+    rede.aoVoltar(() => {
+      if (!esperandoARede) return;
+      esperandoARede = false;
+      if (closedByUs || retirado) return;
+      ev('ws', 'rede-voltou', 'reabrindo com a alça');
+      attempts = 0;
+      open();
+    });
+  }
+
   function send(frame) {
-    if (!ready) { pending.push(frame); ev('out', 'enfileirado', nomeDoEnvio(frame)); return false; }
+    if (!ready) {
+      pending.push(frame);
+      ev('out', 'enfileirado', nomeDoEnvio(frame));
+      // DESPERTAR: dormindo não há socket nem relógio de reconexão — quem reabre é o próprio
+      // envio. O frame já está na fila e sai no `flushPending` do setup aceito.
+      if (dormindo && !closedByUs && !retirado) {
+        dormindo = false;
+        acordando = true;
+        attempts = 0;
+        ev('ws', 'acordar', `envio novo (${nomeDoEnvio(frame)}): reabrindo a sessão parada`);
+        open();
+      }
+      return false;
+    }
     try {
       ws.send(JSON.stringify(frame));
       ev('out', nomeDoEnvio(frame));
@@ -509,7 +568,14 @@ export function createSession({
          * é por isso que o gerente, ao retomar, continua refazendo a pergunta que ficou sem
          * resposta: ela é a única coisa que se perde nos dois casos.
          */
-        onSetupComplete?.({ reconectou: setupsAceitos > 0, retomou: setupsAceitos > 0 && pediuRetomada });
+        onSetupComplete?.({
+          reconectou: setupsAceitos > 0,
+          retomou: setupsAceitos > 0 && pediuRetomada,
+          // Despertar planejado não é queda: nada se perdeu, e dizer "a conexão caiu" seria aviso
+          // mentindo — o tipo que o aluno aprende a ignorar.
+          acordou: acordando,
+        });
+        acordando = false;
         setupsAceitos++;
         return;
 
@@ -730,6 +796,27 @@ export function createSession({
       //   não  -> o servidor nunca nos aceitou. Para quem traz a própria chave, é a chave: um
       //           payload de setup inválido falharia para todo mundo, e a suíte pegaria.
       //   sim  -> a chave JÁ autenticou. Depois disso, recusa é limite de uso, nunca credencial.
+      /**
+       * INATIVIDADE — o servidor devolve a NOSSA sessão quando ficamos calados
+       * ("Session closed due to client inactivity", código 1008). Não é vaga negada nem defeito:
+       * e reabrir na hora é justamente o que ESGOTA a cota, porque cada volta disputa a vaga do
+       * fio que acabou de morrer.
+       *
+       * Visto na trilha do dono em 2026-11-15: **nove** fechos por inatividade, nove `ws.vaga`,
+       * e no fim *"o limite de sessões da sua chave foi atingido"* — com a chave perfeitamente
+       * boa. O sintoma chegava como cota; a causa era a nossa própria reconexão contra um aluno
+       * que estava LENDO.
+       *
+       * Então a sessão dorme. A alça fica guardada, o próximo envio reabre e RETOMA a mesma
+       * conversa (T20), e enquanto ninguém fala não há socket nenhum ocupando vaga.
+       */
+      if (/inactivity/i.test(texto) && setupsAceitos > 0 && !pending.length) {
+        dormindo = true;
+        ev('ws', 'dormiu', 'servidor fechou por inatividade: reabre no próximo envio');
+        setState('dormindo', 'inatividade');
+        return;
+      }
+
       if (code === 1007 || code === 1008 || code === 1011) {
         // ⚠ "Nunca aceitou NESTA sessão" não é o mesmo que "a chave não presta". Numa bateria
         // longa o servidor passa a RECUSAR sessões (dívida M7) e o fecho vem antes do setup —
@@ -761,6 +848,9 @@ export function createSession({
         fail('quota', `o servidor recusou a sessão (${code}) depois de ${esperasPorVaga} esperas`);
         return;
       }
+
+      // SEM REDE: esperar é mais honesto (e mais barato) que tentar. Ver `esperarARedeVoltar`.
+      if (!rede.online) { esperarARedeVoltar(); return; }
 
       if (attempts < cfg.maxReconnects) {
         const delay = cfg.reconnectBaseMs * 2 ** attempts;

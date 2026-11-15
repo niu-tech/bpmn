@@ -362,6 +362,23 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     const camera = filme ? comecarAFilmar(c, filme) : null;
 
     for (const passo of passos) {
+      /**
+       * PASSO DE CDP, e não de página: `cdp:Metodo {json}`.
+       *
+       * Existe para o que a página NÃO consegue fazer a si mesma — cortar a rede, por exemplo.
+       * A dívida M4 ("desconexão no meio do turno nunca foi exercitada cortando a rede de
+       * verdade") ficou aberta por falta deste gancho: `Network.emulateNetworkConditions` é o
+       * único jeito honesto de provar reconexão e retomada sem desligar o Wi-Fi na mão.
+       */
+      if (typeof passo === 'string' && passo.startsWith('cdp:')) {
+        const corte = passo.slice(4).trim();
+        const espaco = corte.indexOf(' ');
+        const metodo = espaco > 0 ? corte.slice(0, espaco) : corte;
+        const params = espaco > 0 ? JSON.parse(corte.slice(espaco + 1)) : {};
+        const rc = await c.envia(metodo, params);
+        saida.passos.push({ passo, valor: rc ?? null, erro: null });
+        continue;
+      }
       const r = await c.envia('Runtime.evaluate', {
         expression: `(async () => { ${passo} })()`,
         awaitPromise: true,

@@ -470,6 +470,91 @@ test('sem vaga: a sessao ESPERA e volta sozinha, sem falar com o aluno', () => {
   assert.equal(session.state, 'ready', 'de pe de novo, sem o aluno fazer nada');
 });
 
+test('NAVEGADOR OFFLINE: nenhuma reconexao e' + "' gasta contra um cabo desligado", () => {
+  // Medido em 2026-11-15 cortando a rede de verdade (tools/probe-offline.mjs + portao M4): o teto
+  // de 3 reconexoes com recuo de 500 ms se esgota em 3,5 SEGUNDOS. Qualquer quedinha de Wi-Fi
+  // mais longa que isso matava a sessao para sempre, e o aluno levava erro de socket quando o que
+  // faltava era internet - que voltaria sozinha.
+  MockSocket.instances.length = 0;
+  let avisar = null;
+  const { session, ws, clock } = ready({
+    rede: { online: false, aoVoltar: (fn) => { avisar = fn; } },
+  });
+  ws.serverClose(1006, '');
+
+  assert.equal(session.state, 'connecting');
+  assert.equal(session.reason, 'sem-rede', 'o estado DIZ que o problema e' + "' a rede");
+  clock.flush();
+  assert.equal(MockSocket.instances.length, 1, 'nao tentou: tentativa offline e' + "' certeza de falha");
+  assert.ok(avisar, 'ficou de ouvido no evento `online` do navegador');
+});
+
+test('a rede voltando, a sessao reabre sozinha e COM a alca (T20)', () => {
+  MockSocket.instances.length = 0;
+  let avisar = null;
+  const { session, ws } = ready({
+    rede: { online: false, aoVoltar: (fn) => { avisar = fn; } },
+  });
+  ws.emit({ sessionResumptionUpdate: { newHandle: 'alca-da-queda', resumable: true } });
+  ws.serverClose(1006, '');
+
+  avisar();   // o navegador avisa: ha' rota de novo
+  assert.equal(MockSocket.instances.length, 2, 'reabriu sem o aluno clicar em nada');
+  const volta = MockSocket.instances.at(-1);
+  volta.open();
+  assert.equal(
+    volta.setup.sessionResumption?.handle, 'alca-da-queda',
+    'voltou NO MESMO FIO: a conversa de antes da queda continua valendo',
+  );
+  volta.emit({ setupComplete: {} });
+  assert.equal(session.state, 'ready');
+});
+
+test('fecho por INATIVIDADE: a sessao DORME em vez de reabrir e disputar a vaga', () => {
+  // Trilha do dono, 2026-11-15: nove `ws.close code=1008 Session closed due to client
+  // inactivity`, nove `ws.vaga`, e no fim "o limite de sessoes da sua chave foi atingido" - com a
+  // chave perfeitamente boa. O servidor devolvia a NOSSA sessao porque o aluno estava LENDO, e a
+  // gente reabria na hora, disputando a vaga do fio que acabara de morrer. O sintoma chegava como
+  // cota; a causa era a nossa propria reconexao.
+  MockSocket.instances.length = 0;
+  const { session, ws, clock } = ready();
+  ws.serverClose(1008, 'Session closed due to client inactivity.');
+
+  assert.equal(session.state, 'dormindo', 'nao e' + "' erro nem connecting: e' espera");
+  assert.equal(session.reason, 'inatividade');
+  clock.flush();
+  assert.equal(MockSocket.instances.length, 1, 'NAO reabriu sozinha: zero vaga ocupada');
+});
+
+test('dormindo, a pergunta do aluno ACORDA a sessao e RETOMA a mesma conversa', () => {
+  MockSocket.instances.length = 0;
+  const avisos = [];
+  const { session, ws } = ready({ onSetupComplete: (d) => avisos.push(d) });
+  ws.emit({ sessionResumptionUpdate: { newHandle: 'alca-do-sono', resumable: true } });
+  ws.serverClose(1008, 'Session closed due to client inactivity.');
+  assert.equal(session.state, 'dormindo');
+
+  // O aluno digita. Ninguem clicou em "Comecar" de novo.
+  session.ask('voltando: e o gateway paralelo?');
+  assert.equal(MockSocket.instances.length, 2, 'o ENVIO reabriu a sessao');
+
+  const volta = MockSocket.instances.at(-1);
+  volta.open();
+  assert.equal(
+    volta.setup.sessionResumption?.handle, 'alca-do-sono',
+    'reabriu COM a alca: do lado do servidor e' + "' a mesma sessao",
+  );
+  volta.emit({ setupComplete: {} });
+
+  assert.equal(session.state, 'ready', 'de pe de novo');
+  assert.equal(avisos.at(-1).acordou, true, 'o gerente sabe que foi DESPERTAR, nao queda');
+  assert.equal(avisos.at(-1).retomou, true, 'e que a conversa continua');
+  assert.ok(
+    JSON.stringify(volta.sent).includes('gateway paralelo'),
+    'a pergunta que estava na fila SAIU',
+  );
+});
+
 test('sem vaga MESMO: depois do teto de esperas, a' + "i sim e' erro nomeado", () => {
   MockSocket.instances.length = 0;
   const { session, clock } = ready({ maxEsperasPorVaga: 2 });
@@ -711,7 +796,11 @@ test('com alca, reabrir RETOMA a mesma sessao em vez de comecar outra', () => {
     'o setup da volta carrega a alca: mesma sessao, memoria preservada',
   );
   novo.emit({ setupComplete: {} });
-  assert.deepEqual(eventos.at(-1), { reconectou: true, retomou: true }, 'quem ouve sabe que foi RETOMADA');
+  assert.deepEqual(
+    eventos.at(-1),
+    { reconectou: true, retomou: true, acordou: false },
+    'quem ouve sabe que foi RETOMADA, e que nao foi despertar de sessao dormindo',
+  );
 });
 
 report('session');

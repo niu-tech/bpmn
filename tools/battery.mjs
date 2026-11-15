@@ -1047,6 +1047,60 @@ const CENARIOS = [
  * real), entao da pra ler O QUE o modelo recebeu sem gastar uma sessao Live: e exatamente o que
  * estas duas provas precisam — a nota marcada e a escolha clicada.
  */
+/**
+ * M3 — O ALUNO NEGA O MICROFONE, no navegador de verdade.
+ *
+ * O caminho de erro já tinha prova em unidade (`session-manager.mjs`), com o dublê de áudio
+ * recusando. O que faltava era a cadeia inteira na tela: `getUserMedia` recusando como o
+ * Chrome recusa → `audio.js` traduzindo `NotAllowedError` em `mic-denied` → o gerente nomeando
+ * → e **a tela dizendo a verdade**. Numa prova de voz, o jeito de errar é silencioso e caro:
+ * microfone fechado com a interface mostrando que está ouvindo.
+ *
+ * Sem cota: o socket é o dublê do `PREPARAR`. Negar microfone não tem nada a ver com o Gemini.
+ */
+CENARIOS.push({
+  nome: 'microfone NEGADO: a tela diz a verdade e nao finge estar ouvindo',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `// Como o navegador recusa quando a pessoa clica em "Bloquear".
+     const erro = new Error('Permission denied');
+     erro.name = 'NotAllowedError';
+     navigator.mediaDevices.getUserMedia = () => Promise.reject(erro);
+     return { ok: true };`,
+    CONECTAR,
+    `// O microfone e' a PORTA da voz: clicar nele leva a sessao para o modo voz.
+     const mic = document.querySelector('.bpmn-assist__mic');
+     if (!mic) return { ok: false, erro: 'o botao de microfone nao esta na tela' };
+     mic.click();
+     // A troca de modo abre socket novo (o setup e' imutavel): aceita-lo e' do duble.
+     for (let i = 0; i < 20 && window.__sockets < 2; i++) await new Promise((r) => setTimeout(r, 150));
+     window.__responde({ setupComplete: {} });
+     for (let i = 0; i < 40; i++) {
+       await new Promise((r) => setTimeout(r, 250));
+       if (window.__bpmnAssist.estado.estado === 'error' || window.__bpmnAssist.eventos.some((e) => e.key === 'mic.falhou')) break;
+     }
+     const avisos = [...document.querySelectorAll('.bpmn-assist__msg--system')].map((m) => m.textContent.trim());
+     const faixa = document.querySelector('.bpmn-assist__voz');
+     return {
+       // A tela DIZ que o microfone foi negado, o microfone esta' fechado, e a faixa de voz
+       // (que mostra o medidor "estou ouvindo") NAO esta' na tela.
+       // E a conversa CONTINUA: negar o microfone nao pode desligar o modo texto, que nao tem
+       // nada a ver com microfone (era o defeito que este portao achou, em 2026-11-15).
+       ok: avisos.some((a) => /microfone/i.test(a))
+         && window.__bpmnAssist.estado.micOn === false
+         && (!faixa || faixa.hidden)
+         && document.querySelector('.bpmn-assist__composer textarea')?.disabled === false,
+       aviso: avisos.filter((a) => /microfone/i.test(a)).at(-1) ?? null,
+       micOn: window.__bpmnAssist.estado.micOn,
+       estado: window.__bpmnAssist.estado.estado,
+       faixaDeVozVisivel: Boolean(faixa && !faixa.hidden),
+       // E a conversa NAO morreu: o aluno continua podendo escrever.
+       podeEscrever: document.querySelector('.bpmn-assist__composer textarea')?.disabled === false,
+     };`,
+  ],
+});
+
 CENARIOS.push({
   nome: 'canal da pagina: a selecao do aluno chega MARCADA e nao vira bolha dele',
   url: ALVO,
@@ -1240,24 +1294,39 @@ CENARIOS.push({
 const chaveViva = chaveDoEnv();
 if (chaveViva) {
   /**
-   * M4 — A REDE CAI DE VERDADE, no meio da conversa.
+   * M4 — A SESSÃO CAI DE VERDADE NO MEIO DA AULA, E A CONVERSA CONTINUA.
    *
    * A dívida dizia, desde 2026-11-13: *"a sessão tem recuo com teto e código de fechamento
-   * nomeado, mas nunca foi exercitada cortando a rede de verdade"*. Agora é: o passo
-   * `cdp:Network.emulateNetworkConditions` desliga a rede do navegador por três segundos, com a
-   * sessão Live aberta — o único jeito honesto de provar isso sem puxar o cabo na mão.
+   * nomeado, mas nunca foi exercitada cortando a rede de verdade"*. Duas medições de 2026-11-15
+   * decidiram a forma deste portão — e as duas contrariaram o plano:
    *
-   * O que se mede NÃO é "reconectou". É **não perdeu o fio** (T20): depois da queda, a palavra
-   * que o aluno pediu para guardar ANTES do corte tem de voltar na resposta. Com sessão nova em
-   * vez de retomada, o modelo não teria como saber — e a prova de que foi retomada, e não
-   * sorte, é o segundo `out.setup` trazer ` retomando` (a alça de T17 foi usada).
+   * 1. **Cortar a rede por fora não derruba um WebSocket aberto.** `tools/probe-offline.mjs` pôs
+   *    `Network.emulateNetworkConditions {offline:true}` por doze segundos: `navigator.onLine`
+   *    virou `false` na hora e **nenhum** `ws.close` apareceu. Depois, com a rede fora por
+   *    cinquenta segundos e uma pergunta no ar, o modelo **respondeu normalmente** — a emulação
+   *    do CDP não alcança a conexão já estabelecida. Portão que corta a rede e vê a conversa
+   *    seguir não prova recuperação: prova que nada caiu.
+   * 2. **A queda que acontece de verdade nesta aula é a do servidor.** Na mesma corrida, aos
+   *    **74,5 s** de aluno calado: `ws.close code=1008 Session closed due to client inactivity`.
+   *    É a queda que o dono levou nove vezes na trilha dele, e a que terminava em *"o limite de
+   *    sessões da sua chave foi atingido"* com a chave boa.
+   *
+   * Então o que se prova é a cadeia real, de ponta a ponta, sem nada simulado: o servidor fecha
+   * → a sessão **dorme** em vez de brigar pela vaga → a pergunta do aluno a **acorda** → o setup
+   * volta **com a alça** (T20) → e a resposta cita a palavra que ele mandou guardar ANTES da
+   * queda. Sessão nova em lugar de retomada não saberia essa palavra.
+   *
+   * Demora ~2 min de propósito: a espera pelo fecho do servidor é parte do que está sob prova.
    */
   CENARIOS.push({
-    nome: 'AO VIVO: a rede cai de verdade e a conversa continua (M4 + T20)',
+    nome: 'AO VIVO: a sessao cai de verdade e a conversa continua (M4 + T20)',
     url: ALVO,
     espera: 3000,
     passos: [
       `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       window.__bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')]
+         .map((m) => m.textContent.trim())
+         .filter((t) => !/^pensando/.test(t));
        document.querySelector('.bpmn-assist__toggle').click();
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
@@ -1268,59 +1337,66 @@ if (chaveViva) {
        }
        return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' };`,
 
-      // 1. ANTES da queda: uma palavra que só esta sessão pode saber.
-      `const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-       const ta = document.querySelector('.bpmn-assist__composer textarea');
-       ta.value = 'Guarde esta palavra, vou pedir depois: ABACAXI. Responda so: guardei.';
+      // 1. ANTES da queda: uma pergunta de aula, que vai servir de âncora do fio.
+      //    ⚠ Não serve pedir "guarde a palavra ABACAXI": medido ao vivo, o modelo RECUSA
+      //    ("não posso guardar informações que não sejam sobre...") — o prompt dele é de tutor de
+      //    BPMN, e a âncora tem de ser da aula, não um truque de teste.
+      `const ta = document.querySelector('.bpmn-assist__composer textarea');
+       ta.value = 'Em uma frase: o que e um gateway exclusivo?';
        window.__btn('Enviar').click();
        for (let i = 0; i < 60; i++) {
          await new Promise((r) => setTimeout(r, 500));
-         const b = bolhas();
-         if (b.length && b.at(-1).length > 3) {
-           window.__antesDaQueda = b.length;
-           return { ok: true, respondeu: b.at(-1).slice(0, 80), bolhas: b.length };
-         }
+         const b = window.__bolhas();
+         if (b.length) { window.__antesDaQueda = b.length; return { ok: true, respondeu: b.at(-1).slice(0, 60) }; }
        }
        return { ok: false, erro: 'o modelo nao respondeu antes da queda' };`,
 
-      // 2. A REDE CAI. Três segundos sem rota — mais do que o recuo da primeira tentativa.
-      'cdp:Network.enable {}',
-      'cdp:Network.emulateNetworkConditions {"offline":true,"latency":0,"downloadThroughput":0,"uploadThroughput":0}',
-      `await new Promise((r) => setTimeout(r, 3000));
-       return { durante: window.__bpmnAssist.estado.estado, fechou: window.__bpmnAssist.contagem['ws.close'] ?? 0 };`,
-      'cdp:Network.emulateNetworkConditions {"offline":false,"latency":0,"downloadThroughput":-1,"uploadThroughput":-1}',
-
-      // 3. Tem de voltar SOZINHA — o aluno não clicou em nada.
-      `for (let i = 0; i < 80; i++) {
+      // 2. O ALUNO LÊ a resposta. É nessa pausa que o servidor devolve a sessão — e é aí que,
+      //    até 2026-11-15, a gente reabria na hora e ia disputar a vaga do fio que acabou de
+      //    morrer, nove vezes seguidas, até "o limite de sessões foi atingido".
+      `for (let i = 0; i < 300; i++) {
          await new Promise((r) => setTimeout(r, 500));
-         const e = window.__bpmnAssist.estado.estado;
-         if (e === 'ready' || e === 'listening') return { ok: true, voltouEm: i * 500 + 'ms', estado: e };
+         if ((window.__bpmnAssist.contagem['ws.close'] ?? 0) > 0) {
+           const fecho = window.__bpmnAssist.eventos.filter((e) => e.key === 'ws.close').at(-1);
+           const dormiu = window.__bpmnAssist.eventos.some((e) => e.key === 'ws.dormiu');
+           return {
+             ok: dormiu && window.__bpmnAssist.estado.estado === 'dormindo',
+             caiuEm: i * 500 + 'ms',
+             fecho: fecho?.detail ?? null,
+             estado: window.__bpmnAssist.estado.estado,
+             // A prova de que o conserto vale: ZERO disputa por vaga depois do fecho.
+             disputasPorVaga: window.__bpmnAssist.contagem['ws.vaga'] ?? 0,
+             reaberturas: window.__bpmnAssist.contagem['out.setup'] ?? 0,
+           };
+         }
        }
-       return { ok: false, estado: window.__bpmnAssist.estado.estado, erro: 'a sessao nao voltou sozinha em 40s' };`,
+       return { ok: false, erro: 'o servidor nao fechou a sessao em 150s', estado: window.__bpmnAssist.estado.estado };`,
 
-      // 4. E O FIO: o que foi dito antes do corte ainda vale.
-      `const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
-       const antes = window.__antesDaQueda ?? 0;
+      // 3. O FIO: a pergunta acorda a sessão, e a palavra de antes da queda volta na resposta.
+      `const antes = window.__antesDaQueda ?? 0;
        const ta = document.querySelector('.bpmn-assist__composer textarea');
-       ta.value = 'Qual foi a palavra que eu pedi para voce guardar?';
+       ta.value = 'Repita, com as mesmas palavras, qual foi a MINHA primeira pergunta nesta conversa.';
        window.__btn('Enviar').click();
        let resposta = '';
-       for (let i = 0; i < 80; i++) {
+       for (let i = 0; i < 120; i++) {
          await new Promise((r) => setTimeout(r, 500));
-         const b = bolhas();
+         const b = window.__bolhas();
          if (b.length > antes && b.at(-1).length > 3) { resposta = b.at(-1); break; }
        }
-       const ev = window.__bpmnAssist.eventos;
-       const setups = ev.filter((e) => e.key === 'out.setup').map((e) => e.detail ?? '');
+       const setups = window.__bpmnAssist.eventos.filter((e) => e.key === 'out.setup').map((e) => e.detail ?? '');
        const avisos = [...document.querySelectorAll('.bpmn-assist__msg--system')].map((m) => m.textContent.trim());
        return {
-         ok: /abacaxi/i.test(resposta) && setups.length >= 2 && setups.slice(1).some((d) => d.includes('retomando')),
-         lembrouAPalavra: /abacaxi/i.test(resposta),
+         ok: /exclusiv/i.test(resposta)
+           && setups.length >= 2
+           && setups.slice(1).some((d) => d.includes('retomando'))
+           && (window.__bpmnAssist.contagem['ws.vaga'] ?? 0) === 0,
+         lembrouAPergunta: /exclusiv/i.test(resposta),
          resposta: resposta.slice(0, 140),
          setups,
-         fechamentos: window.__bpmnAssist.contagem['ws.close'] ?? 0,
-         esperasPorVaga: window.__bpmnAssist.contagem['ws.vaga'] ?? 0,
-         avisoDaQueda: avisos.filter((a) => /conex/i.test(a)).slice(-2),
+         acordou: (window.__bpmnAssist.contagem['ws.acordar'] ?? 0),
+         disputasPorVaga: window.__bpmnAssist.contagem['ws.vaga'] ?? 0,
+         // Despertar não é queda: a tela NÃO deve ter ganhado aviso de conexão nenhum.
+         avisosDeConexao: avisos.filter((a) => /conex/i.test(a)),
        };`,
     ],
   });
