@@ -70,8 +70,9 @@ chegou a achar que ele tinha apagado antes de perguntar?
 |---|---|---|---|
 | D1 | Desligue o Wi-Fi por uns segundos no meio de uma resposta. | Ele volta sozinho e **avisa** que caiu; se era pergunta digitada, refaz. | teste de reconexão |
 | D2 | Use uma chave errada de propósito. | Mensagem clara, com o que fazer — e a chave **não** aparece em lugar nenhum. | cenário `a chave nao vaza em lugar nenhum` |
-| D3 | Converse por uns minutos até a cota reclamar. | A tela diz o que fazer e a conversa continua na tela. | medição de cota (`tools/medir-cota.mjs`) |
+| D3 | Converse por uns minutos até a cota reclamar. | A tela diz que é **consumo** (não "sessões demais"), aponta "Testar conexão", e a conversa continua ali. | medição de cota + teste do recado |
 | D4 | Tire o fone e deixe o som alto perto do microfone. | Depois de três cortes seguidos ele avisa e passa a fechar o microfone enquanto responde. | cenário `rede de seguranca: laco de eco` |
+| D5 | Deixe a aba aberta e vá almoçar. | Em 25 minutos ele encerra sozinho, **diz por quê** e a conversa continua na tela. | teste do teto de sessão |
 
 ---
 
