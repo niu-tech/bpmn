@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plano depois do estudo do Orbit · ajudante BPMN</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+    --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:900px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.14; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 30px; max-width:68ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:14px 16px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+  .num.az { background:var(--azul-fraco); border-color:#cfdcec; }
+  .num.az b { color:var(--azul); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:34px; }
+  p { max-width:70ch; }
+
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 20px;
+    font-size:16.5px; color:var(--suave); max-width:66ch; }
+  .cita b { color:var(--tinta); font-weight:600; }
+
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:13px; overflow:hidden; font-size:14px; }
+  th { text-align:left; font-size:11.5px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:11px 15px; border-bottom:1px solid var(--linha); }
+  td { padding:11px 15px; border-bottom:1px solid #f1f1f5; vertical-align:top; color:#3f4049; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--tinta); font-weight:600; }
+  .igual { color:var(--verde); font-weight:600; white-space:nowrap; }
+
+  .frente { background:var(--papel); border:1px solid var(--linha); border-left:3px solid var(--azul);
+    border-radius:0 13px 13px 0; padding:15px 18px; margin-bottom:11px; }
+  .frente b { font-size:15px; display:block; margin-bottom:3px; }
+  .frente .onde { font-size:12.5px; color:var(--fraco); font-family:Consolas,monospace; }
+  .frente p { margin:7px 0 0; font-size:14px; color:#4a4b54; }
+  .frente .porta { margin-top:9px; font-size:13px; color:var(--verde); background:var(--verde-fraco);
+    border-radius:8px; padding:7px 11px; display:inline-block; }
+  .frente.um { border-left-color:var(--verde); }
+  .frente.menor { border-left-color:#b9bac3; }
+
+  .bicho { background:var(--vinho-fraco); border:1px solid #f2d9d5; border-radius:13px; padding:15px 18px; }
+  .bicho b { display:block; font-size:14.5px; color:var(--vinho); margin-bottom:4px; }
+  .bicho p { margin:0 0 8px; font-size:14px; color:#4a4b54; }
+  .bicho p:last-child { margin-bottom:0; }
+
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; color:#4a4b54; }
+  .aberto b { color:var(--ambar); }
+  .aberto p { margin:0 0 9px; max-width:none; }
+  .aberto p:last-child { margin-bottom:0; }
+
+  .passos { counter-reset:p; padding:0; margin:0; list-style:none; }
+  .passos li { counter-increment:p; position:relative; padding:0 0 14px 40px; font-size:14.5px; color:#44454e; }
+  .passos li::before { content:counter(p); position:absolute; left:0; top:-1px; width:26px; height:26px;
+    border-radius:50%; background:var(--azul-fraco); color:var(--azul); font-size:13px; font-weight:600;
+    display:grid; place-items:center; }
+  .passos li b { color:var(--tinta); }
+
+  footer { margin-top:34px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:780px){ .numeros{grid-template-columns:repeat(2,1fr);} }
+  @media print {
+    body { background:#fff; }
+    .env { max-width:none; padding:0 6mm; }
+    section, .frente, table, .bicho, .aberto { break-inside:avoid; }
+    h1 { font-size:26px; }
+  }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Planejamento · 15 de novembro de 2026</span>
+  <h1>O que o estudo do Orbit nos deu — e as quatro changes que saem disso</h1>
+  <p class="sub">O pacote do <i>appointment agent</i> (AB#12600) chegou com 59 arquivos, o vídeo de
+  5 min 19 s do caminho feliz, o registro da sessão e os dois <i>handoffs</i>. É um agente de voz
+  sobre <code>gemini-3.8-live</code> que conversa, consulta dados reais e <b>dirige a interface de
+  outro produto</b> — o problema mais próximo do nosso que existe, resolvido por outra equipe, com
+  restrições opostas. Este documento separa o que confirma o nosso caminho, o que vale trazer, o
+  que não vale, e transforma isso em quatro changes OpenSpec.</p>
+
+  <div class="numeros">
+    <div class="num az"><b>4</b><span>changes OpenSpec abertas hoje</span></div>
+    <div class="num ok"><b>7</b><span>decisões a que chegamos igual, separadamente</span></div>
+    <div class="num"><b>6</b><span>mecanismos que valem trazer</span></div>
+    <div class="num"><b>2</b><span>riscos deles que o nosso desenho já evita</span></div>
+  </div>
+
+  <section>
+    <h2>O material — e o limite</h2>
+    <p class="cita">O código é de outro empregador, roda contra dado de paciente em homologação e
+    está sob outra licença. <b>Padrão arquitetural, sim; linha de código copiada, não.</b> O
+    item K-F do <code>open-items.md</code> já prevê o parágrafo de metodologia que declara o que é
+    reúso de trabalho anterior do autor — é lá que isso é dito, com a origem nomeada.</p>
+    <p>O que foi lido: arquitetura e handoff, a change OpenSpec inteira (proposal, design, tasks,
+    spec), o provedor Live, o <i>relay</i> de voz, as três ferramentas, o módulo de navegador de
+    910 linhas, os testes de adaptador, de relé e de orquestrador, os roteiros de E2E e o registro
+    da sessão gravada. Faltou só o que não interessa: as regras de agendamento do domínio clínico.</p>
+  </section>
+
+  <section>
+    <h2>Convergência — sete decisões a que os dois projetos chegaram sozinhos</h2>
+    <p>Isto não é curiosidade: são duas implementações independentes, do mesmo modelo, em domínios
+    diferentes, que pararam no mesmo lugar. É material direto para o capítulo de arquitetura.</p>
+    <table>
+      <tr><th>Decisão</th><th>Por quê</th><th>Nós</th></tr>
+      <tr><td><b>Sessão sempre em áudio</b>, com legenda de saída</td><td>o modelo recusa
+        <code>TEXT</code> e fecha o socket com 1007</td><td class="igual">igual</td></tr>
+      <tr><td><b>A resposta exata vem numa função de entrega</b></td><td>a fala transcrita erra
+        tabela, id e valor — a letra precisa vem por argumento</td><td class="igual">igual</td></tr>
+      <tr><td><b>Um <code>toolResponse</code> por lote</b></td><td>responder uma a uma faz o modelo
+        falar duas vezes</td><td class="igual">igual</td></tr>
+      <tr><td><b>Queda ⇒ sessão nova com semente</b>, nunca retomada por <i>handle</i></td>
+        <td>a sessão nova responde; retomar a velha falha de forma intermitente</td>
+        <td class="igual">igual</td></tr>
+      <tr><td><b>Falhas com nome</b> (recusa de setup, silêncio, teto, entrega vazia)</td>
+        <td>"deu erro" faz tentar de novo igual; o nome faz corrigir</td><td class="igual">igual</td></tr>
+      <tr><td><b>Resultado de ferramenta é dado não confiável</b></td><td>instrução escondida no
+        nome de um elemento não pode virar ordem</td><td class="igual">igual</td></tr>
+      <tr><td><b>O agente nunca aperta o botão irreversível</b></td><td>recusa no cliente, por
+        lista — não por boa vontade do modelo</td><td class="igual">igual</td></tr>
+    </table>
+    <p style="margin-top:14px">E uma oposição deliberada dos dois lados, que é o melhor parágrafo
+    de arquitetura que o TCC pode ter: <b>eles tiram a chave do navegador porque o dado é de
+    paciente; nós colocamos a chave no navegador do aluno porque não existe servidor e a conta é
+    dele.</b> Mesmo modelo, restrições opostas, desenhos espelhados.</p>
+  </section>
+
+  <section>
+    <h2>O ouro — seis mecanismos, e para onde cada um vai</h2>
+    <table>
+      <tr><th>Mecanismo</th><th>O que é</th><th>Change</th></tr>
+      <tr><td><b>A tela de volta</b></td><td>o resultado da ferramenta é uma descrição do que ficou
+        na tela, e o modelo decide o próximo passo por ela, nunca pela memória</td><td>1</td></tr>
+      <tr><td><b>Mensagem da página</b></td><td>a página conta um fato ao modelo sem virar fala do
+        aluno, só quando ele não está falando, e descartada se ele falar</td><td>1</td></tr>
+      <tr><td><b>Candidato clicável</b></td><td>ambiguidade vira botão; o clique responde e
+        destaca o elemento no desenho</td><td>1</td></tr>
+      <tr><td><b>Portão por fala</b></td><td>a ação fica recusada até o aluno falar <i>depois</i> da
+        pergunta — ordem, não palavra-chave</td><td>2</td></tr>
+      <tr><td><b>Janela deslizante</b></td><td>três linhas no <code>setup</code> sem as quais a
+        conversa longa bate no teto da sessão</td><td>3</td></tr>
+      <tr><td><b>Prova medida</b></td><td>quatro tempos por turno no registro, e um vídeo com som em
+        que o clique humano é marcado</td><td>3 e 4</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>As quatro changes</h2>
+
+    <div class="frente um">
+      <b>1 · close-the-loop-with-the-canvas</b>
+      <span class="onde">openspec/changes/close-the-loop-with-the-canvas/</span>
+      <p>Toda escrita passa a devolver <b>a leitura do desenho</b> (o que é o diagrama agora, o que
+      está selecionado, entradas e saídas do que mudou, as pontas soltas). A página ganha um canal
+      para contar fatos ao modelo — seleção, import, Ctrl+Z, simulação — com a vez do aluno
+      respeitada. E candidato devolvido por ferramenta vira botão no chat.</p>
+      <p>Resolve, de uma vez, três remendos que viriam um a um: o <code>avisoDeRamo</code> deixa de
+      ser campo próprio, a ambiguidade deixa de ser digitação e o agente deixa de ser cego ao que o
+      aluno faz no canvas.</p>
+      <span class="porta">Portão: criar ⇒ o resultado descreve a tela · ambiguidade se resolve em
+      um clique · a nota da página nunca vira bolha do aluno</span>
+    </div>
+
+    <div class="frente um">
+      <b>2 · spoken-confirmation-gates</b>
+      <span class="onde">openspec/changes/spoken-confirmation-gates/</span>
+      <p>Confirmar deixa de exigir clique: a ação fica recusada até o aluno <b>falar depois</b> de a
+      pergunta aparecer. Quem conta é a página, por ordem de turno — não o modelo, e não uma
+      palavra-chave no texto (o que a constituição §III proíbe).</p>
+      <p>É o que falta para o F8 (tutor) existir sem entregar a decisão ao modelo: hoje "propõe e
+      não decide pelo aluno" é prosa no prompt, e prosa não é portão.</p>
+      <span class="porta">Portão: "sim" falado apaga · "sim" dito antes da pergunta não conta ·
+      legenda 2 s atrasada ainda conta · o modelo alegando confirmação não abre nada</span>
+    </div>
+
+    <div class="frente">
+      <b>3 · sustain-a-class-session</b>
+      <span class="onde">openspec/changes/sustain-a-class-session/</span>
+      <p>A aula inteira: janela deslizante no <code>setup</code> (três linhas, o item mais barato do
+      roadmap), teto de sessão declarado para proteger a cota do aluno, o <b>número</b> da cota
+      medido (fecha T16/M7) e quatro tempos por turno no registro — ouviu, primeira resposta, áudio,
+      fim. Mais a contagem de tokens, que vira custo por turno.</p>
+      <span class="porta">Portão: 40 turnos simulados sem corte · a tela diz "volte em X s" com o
+      número medido · a trilha imprime os tempos</span>
+    </div>
+
+    <div class="frente">
+      <b>4 · prove-it-with-a-golden-set</b>
+      <span class="onde">openspec/changes/prove-it-with-a-golden-set/</span>
+      <p>Um acervo de perguntas douradas em arquivo (dado, não código), com limiares e linha de
+      base: responde "quão bem ele responde?" e "piorou?" — as duas perguntas que a bateria de
+      cenários não responde. Duas camadas: determinística em <code>npm test</code>, ao vivo por
+      lote. Mais o vídeo com trilha sonora e marcação do clique humano, para a defesa.</p>
+      <span class="porta">Portão: uma falha de segurança reprova a corrida inteira · queda além do
+      delta reprova mesmo acima do piso · as tabelas da dissertação saem desses arquivos</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>A ordem, e por quê</h2>
+    <ol class="passos">
+      <li><b>1 e 2 primeiro, juntas.</b> São as duas que mudam o comportamento, e se completam: a
+      primeira faz o agente enxergar o que o aluno faz; a segunda impede que, enxergando, ele
+      resolva agir sozinho.</li>
+      <li><b>3 logo em seguida</b>, porque <code>contextWindowCompression</code> é de três linhas e
+      protege a primeira aula de verdade — e porque a latência precisa ser medida <i>antes</i> de
+      mexermos de novo no caminho do turno.</li>
+      <li><b>4 por último</b>, de propósito: a linha de base tem de ser tirada da versão que vai
+      ficar, não de uma que já sabemos que vai mudar. Mas ela vem <b>antes</b> de escrever o
+      capítulo de validação, porque é dela que saem as tabelas.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>O que não trazemos — e os dois riscos que o nosso desenho já evita</h2>
+    <div class="bicho">
+      <b>O relé no servidor</b>
+      <p>É a resposta deles ao dado de paciente. Copiá-lo apagaria a nossa tese: chave do aluno,
+      sem servidor, sem custo para a instituição. Fica como contraste no texto, não como código.</p>
+      <b>Dirigir a tela por DOM</b>
+      <p>Lá o agente procura botão por texto exato, prefixo ou conteúdo, com <code>data-testid</code>
+      e classes CSS. A própria avaliação do pacote marca isso como risco P1: um ajuste visual
+      quebra o agente sem mudar contrato de API nenhum. <b>Nós falamos com a API do bpmn-js por
+      verbos tipados</b> — criar, mover, alinhar, trocar tipo —, não por raspagem de tela.</p>
+      <b>Ações genéricas de clique</b>
+      <p>O P0 deles é a ferramenta que aceita "aperte o botão X": sem lista estrita, o agente pode
+      acionar uma decisão clínica. O nosso catálogo é fechado por verbo e cada verbo tem política,
+      esquema e erro nomeado. Isso deixou de ser opinião nossa — virou achado externo a favor.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Onde isso entra no texto do TCC</h2>
+    <div class="aberto">
+      <p><b>Trabalhos relacionados / metodologia</b> — o contraste BYOK × chave no servidor, com a
+      restrição que gera cada desenho; e a declaração K-F do que é reúso de experiência do autor.</p>
+      <p><b>Arquitetura</b> — a tabela das sete decisões convergentes: duas equipes, o mesmo
+      modelo, as mesmas conclusões, por medição e não por cópia.</p>
+      <p><b>Resultados e validação</b> — taxa por categoria, cobertura de ferramenta e latência por
+      turno, todas geradas por comando (changes 3 e 4), mais o vídeo com som.</p>
+      <p><b>Limitações</b> — o que eles mediram e nós ainda não (microfone humano real, queda
+      forçada do provedor), e o que nós medimos e eles não (custo por turno).</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>bpmn · ajudante de BPMN por voz e texto · <code>openspec/changes/</code></span>
+    <span>15 nov 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
