@@ -241,11 +241,20 @@ export function createWidget({ session, credentials, onClose } = {}) {
   // aconteceu. O texto é o mesmo de `session.report()`, já redigido pelo diário.
   const diagText = el('pre', { className: 'bpmn-assist__diagtext', textContent: '(abra para ver)' });
   const copyBtn = el('button', { className: 'bpmn-assist__btn', type: 'button', textContent: 'Copiar' });
+  /**
+   * SALVAR A SESSÃO INTEIRA num arquivo.
+   *
+   * Copiar texto serve para colar numa conversa; isto serve para INVESTIGAR: sai um JSON com a
+   * conversa (com número de turno), o diário completo, as contagens, o contexto que foi enviado,
+   * a saúde do som e o desenho. É o que transforma "deu erro aqui" em um caso que alguém
+   * consegue reconstruir sem estar na frente da tela.
+   */
+  const salvarBtn = el('button', { className: 'bpmn-assist__btn', type: 'button', textContent: 'Salvar sessão' });
   const copyState = el('span', { className: 'bpmn-assist__copystate', textContent: '' });
   const diagBox = el('details', { className: 'bpmn-assist__diag' }, [
     el('summary', { textContent: 'Diagnóstico da sessão' }),
     diagText,
-    el('div', { className: 'bpmn-assist__row' }, [copyBtn, copyState]),
+    el('div', { className: 'bpmn-assist__row' }, [copyBtn, salvarBtn, copyState]),
   ]);
 
   // ⚠ `talkRow` NÃO entra no corpo rolável. Entrava, e aí cada resposta empurrava o botão de
@@ -336,7 +345,32 @@ export function createWidget({ session, credentials, onClose } = {}) {
   let renderedUpTo = 0;
   let lastAnnounced = '';
 
+  /**
+   * Quem rola é o CORPO, não a lista.
+   *
+   * ⚠ `log.scrollTop` nunca fez nada: a `<ul>` não tem barra, quem tem `overflow: auto` é o
+   * `.bpmn-assist__body` em volta dela. Então a conversa crescia e a tela ficava parada — o
+   * aluno tinha de arrastar a barra a cada resposta (dono, 2026-11-14: "a cada nova mensagem do
+   * agente a tela não desce").
+   *
+   * E só desce se ele JÁ estava no fim: quem subiu para reler não pode ser puxado de volta no
+   * meio da leitura.
+   */
+  const corpoRolavel = () => log.closest('.bpmn-assist__body') ?? log.parentElement ?? log;
+
+  function estaNoFim(folga = 140) {
+    const c = corpoRolavel();
+    return c.scrollHeight - c.scrollTop - c.clientHeight <= folga;
+  }
+
+  function descerAteOFim() {
+    const c = corpoRolavel();
+    c.scrollTop = c.scrollHeight;
+  }
+
   function renderMessages(messages) {
+    // Medido ANTES de crescer: depois de inserir, todo mundo parece longe do fim.
+    const seguir = estaNoFim();
     // Append incremental: redesenhar a lista inteira a cada frame de legenda faria o leitor de
     // tela reanunciar tudo e perderia a posição de rolagem.
     for (let i = renderedUpTo; i < messages.length; i++) {
@@ -361,7 +395,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
     }
     renderedUpTo = messages.length;
     empty.hidden = messages.length > 0;
-    log.scrollTop = log.scrollHeight;
+    if (seguir) descerAteOFim();
   }
 
   /**
@@ -393,8 +427,15 @@ export function createWidget({ session, credentials, onClose } = {}) {
 
     dot.setAttribute('data-state', state);
     const label = STATE_LABELS[state] ?? state;
-    const detail = state === 'error' ? `: ${describeError(reason)}` : '';
-    statusTxt.textContent = `${label}${detail}`;
+    /**
+     * ⚠ O selo diz o ESTADO, não o motivo. Ele carregava a frase inteira do erro — e a mesma
+     * frase estava na conversa, logo abaixo: duas cópias na mesma tela (dono, 2026-11-14: "está
+     * aparecendo em cima e embaixo"), com a de cima ainda espremendo o título do painel em duas
+     * linhas. O motivo fica no balão da conversa, onde tem lugar, e aqui vira o `title` para
+     * quem passar o mouse.
+     */
+    statusTxt.textContent = label;
+    statusChip.title = state === 'error' ? describeError(reason) ?? '' : '';
     statusChip.setAttribute('data-state', state);
     statusDot.setAttribute('data-state', state);
 
@@ -433,6 +474,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
     const emVoz = mode === 'voz' && micOn;
     // Pedido de confirmação é a ação do momento: ele toma o rodapé e o resto sai.
     const perguntando = Boolean(confirmacao);
+    const perguntaNova = perguntando && confirmaBox.hidden;
     confirmaBox.hidden = !perguntando;
     if (perguntando) {
       const alvo = confirmacao.alvo ?? {};
@@ -442,6 +484,17 @@ export function createWidget({ session, credentials, onClose } = {}) {
       // e o aluno precisa saber QUAL vai embora.
       const qual = alvo.nome && alvo.id ? ` · ${alvo.id}` : '';
       confirmaTexto.textContent = `Apagar ${comoChamar}${tipo}${qual} do diagrama?`;
+      /**
+       * ⚠ A pergunta tem de APARECER. Ela nasce no rodapé, e com a conversa longa o aluno estava
+       * olhando para o meio dela — "o botão que apareceu para confirmar a exclusão ficou muito
+       * escondido, sequer tinha visto" (dono, 2026-11-14). Então a conversa desce até o fim e o
+       * foco vai para o botão SEGURO (Cancelar), que é o que a tecla Enter deve acionar.
+       */
+      if (perguntaNova) {
+        descerAteOFim();
+        confirmaBox.scrollIntoView?.({ block: 'nearest' });
+        naoBtn.focus?.();
+      }
     }
     faixaVoz.hidden = perguntando || !emVoz;
     composer.hidden = perguntando || !canAsk || emVoz;
@@ -636,6 +689,24 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // Durante uma prova ao vivo o diário muda sozinho: sem isto o aluno abriria, veria um retrato
     // de um segundo atrás e acharia que parou.
     relogioDiag = setInterval(atualizarDiagnostico, 1000);
+  });
+
+  salvarBtn.addEventListener('click', () => {
+    try {
+      const dados = session.capturar();
+      const nome = `ajudante-bpmn-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), { href: url, download: nome });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      copyState.textContent = `salvo: ${nome}`;
+    } catch (err) {
+      copyState.textContent = `não deu para salvar: ${err?.message ?? err}`;
+    }
+    setTimeout(() => { copyState.textContent = ''; }, 8000);
   });
 
   copyBtn.addEventListener('click', async () => {

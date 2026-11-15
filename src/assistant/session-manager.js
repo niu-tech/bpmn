@@ -718,6 +718,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         note(`não deu: ${describeError(r)}`, 'error');
         // Chave recusada tem conserto, e o conserto é do aluno: dizer o que fazer vale mais que
         // repetir o código do erro.
+        /**
+         * COTA é o que mais trava a conversa na prática: o plano gratuito do Live tem teto de
+         * sessões por minuto, e o servidor recusa a sessão nova. Não há o que reconectar — então
+         * o que vale é dizer O QUE FAZER. A conversa continua na tela, e o teste de conexão diz
+         * quando a cota voltou.
+         */
+        if (r === 'quota') {
+          note('espere alguns segundos e use "Testar conexão" no menu ⋯ antes de recomeçar — a conversa continua aqui.', 'error');
+        }
         if (r === 'bad-key') {
           note('confira a chave em aistudio.google.com e informe de novo em "Usar esta chave".', 'error');
         }
@@ -901,6 +910,35 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * Relatório para COLAR em quem for depurar. Redigido pelo próprio diário — a chave não sai.
      * Também exposto em `window.__bpmnAssist.report()` pelo `mount.js`.
      */
+    /**
+     * TUDO o que esta sessão sabe de si, num objeto — para SALVAR e mandar para quem vai
+     * consertar.
+     *
+     * ⚠ Existe porque "me manda o contexto" não pode depender de alguém copiar e colar um painel
+     * (dono, 2026-11-14: "a gente precisa encontrar uma forma de que eu consiga testar… e você
+     * consiga ter acesso a absolutamente todos os pontos"). O relatório de texto continua para
+     * leitura humana; este é o que a análise usa: conversa com número de turno, diário completo,
+     * contagens, contexto enviado, estado do som e o desenho de agora.
+     *
+     * Já vem redigido: o diário mascara segredo no momento em que grava, e a chave nunca entra
+     * em mensagem nem em contexto.
+     */
+    capturar() {
+      return {
+        quando: new Date().toISOString(),
+        url: typeof location === 'undefined' ? null : location.href,
+        estado: { state, reason, mode, micOn, meiaDuplex, turnos: turnSeq },
+        mensagens: messages.slice(),
+        eventos: diag.events,
+        contagem: diag.counts,
+        contexto: contextoAtual(),
+        contextoEnviado,
+        som: lastStats,
+        uso: session?.lastUsage ?? null,
+        relatorio: this.report(),
+      };
+    },
+
     report() {
       return diag.report({
         header: {

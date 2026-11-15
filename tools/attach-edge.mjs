@@ -17,6 +17,8 @@
  *   node tools/attach-edge.mjs --passo "return document.title"
  *   node tools/attach-edge.mjs --listar              # só mostra as abas visíveis
  */
+import { mkdirSync, writeFileSync } from 'node:fs';
+
 import { cdp } from './drive-page.mjs';
 
 const PORTA = Number(process.env.BPMN_CDP_PORT ?? 9222);
@@ -56,7 +58,13 @@ async function alvos() {
   }
 }
 
-const paginas = (await alvos()).filter((t) => t.type === 'page');
+/**
+ * ⚠ Abas INTERNAS do navegador não entram: um Edge recém-aberto mostra o diálogo de sincronia
+ * como primeira página, e era nele que o script caía — anunciando "esta aba não tem o ajudante"
+ * com a aba certa aberta ao lado (medido em 2026-11-14).
+ */
+const INTERNA = /^(edge|chrome|devtools|about|view-source):/;
+const paginas = (await alvos()).filter((t) => t.type === 'page' && !INTERNA.test(t.url ?? ''));
 
 if (listar || paginas.length === 0) {
   console.log(JSON.stringify(paginas.map((p) => ({ url: p.url, titulo: p.title })), null, 2));
@@ -64,7 +72,41 @@ if (listar || paginas.length === 0) {
   process.exit(paginas.length ? 0 : 4);
 }
 
-const alvo = paginas.find((p) => p.url.includes(filtro)) ?? paginas[0];
+/**
+ * Qual aba é a do ajudante? A pergunta certa não é a URL — é se o AJUDANTE está lá.
+ *
+ * O filtro por texto ('bpmn') falha justamente no caso de desenvolvimento, onde o endereço é
+ * `127.0.0.1:8126/index.html` e não tem a palavra. Então: tenta o filtro, e se ele não achar,
+ * PERGUNTA a cada aba se ela tem `window.__bpmnAssist`.
+ */
+async function temOAjudante(pagina) {
+  const sonda = cdp(pagina.webSocketDebuggerUrl);
+  try {
+    await sonda.pronto;
+    await sonda.envia('Runtime.enable');
+    const r = await sonda.envia('Runtime.evaluate', {
+      expression: 'typeof window.__bpmnAssist',
+      returnByValue: true,
+    });
+    return r.result?.value === 'object';
+  } catch {
+    return false;
+  } finally {
+    try { sonda.fecha(); } catch { /* já fechada */ }
+  }
+}
+
+let alvo = paginas.find((p) => p.url.includes(filtro));
+if (!alvo) {
+  for (const p of paginas) {
+    if (await temOAjudante(p)) { alvo = p; break; }
+  }
+}
+if (!alvo) {
+  console.error('Nenhuma aba com o ajudante montado. Abertas agora:');
+  for (const p of paginas) console.error(`  ${p.url}`);
+  process.exit(5);
+}
 console.log(`aba: ${alvo.url}\n`);
 
 const c = cdp(alvo.webSocketDebuggerUrl);
@@ -97,6 +139,25 @@ if (passoExtra) {
   const relatorio = await avaliar('return window.__bpmnAssist.report()');
   console.log(`estado: ${JSON.stringify(estado.valor)}\n`);
   console.log(relatorio.valor ?? relatorio.erro);
+
+  /**
+   * E a CAPTURA INTEIRA vai para um arquivo.
+   *
+   * O relatório de texto é um resumo com teto — bom para ler, ruim para investigar. O JSON traz
+   * a conversa com número de turno, o diário completo, as contagens, o contexto enviado, a saúde
+   * do som e o desenho. É com ele que dá para reconstruir um caso sem estar na frente da tela
+   * (pedido do dono, 2026-11-14).
+   */
+  const captura = await avaliar('return window.__bpmnAssist.capturar ? window.__bpmnAssist.capturar() : null');
+  if (captura.valor) {
+    mkdirSync('artifacts/sessoes', { recursive: true });
+    const nome = `artifacts/sessoes/${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    writeFileSync(nome, JSON.stringify(captura.valor, null, 2), 'utf8');
+    console.log(`\nCAPTURA: ${nome}`);
+    console.log(`mensagens=${captura.valor.mensagens?.length ?? 0} eventos=${captura.valor.eventos?.length ?? 0}`);
+  } else {
+    console.log('\n(sem captura: esta aba está com um bundle anterior ao verbo capturar)');
+  }
 }
 
 c.fecha();

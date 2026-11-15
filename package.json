@@ -12,6 +12,8 @@
     "dev:spike": "node spike/dev.mjs",
     "test:assistant": "node src/assistant/__tests__/credential.mjs && node src/assistant/__tests__/session-manager.mjs && node src/assistant/__tests__/conversa.mjs && node src/assistant/__tests__/despacho.mjs && node src/assistant/__tests__/prompt.mjs && node src/assistant/__tests__/diagrama.mjs && node src/assistant/__tests__/memoria.mjs && node src/assistant/__tests__/guardrails.mjs && node src/assistant/__tests__/leitura.mjs && node src/assistant/__tests__/turnos.mjs && node src/assistant/__tests__/barge-in.mjs && node src/assistant/__tests__/canais.mjs && node src/assistant/__tests__/orcamento.mjs && node src/assistant/__tests__/diario.mjs && node src/assistant/__tests__/escrita.mjs",
     "bateria": "node tools/battery.mjs",
+    "edge": "node tools/abrir-edge.mjs",
+    "captura": "node tools/attach-edge.mjs",
     "voz": "powershell -ExecutionPolicy Bypass -File tools/make-voice-fixtures.ps1"
   },
   "keywords": [],

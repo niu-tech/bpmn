@@ -110,6 +110,14 @@ export function mountAssistant({ container = document.body, debug = false, pagin
   // Só leitura e diagnóstico — a chave não é exposta aqui (o store não tem getter de valor).
   window.__bpmnAssist = {
     report: () => session.report(),
+    /**
+     * A sessão inteira num objeto, para SALVAR e investigar depois — conversa com número de
+     * turno, diário completo, contagens, contexto enviado, saúde do som e o desenho.
+     *
+     * É o que o `tools/attach-edge.mjs` puxa da aba do dono, e o que o botão "Salvar sessão"
+     * grava em arquivo. Sem isto, "me manda o contexto" dependia de alguém copiar um painel.
+     */
+    capturar: () => session.capturar(),
     get estado() { return { modo: session.mode, estado: session.state, micOn: session.micOn, nivel: session.level }; },
     get eventos() { return session.diagnostics.events; },
     get contagem() { return session.diagnostics.counts; },
