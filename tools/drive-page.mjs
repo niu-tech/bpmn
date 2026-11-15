@@ -285,7 +285,7 @@ function comecarAFilmar(c, filme) {
   return { quadros, t0, parar() { clearInterval(relogio); return quadros; } };
 }
 
-export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, micEmLaco = false, micSemCauda = false, headless = true, filme = null } = {}) {
+export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, micEmLaco = false, micSemCauda = false, headless = true, filme = null, onPasso = null } = {}) {
   const exe = acharNavegador();
   // WAV como MICROFONE. A flag faz o getUserMedia devolver o arquivo em vez do tom sintetico,
   // entao o caminho do microfone roda inteiro (worklet, reamostragem, PCM16, socket) com fala
@@ -367,11 +367,15 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
         awaitPromise: true,
         returnByValue: true,
       });
-      saida.passos.push({
+      const resultado = {
         passo: passo.length > 90 ? `${passo.slice(0, 90)}…` : passo,
         valor: r.result?.value ?? null,
         erro: r.exceptionDetails?.exception?.description ?? r.exceptionDetails?.text ?? null,
-      });
+      };
+      saida.passos.push(resultado);
+      // PROGRESSO NA HORA: um lote de 30 passos numa chamada só ficaria mudo por dez minutos, e
+      // "saber onde parou" vale mais do que o relatório bonito no fim (que não chega, se travar).
+      try { onPasso?.(resultado, saida.passos.length - 1); } catch { /* progresso nunca derruba a corrida */ }
       await new Promise((r2) => setTimeout(r2, 150));
     }
 

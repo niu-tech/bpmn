@@ -30,8 +30,16 @@
 
 ## 3. Camada ao vivo
 
-- [x] 3.1 `node tools/avaliar.mjs --ao-vivo`: uma sessão por pergunta, com descanso declarado
-      (`BPMN_DESCANSO_MS`, 20 s) — cadência de teste não pode virar vermelho.
+- [x] 3.1 `node tools/avaliar.mjs --ao-vivo`: **UMA sessão para o lote** (uma por perfil), com
+      descanso curto declarado (`BPMN_DESCANSO_MS`, 1,5 s) — cadência de teste não pode virar
+      vermelho.
+
+      ⚠ Era uma sessão POR PERGUNTA com 20 s de descanso, e isso pedia 33 **vagas de sessão**
+      ao projeto numa corrida — a recusa na admissão que vinha disso foi lida como cota por um
+      dia inteiro. Corrigido em 2026-11-15 à noite (dono: *"só usamos uma por vez"*): o lote
+      conversa na mesma sessão, o diagrama volta ao estado base entre perguntas
+      (`__bpmnAssist.recarregarDiagrama()`), e a corrida salva a própria sessão para quem
+      quiser contar os `out.setup`. Ver `sustain-a-class-session`, seção 7.
 - [x] 3.2 Mede: ferramenta escolhida, fatos obrigatórios, proibições, recusa esperada, idioma, a
       recusa NOMEADA do portão (que não aparece como `executando`, porque é barrada antes) e — na
       categoria de ambiguidade — **o DESENHO**: quantas formas nasceram, porque ali o critério não

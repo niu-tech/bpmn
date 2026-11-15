@@ -186,6 +186,24 @@ export function mountAssistant({ container = document.body, debug = false, pagin
      * na frente da tela.
      */
     selecionar: (id) => acesso.selecionar(id),
+    /**
+     * RECARREGA o diagrama base, **sem tocar na sessão Live**.
+     *
+     * ⚠ Existe porque a corrida ao vivo passou a usar UMA sessão para o lote inteiro (dono,
+     * 2026-11-15: *"só usamos uma por vez"*) — e aí o que precisa voltar ao início entre duas
+     * perguntas é o DESENHO, não a conversa. Antes cada pergunta abria uma aba nova, que vinha
+     * com o diagrama limpo de graça e cobrava uma vaga de sessão por isso.
+     *
+     * Diagnóstico: importa o XML base pelo mesmo `importXML` do produto e re-sincroniza o olho,
+     * para o modelo não seguir falando do diagrama anterior.
+     */
+    async recarregarDiagrama(url = 'diagram.bpmn') {
+      const resposta = await fetch(new URL(url, location.href).href);
+      if (!resposta.ok) throw new Error(`diagrama base não veio: ${resposta.status}`);
+      await modelador.importXML(await resposta.text());
+      session.sincronizarContexto();
+      return { ok: true };
+    },
     /** O que o aluno escolheu num candidato clicavel, pelo caminho do painel. */
     escolher: (candidato) => session.escolherCandidato(candidato),
     /** A nota da pagina que ainda nao saiu (fila de um). So leitura, so diagnostico. */

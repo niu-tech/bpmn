@@ -142,6 +142,18 @@
           <b>sessões ao mesmo tempo</b>, e o que nos atingia era <b>nosso</b>: a bateria matava o
           navegador sem fechar a sessão, e disputava a vaga com as próprias sobras.</td>
           <td>as perguntas "sem cota" passaram todas depois do fecho limpo</td></tr>
+      <tr><td><b>Uma sessão por vez</b></td>
+          <td>Vaga de sessão é o recurso escasso, e a gente pedia várias sem perceber: a sonda
+          "Testar conexão" abria um socket próprio, e a bateria abria <b>uma sessão por
+          pergunta</b> — 33 numa corrida. Agora o transporte faz a anterior ceder o lugar com
+          fecho limpo, e a corrida inteira conversa numa sessão, como um aluno faria.</td>
+          <td>33 perguntas, 2 sessões (uma por perfil)</td></tr>
+      <tr><td><b>A conversa sobrevive à queda</b></td>
+          <td>A conexão vive ~10 min e o servidor avisa antes de fechar. Faltava um detalhe:
+          o servidor só manda a <b>alça de retomada</b> se o setup pedir — o nosso não pedia, e
+          a alça guardada era sempre nula. Reabrir virou <b>continuar</b>: o modelo não esquece
+          mais a aula a cada 10 minutos.</td>
+          <td>o setup da volta carrega a alça; o histórico deixa de ser reenviado</td></tr>
       <tr><td><b>Latência por turno</b></td>
           <td>"Está lento" virou quatro números com dono: ouviu, primeira resposta, janela do
           áudio, turno inteiro.</td>

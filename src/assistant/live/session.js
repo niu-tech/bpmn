@@ -38,6 +38,22 @@ const DEFAULTS = {
   reconnectBaseMs: 500,
 };
 
+/**
+ * UMA SESSÃO LIVE POR VEZ, nesta aba — invariante do produto (dono, 2026-11-15: *"não precisamos
+ * ficar criando múltiplas sessões, só usamos uma por vez"*).
+ *
+ * Por que existe: o plano gratuito limita quantas Live cabem **de uma vez por projeto**, e vaga
+ * de sessão foi o que a gente leu como "cota" por um dia inteiro. O gerente já fazia `teardown`
+ * antes de abrir, mas isso vale só para o caminho dele — sonda de diagnóstico, bateria, dois
+ * pontos de montagem ou um `start()` repetido abriam a segunda sem ninguém notar. Aqui a regra
+ * deixa de depender de quem chama.
+ *
+ * ⚠ Fechar o socket da anterior **não basta**: a sessão dona dele veria um fecho inesperado e
+ * **reconectaria** (é o caminho de resiliência), abrindo outra. Por isso o registro guarda a
+ * própria sessão e chama o encerramento DELA, que marca `closedByUs` e não reconecta.
+ */
+let sessaoNoAr = null;
+
 export function createSession({
   apiKey,
   socketFactory,
@@ -48,7 +64,10 @@ export function createSession({
   onAudio,
   onInterrupted,
   onLog,
-  /** Setup ACEITO pelo servidor. `reconectou` diz se este socket substitui um que caiu. */
+  /**
+   * Setup ACEITO pelo servidor. `reconectou` diz se este socket substitui um que caiu;
+   * `retomou` diz que ele reabriu com a ALÇA, ou seja, no mesmo fio de conversa (T17).
+   */
   onSetupComplete,
   // Diário da sessão: um evento por frame que entra e por frame que sai. É o que transforma
   // "o modelo foi interrompido" numa sequência (`out.audio x12 -> ws.interrupted`) que diz a
@@ -64,6 +83,14 @@ export function createSession({
    * Sem isto, a recusa de SESSÃO (M7) vira "a chave foi recusada" na cara do aluno.
    */
   chaveJaFuncionou = () => false,
+  /**
+   * A invariante "UMA sessão Live por vez" vale para esta sessão? **Ligada por padrão**: no
+   * produto há um aluno e uma conversa, e vaga de sessão é recurso escasso (ver `sessaoNoAr`).
+   *
+   * Desligue SÓ para testar o transporte em isolamento, onde um processo hospeda várias sessões
+   * de propósito e elas não representam alunos concorrentes.
+   */
+  umaPorVez = true,
   // ⚠ Envoltórios, NUNCA as referências cruas. No navegador `setTimeout` é método de `window`:
   // guardá-lo num objeto e chamar `clock.setTimeout(...)` perde o `this` e o browser lança
   // `TypeError: Illegal invocation`. No node a mesma linha funciona — então o defeito é
@@ -101,7 +128,25 @@ export function createSession({
    * (dívida T9: *"…para responder dúvidas sobre o seu diagrama"* respondendo outra coisa).
    */
   let pendente = null;
-  let resumptionHandle = null; // alça de retomada que o servidor manda; não usada ainda
+  /**
+   * A alça de retomada que o servidor manda (T17). Com ela, reabrir é CONTINUAR — ver `open()`.
+   * Vive no fechamento da sessão: ela é do fio de conversa, não da aba.
+   */
+  let resumptionHandle = null;
+  /** Mandamos alça no último setup? É o que separa "reconectou" de "retomou" para quem ouve. */
+  let pediuRetomada = false;
+  /** Identidade desta sessão no registro de "uma por vez". Objeto vazio basta: compara-se por referência. */
+  const marca = {};
+  /**
+   * Esta sessão JÁ CEDEU o lugar para outra desta aba — e então não volta.
+   *
+   * ⚠ Sem isto a invariante se morde: uma sessão abandonada no meio do recuo de reconexão
+   * acorda no tique seguinte, chama `open()` **depois** de a nova estar no ar, e mata a nova
+   * tomando o lugar de volta. Apareceu no primeiro `npm test` com a guarda ligada (o dublê de
+   * um teste fechou o socket do teste seguinte) e aconteceria igual na página: quem foi
+   * substituído não tem direito ao lugar.
+   */
+  let retirado = false;
   let lastUsage = null;
   /**
    * O USO ACUMULADO da sessão (change `sustain-a-class-session`, 5.1).
@@ -444,7 +489,13 @@ export function createSession({
         // ⚠ Sinal do SETUP ACEITO, que não é a mesma coisa que o estado `ready`: aquele volta ao
         // fim de CADA turno. Quem precisa saber "o servidor aceitou um setup novo" — para
         // semear o contexto de novo depois de uma reconexão — tem de ouvir isto, e não o estado.
-        onSetupComplete?.({ reconectou: setupsAceitos > 0 });
+        /**
+         * `retomou` é "reabrimos COM a alça", e não um carimbo do servidor: o protocolo não
+         * manda "retomei". Se a alça tiver vencido, o servidor abre sessão nova em silêncio — e
+         * é por isso que o gerente, ao retomar, continua refazendo a pergunta que ficou sem
+         * resposta: ela é a única coisa que se perde nos dois casos.
+         */
+        onSetupComplete?.({ reconectou: setupsAceitos > 0, retomou: setupsAceitos > 0 && pediuRetomada });
         setupsAceitos++;
         return;
 
@@ -622,8 +673,12 @@ export function createSession({
       ev('ws', 'open');
       // O setup é o primeiro frame SEMPRE. `ready` só depois do setupComplete.
       try {
-        ws.send(JSON.stringify(buildSetup(setupOptions)));
-        ev('out', 'setup', setupOptions.withDeliveryTool ? 'modo=texto' : 'modo=voz');
+        // T17: com alça, este socket RETOMA a sessão anterior em vez de começar uma nova — e o
+        // modelo continua lembrando a aula. Sem alça (primeira conexão), `{}` pede que o
+        // servidor passe a mandar alças.
+        pediuRetomada = Boolean(resumptionHandle);
+        ws.send(JSON.stringify(buildSetup({ ...setupOptions, resumptionHandle })));
+        ev('out', 'setup', `${setupOptions.withDeliveryTool ? 'modo=texto' : 'modo=voz'}${pediuRetomada ? ' retomando' : ''}`);
       } catch (err) {
         fail('ws-closed:setup', err);
       }
@@ -687,7 +742,36 @@ export function createSession({
     };
   }
 
+  /**
+   * Encerra DE VERDADE: marca que fomos nós (senão o `onclose` reconecta), para os relógios,
+   * descarta a fila e fecha o socket com 1000 — o fecho limpo é o que libera a vaga de sessão
+   * no servidor sem esperar ele notar o fio morto.
+   */
+  function encerrar(motivo) {
+    closedByUs = true;
+    try { dispatcher?.encerrar?.(); } catch { /* já encerrado */ }
+    setState('closing');
+    clearTimers();
+    pending = [];
+    try { ws?.close(1000, motivo); } catch { /* já fechado */ }
+    if (sessaoNoAr?.marca === marca) sessaoNoAr = null;
+    setState('idle');
+  }
+
   function open() {
+    if (umaPorVez) {
+      // Substituída: nem reconexão a traz de volta.
+      if (retirado) {
+        ev('ws', 'uma-por-vez', 'esta sessão cedeu o lugar: não reabre');
+        return;
+      }
+      // UMA POR VEZ: quem estiver no ar cede o lugar ANTES de existir um segundo socket.
+      if (sessaoNoAr && sessaoNoAr.marca !== marca) {
+        ev('ws', 'uma-por-vez', 'outra sessão desta aba estava no ar: encerrada antes de abrir');
+        try { sessaoNoAr.ceder(); } catch { /* já morta */ }
+      }
+      sessaoNoAr = { marca, ceder: () => { retirado = true; encerrar('uma sessão por vez'); } };
+    }
     setState('connecting');
     ready = false;
     try {
@@ -849,13 +933,7 @@ export function createSession({
 
     /** Encerramento explícito: sem isto a cota do aluno continua correndo. */
     close() {
-      closedByUs = true;
-      try { dispatcher?.encerrar?.(); } catch { /* já encerrado */ }
-      setState('closing');
-      clearTimers();
-      pending = [];
-      try { ws?.close(1000, 'encerrado pelo usuário'); } catch { /* já fechado */ }
-      setState('idle');
+      encerrar('encerrado pelo usuário');
     },
   };
 }

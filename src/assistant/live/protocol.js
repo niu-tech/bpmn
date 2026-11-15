@@ -75,6 +75,17 @@ export function buildSetup({
    * `tools` faria o servidor considerar só o primeiro.
    */
   ferramentas = [],
+  /**
+   * A ALÇA DE RETOMADA (T17). `null` = pedir ao servidor que mande alças; string = **retomar
+   * ESTA sessão** no lugar de abrir outra.
+   *
+   * ⚠ O servidor só manda `sessionResumptionUpdate` se o setup pedir — e até 2026-11-15 o nosso
+   * não pedia, então `session.js` guardava uma alça que nunca chegava (o comentário dizia "não
+   * usada ainda" e o campo era `null` para sempre). Sem alça, cada queda abre sessão NOVA: o
+   * histórico do modelo zera, e como a conexão vive ~10 min, uma aula de 50 perde a memória umas
+   * quatro vezes. É esse, e não a cota, o teto da promessa "a aula inteira numa sessão".
+   */
+  resumptionHandle = null,
 } = {}) {
   if (typeof systemInstruction !== 'string' || !systemInstruction.trim()) {
     throw new Error('sem prompt: monte com agent/render.js (promptDoPerfil) antes de abrir a sessão');
@@ -106,6 +117,14 @@ export function buildSetup({
      * documentação não fixa.
      */
     contextWindowCompression: { slidingWindow: {} },
+    /**
+     * RETOMADA DE SESSÃO (T17): `{}` pede as alças, `{ handle }` continua a MESMA sessão.
+     *
+     * Dois limites diferentes, e confundi-los custou um dia: a **sessão** vira ilimitada com a
+     * compressão acima, mas a **conexão** vive ~10 min e o servidor avisa com `goAway`. Reabrir
+     * sem alça é começar de zero; reabrir com a alça é o mesmo fio de conversa.
+     */
+    sessionResumption: resumptionHandle ? { handle: resumptionHandle } : {},
   };
 
   const declaracoes = [];

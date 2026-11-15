@@ -234,6 +234,20 @@ function encerrar() {
         + ` · primeira resposta ${seg(mediana(turnos.map((t) => t.tempos.primeiraMs)))}`
         + ` · turno inteiro ${seg(mediana(turnos.map((t) => t.tempos.totalMs)))}`);
     }
+    /**
+     * A SESSÃO: quantos apertos de mão houve, e quantos foram RETOMADA (T20).
+     *
+     * É a linha que diz se a promessa "a aula inteira numa sessão" valeu nesta corrida. Dois
+     * `out.setup` com uma `ws.resumption` no meio não são duas sessões: são a mesma, retomada
+     * depois de a conexão morrer (ela vive ~10 min). Dois sem alça, sim, seriam duas.
+     */
+    const setups = conta('out.setup');
+    const alcas = conta('ws.resumption');
+    if (setups) {
+      console.log(`sessão: ${setups} setup(s)`
+        + (alcas ? ` · ${alcas} alça(s) de retomada recebida(s)` : ' · nenhuma alça recebida')
+        + (setups > 1 ? ` — a conexão caiu ${setups - 1}x e ${alcas ? 'retomou' : 'abriu sessão NOVA'}` : ''));
+    }
     const uso = ultima.usoAcumulado;
     if (uso?.turnos) {
       console.log(`custo: ${uso.total} tokens em ${uso.turnos} turno(s) — entrada ${uso.entrada}, saída ${uso.saida}`);

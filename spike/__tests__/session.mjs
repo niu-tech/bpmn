@@ -26,6 +26,11 @@ function ready(opts = {}) {
     socketFactory: mockFactory(),
     setupOptions: SETUP,
     clock,
+    // ⚠ Este arquivo testa o TRANSPORTE: um processo, dezenas de sessões, nenhuma delas um aluno.
+    // Com a invariante ligada, a sessão de um teste cede o lugar à do seguinte e as asserções
+    // assíncronas do primeiro passam a falar com um socket fechado. A invariante é provada no
+    // arquivo do produto (`src/assistant/__tests__/session-manager.mjs`), onde há um aluno só.
+    umaPorVez: false,
     onState: (s) => states.push(s.reason ? `${s.state}(${s.reason})` : s.state),
     onText: (t) => texts.push(t),
     onAudio: (b) => audio.push(b),
@@ -164,7 +169,10 @@ test('legenda SEM audio nao vira resposta: e legenda emprestada da geracao anter
   assert.equal(texts.at(-1).vazio, true, 'a tela avisa em vez de mostrar texto de outro turno');
 });
 
-test('a MESMA chamada repetida executa UMA vez e reaproveita o resultado', () => {
+// ⚠ `testAsync`, e nao `test`: estes dois devolvem promessa. Com `test` ninguem a espera, a
+// continuacao roda DEPOIS dos testes seguintes — e a sessao deles ja tomou o lugar desta (uma
+// sessao por vez). Falhava como rejeicao nao tratada, derrubando o processo em vez de o teste.
+testAsync('a MESMA chamada repetida executa UMA vez e reaproveita o resultado', () => {
   // O servidor repete `toolCall` - reconexao, retransmissao. Enquanto a ferramenta so LE, repetir
   // custa uma consulta; com a escrita da F7, repetir custa um elemento duplicado no diagrama.
   let batidas = 0;
@@ -189,7 +197,7 @@ test('a MESMA chamada repetida executa UMA vez e reaproveita o resultado', () =>
   });
 });
 
-test('chamada de id DIFERENTE no mesmo turno executa normalmente', () => {
+testAsync('chamada de id DIFERENTE no mesmo turno executa normalmente', () => {
   let batidas = 0;
   const { session, ws } = ready({
     dispatcher: {
@@ -629,6 +637,58 @@ test('o uso soma por turno, e o frame de uso NAO e uma resposta', () => {
   ws.emit({ serverContent: { turnComplete: true } });
 
   assert.deepEqual(session.uso, { entrada: 100, saida: 40, total: 140, turnos: 1 });
+});
+
+console.log('\n▶ uma sessao por vez, e a retomada da MESMA sessao (T17)');
+
+test('a sessao nova faz a anterior CEDER o lugar, e a anterior nao volta', () => {
+  // Invariante do produto (dono, 2026-11-15): "so usamos uma por vez". Vaga de sessao e' o
+  // recurso escasso do plano gratuito — foi o que a gente leu como "cota" por um dia inteiro.
+  const factory = mockFactory();          // zera MockSocket.instances
+  const base = { apiKey: 'AIzaCHAVEFALSADETESTE123456', socketFactory: factory, setupOptions: SETUP };
+  const relogioA = fakeClock();
+  const a = createSession({ ...base, clock: relogioA });
+  a.start();
+  const wsA = MockSocket.instances.at(-1);
+  wsA.open();
+  wsA.emit({ setupComplete: {} });
+  assert.equal(a.state, 'ready');
+
+  const b = createSession({ ...base, clock: fakeClock() });
+  b.start();
+  assert.equal(MockSocket.instances.length, 2, 'a nova abriu');
+  assert.equal(wsA.closed?.code, 1000, 'a anterior saiu com FECHO LIMPO: e' + "' o que libera a vaga");
+  assert.equal(a.state, 'idle', 'a anterior foi encerrada, nao deixada pendurada');
+
+  // E nao volta: quem cedeu o lugar nao tem direito a ele de novo, nem pelo recuo de reconexao.
+  relogioA.flush();
+  relogioA.flush();
+  assert.equal(MockSocket.instances.length, 2, 'a que cedeu nao reabre e nao mata a nova');
+});
+
+test('com alca, reabrir RETOMA a mesma sessao em vez de comecar outra', () => {
+  const eventos = [];
+  const { session, ws, clock } = ready({ onSetupComplete: (e) => eventos.push(e) });
+  assert.deepEqual(ws.sent[0].setup.sessionResumption, {}, 'o primeiro setup pede as alcas');
+
+  ws.emit({ sessionResumptionUpdate: { newHandle: 'alca-123', resumable: true } });
+  assert.equal(session.resumptionHandle, 'alca-123', 'a alca do servidor fica guardada');
+
+  // Queda: silencio depois de um turno fecha o socket e reabre com recuo.
+  session.ask('p');
+  ws.emit({ serverContent: { outputTranscription: { text: 'oi' } } });
+  clock.flush();
+  clock.flush();
+  const novo = MockSocket.instances.at(-1);
+  assert.notEqual(novo, ws, 'abriu outro socket');
+  novo.open();
+  assert.equal(
+    novo.sent[0].setup.sessionResumption?.handle,
+    'alca-123',
+    'o setup da volta carrega a alca: mesma sessao, memoria preservada',
+  );
+  novo.emit({ setupComplete: {} });
+  assert.deepEqual(eventos.at(-1), { reconectou: true, retomou: true }, 'quem ouve sabe que foi RETOMADA');
 });
 
 report('session');

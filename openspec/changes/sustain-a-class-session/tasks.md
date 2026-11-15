@@ -75,3 +75,44 @@
 - [x] 6.3 Trilha AO VIVO curta (o vídeo do caminho feliz, 3 turnos contra o Gemini de verdade):
       `n=1 primeira=2,7 s total=2,7 s tokens=5713`, `n=2 2,2 s / 6748`, `n=3 1,3 s / 7620`, com o
       último `turn-complete` aos 12,4 s — batendo com o relógio de parede da gravação.
+
+## 7. Depois do fecho — a aula numa sessão, de verdade (2026-11-15, à noite)
+
+> Esta seção nasceu de duas frases do dono no mesmo dia: *"não precisamos ficar criando múltiplas
+> sessões, só usamos uma por vez, precisamos corrigir isso"* e *"pode prosseguir com o T17"*. A
+> change estava fechada; o que ela prometia — **a aula inteira numa sessão** — ainda não valia.
+
+- [x] 7.1 **UMA sessão Live por vez é invariante, não intenção** (item T21 do `open-items.md`).
+      Três fontes de sessão extra, fechadas: a sonda *"Testar conexão"* (abria socket próprio
+      "sem tocar na sessão em curso" — mas tomava uma **vaga de sessão** do projeto, e com a
+      guarda nova encerraria a conversa do aluno para sondar o servidor); o **transporte**, que
+      agora faz a sessão anterior **ceder o lugar** com fecho limpo (1000 é o que libera a vaga) e
+      impede que quem cedeu volte pelo recuo de reconexão; e a **corrida ao vivo do acervo**, que
+      abria uma sessão POR PERGUNTA — 33 vagas pedidas numa corrida.
+- [x] 7.2 **A corrida do acervo virou uma sessão por perfil** (duas no total, nunca 33), com o
+      diagrama voltando ao estado base entre perguntas pelo verbo novo
+      `__bpmnAssist.recarregarDiagrama()` — senão *"crie uma raia"* encontra a raia da pergunta
+      anterior. Três cuidados que só existem por causa da sessão compartilhada estão escritos em
+      `passoDaPergunta`: só erro NOVO conta, só evento NOVO conta (corte pelo `ms` do diário, não
+      por índice — o anel descarta o começo numa corrida longa) e o desenho é medido após o
+      reset. O descanso entre perguntas caiu de **20 s para 1,5 s**: ele existia para não disputar
+      vaga com a pergunta anterior, e deixou de ter motivo.
+- [x] 7.3 **T20 — a conversa sobrevive à queda da conexão.** A sessão é ilimitada com a
+      compressão (1.1), mas a **conexão** vive ~10 min: o servidor manda `goAway` e fecha. O
+      defeito era um detalhe só: o servidor **só manda a alça se o setup pedir**, o nosso não
+      pedia, e `session.js` guardava um `resumptionHandle` que nunca chegava (*"não usada ainda"*).
+      Agora `buildSetup` manda `sessionResumption: {}` para pedir e `{ handle }` para **retomar**;
+      quem reabre com alça avisa `retomou: true`, e aí o gerente **não reenvia o histórico** (isso
+      duplicaria a conversa dentro do contexto do modelo, pago em tokens) e manda só o quadro da
+      TELA, que é o que pode ter mudado. A tela diz *"Continuamos na mesma conversa"*.
+- [x] 7.4 Provas determinísticas (no `npm test`): `protocol` — o setup pede as alças e, com alça,
+      retoma; `session` — a sessão nova faz a anterior ceder com fecho limpo e a anterior **não
+      volta**, e o setup da volta **carrega a alça** (`onSetupComplete` separa reconexão de
+      retomada); `session-manager` — com a conversa aberta a sonda **não cria sessão nova**, sem
+      sessão ela abre a dela e fecha, e a retomada não reenvia histórico enquanto a queda sem
+      alça reenvia.
+- [x] 7.5 **A corrida guarda a própria sessão** (`artifacts/avaliacao/sessao-ao-vivo-<perfil>-*.json`)
+      e a corrida imprime quantos `out.setup` houve no lote. É o que transforma "usamos uma sessão
+      só" em número conferido por quem lê, e não em narração nossa; `ws.resumption` no mesmo
+      diário diz quando houve retomada.
+

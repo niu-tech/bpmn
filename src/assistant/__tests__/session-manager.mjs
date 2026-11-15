@@ -50,7 +50,13 @@ function fakeLive() {
       // gatilhos do teste
       // `pronta` = o servidor aceitou o setup. O ESTADO `ready` volta ao fim de cada turno;
       // o setup aceito, nao - e so o segundo que significa reconexao.
-      pronta() { state = 'ready'; s.setups++; opts.onSetupComplete?.({ reconectou: s.setups > 1 }); opts.onState?.({ state, reason: null }); },
+      // `retomou` = a volta foi COM a alca (T17): mesma sessao do lado do servidor.
+      pronta(extra = {}) {
+        state = 'ready';
+        s.setups++;
+        opts.onSetupComplete?.({ reconectou: s.setups > 1, retomou: s.setups > 1 && Boolean(extra.retomou) });
+        opts.onState?.({ state, reason: null });
+      },
       fimDeTurno() { state = 'ready'; opts.onState?.({ state, reason: null }); },
       falha(reason) { state = 'error'; opts.onState?.({ state, reason }); },
       texto(t, extra = {}) { opts.onText?.({ text: t, fallback: false, complete: false, ...extra }); },
@@ -1411,6 +1417,64 @@ testAsync('o recado de cota diz o que foi MEDIDO, e aponta o verbo que resolve',
   const rotulo = avisos.split('|')[0];
   assert.match(rotulo, /limite de sessões/);
   assert.ok(!/chave foi recusada/.test(rotulo), 'nunca manda trocar uma chave que funciona');
+  forgetSecrets();
+});
+
+console.log('\n▶ uma sessao Live por vez');
+
+testAsync('com a conversa aberta, "Testar conexao" NAO abre uma segunda sessao', async () => {
+  // Dono, 2026-11-15: "so usamos uma por vez". A sonda abria um socket proprio "sem tocar na
+  // sessao em curso" — mas o que ela tomava era uma VAGA DE SESSAO do projeto, o mesmo recurso
+  // escasso que a gente leu como cota; e com a invariante do transporte ela passaria a ENCERRAR
+  // a sessao do aluno para perguntar ao servidor se ele responde.
+  const { session, live } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+
+  const r = await session.testarConexao();
+  assert.equal(live.criadas.length, 1, 'nenhuma sessao nova foi criada');
+  assert.equal(r.jaAberta, true);
+  assert.equal(r.ok, true);
+  const aviso = session.messages.filter((m) => m.role === 'system').at(-1).text;
+  assert.match(aviso, /sess\u00e3o est\u00e1 aberta/i, 'diz o que ele queria saber, sem gastar vaga');
+  assert.ok(!live.ultima.fechada, 'a sessao do aluno continua de pe');
+  forgetSecrets();
+});
+
+testAsync('SEM sessao no ar, a sonda abre a dela (e fecha)', async () => {
+  const { session, live } = montar();
+  const promessa = session.testarConexao();
+  assert.equal(live.criadas.length, 1, 'a sonda abriu a sessao dela');
+  live.ultima.pronta();
+  const r = await promessa;
+  assert.equal(r.ok, true, 'o setup aceito e o veredito da sonda');
+  assert.ok(live.ultima.fechada, 'e ela morre no fim do teste: vaga devolvida');
+  forgetSecrets();
+});
+
+testAsync('RETOMADA (T17) nao reenvia o historico; queda sem alca reenvia', async () => {
+  // Com a alca e' a MESMA sessao do lado do servidor: o modelo nao esqueceu nada, e reenviar a
+  // conversa duplicaria tudo dentro do contexto dele (pago em tokens). O que pode ter mudado
+  // enquanto o fio esteve fora e' a TELA.
+  const comAlca = montar();
+  await comAlca.session.connect('texto');
+  comAlca.live.ultima.pronta();
+  comAlca.session.ask('o que e um gateway?');
+  const antes = comAlca.live.ultima.enviados.length;
+  comAlca.live.ultima.pronta({ retomou: true });
+  const depois = comAlca.live.ultima.enviados.slice(antes);
+  assert.ok(!depois.some((e) => e.tipo === 'historico'), 'historico NAO volta: o servidor ainda o tem');
+  const aviso = comAlca.session.messages.filter((m) => m.role === 'system').at(-1).text;
+  assert.match(aviso, /mesma conversa/i, 'a tela diz a verdade: a conversa continua');
+
+  const semAlca = montar();
+  await semAlca.session.connect('texto');
+  semAlca.live.ultima.pronta();
+  semAlca.session.ask('o que e um gateway?');
+  const antes2 = semAlca.live.ultima.enviados.length;
+  semAlca.live.ultima.pronta();
+  const depois2 = semAlca.live.ultima.enviados.slice(antes2);
+  assert.ok(depois2.some((e) => e.tipo === 'historico'), 'sessao NOVA precisa da conversa de volta');
   forgetSecrets();
 });
 

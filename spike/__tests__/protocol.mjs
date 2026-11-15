@@ -245,4 +245,16 @@ test('o setup pede COMPRESSAO de contexto, nos dois perfis', () => {
   }
 });
 
+console.log('\n▶ retomada de sessao (T17)');
+
+test('o setup PEDE as alcas por padrao, e com alca RETOMA', () => {
+  // A alca so chega se o setup pedir. Ate 2026-11-15 o nosso nao pedia e `session.js` guardava
+  // uma alca que nunca vinha — por isso toda queda abria sessao NOVA e o modelo esquecia a aula.
+  const { setup: pedindo } = buildSetup({ systemInstruction: 'x' });
+  assert.deepEqual(pedindo.sessionResumption, {}, 'objeto vazio = "me mande alcas"');
+
+  const { setup: retomando } = buildSetup({ systemInstruction: 'x', resumptionHandle: 'alca-123' });
+  assert.deepEqual(retomando.sessionResumption, { handle: 'alca-123' }, 'com alca, continua a MESMA sessao');
+});
+
 report('protocol');

@@ -10,7 +10,8 @@
  *                   executar? o executor faz? o erro é NOMEADO? Sem rede, sem chave, dentro do
  *                   `npm test`.
  *   ao vivo         o que é do MODELO: ele escolhe a ferramenta certa, com os argumentos certos,
- *                   e responde sem vazar o que não pode? Uma sessão por pergunta, com descanso.
+ *                   e responde sem vazar o que não pode? UMA sessão para o lote inteiro — uma
+ *                   aula é uma conversa, e vaga de sessão é o recurso escasso (ver `colherAoVivo`).
  *
  * ⚠ Pergunta que não rodou (cota, fixture que falta) é contada como **não executada**, nunca como
  * acerto. Acerto por omissão é o jeito mais fácil de uma avaliação mentir.
@@ -281,72 +282,74 @@ function chaveDoEnv() {
   return null;
 }
 
-const DESCANSO_MS = Number(process.env.BPMN_DESCANSO_MS ?? 20000);
+/**
+ * DESCANSO entre perguntas. Era 20 s para a corrida não disputar **vaga de sessão** com a
+ * pergunta anterior — e deixou de ser necessário quando ela passou a usar UMA sessão para todas
+ * (ver `colherAoVivo`). Sobra uma pausa curta: cortesia com o servidor, não contorno de cota.
+ */
+const DESCANSO_MS = Number(process.env.BPMN_DESCANSO_MS ?? 1500);
 
 /**
- * TETO POR PERGUNTA. Uma corrida de 32 perguntas não pode morrer porque UMA travou — e travar,
- * aqui, já significou meia hora de processo vivo sem CPU. Passou disto, a pergunta vira **não
- * executada** com o motivo escrito, e a corrida segue.
+ * TETO POR PERGUNTA, usado para dimensionar o teto do LOTE. Uma corrida não pode morrer porque
+ * UMA pergunta travou — e travar, aqui, já significou meia hora de processo vivo sem CPU. O
+ * passo de cada pergunta já se limita por dentro (120 voltas de 500 ms); este teto é a rede por
+ * fora, e vale para o lote inteiro.
  */
-const TETO_POR_PERGUNTA_MS = Number(process.env.BPMN_TETO_PERGUNTA_MS ?? 150000);
+const TETO_POR_PERGUNTA_MS = Number(process.env.BPMN_TETO_PERGUNTA_MS ?? 90000);
 
 const comTeto = (promessa, ms, motivo) => Promise.race([
   promessa,
   new Promise((resolve) => { const t = setTimeout(() => resolve({ __estourou: motivo }), ms); t?.unref?.(); }),
 ]);
 
-async function rodarAoVivo(perguntas, { alvo }) {
-  const { dirigir } = await import('./drive-page.mjs');
-  const chave = chaveDoEnv();
-  if (!chave) {
-    return perguntas.map((p) => ({
-      id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
-      motivo: 'sem .env com a chave: a pergunta NÃO foi executada (não conta como acerto nem como erro)',
-    }));
-  }
-
-  const resultados = [];
-  let primeira = true;
-
-  for (const p of perguntas) {
-    // Fixture que a página não tem: não executada, com o motivo dito.
-    //
-    // ⚠ `respostaDoAluno` entra aqui porque "pode apagar" não é uma pergunta: é a SEGUNDA metade
-    // de um portão, e medi-la sozinha mediria outra coisa. Ela é provada ao vivo pelo cenário de
-    // voz da bateria (portão 6.3), onde as duas metades acontecem na ordem.
-    if (p.diagramaEnvenenado || p.diagramaVazio || p.erroDeSessao || p.notaDaPagina || p.respostaDoAluno || p.exigeHistorico) {
-      resultados.push({
-        id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
-        motivo: 'exige um diagrama ou um estado de sessão que esta corrida não monta (ver tools/battery.mjs)',
-      });
-      continue;
-    }
-
-    if (!primeira && DESCANSO_MS > 0) await new Promise((r) => setTimeout(r, DESCANSO_MS));
-    primeira = false;
-
-    const url = p.perfil === 'viewer' ? new URL('viewer.html', alvo).href : alvo;
-    const r = await comTeto(dirigir({
-      url,
-      espera: 3000,
-      headless: true,
-      passos: [
-        `window.__btn = (t) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === t);
+/** Abre a sessão: chave, consentimento, "Começar" — e espera o painel dizer "pronto". */
+function passoDeConexao(chave) {
+  return `window.__btn = (t) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === t);
          for (let i = 0; i < 40 && !document.querySelector('.bpmn-assist__toggle'); i++) await new Promise((r) => setTimeout(r, 250));
          document.querySelector('.bpmn-assist__toggle').click();
          document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chave)};
          const c = document.querySelector('#bpmn-assist-consent');
          c.checked = true; c.dispatchEvent(new Event('change'));
-         for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
-         window.__btn('Começar').click();
+         for (let i = 0; i < 40 && !window.__btn('Come\u00e7ar'); i++) await new Promise((r) => setTimeout(r, 250));
+         window.__btn('Come\u00e7ar').click();
          for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
            await new Promise((r) => setTimeout(r, 500));
          }
-         return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' };`,
-        `window.__nosAntes = window.__bpmnAssist.desenho.nos.length;
+         return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' };`;
+}
+
+/**
+ * UMA PERGUNTA, dentro da sessão que já está aberta.
+ *
+ * Três cuidados que só existem porque a sessão é COMPARTILHADA pelas perguntas do lote:
+ *
+ *  1. **o diagrama volta ao estado base** antes de cada pergunta — senão "crie uma raia" encontra
+ *     a raia que a pergunta anterior criou, e o agente acerta dizendo "já existe" enquanto a
+ *     medição registra um erro que é do acervo;
+ *  2. **só erro NOVO conta** — a bolha de "não deu:" da pergunta 3 fica na tela para sempre;
+ *  3. **só evento NOVO conta** — o diário é um anel da sessão inteira, e as ferramentas da
+ *     pergunta anterior apareceriam como se fossem desta. O corte é pelo `ms` do diário (relativo
+ *     e monotônico); índice não serve, porque o anel descarta o começo numa corrida longa.
+ */
+function passoDaPergunta(p, chave) {
+  return `if (${DESCANSO_MS} > 0) await new Promise((r) => setTimeout(r, ${DESCANSO_MS}));
+         // PORTÃO EM ABERTO da pergunta anterior: "Cancelar" libera a sessão sem apagar nada.
+         // Sem isto, a confirmação pendurada segura o turno até o teto de 120 s e a pergunta
+         // seguinte não sai — defeito que só existe porque a sessão agora é compartilhada.
+         const cancelar = window.__btn('Cancelar');
+         if (cancelar) { cancelar.click(); await new Promise((r) => setTimeout(r, 300)); }
+         try { await window.__bpmnAssist.recarregarDiagrama(); } catch (e) {
+           return { ok: false, servico: 'n\u00e3o deu: o diagrama n\u00e3o voltou ao estado base (' + (e?.message ?? e) + ')' };
+         }
+         await new Promise((r) => setTimeout(r, 400));
+         window.__nosAntes = window.__bpmnAssist.desenho.nos.length;
+         const marcoMs = window.__bpmnAssist.eventos.at(-1)?.ms ?? -1;
+         const erroDe = () => [...document.querySelectorAll('.bpmn-assist__msg')]
+           .map((m) => m.textContent.trim()).filter((x) => /^n[a\u00e3]o deu:/i.test(x));
+         const errosAntes = erroDe().length;
          ${p.exigeSelecao ? `
-         // A SELEÇÃO declarada pela pergunta: é ela que dá sentido a "essa tarefa". Mesmo
-         // \`selection.select\` do clique do aluno, e a nota da página sai por conta disso.
+         // A SELE\u00c7\u00c3O declarada pela pergunta: \u00e9 ela que d\u00e1 sentido a "essa tarefa". Mesmo
+         // \`selection.select\` do clique do aluno, e a nota da p\u00e1gina sai por conta disso.
          const alvoSel = window.__bpmnAssist.desenho.nos.find((n) => new RegExp(${JSON.stringify(p.exigeSelecao)}, 'i').test(n.nome ?? ''));
          if (alvoSel) window.__bpmnAssist.selecionar(alvoSel.id);
          await new Promise((r) => setTimeout(r, 1200));
@@ -358,37 +361,146 @@ async function rodarAoVivo(perguntas, { alvo }) {
          let texto = '';
          for (let i = 0; i < 120; i++) {
            await new Promise((r) => setTimeout(r, 500));
-           const erro = [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => m.textContent.trim()).find((x) => /^n[aã]o deu:/i.test(x));
-           if (erro) return { ok: false, servico: erro };
+           const erros = erroDe();
+           if (erros.length > errosAntes) return { ok: false, servico: erros.at(-1) };
            const fechou = window.__bpmnAssist.mensagens.find((m) => m.role === 'assistant' && m.completa && (meu === null || m.turn === meu));
            if (fechou) { texto = (fechou.text ?? '').trim(); break; }
          }
          const rel = window.__bpmnAssist.report();
+         const meus = window.__bpmnAssist.eventos.filter((e) => e.ms > marcoMs);
          return {
            ok: Boolean(texto),
            resposta: texto,
            // Quantas formas o desenho GANHOU. E' o unico jeito de perguntar "ele desenhou algo no
            // lugar errado?" sem acreditar na narracao dele.
            desenhou: window.__bpmnAssist.desenho.nos.length - window.__nosAntes,
-           ferramentas: window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail),
-           recusas: window.__bpmnAssist.eventos.filter((e) => e.key.startsWith('tool.')).map((e) => e.key + ' ' + (e.detail ?? '')),
+           ferramentas: meus.filter((e) => e.key === 'tool.executando').map((e) => e.detail),
+           recusas: meus.filter((e) => e.key.startsWith('tool.')).map((e) => e.key + ' ' + (e.detail ?? '')),
            vazouAChave: rel.includes(${JSON.stringify(chave)}) || document.documentElement.outerHTML.includes(${JSON.stringify(chave)}),
-         };`,
-      ],
-    }), TETO_POR_PERGUNTA_MS, `passou do teto de ${Math.round(TETO_POR_PERGUNTA_MS / 1000)}s`);
+         };`;
+}
+
+/**
+ * COLHE as respostas ao vivo com **UMA SESSÃO POR PERFIL**, e não uma por pergunta.
+ *
+ * ⚠ Isto é a correção do que a gente leu como cota por um dia (dono, 2026-11-15: *"não
+ * precisamos ficar criando múltiplas sessões, só usamos uma por vez"*). Antes, cada pergunta
+ * abria um navegador, uma sessão e um aperto de mão — 33 vagas de sessão pedidas ao projeto
+ * numa corrida, e a recusa na ADMISSÃO que vinha disso era contada como "a chave foi recusada".
+ * Agora o lote inteiro conversa na MESMA sessão, que é também como um aluno usa o produto: uma
+ * aula, uma conversa.
+ *
+ * O perfil separa porque `viewer.html` é outra página — duas sessões no total, nunca 33.
+ */
+async function colherAoVivo(perguntas, { alvo, chave, dirigir }) {
+  const colhido = new Map();
+  const porPerfil = new Map();
+  for (const p of perguntas) {
+    const perfil = p.perfil === 'viewer' ? 'viewer' : 'modelador';
+    if (!porPerfil.has(perfil)) porPerfil.set(perfil, []);
+    porPerfil.get(perfil).push(p);
+  }
+
+  for (const [perfil, lote] of porPerfil) {
+    const url = perfil === 'viewer' ? new URL('viewer.html', alvo).href : alvo;
+    console.log(`  … ${lote.length} pergunta(s) do perfil ${perfil}, numa sessão só`);
+    const teto = TETO_POR_PERGUNTA_MS * lote.length + 60000;
+    const r = await comTeto(dirigir({
+      url,
+      espera: 3000,
+      headless: true,
+      /**
+       * O ÚLTIMO passo não pergunta nada: ele leva a SESSÃO inteira embora (`capturar()`).
+       *
+       * É a prova do invariante que o dono pediu: o diário salvo mostra quantos `out.setup`
+       * aconteceram no lote — um, se a sessão foi uma só; dois, se a conexão caiu e **retomou**
+       * pela alça (T20), e aí o evento `ws.resumption` está lá para dizer que foi retomada e não
+       * sessão nova. Sem isto a afirmação "uma sessão por corrida" ficaria sendo narração nossa.
+       */
+      passos: [passoDeConexao(chave), ...lote.map((p) => passoDaPergunta(p, chave)), 'return window.__bpmnAssist.capturar();'],
+      onPasso: (resultado, i) => {
+        if (i === 0 || i > lote.length) return;
+        const q = lote[i - 1];
+        const v = resultado.valor ?? {};
+        if (resultado.erro) console.log(`  —   ${q.id} — o passo quebrou na página`);
+        else if (v.servico) console.log(`  —   ${q.id} — ${String(v.servico).slice(0, 60)}`);
+        else console.log(`  ·    ${q.id} respondeu`);
+      },
+    }), teto, `o lote de ${lote.length} passou do teto de ${Math.round(teto / 1000)}s`);
 
     if (r?.__estourou) {
-      // Progresso NA HORA: numa corrida de 32 perguntas, saber onde parou vale mais do que o
-      // relatório bonito no fim (que não chega, se travar).
-      console.log(`  —   ${p.id} (${p.categoria}) — ${r.__estourou}`);
+      for (const p of lote) colhido.set(p.id, { motivo: r.__estourou });
+      continue;
+    }
+    const conexao = r.passos?.[0]?.valor;
+    if (!conexao?.ok) {
+      for (const p of lote) colhido.set(p.id, { motivo: 'a sessão não abriu nesta corrida (ver o passo de conexão)' });
+      continue;
+    }
+    /** A sessão do lote, no disco, ao lado das provas. */
+    const sessao = r.passos?.[lote.length + 1]?.valor;
+    if (sessao) {
+      const alvoArquivo = `artifacts/avaliacao/sessao-ao-vivo-${perfil}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      mkdirSync('artifacts/avaliacao', { recursive: true });
+      writeFileSync(alvoArquivo, JSON.stringify(sessao, null, 2), 'utf8');
+      const setups = (sessao.eventos ?? []).filter((e) => e.key === 'out.setup').length;
+      const retomadas = (sessao.eventos ?? []).filter((e) => e.key === 'ws.resumption').length;
+      console.log(`  ✓ ${lote.length} pergunta(s) em ${setups} setup(s) de sessão`
+        + `${retomadas ? `, ${retomadas} alça(s) de retomada` : ''} — ${alvoArquivo}`);
+    }
+    lote.forEach((p, i) => {
+      const passo = r.passos?.[i + 1];
+      if (!passo) { colhido.set(p.id, { motivo: 'o lote terminou antes desta pergunta' }); return; }
+      if (passo.erro) { colhido.set(p.id, { motivo: `o passo quebrou na página: ${passo.erro}` }); return; }
+      colhido.set(p.id, { valor: passo.valor ?? {} });
+    });
+  }
+  return colhido;
+}
+
+async function rodarAoVivo(perguntas, { alvo }) {
+  const { dirigir } = await import('./drive-page.mjs');
+  const chave = chaveDoEnv();
+  if (!chave) {
+    return perguntas.map((p) => ({
+      id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
+      motivo: 'sem .env com a chave: a pergunta NÃO foi executada (não conta como acerto nem como erro)',
+    }));
+  }
+
+  /**
+   * Fixture que a página não tem: não executada, com o motivo dito — e fora do lote, para não
+   * gastar um turno da sessão com uma pergunta que não dá para julgar.
+   *
+   * ⚠ `respostaDoAluno` entra aqui porque "pode apagar" não é uma pergunta: é a SEGUNDA metade
+   * de um portão, e medi-la sozinha mediria outra coisa. Ela é provada ao vivo pelo cenário de
+   * voz da bateria (portão 6.3), onde as duas metades acontecem na ordem.
+   */
+  const executaveis = [];
+  const resultados = [];
+  for (const p of perguntas) {
+    if (p.diagramaEnvenenado || p.diagramaVazio || p.erroDeSessao || p.notaDaPagina || p.respostaDoAluno || p.exigeHistorico) {
       resultados.push({
         id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
-        motivo: r.__estourou,
+        motivo: 'exige um diagrama ou um estado de sessão que esta corrida não monta (ver tools/battery.mjs)',
       });
       continue;
     }
+    executaveis.push(p);
+  }
 
-    const v = r.passos.at(-1)?.valor ?? {};
+  const colhido = await colherAoVivo(executaveis, { alvo, chave, dirigir });
+
+  for (const p of executaveis) {
+    const c = colhido.get(p.id) ?? { motivo: 'a corrida não chegou nesta pergunta' };
+    if (c.motivo) {
+      console.log(`  —   ${p.id} (${p.categoria}) — ${c.motivo.slice(0, 70)}`);
+      resultados.push({
+        id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false, motivo: c.motivo,
+      });
+      continue;
+    }
+    const v = c.valor;
     if (v.servico || !v.resposta) {
       // Cota e falha de serviço NÃO contam como erro do modelo: contam como não executada.
       console.log(`  —   ${p.id} (${p.categoria}) — ${(v.servico ?? 'sem resposta').slice(0, 70)}`);

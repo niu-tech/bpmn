@@ -26,7 +26,7 @@ corrida ruim vira discussão sobre o modelo.
 ```bash
 node tools/avaliar.mjs                      # camada determinística (também dentro do npm test)
 node tools/avaliar.mjs --categoria escrita  # só uma fatia
-node tools/avaliar.mjs --ao-vivo            # sessão de verdade por pergunta, com descanso entre elas
+node tools/avaliar.mjs --ao-vivo            # UMA sessão de verdade para o lote inteiro
 node tools/avaliar.mjs --ao-vivo --gravar-baseline   # ato EXPLÍCITO: fixa a linha de base
 ```
 

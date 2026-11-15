@@ -71,7 +71,7 @@ chegou a achar que ele tinha apagado antes de perguntar?
 | D1 | Desligue o Wi-Fi por uns segundos no meio de uma resposta. | Ele volta sozinho e **avisa** que caiu; se era pergunta digitada, refaz. | teste de reconexão |
 | D2 | Use uma chave errada de propósito. | Mensagem clara, com o que fazer — e a chave **não** aparece em lugar nenhum. | cenário `a chave nao vaza em lugar nenhum` |
 | D3 | Abra o ajudante em **duas ou três abas** e comece em todas, até uma recusar. | A tela diz **"o limite de sessões da sua chave foi atingido"**, manda fechar as outras abas, aponta "Testar conexão" — e **não** manda trocar a chave. A conversa continua ali. | medição de cota (M7) + teste do recado |
-| D3b | Converse por **mais de 10 minutos** sem parar. | Aos ~10 min o servidor derruba a conexão: veja se a conversa volta e **o que o modelo ainda lembra**. É a prova do item T17 (retomada de sessão), que ainda não existe — esperado hoje: volta, mas sem a memória do modelo. | aberto |
+| D3b | Converse por **mais de 10 minutos** sem parar, e depois pergunte algo que só se responde com o que foi dito no começo. | Aos ~10 min o servidor derruba a conexão. A conversa volta dizendo *"Continuamos na mesma conversa"* — e o modelo **ainda lembra**: a volta retoma a sessão pela alça (T20) em vez de abrir outra. | retomada de sessão pronta e provada por teste; a queda de 10 min ao vivo é **sua** |
 | D4 | Tire o fone e deixe o som alto perto do microfone. | Depois de três cortes seguidos ele avisa e passa a fechar o microfone enquanto responde. | cenário `rede de seguranca: laco de eco` |
 | D5 | Deixe a aba aberta e vá almoçar. | Em 25 minutos ele encerra sozinho, **diz por quê** e a conversa continua na tela. | teste do teto de sessão |
 

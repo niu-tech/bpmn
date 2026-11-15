@@ -910,11 +910,25 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
        * O sinal é o SETUP ACEITO, não o estado `ready`: o estado volta ao fim de cada turno, e
        * ouvi-lo re-semearia contexto e histórico a cada pergunta.
        */
-      onSetupComplete: ({ reconectou }) => {
+      onSetupComplete: ({ reconectou, retomou }) => {
         chaveJaAbriuSessao = true;
         if (!reconectou) return;
-        // Sessão nova no lugar da que caiu: o modelo precisa do diagrama e da conversa de volta.
-        semearContexto(contextoAtual());
+        if (retomou) {
+          /**
+           * T17 — RETOMADA: do lado do servidor é a MESMA sessão, então o modelo não esqueceu.
+           * Reenviar o histórico aqui duplicaria a conversa dentro do contexto dele (e pagaria
+           * por isso em tokens). O que pode ter mudado enquanto o fio esteve fora é a **tela** —
+           * é só o quadro do diagrama que vai.
+           */
+          const ctx = contextoAtual();
+          contextoEnviado = null;
+          const quadro = montarQuadro(ctx);
+          if (quadro) { session.enviarContexto(quadro); contextoEnviado = ctx; }
+          diag.state('retomada', 'mesma sessão: histórico preservado no servidor');
+        } else {
+          // Sessão nova no lugar da que caiu: o modelo precisa do diagrama e da conversa de volta.
+          semearContexto(contextoAtual());
+        }
 
         /**
          * A pergunta que ficou sem resposta volta a ser feita — UMA vez.
@@ -923,15 +937,23 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
          * e o aluno tinha de redigitar. Só vale para pergunta DIGITADA: a falada não dá para
          * reenviar (o áudio já foi), e aí o aviso pede que ele repita.
          */
+        // Com a alça, o que se perdeu foi o TURNO em voo, não a conversa — e dizer isso muda o
+        // que o aluno faz em seguida (continuar vs. recomear contando o contexto de novo).
+        const fio = retomou ? ' Continuamos na mesma conversa.' : '';
         const perdida = perguntaSemResposta();
         if (!perdida) {
-          note('A conexão caiu e voltou. Pode continuar.', 'context-reset');
+          note(
+            retomou
+              ? 'A conexão caiu e voltou — sem perder o fio: continuamos na mesma conversa.'
+              : 'A conexão caiu e voltou. Pode continuar.',
+            'context-reset',
+          );
           return;
         }
         if (perdida.via === 'texto' && !perdida.reenviada) {
           perdida.reenviada = true;
           tirarEspera();
-          note('A conexão caiu no meio da resposta. Voltei e refiz a sua pergunta.', 'context-reset');
+          note(`A conexão caiu no meio da resposta. Voltei e refiz a sua pergunta.${fio}`, 'context-reset');
           const antes = messages.length;
           api.ask(perdida.text);
           // A pergunta refeita nasce MARCADA: uma queda seguinte avisa, mas não reenvia de novo.
@@ -941,7 +963,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           return;
         }
         tirarEspera();
-        note('A conexão caiu no meio da resposta. Voltei — pode repetir a pergunta.', 'context-reset');
+        note(`A conexão caiu no meio da resposta. Voltei — pode repetir a pergunta.${fio}`, 'context-reset');
       },
       onState: ({ state: s, reason: r }) => {
         if (s === 'error' && r === 'bad-key') credentials.markRejected();
@@ -1487,10 +1509,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
      * não é aceito). Devolve o tempo, porque "demorou 8 s" e "respondeu em 300 ms" são
      * diagnósticos diferentes.
      *
-     * Não toca na sessão em curso: é um socket próprio, que morre no fim do teste.
+     * ⚠ **SÓ abre socket quando NÃO há sessão no ar** (dono, 2026-11-15: *"só usamos uma por
+     * vez"*). Com a conversa aberta, um segundo socket tomaria outra **vaga de sessão** do
+     * projeto — que é exatamente o recurso escasso que a gente passou um dia lendo como "cota" —
+     * e, com a invariante do transporte, encerraria a sessão do aluno para sondar se o servidor
+     * responde. Com a sessão de pé a resposta já está dada: o servidor aceitou o setup dela.
      */
     async testarConexao({ tetoMs = 15000 } = {}) {
       if (!credentials.ready) return { ok: false, erro: 'sem chave guardada nesta aba' };
+      if (session && state !== 'idle' && state !== 'error') {
+        const aberta = state === 'connecting'
+          ? 'A sua sessão está conectando agora — espere o painel dizer "pronto".'
+          : 'A sua sessão está aberta agora: o servidor aceitou e a conversa está de pé.';
+        diag.record('rede', 'teste', `sessão no ar (${state}): nenhum socket novo`);
+        note(aberta, 'info');
+        return { ok: state !== 'connecting', jaAberta: true, estado: state };
+      }
       const inicio = Date.now();
       const quanto = () => Date.now() - inicio;
 
