@@ -42,16 +42,32 @@ mesmo atraso. Vira constante nomeada com o motivo escrito em cima.
 com a recusa: pergunte em uma frase curta e espere. Isso mantém o turno vivo — e é a mesma forma
 que `sem_lugar` e `nada_mudou` já usam.
 
-### 5. O portão é verificado mesmo quando há diálogo
+### 5. Os dois caminhos convivem — e nenhum deles dispensa a assinatura
 
-`remover` continua pedindo confirmação na interface. O portão é a **segunda** trava, e as duas
-valem: a fala abre o portão; o diálogo registra a decisão explícita; nenhuma das duas sozinha é
-dispensada por carimbo da outra.
+`remover` continua pedindo confirmação na interface **para quem ainda não respondeu**. Quem
+respondeu falando não vê diálogo nenhum: em voz as mãos do aluno não estão no teclado, e exigir o
+clique seria quebrar a conversa no único momento em que o agente precisa da pessoa.
 
-Alternativa recusada: substituir o diálogo pela fala. Perderia o aluno de mouse e teclado, e
-perderia a assinatura da versão do diagrama (H14) que o diálogo carrega.
+O que **nenhum** dos dois caminhos dispensa é a assinatura da versão do diagrama (H14), conferida
+depois da autorização: se o desenho mudou entre o pedido do modelo e a resposta do aluno, a
+remoção é recusada, porque o `id` de então pode ser outro elemento agora.
 
-### 6. O portão vive no cliente, perto da conversa
+_(Escrito como "as duas valem, nenhuma dispensada pela outra" na primeira versão deste design. O
+que foi construído — e testado — é o acima: um OU exclusivo entre os dois jeitos de responder, com
+a assinatura valendo para os dois.)_
+
+Alternativa recusada: substituir o diálogo pela fala. Perderia o aluno de mouse e teclado.
+
+### 6. O portão é CONSUMIDO: um sim autoriza uma ação, não as próximas
+
+Descoberto ao construir, e é a metade que faltava da decisão 2: se o portão ficasse aberto depois
+de aceito, o "pode apagar" de uma tarefa autorizaria a remoção seguinte — e o aluno nunca disse sim
+a ela. Então quem **lê** o portão (o executor) o consome; quem **espera** (o despachante) apenas o
+abre. A ordem entre os dois importa: se a espera consumisse, o executor chegaria e encontraria o
+portão fechado, cairia no diálogo que ninguém vai clicar, e o turno expiraria em dois minutos —
+exatamente o que aconteceu na primeira versão, e o que o teste pegou.
+
+### 7. O portão vive no cliente, perto da conversa
 
 Ele depende de duas coisas que só a aba sabe: quando a pergunta apareceu e quando o aluno falou.
 Não há servidor aqui — e mesmo que houvesse, esta é a metade que **não** se delega ao modelo.
