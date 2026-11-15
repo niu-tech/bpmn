@@ -18,8 +18,13 @@ COPY src ./src
 # Só o arquivo do acervo, não `tools/` inteiro: o resto de tools/ é driver de teste.
 COPY tools/build-knowledge.mjs ./tools/
 COPY knowledge ./knowledge
-# webpack.config.js fixa mode=development (é o que o dev server usa); aqui o CLI sobrescreve p/ bundle minificado
-RUN npm run build -- --mode production
+# ⚠ `npm run build -- --mode production` NAO serve mais, e o erro era silencioso: desde que o
+# script `build` virou uma CADEIA (`webpack ... && node tools/build-knowledge.mjs`), o `--` prega
+# a flag no FIM da cadeia — ou seja, em `build-knowledge.mjs`, que a ignora. O webpack seguia em
+# `mode=development` e o site no ar saiu com devtool `eval`: 3,8 MB em vez de 1,0 MB, 555 `eval()`
+# e o aviso do proprio webpack dentro do bundle publicado (medido em 2026-11-15).
+# `build:prod` poe a flag no comando certo.
+RUN npm run build:prod
 
 FROM nginx:stable-alpine
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
