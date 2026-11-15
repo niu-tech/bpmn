@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Reteste rápido · rodada 3</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --vinho-fraco:#fcefed;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:14px/1.45 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:860px; margin:0 auto; padding:24px 26px 26px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:11px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:24px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:22px; line-height:1.12; letter-spacing:-.02em; font-weight:600; margin:9px 0 5px; }
+  .sub { font-size:13.5px; color:var(--suave); margin:0 0 14px; max-width:80ch; }
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:12px; overflow:hidden; font-size:12.6px; }
+  th { text-align:left; font-size:10px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:6px 11px; border-bottom:1px solid var(--linha); }
+  td { padding:7px 11px; border-bottom:1px solid #f1f1f5; vertical-align:top; color:#3f4049; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--tinta); font-weight:600; }
+  .cx { width:20px; color:var(--fraco); font-size:14px; text-align:center; }
+  .fala { width:40%; color:var(--tinta); }
+  .fala em { color:var(--suave); font-style:normal; font-size:12.2px; }
+  .antes { background:var(--vinho-fraco); color:#7a2a22; font-size:11.5px; padding:2px 6px;
+    border-radius:5px; display:inline-block; margin-top:3px; }
+  .nota { margin-top:14px; background:var(--azul-fraco); border:1px solid #cfdcec; border-radius:12px;
+    padding:11px 14px; font-size:12.6px; color:#2e3d50; }
+  .nota b { color:var(--azul); }
+  footer { margin-top:18px; padding-top:12px; border-top:1px solid var(--linha);
+    font-size:11.8px; color:var(--fraco); }
+  @media print { body { background:#fff; } .env { padding:0 0 6px; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Reteste rápido · rodada 3</span>
+  <h1>Oito cliques, na janela que já está aberta</h1>
+  <p class="sub">Só o que você acabou de reportar. A aba já foi recarregada com esta versão e a
+  chave está no campo — clique em <b>Começar</b> e no <b>microfone</b>. Em vermelho, o que
+  acontecia antes.</p>
+
+  <table>
+    <tr><th class="cx">✓</th><th class="fala">Você faz</th><th>Tem de acontecer</th></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Clique no ícone de</em> <b>microfone riscado</b> <em>(na faixa de voz)</em></td>
+        <td>A faixa <b>continua ali</b>, agora dizendo <b>“Microfone mudo · ele não está te
+        ouvindo”</b>. O compositor de texto <b>não</b> volta.
+        <div class="antes">antes: a faixa sumia e a tela virava a de quem encerrou a voz</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Clique no mesmo ícone para voltar</em></td>
+        <td>Volta a “Ouvindo você”, e o ícone volta ao microfone normal.</td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Mute e, em vez do ícone, volte pelo</em> <b>microfone grande</b></td>
+        <td>O ícone da faixa <b>acompanha</b>: deixa de mostrar “mudo”.
+        <div class="antes">antes: dizia "Ativar meu microfone" enquanto já estava te ouvindo</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Olhe a conversa inteira, parada</em></td>
+        <td>Nenhuma bolha pisca. Só pulsa a que está <b>acontecendo agora</b>.
+        <div class="antes">antes: todas piscando, para sempre</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><b>“Apaga essa tarefa”</b> <em>(com uma selecionada) e olhe a tela ao parar de falar</em></td>
+        <td><b>“pensando…”</b> aparece <b>assim que você cala</b>, e a etiqueta do topo vira
+        <b>consultando</b> na ferramenta.
+        <div class="antes">antes: a bolha só nascia quando ele já ia responder</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Clique no</em> <b>alto-falante riscado</b> <em>no meio de uma resposta, e depois volte</em></td>
+        <td>Cala na hora e segue por escrito; ao voltar, <b>a próxima resposta sai falada</b>.
+        <div class="antes">antes: voltava mudo para sempre</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><b>“Alinha o embalar com o Order a pizza”</b></td>
+        <td>Mesma linha <b>e a seta entre os dois fica reta</b> — sem degrau.
+        <div class="antes">antes: alinhava as formas e deixava a linha torta (seu print)</div></td></tr>
+
+    <tr><td class="cx">□</td><td class="fala"><em>Peça para alinhar</em> <b>quatro</b> <em>elementos de raias diferentes</em></td>
+        <td>Ele explica que estão em <b>faixas diferentes</b> e o que fazer — em vez de pedir dois.
+        <div class="antes">antes: "me dê dois", sem dizer por quê</div></td></tr>
+  </table>
+
+  <div class="nota">
+    <b>Ainda fora desta lista:</b> mover um elemento que já existe para o meio do fluxo, e o
+    “pode continuar” retomando o assunto certo. São os dois que eu faço na sequência, se você
+    liberar.
+  </div>
+
+  <footer>
+    Ajudante BPMN (TCC) · rodada 3, 2026-11-15 · commit <code>1095fa6</code> em <code>main</code> ·
+    a trilha continua gravando a sua sessão
+  </footer>
+</div>
+</body>
+</html>
