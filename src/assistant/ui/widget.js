@@ -297,7 +297,22 @@ export function createWidget({ session, credentials, onClose } = {}) {
   pararBtn.setAttribute('aria-label', 'Encerrar a conversa por voz');
   pararBtn.innerHTML = ICONE_PARAR;
   pararBtn.title = 'Encerrar a conversa por voz';
-  const faixaVoz = el('div', { className: 'bpmn-assist__voz' }, [vozEstado, meter, pararBtn]);
+  /**
+   * OS DOIS MUDOS, na faixa de voz e sempre à mão (pedido do dono, 2026-11-15).
+   *
+   * ⚠ Ficam AQUI, e não no menu ⋯: os dois existem para um momento que chega sem aviso —
+   * alguém começa a falar na sala (e a escuta contínua corta o agente), ou a resposta falada
+   * atrapalha quem está por perto. Botao escondido em menu não serve para urgência.
+   *
+   * Não encerram sessão nem trocam de modo: continuar na mesma sessão é o que mantém a
+   * conversa e a vaga.
+   */
+  const mudoMicBtn = el('button', { className: 'bpmn-assist__mudo', type: 'button', textContent: 'Mutar meu microfone' });
+  mudoMicBtn.title = 'Fecha o seu microfone sem encerrar a conversa';
+  const mudoAgenteBtn = el('button', { className: 'bpmn-assist__mudo', type: 'button', textContent: 'Só texto' });
+  mudoAgenteBtn.title = 'Ele responde por escrito, sem falar';
+  const mudos = el('div', { className: 'bpmn-assist__mudos' }, [mudoMicBtn, mudoAgenteBtn]);
+  const faixaVoz = el('div', { className: 'bpmn-assist__voz' }, [vozEstado, meter, mudos, pararBtn]);
 
   /**
    * ⚠ A linha de contrato SAIU do rodapé (pedido do dono, 2026-11-14: "essa mensagem embaixo…
@@ -358,10 +373,22 @@ export function createWidget({ session, credentials, onClose } = {}) {
    */
   const corpoRolavel = () => log.closest('.bpmn-assist__body') ?? log.parentElement ?? log;
 
-  function estaNoFim(folga = 140) {
+  function estaNoFim(folga = 40) {
     const c = corpoRolavel();
     return c.scrollHeight - c.scrollTop - c.clientHeight <= folga;
   }
+
+  /**
+   * A ROLAGEM É DELE enquanto ele estiver lendo — e o agente falando não muda isso.
+   *
+   * ⚠ Medir "está no fim?" a cada pedaço de legenda não basta: a resposta falada chega várias
+   * vezes por segundo, e com a folga de 140 px uma volta da rodinha ainda contava como "no fim" —
+   * então a tela puxava ele de volta para baixo no meio da leitura (dono, 2026-11-15: *"enquanto
+   * ele está falando, eu não consigo subir a conversa"*). Agora a intenção dele é LEMBRADA:
+   * subiu, descola; voltou ao fim, cola de novo. Mandar uma mensagem sempre cola.
+   */
+  let coladoNoFim = true;
+  corpoRolavel().addEventListener('scroll', () => { coladoNoFim = estaNoFim(); }, { passive: true });
 
   function descerAteOFim() {
     const c = corpoRolavel();
@@ -400,8 +427,17 @@ export function createWidget({ session, credentials, onClose } = {}) {
   }
 
   function renderMessages(messages) {
-    // Medido ANTES de crescer: depois de inserir, todo mundo parece longe do fim.
-    const seguir = estaNoFim();
+    // A intenção do aluno, e não uma medição por pedaço de legenda (ver `coladoNoFim`).
+    const seguir = coladoNoFim;
+    /**
+     * A lista ENCOLHEU: alguém tirou uma mensagem (a bolha de espera que não virou resposta, ou
+     * o aviso de conexão que a conexão de volta apagou). O append incremental não dá conta
+     * disso — sem este ramo, a bolha some do estado e **fica na tela**.
+     */
+    if (messages.length < renderedUpTo) {
+      log.replaceChildren();
+      renderedUpTo = 0;
+    }
     // Append incremental: redesenhar a lista inteira a cada frame de legenda faria o leitor de
     // tela reanunciar tudo e perderia a posição de rolagem.
     for (let i = renderedUpTo; i < messages.length; i++) {
@@ -466,7 +502,11 @@ export function createWidget({ session, credentials, onClose } = {}) {
     }
   }
 
+  /** A última vista publicada. Os botões de mudo perguntam a ela qual é o estado de agora. */
+  let ultimaVista = null;
+
   function render(view) {
+    ultimaVista = view;
     const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null, falando = false } = view;
 
     dot.setAttribute('data-state', state);
@@ -503,6 +543,12 @@ export function createWidget({ session, credentials, onClose } = {}) {
     powerBtn.disabled = busy || (!canAsk && !credentials.hasKey && !keyInput.value);
     const ondeDeveEstar = canAsk ? menu : acoes;
     if (powerBtn.parentElement !== ondeDeveEstar) ondeDeveEstar.append(powerBtn);
+
+    // Os dois mudos dizem o que FAZEM agora, e marcam quando estão ligados.
+    mudoMicBtn.textContent = view.micMudo ? 'Ativar meu microfone' : 'Mutar meu microfone';
+    mudoMicBtn.classList.toggle('bpmn-assist__mudo--ligado', Boolean(view.micMudo));
+    mudoAgenteBtn.textContent = view.agenteMudo ? 'Voltar a ouvir' : 'Só texto';
+    mudoAgenteBtn.classList.toggle('bpmn-assist__mudo--ligado', Boolean(view.agenteMudo));
 
     // Parar de falar só existe enquanto há fala. Fora disso, nem ocupa linha.
     if (calarBtn.parentElement !== acoes) acoes.append(calarBtn);
@@ -649,6 +695,8 @@ export function createWidget({ session, credentials, onClose } = {}) {
   });
 
   pararBtn.addEventListener('click', () => session.stopMic());
+  mudoMicBtn.addEventListener('click', () => session.mutarMicrofone(!(ultimaVista?.micMudo ?? false)));
+  mudoAgenteBtn.addEventListener('click', () => session.silenciarAgente(!(ultimaVista?.agenteMudo ?? false)));
   simBtn.addEventListener('click', () => session.confirmar(true));
   naoBtn.addEventListener('click', () => session.confirmar(false));
 

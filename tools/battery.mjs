@@ -498,6 +498,70 @@ const CENARIOS = [
    * diário). A sessão ao vivo continua provando o que só ela prova: o modelo ESCOLHER a
    * ferramenta. Esta prova o resto — e roda com a cota esgotada.
    */
+  /**
+   * O DESENHO NÃO EMPILHA — o caso que o dono fotografou em 2026-11-15, numa sessão ao vivo.
+   *
+   * Duas tarefas lado a lado têm ~50 px de vão e uma tarefa tem 100 de largura: o meio do fluxo
+   * é exatamente onde NÃO cabe. O religamento estava certo e o desenho, ilegível — "embalar"
+   * por cima de "Select a pizza". E o outro meio do mesmo problema: *"cria uma tarefa conferir
+   * estoque depois do início"* nascia como RAMO PARALELO pendurado embaixo da linha, porque a
+   * âncora já tinha saída.
+   *
+   * Mede na TELA (`__sobrepoe`), que é onde o defeito existia: no registro estava tudo certo.
+   */
+  {
+    nome: 'o desenho NAO empilha: inserir entre vizinhos colados, e "depois de" encadeia',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    passos: [`
+      for (let i = 0; i < 40 && !window.__bpmnAssist; i++) await new Promise((r) => setTimeout(r, 250));
+      if (!window.__bpmnAssist) return { ok: false, erro: 'o ajudante nao montou' };
+      ${MEDIR_SOBREPOSICAO}
+      const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
+      const porNome = (t) => (window.__bpmnAssist.desenho.nos.find((n) => (n.nome || '') === t) || {}).id || null;
+
+      // 1. ENTRE dois vizinhos colados (o par do print: Select a pizza -> Order a pizza).
+      const de = porNome('Select a pizza');
+      const para = porNome('Order a pizza');
+      if (!de || !para) return { ok: false, erro: 'nao achei o par do print' };
+      const vaoAntes = (() => { const a = window.__caixa(de), b = window.__caixa(para); return b.x - (a.x + a.w); })();
+      const ins = await F('criar_elemento', { tipo: 'Task', nome: 'embalar', entre: [de, para] });
+      const novo = ins && ins.resultado && ins.resultado.criado ? ins.resultado.criado.id : null;
+      const sobreNovo = novo ? window.__sobrepoe(novo) : null;
+      const lig = window.__bpmnAssist.desenho.ligacoes;
+      const noMeio = !!novo
+        && lig.some((l) => l.de === de && l.para === novo)
+        && lig.some((l) => l.de === novo && l.para === para)
+        && !lig.some((l) => l.de === de && l.para === para);
+
+      // 2. "DEPOIS DE" numa ancora que ja tem saida: encadeia, nao ramifica.
+      const inicio = (window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'StartEvent') || {}).id;
+      const dep = inicio ? await F('criar_elemento', { tipo: 'Task', nome: 'conferir estoque', depoisDe: inicio }) : null;
+      const idDep = dep && dep.resultado && dep.resultado.criado ? dep.resultado.criado.id : null;
+      const encadeou = !!(dep && dep.resultado && dep.resultado.inseridoEntre);
+      const sobreDep = idDep ? window.__sobrepoe(idDep) : null;
+
+      // 3. ALINHAR nao empilha: os dois novos na mesma linha, sem ficar um por cima do outro.
+      const ali = (novo && idDep) ? await F('alinhar', { ids: [novo, idDep], eixo: 'linha' }) : null;
+      const ca = window.__caixa(novo), cb = window.__caixa(idDep);
+      const mesmaLinha = !!ca && !!cb && Math.abs((ca.y + ca.h / 2) - (cb.y + cb.h / 2)) <= 3;
+      const sobreDepoisDoAlinhar = window.__sobrepoe(novo);
+
+      return {
+        ok: noMeio && encadeou
+          && Array.isArray(sobreNovo) && sobreNovo.length === 0
+          && Array.isArray(sobreDep) && sobreDep.length === 0
+          && !!ali && ali.ok === true && mesmaLinha
+          && Array.isArray(sobreDepoisDoAlinhar) && sobreDepoisDoAlinhar.length === 0,
+        vaoAntes,
+        noMeio,
+        encadeou,
+        sobreNovo,
+        sobreDep,
+        mesmaLinha,
+        sobreDepoisDoAlinhar,
+      };
+    `],
+  },
   {
     nome: 'geometria contra o bpmn-js de verdade: inserir no meio, mover de raia e alinhar (T14/T15)',
     url: ALVO.replace('viewer.html', 'index.html'),

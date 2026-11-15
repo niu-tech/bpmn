@@ -1439,12 +1439,18 @@ testAsync('o recado de cota diz o que foi MEDIDO, e aponta o verbo que resolve',
   live.ultima.falha('quota');
 
   const avisos = session.messages.filter((m) => m.role === 'system').map((m) => m.text).join(' | ');
-  assert.match(avisos, /sessões ao mesmo tempo/i, 'nomeia o limite que o servidor de fato aplica');
-  assert.match(avisos, /Testar conex/i, 'aponta o verbo que diz quando voltou');
+  assert.match(avisos, /tentei algumas vezes/i, 'diz que JA tentou sozinho antes de falar');
   assert.ok(!/minuto/.test(avisos), 'nao promete janela de tempo que ninguem mediu');
   const rotulo = avisos.split('|')[0];
   assert.match(rotulo, /limite de sessões/);
   assert.ok(!/chave foi recusada/.test(rotulo), 'nunca manda trocar uma chave que funciona');
+  // ⚠ Aviso de conexao e' ESTADO: quando ela volta, sai da tela (o dono viu "pronto" com o
+  // recado vermelho ainda la' em cima, 2026-11-15).
+  assert.ok(session.messages.filter((m) => m.role === 'system').every((m) => m.transitorio),
+    'os avisos de conexao nascem transitorios');
+  live.ultima.pronta();
+  assert.equal(session.messages.filter((m) => m.role === 'system' && m.transitorio).length, 0,
+    'a conexao de volta limpa o recado de quando ela caiu');
   forgetSecrets();
 });
 

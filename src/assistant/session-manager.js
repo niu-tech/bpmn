@@ -201,6 +201,23 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * A época sobe com o ALUNO e só com ele: nota da página, clique em candidato e fala do modelo
    * não contam. */
 
+  /**
+   * OS DOIS MUDOS (pedido do dono, 2026-11-15, testando com gente falando perto):
+   *
+   *  - `micMudo`: o microfone DELE. Numa sala com conversa ao lado, qualquer voz interrompe o
+   *    agente — a escuta contínua é o que permite cortar falando por cima, e numa mesa cheia
+   *    isso vira corte sem querer. Mudo fecha a captura e **segura o automático**, senão o
+   *    microfone reabre sozinho no fim do turno e desfaz o gesto dele.
+   *  - `agenteMudo`: a VOZ do agente. *"às vezes a gente quer que ele responda só por texto,
+   *    sendo que a gente está na versão live"* — a legenda já chega por `outputTranscription`,
+   *    então calar é só não tocar o áudio. A sessão continua de voz: ele fala, o agente escreve.
+   *
+   * Nenhum dos dois encerra sessão: trocar de modo abriria outra, e vaga de sessão é o recurso
+   * escasso.
+   */
+  let micMudo = false;
+  let agenteMudo = false;
+
   /** Quantas vezes o aluno falou ou digitou nesta aba. */
   let epocaDoAluno = 0;
   /** O turno falado que já foi contado — a legenda chega em pedaços, e o aluno falou uma vez. */
@@ -502,6 +519,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    */
   const vista = () => ({
     state, reason, mode, micOn, level,
+    // Os dois mudos: a tela precisa mostrar QUAL está ligado, senão o aluno acha que quebrou.
+    micMudo, agenteMudo,
     // A interface precisa do PEDIDO, nunca da função que o resolve.
     confirmacao: confirmacao ? { acao: confirmacao.acao, alvo: confirmacao.alvo } : null,
     /**
@@ -579,6 +598,19 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   function fecharFala(motivo) {
     if (!rastreador?.estaFalando) return;
     rastreador.fecharFala(motivo);
+    /**
+     * A ESPERA do turno FALADO — a mesma bolha "pensando…" que a pergunta digitada já tinha.
+     *
+     * ⚠ Faltava justamente no caminho em que a espera é mais longa: entre o aluno parar de
+     * falar e a primeira palavra do agente cabem o transporte, a decisão do modelo e uma
+     * ferramenta inteira. A tela ficava **idêntica** nesse intervalo, e o dono leu isso como o
+     * produto parado: *"pareceu que ela não estava fazendo nada até ela fazer"* (2026-11-15,
+     * sobre um apagar que funcionou). A bolha é a MESMA que a resposta vai ocupar: `bolhaDoTurno`
+     * a encontra pelo turno e escreve por cima, e `tirarEspera` a remove se nada vier.
+     */
+    if (turnoDaFala != null && !bolhaDoTurno(turnoDaFala)) {
+      push({ role: 'assistant', text: 'pensando…', rodando: true, turn: turnoDaFala });
+    }
     rastreador.abrirTurno();
   }
 
@@ -636,8 +668,28 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   }
 
   /** Nota do sistema, sempre redigida: é por aqui que um erro com a URL do socket sairia. */
-  function note(text, kind = 'info') {
-    return push({ role: 'system', kind, text: redact(text) });
+  function note(text, kind = 'info', { transitorio = false } = {}) {
+    return push({ role: 'system', kind, text: redact(text), transitorio });
+  }
+
+  /**
+   * Apaga os avisos de CONEXÃO quando a conexão volta.
+   *
+   * ⚠ Relato do dono (2026-11-15), com dois prints lado a lado: o painel dizia **pronto** e o
+   * recado vermelho de limite de sessão continuava lá, em cima da conversa. Aviso de conexão é
+   * ESTADO, não conversa — estado que passou não fica na tela contando o que já não é verdade.
+   * O que ele disse a respeito, inteiro: *"o erro ele continua e não era para eu ter que apertar
+   * nada"*.
+   *
+   * Só o que foi marcado `transitorio` sai. Nada do que o aluno ou o agente disse é tocado.
+   */
+  function limparAvisosDeConexao() {
+    const antes = messages.length;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'system' && messages[i].transitorio) messages.splice(i, 1);
+    }
+    if (messages.length !== antes) publish();
+    return antes - messages.length;
   }
 
   function setState(next, why = null) {
@@ -1019,19 +1071,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // A brecha ENTRE turnos é a única hora em que a nota da página pode sair sem atropelar
         // ninguém. Em escuta contínua o turno reabre no quadro seguinte do microfone, então esta
         // é a janela — e é por isso que o escoamento é dirigido por estado, não por relógio.
-        if (s === 'ready') escoarNota();
+        // A conexão voltou: o recado vermelho de quando ela caiu NÃO fica na tela por cima da
+        // conversa (ver `limparAvisosDeConexao`).
+        if (s === 'ready') { limparAvisosDeConexao(); escoarNota(); }
         // Pedido do dono (2026-11-11): "clicar em voz já poderia aparecer a parada de voz" — ou
         // seja, escolher voz é começar a falar, não desbloquear mais um botão. Consome a marca
         // UMA vez: `ready` também volta no fim de cada turno, e reabrir o microfone sozinho a
         // cada resposta seria um microfone que o aluno não mandou abrir.
-        if (s === 'ready' && micAutomatico) {
+        if (s === 'ready' && micAutomatico && !micMudo) {
           micAutomatico = false;
           api.startMic();
         }
         if (s !== 'error') return;
         // Mesma razão: erro com a bolha de espera na tela deixa duas mensagens contraditórias.
         tirarEspera();
-        note(`não deu: ${describeError(r)}`, 'error');
+        // `transitorio`: isto é estado da conexão. Quando ela voltar, sai da tela sozinho.
+        note(`não deu: ${describeError(r)}`, 'error', { transitorio: true });
         // Chave recusada tem conserto, e o conserto é do aluno: dizer o que fazer vale mais que
         // repetir o código do erro.
         /**
@@ -1056,11 +1111,12 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
            * que continua fora é "volte em X segundos": o número não é publicado e não foi medido.
            */
           note(
-            'O Google recusou ABRIR outra sessão — a sua chave chegou ao limite de sessões ao '
-            + 'mesmo tempo. Feche as outras abas do ajudante (cada uma segura uma sessão), espere '
-            + 'alguns segundos, use "Testar conexão" no menu ⋯ para saber quando voltou, e então '
-            + 'recomece. A conversa continua aqui, e a sua chave está boa.',
+            'O Google não liberou uma sessão nova — tentei algumas vezes e ela não veio. Se você '
+            + 'tiver o ajudante aberto em outra aba, feche (cada uma segura uma sessão); senão, '
+            + 'espere alguns segundos e clique em Começar. A conversa continua aqui, e a sua '
+            + 'chave está boa.',
             'error',
+            { transitorio: true },
           );
         }
         if (r === 'bad-key') {
@@ -1161,6 +1217,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
         // O aluno mandou parar: o resto deste turno não toca. Contado, não silenciado às escuras.
         if (calado) { diag.ws('audio-descartado', 'aluno mandou parar'); return; }
+        // Agente mudo: a resposta CONTINUA chegando (e a legenda aparece) — só não soa.
+        if (agenteMudo) { diag.ws('audio-descartado', 'agente mudo: só texto'); return; }
         // Em escuta contínua o microfone FICA ABERTO aqui — é o que permite interromper falando
         // por cima. Só a rede de segurança fecha.
         if (meiaDuplex && mic) fecharMicrofone('meia-duplex: modelo respondendo');
@@ -1640,6 +1698,30 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     /** Esquece portões pendentes (diagnóstico; ver `limparPortoes`). Devolve quantos havia. */
     limparPortoes() {
       return limparPortoes();
+    },
+
+    /** Mudo do MICROFONE dele. Fecha a captura e segura o automático (ver `micMudo`). */
+    async mutarMicrofone(ligar = true) {
+      micMudo = Boolean(ligar);
+      diag.mic(micMudo ? 'mudo' : 'ativo', 'pedido do aluno');
+      if (micMudo) {
+        micAutomatico = false;
+        await fecharMicrofone('o aluno mutou o próprio microfone');
+      } else if (mode === 'voz' && session && state !== 'idle' && state !== 'error') {
+        await api.startMic();
+      }
+      publish();
+      return micMudo;
+    },
+
+    /** Mudo da VOZ DO AGENTE: ele continua respondendo, só que por escrito. */
+    silenciarAgente(ligar = true) {
+      agenteMudo = Boolean(ligar);
+      diag.state('agente', agenteMudo ? 'mudo: só texto' : 'voltou a falar');
+      // Calar com uma fala no ar deixaria o resto do turno tocando: corta o que já está na fila.
+      if (agenteMudo) pararDeFalar();
+      publish();
+      return agenteMudo;
     },
 
     /**

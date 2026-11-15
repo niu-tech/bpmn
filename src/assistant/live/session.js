@@ -36,6 +36,17 @@ const DEFAULTS = {
   idleTurnTimeoutMs: 45000,
   maxReconnects: 3,
   reconnectBaseMs: 500,
+  /**
+   * Quantas vezes esperar por uma VAGA DE SESSÃO antes de desistir, e o passo da espera.
+   *
+   * ⚠ Separado do recuo de queda comum de propósito: queda de rede volta em meio segundo, vaga
+   * de sessão leva **segundos** para o servidor liberar depois que o fio anterior morreu. Com o
+   * recuo curto, a tentativa chegava antes da vaga e o aluno levava "o limite da sua chave foi
+   * atingido" por causa da nossa própria reconexão (relato do dono, 2026-11-15: *"a gente
+   * simplesmente estava com uma sessão aberta e ela parou do nada... era para reconectar"*).
+   */
+  maxEsperasPorVaga: 4,
+  esperaDeVagaBaseMs: 1500,
 };
 
 /**
@@ -135,6 +146,8 @@ export function createSession({
   let resumptionHandle = null;
   /** Mandamos alça no último setup? É o que separa "reconectou" de "retomou" para quem ouve. */
   let pediuRetomada = false;
+  /** Quantas vezes esta sessão já esperou por uma vaga nesta tentativa de voltar. */
+  let esperasPorVaga = 0;
   /** Identidade desta sessão no registro de "uma por vez". Objeto vazio basta: compara-se por referência. */
   const marca = {};
   /**
@@ -483,6 +496,7 @@ export function createSession({
       case 'ready':
         ready = true;
         attempts = 0;
+        esperasPorVaga = 0;
         if (connectTimer) { clock.clearTimeout(connectTimer); connectTimer = null; }
         setState('ready');
         flushPending();
@@ -725,8 +739,26 @@ export function createSession({
         // O que separa: esta chave já funcionou alguma vez NESTA ABA? Quem sabe disso é quem
         // guarda a credencial, e por isso a resposta é injetada (`chaveJaFuncionou`).
         const nunca = setupsAceitos === 0 && !chaveJaFuncionou();
-        if (nunca) fail('bad-key', `o servidor recusou a conexão (${code})`);
-        else fail('quota', `o servidor recusou a sessão (${code}) — a chave já funcionou antes`);
+        if (nunca) { fail('bad-key', `o servidor recusou a conexão (${code})`); return; }
+
+        /**
+         * A CHAVE JÁ FUNCIONOU: isto é **vaga de sessão**, e vaga volta sozinha.
+         *
+         * ⚠ Era um erro na cara do aluno — e o pior tipo, porque mandava fechar abas quando a
+         * disputa era com a NOSSA própria reconexão: o fio morria, a gente reabria em meio
+         * segundo, e o servidor ainda não tinha liberado a vaga do fio morto. Agora a sessão
+         * **espera e volta**, com recuo crescente, e só fala se desistir de vez.
+         */
+        if (esperasPorVaga < cfg.maxEsperasPorVaga) {
+          const espera = cfg.esperaDeVagaBaseMs * 2 ** esperasPorVaga;
+          esperasPorVaga++;
+          ev('ws', 'vaga', `recusou abrir (${code}); esperando a vaga ${esperasPorVaga}/${cfg.maxEsperasPorVaga} em ${espera}ms`);
+          log(`sem vaga de sessão; tentando de novo em ${espera}ms`);
+          setState('connecting', 'esperando-vaga');
+          clock.setTimeout(() => { if (!closedByUs) open(); }, espera);
+          return;
+        }
+        fail('quota', `o servidor recusou a sessão (${code}) depois de ${esperasPorVaga} esperas`);
         return;
       }
 

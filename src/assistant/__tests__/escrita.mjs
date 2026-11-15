@@ -813,15 +813,21 @@ testAsync('`entre` com um id só é `tipo_invalido`', async () => {
   );
 });
 
-testAsync('criar depois de quem JÁ tem saída avisa que é ramo, e diz qual é o verbo certo', async () => {
-  // O desenho em degrau não é defeito do bpmn-js: ramo paralelo desce mesmo. O defeito era o
-  // agente não saber disso e narrar como se fosse a sequência que o aluno pediu.
+testAsync('criar depois de quem JÁ tem saída ENCADEIA; ramo só quando pedido', async () => {
+  // ⚠ Era o contrário, e custou a confiança do dono numa sessão ao vivo (2026-11-15): ele pediu
+  // "cria uma tarefa conferir estoque depois do início", a âncora já tinha saída, e a tarefa
+  // nasceu como RAMO PARALELO pendurado embaixo. Para quem fala, "depois do início" é a próxima
+  // etapa do caminho. A decisão é do DESENHO (tem uma saída de sequência?), nunca da frase.
   const g = montarGeometria();
 
-  const ramo = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Avisar cliente', depoisDe: 'Task_1' });
+  const meio = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Avisar cliente', depoisDe: 'Task_1' });
+  assert.ok(meio.inseridoEntre, 'entrou no meio do caminho que já existia');
+  assert.equal(meio.inseridoEntre.de.id, 'Task_1');
+  assert.ok(!/caminho paralelo/.test(meio.tela ?? ''), 'encadear não é ramificar');
+
+  const ramo = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Avisar de novo', depoisDe: 'Task_1', comoRamo: true });
+  assert.equal(ramo.inseridoEntre, null, 'com comoRamo o aluno pediu o segundo caminho');
   assert.match(ramo.tela, /caminho paralelo/);
-  assert.match(ramo.tela, /entre/, 'a leitura diz qual é o verbo certo');
-  assert.equal(ramo.ramo, undefined, 'o campo de ocasião foi aposentado: quem conta é a leitura');
 
   const emLinha = await g.exec.criar_elemento({ tipo: 'EndEvent', nome: 'Fim', depoisDe: 'Task_2' });
   assert.ok(!/caminho paralelo/.test(emLinha.tela), 'continuação da linha não é ramo');

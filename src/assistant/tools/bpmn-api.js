@@ -224,6 +224,50 @@ export function criarAcessoBpmn(modelador) {
   });
 
   /** O ponto no MEIO de um fluxo, sobre a linha — é onde o elemento inserido entra. */
+  /**
+   * Empurra para a direita tudo que começa em `alvo.x` ou depois, no MESMO pai.
+   *
+   * Um comando só (`moveElements`), então o empurrão e a inserção somam DOIS `Ctrl+Z` — e só
+   * acontece quando não cabe, que é o caso em que a alternativa era desenhar por cima. Pool,
+   * raia e rótulo ficam parados: o pool cresce sozinho quando o conteúdo passa da borda, e
+   * rótulo anda junto do dono.
+   */
+  const empurrarParaDireita = (alvo, quanto) => {
+    if (!(quanto > 0) || !alvo?.parent || typeof modeling.moveElements !== 'function') return 0;
+    const ESTATICOS = ['bpmn:Participant', 'bpmn:Lane'];
+    const mover = (alvo.parent.children ?? []).filter((e) => e
+      && e !== alvo.parent
+      && !e.labelTarget
+      && !Array.isArray(e.waypoints)
+      && !ESTATICOS.includes(String(e.type))
+      && Number.isFinite(e.x)
+      && e.x >= (alvo.x ?? 0));
+    if (!mover.length) return 0;
+    modeling.moveElements(mover, { x: Math.round(quanto), y: 0 });
+    return mover.length;
+  };
+
+  /**
+   * Tira a sobreposição horizontal de um conjunto que acabou de ser alinhado. Devolve quantos
+   * precisaram andar. Mantém a ORDEM que já existia: quem estava à esquerda continua à esquerda.
+   */
+  const separarNaLinha = (els, folga = 40) => {
+    if (typeof modeling.moveElements !== 'function') return 0;
+    const fila = (els ?? [])
+      .filter((e) => e && Number.isFinite(e.x) && Number.isFinite(e.width))
+      .sort((a, b) => a.x - b.x);
+    let andaram = 0;
+    let limite = null;
+    for (const e of fila) {
+      if (limite !== null && e.x < limite + folga) {
+        modeling.moveElements([e], { x: Math.round(limite + folga - e.x), y: 0 });
+        andaram++;
+      }
+      limite = e.x + e.width;
+    }
+    return andaram;
+  };
+
   const meioDoFluxo = (fluxo) => {
     const p = Array.isArray(fluxo?.waypoints) ? fluxo.waypoints.filter((w) => Number.isFinite(w?.x)) : [];
     if (!p.length) return null;
@@ -611,9 +655,23 @@ export function criarAcessoBpmn(modelador) {
       if (!alinhador) throw new Error('sem_alinhador');
       const antes = els.map((e) => ({ id: e.id, caixa: caixaDe(e) }));
       alinhador.trigger(els, tipo);
+      /**
+       * ALINHAR NÃO PODE EMPILHAR.
+       *
+       * ⚠ `middle`/`top`/`bottom` igualam o Y e **não tocam no X** — então duas formas que já
+       * estavam perto viram uma só na tela, com o nome de uma por cima do nome da outra. Foi o
+       * que o dono fotografou em 2026-11-15, pedindo exatamente "deixa na mesma linha": o
+       * comando fez o que promete e o desenho ficou ilegível. Depois de alinhar, quem ficou por
+       * cima anda para a direita o mínimo para caber — na ordem em que já estavam.
+       *
+       * Só no eixo horizontal: `left`/`right`/`center` empilham na vertical de propósito (uma
+       * coluna), e separá-las ali desfaria o que o aluno pediu.
+       */
+      const separados = ['middle', 'top', 'bottom'].includes(String(tipo)) ? separarNaLinha(els) : 0;
       return {
         antes,
         depois: els.map((e) => ({ id: e.id, caixa: caixaDe(this.porId(e.id)) })),
+        separados,
       };
     },
 
@@ -680,6 +738,24 @@ export function criarAcessoBpmn(modelador) {
 
     inserirEntre({ fluxo, tipo }) {
       const forma = formaDe(tipo);
+      /**
+       * ABRIR ESPAÇO ANTES DE ENTRAR — senão o elemento novo nasce EM CIMA dos vizinhos.
+       *
+       * ⚠ Duas tarefas lado a lado têm uns 50 px de vão, e uma tarefa tem 100 de largura: o
+       * meio do fluxo é exatamente onde não cabe. O resultado era o que o dono fotografou em
+       * 2026-11-15 — "embalar" sobreposto a "Select a pizza" e a "Order a pizza", ilegível — e
+       * o religamento estava certo: quem estava errado era o desenho.
+       *
+       * O empurrão vai para o que está À DIREITA do ponto de entrada, no mesmo pai, e só para
+       * formas (pool e raia não andam: elas crescem sozinhas quando o conteúdo passa da borda).
+       */
+      const de = fluxo?.source;
+      const para = fluxo?.target;
+      if (de && para) {
+        const precisa = (forma.width ?? 100) + 80;
+        const vao = (para.x ?? 0) - ((de.x ?? 0) + (de.width ?? 0));
+        if (vao < precisa) empurrarParaDireita(para, precisa - vao);
+      }
       const ponto = meioDoFluxo(fluxo);
       if (!ponto || !aceita(forma, fluxo, ponto)) throw new Error('sem_lugar_para_criar');
       const novo = modeling.createShape(forma, ponto, fluxo);

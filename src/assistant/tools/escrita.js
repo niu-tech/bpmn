@@ -214,7 +214,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
      * âncora, o elemento cai embaixo do que já está desenhado. Omitir a posição era o defeito:
      * o bpmn-js caía num ponto fixo e a tarefa nova nascia POR CIMA da vizinha.
      */
-    async criar_elemento({ tipo, nome, depoisDe, dentroDe, entre } = {}) {
+    async criar_elemento({ tipo, nome, depoisDe, dentroDe, entre, comoRamo = false } = {}) {
       exigirEdicao();
       const tipoBpmn = resolverTipo(tipo);
 
@@ -241,6 +241,8 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
        */
       let criado;
       let fluxoPartido = null;
+      /** Entrou no meio do caminho que já existia (e não como ramo): quem narra precisa saber. */
+      let encadeou = null;
       try {
         if (anterior) {
           fluxoPartido = acesso.fluxoEntre(anterior, seguinte);
@@ -253,10 +255,30 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
             );
           }
           criado = acesso.inserirEntre({ fluxo: fluxoPartido, tipo: tipoBpmn });
+        } else if (ancora) {
+          /**
+           * "DEPOIS DE X" ENCADEIA — ramo paralelo só quando pedido.
+           *
+           * ⚠ Era o contrário, e custou a confiança do dono numa sessão ao vivo (2026-11-15):
+           * ele pediu *"cria uma tarefa conferir estoque depois do início"*, a âncora já tinha
+           * saída, e a tarefa nasceu como **ramo paralelo** pendurado embaixo da linha. Para
+           * quem fala, "depois do início" é a próxima etapa do caminho, não um segundo caminho
+           * — e o aviso `avisoDeRamo` chegava ao modelo, que não o repassou.
+           *
+           * A decisão é do DESENHO, não da frase: tem exatamente uma saída de sequência? entra
+           * no meio dela. Quem quiser o ramo pede `comoRamo: true`.
+           */
+          const saidas = acesso.entradasESaidas(ancora.id).saidas
+            .filter((f) => String(f.type) === 'bpmn:SequenceFlow');
+          if (!comoRamo && saidas.length === 1) {
+            fluxoPartido = saidas[0];
+            encadeou = { de: resumir(ancora), para: resumir(saidas[0].target) };
+            criado = acesso.inserirEntre({ fluxo: fluxoPartido, tipo: tipoBpmn });
+          } else {
+            criado = acesso.criarDepoisDe({ ancora, tipo: tipoBpmn });
+          }
         } else {
-          criado = ancora
-            ? acesso.criarDepoisDe({ ancora, tipo: tipoBpmn })
-            : criarSemAncora(tipoBpmn, dentro);
+          criado = criarSemAncora(tipoBpmn, dentro);
         }
       } catch (err) {
         if (!/sem_lugar_para_criar/.test(err?.message ?? '')) throw err;
@@ -297,7 +319,9 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
         ligadoA: ancora ? resumir(ancora) : null,
         ligacao: entradas[0] ? resumir(entradas[0]) : null,
         // Inserido no meio: o bpmn-js religou os dois lados, então ele JÁ está no caminho.
-        inseridoEntre: anterior ? { de: resumir(anterior), para: resumir(seguinte) } : null,
+        inseridoEntre: anterior
+          ? { de: resumir(anterior), para: resumir(seguinte) }
+          : encadeou,
         religado: anterior ? { entradas: entradas.length, saidas: saidas.length } : null,
         total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
         // O ramo paralelo (a âncora já tinha saída) sai daqui: a leitura olha o DESENHO.
