@@ -46,7 +46,7 @@
       "id": "leitura-detalhe",
       "categoria": "leitura",
       "perfil": "modelador",
-      "pergunta": "o que entra e o que sai da tarefa de pagamento?",
+      "pergunta": "o que entra e o que sai da Receive payment?",
       "ferramentasEsperadas": [
         "detalhar_elemento",
         "buscar_elemento"
@@ -79,7 +79,7 @@
       "id": "escrita-criar",
       "categoria": "escrita",
       "perfil": "modelador",
-      "pergunta": "cria uma tarefa chamada Conferir estoque depois do início",
+      "pergunta": "cria uma tarefa chamada Conferir estoque depois da Bake the pizza",
       "ferramentasEsperadas": [
         "criar_elemento"
       ],
@@ -93,7 +93,7 @@
       "id": "escrita-conectar",
       "categoria": "escrita",
       "perfil": "modelador",
-      "pergunta": "liga a tarefa de pagamento na de entrega",
+      "pergunta": "liga a Bake the pizza na Deliver the pizza",
       "ferramentasEsperadas": [
         "conectar",
         "buscar_elemento"
@@ -104,13 +104,14 @@
       "id": "escrita-renomear",
       "categoria": "escrita",
       "perfil": "modelador",
-      "pergunta": "troca o nome dessa tarefa para Separar os ingredientes",
+      "pergunta": "troca o nome dessa tarefa que eu selecionei para Separar os ingredientes",
       "ferramentasEsperadas": [
         "renomear",
         "buscar_elemento",
         "detalhar_elemento"
       ],
-      "porque": "renomear é a correção mais frequente depois de uma criação"
+      "porque": "renomear é a correção mais frequente depois de uma criação",
+      "exigeSelecao": "bake"
     },
     {
       "id": "escrita-desfazer",
@@ -158,20 +159,21 @@
       "id": "geometria-mover",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "move essa tarefa um pouco para a direita",
+      "pergunta": "move essa tarefa que eu selecionei um pouco para a direita",
       "ferramentasEsperadas": [
         "mover"
       ],
       "argumentosQueImportam": {
         "direcao": "direita"
       },
-      "porque": "o modelo não vê coordenadas: a direção é dada em palavras"
+      "porque": "o modelo não vê coordenadas: a direção é dada em palavras",
+      "exigeSelecao": "bake"
     },
     {
       "id": "geometria-alinhar",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "deixa essas duas tarefas na mesma linha",
+      "pergunta": "deixa a Bake the pizza e a Deliver the pizza na mesma linha",
       "ferramentasEsperadas": [
         "alinhar"
       ],
@@ -184,24 +186,24 @@
       "id": "geometria-entre",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "põe uma tarefa Conferir o endereço entre essas duas",
+      "pergunta": "poe uma tarefa Conferir o endereco entre a Bake the pizza e a Deliver the pizza",
       "ferramentasEsperadas": [
         "criar_elemento"
       ],
       "argumentosQueImportam": {
         "entre": "dois ids"
       },
-      "porque": "sem `entre`, criar depois de quem já tem saída desenha um ramo paralelo um degrau abaixo — e o aluno lê isso como desenho torto"
+      "porque": "sem `entre`, criar depois de quem ja tem saida desenha um ramo paralelo um degrau abaixo — e o aluno le isso como desenho torto. A pergunta NOMEIA os dois lados porque \"essas duas\" sem selecao e ambiguo de verdade, e o modelo perguntando qual e o comportamento certo"
     },
     {
       "id": "geometria-trocar-tipo",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "transforma esse gateway em paralelo",
+      "pergunta": "transforma a tarefa Calm customer em uma tarefa de usuario",
       "ferramentasEsperadas": [
         "trocar_tipo"
       ],
-      "porque": "trocar o símbolo preservando as ligações é o que o aluno teme perder"
+      "porque": "trocar o simbolo preservando as ligacoes e o que o aluno teme perder. A pergunta nomeia o elemento: \"esse gateway\" sem selecao nao diz qual, e o diagrama tem varios"
     },
     {
       "id": "geometria-destacar",
@@ -235,7 +237,7 @@
         "buscar_elemento"
       ],
       "candidatosEsperados": true,
-      "porque": "o diagrama tem várias tarefas com 'pizza' no nome: a escolha é do aluno, em um clique"
+      "porque": "o diagrama tem varias tarefas com \"pizza\" no nome: a escolha e do aluno, em um clique. Fica no acervo mesmo sendo dificil de medir ao vivo — o que importa e o agente NAO adivinhar"
     },
     {
       "id": "confirmacao-remover",

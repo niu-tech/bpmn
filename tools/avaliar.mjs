@@ -314,7 +314,7 @@ async function rodarAoVivo(perguntas, { alvo }) {
     // ⚠ `respostaDoAluno` entra aqui porque "pode apagar" não é uma pergunta: é a SEGUNDA metade
     // de um portão, e medi-la sozinha mediria outra coisa. Ela é provada ao vivo pelo cenário de
     // voz da bateria (portão 6.3), onde as duas metades acontecem na ordem.
-    if (p.diagramaEnvenenado || p.diagramaVazio || p.erroDeSessao || p.notaDaPagina || p.respostaDoAluno) {
+    if (p.diagramaEnvenenado || p.diagramaVazio || p.erroDeSessao || p.notaDaPagina || p.respostaDoAluno || p.exigeHistorico) {
       resultados.push({
         id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
         motivo: 'exige um diagrama ou um estado de sessão que esta corrida não monta (ver tools/battery.mjs)',
