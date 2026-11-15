@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Roteiro de voz · ajudante BPMN</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+    --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:14.5px/1.5 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:26px 26px 30px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:11.5px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:24px; line-height:1.12; letter-spacing:-.02em; font-weight:600; margin:10px 0 6px; }
+  .sub { font-size:14.5px; color:var(--suave); margin:0 0 16px; max-width:80ch; }
+  h2 { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 7px; }
+  section { margin-bottom:17px; page-break-inside:avoid; }
+  .passo { background:var(--papel); border:1px solid var(--linha); border-radius:12px;
+    padding:11px 14px; margin-bottom:14px; font-size:13px; }
+  .passo code { font-family:Consolas,monospace; font-size:12.5px; background:#f4f4f8;
+    padding:2px 6px; border-radius:5px; }
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:12px; overflow:hidden; font-size:12.8px; }
+  th { text-align:left; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:6px 11px; border-bottom:1px solid var(--linha); }
+  td { padding:6px 11px; border-bottom:1px solid #f1f1f5; vertical-align:top; color:#3f4049; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--tinta); font-weight:600; }
+  .cx { width:22px; color:var(--fraco); font-size:15px; text-align:center; }
+  .fala { width:44%; color:var(--tinta); }
+  .fala em { color:var(--suave); font-style:normal; font-size:12.5px; }
+  .so-voce { background:var(--ambar-fraco); border-left:3px solid var(--ambar);
+    border-radius:0 10px 10px 0; padding:7px 13px; margin-top:7px; font-size:12.5px; color:#5d4320; }
+  .so-voce b { color:var(--ambar); }
+  .nota { background:var(--azul-fraco); border:1px solid #cfdcec; border-radius:12px;
+    padding:13px 15px; font-size:13.2px; color:#2e3d50; }
+  .nota b { color:var(--azul); }
+  .novo { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em;
+    text-transform:uppercase; color:#fff; background:var(--vinho); border-radius:4px;
+    padding:1px 5px; vertical-align:2px; margin-left:5px; }
+  footer { margin-top:28px; padding-top:14px; border-top:1px solid var(--linha);
+    font-size:12.2px; color:var(--fraco); }
+  @media print { body { background:#fff; } .env { padding:0 0 8px; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Roteiro de bancada</span>
+  <h1>Teste de voz: o que dizer, e o que tem de acontecer</h1>
+  <p class="sub">Vinte e uma falas, na ordem de uma aula. Diga a frase como ela está escrita (ou
+  parecido — a ideia é a sua voz, não o texto), e confira a coluna da direita. O que não bater,
+  me mande o número do caso: a sessão fica gravada e eu reconstruo o resto.</p>
+
+  <div class="passo">
+    <b>Antes de começar</b> &nbsp;·&nbsp; <code>npm run dev</code> → abra
+    <code>http://127.0.0.1:8126/</code> &nbsp;·&nbsp; <code>npm run trilha</code> (deixe rodando
+    numa segunda janela; <code>Ctrl+C</code> no fim grava a evidência)<br>
+    Na aba: cole a sua chave, marque o aviso, <b>Começar</b>, e clique no <b>microfone</b>.
+    <b>Use fone de ouvido</b> — sem ele o som dele volta pelo seu microfone (e isso é o caso D4).
+  </div>
+
+  <section>
+    <h2>A · A conversa por voz</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você fala</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Qual a diferença entre gateway exclusivo e paralelo?”</b></td>
+          <td>Ele responde <b>falando</b>, em português, em uma ou duas frases. A sua pergunta aparece como <b>uma</b> bolha que cresce — não uma por pedaço.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Espera, chega”</b> <em>— por cima da resposta dele</em></td>
+          <td>Ele para <b>na hora</b>, no meio da frase.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique em</em> <b>Parar de falar</b> <em>no meio de uma resposta</em></td>
+          <td>Silêncio imediato, e o resto do turno <b>não</b> volta sozinho depois.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Me dá uma receita de bolo de cenoura”</b></td>
+          <td>Recusa em uma frase e volta ao assunto. Sem sermão, sem receita.</td></tr>
+    </table>
+    <div class="so-voce"><b>Só você sabe:</b> a voz soa natural? O tempo até ele começar incomoda?
+    Dá para interromper sem gritar?</div>
+  </section>
+
+  <section>
+    <h2>B · O diagrama na frente dele</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você fala (ou faz)</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique numa tarefa e diga</em> <b>“e esse aqui?”</b> <em>— sem dizer o nome</em></td>
+          <td>Ele fala do elemento <b>certo</b>, citando o nome dele.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique em cinco elementos rápido, e então</em> <b>“e esse?”</b></td>
+          <td>Ele fala do <b>último</b>, e a conversa não enche de avisos.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Cria uma tarefa Conferir estoque depois do início”</b></td>
+          <td>A tarefa aparece no desenho, com o nome escrito, ligada ao início.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Põe uma tarefa Embalar entre essas duas”</b></td>
+          <td>Ele <b>parte a seta</b> e entra no meio — não cria um ramo pendurado embaixo.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Alinha essas duas na mesma linha”</b></td>
+          <td>Ficam na mesma altura, de verdade, no desenho.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Pinta de vermelho a tarefa Assar a pizza”</b></td>
+          <td>O elemento muda de cor na tela (e volta ao normal no <code>Ctrl+Z</code>).</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Dê</em> <b>Ctrl+Z</b> <em>e pergunte</em> <b>“o que você está vendo agora?”</b></td>
+          <td>Ele conta que você desfez, e descreve o diagrama <b>como está</b>.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Qual tarefa está sem ligação nenhuma?”</b></td>
+          <td>Responde direto, sem ficar conferindo um elemento por vez.</td></tr>
+    </table>
+    <div class="so-voce"><b>Só você sabe:</b> o que ele desenha fica legível? Você entregaria esse
+    diagrama na faculdade sem mexer?</div>
+  </section>
+
+  <section>
+    <h2>C · O portão: ele não mexe no que você não pediu</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você fala</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique numa tarefa e diga</em> <b>“apaga essa tarefa”</b></td>
+          <td>Ele <b>pergunta</b> antes, falando. <b>Nada</b> some do desenho.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Pode apagar, sim”</b></td>
+          <td>Só agora o elemento some, e ele confirma o que apagou.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Apaga essa também”</b> <em>(outro elemento) — e</em> <b>não responda</b></td>
+          <td>Ele pergunta <b>de novo</b>. O “sim” de antes não valeu para esta. Nada some.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Deixa, me explica o que é uma raia”</b> <em>— com o pedido de apagar ainda em aberto</em><span class="novo">novo</span></td>
+          <td>Ele responde sobre raia e <b>não apaga nada</b>. Peça para apagar de novo mais tarde: ele <b>pergunta outra vez</b>, nunca executa calado.</td></tr>
+    </table>
+    <div class="so-voce"><b>Só você sabe:</b> a pergunta dele é curta o bastante para você
+    responder falando? Em algum momento você achou que ele já tinha apagado?</div>
+  </section>
+
+  <section>
+    <h2>D · Quando dá errado</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você faz</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Desligue o Wi-Fi uns segundos no meio de uma resposta</em></td>
+          <td>Ele volta sozinho e <b>avisa</b> que caiu. Se a pergunta era digitada, ele a refaz.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Converse <b>mais de 10 minutos</b> sem parar, depois pergunte</em> <b>“qual foi a primeira coisa que eu te perguntei hoje?”</b><span class="novo">novo</span></td>
+          <td>Aos ~10 min o servidor derruba a conexão: ele volta dizendo <b>“Continuamos na mesma conversa”</b> — e <b>ainda lembra</b> do começo.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Abra o ajudante em <b>duas ou três abas</b> e comece em todas</em><span class="novo">novo</span></td>
+          <td>Uma recusa dizendo <b>“o limite de sessões da sua chave foi atingido”</b> e mandando fechar as outras abas. <b>Não</b> manda trocar a chave.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Tire o fone e deixe o som alto perto do microfone</em></td>
+          <td>Depois de três cortes seguidos ele <b>avisa</b> e passa a fechar o microfone enquanto responde.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Troque a chave por uma errada, de propósito</em></td>
+          <td>Mensagem clara com o que fazer — e a chave <b>não aparece</b> em lugar nenhum da tela.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Deixe a aba aberta e vá almoçar</em></td>
+          <td>Em 25 minutos ele encerra sozinho, <b>diz por quê</b>, e a conversa continua na tela.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>No fim</h2>
+    <div class="nota">
+      <b>Ctrl+C</b> na janela da trilha. Ela salva
+      <code>artifacts/sessoes/trilha-&lt;carimbo&gt;.json</code> e imprime três linhas que valem
+      como evidência: <b>sessão</b> (quantos apertos de mão e quantas retomadas),
+      <b>página</b> (notas entregues e descartadas) e <b>portão</b> (quantas confirmações e
+      quanto você levou para responder). <b>Me mande o JSON</b> — ou só essas linhas e o número
+      dos casos que falharam — e eu reconstruo a sessão inteira sem você descrever nada.
+    </div>
+  </section>
+
+  <footer>
+    Ajudante BPMN (TCC) · roteiro de 2026-11-15 · o plano completo, com o que já é provado por
+    máquina em cada caso, está em <code>openspec/plano-de-teste-por-voz.md</code>
+  </footer>
+</div>
+</body>
+</html>
