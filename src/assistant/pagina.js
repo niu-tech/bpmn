@@ -63,16 +63,32 @@ export function ligarAnunciosDaPagina({
     if (relogio) clearTimeout(relogio);
     relogio = setTimeout(() => {
       relogio = null;
-      let el = null;
+      let todos = [];
       try {
-        el = acesso.selecionado();
+        todos = (acesso.selecionados?.() ?? []).filter((e) => e && !e.labelTarget);
+        if (!todos.length) {
+          const um = acesso.selecionado();
+          if (um && !um.labelTarget) todos = [um];
+        }
       } catch {
         return;
       }
       // Desmarcar não é fato: o aluno clicou no vazio do canvas, e anunciar isso seria ruído com
       // o custo de um turno de contexto.
-      if (!el || el.labelTarget) return;
-      dizer(`o aluno selecionou ${comoChamar(el)} no desenho. Se ele disser "esse aqui", é este.`);
+      if (!todos.length) return;
+      /**
+       * ⚠ A NOTA CONTA A SELEÇÃO INTEIRA.
+       *
+       * Ela nomeava só o primeiro ("o aluno selecionou X… Se ele disser 'esse aqui', é este") —
+       * e era essa frase que o modelo lia. Com quatro marcados por Shift ou por laço, ele
+       * respondia *"só consigo identificar um elemento selecionado"*: a nota dizia isso.
+       */
+      if (todos.length === 1) {
+        dizer(`o aluno selecionou ${comoChamar(todos[0])} no desenho. Se ele disser "esse aqui", é este.`);
+        return;
+      }
+      dizer(`o aluno selecionou ${todos.length} elementos no desenho: ${todos.map(comoChamar).join(', ')}. `
+        + 'Se ele disser "esses" ou "esses aí", é este conjunto — use os ids desta lista.');
     }, esperaDaSelecaoMs);
     relogio?.unref?.();
   };

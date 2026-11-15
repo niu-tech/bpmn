@@ -601,6 +601,15 @@ export function createWidget({ session, credentials, onClose } = {}) {
   function render(view) {
     ultimaVista = view;
     const { state, reason, mode, micOn, level = 0, busy, canAsk, messages, confirmacao = null, falando = false } = view;
+    /**
+     * ⚠ Declarado AQUI, antes de QUALQUER uso.
+     *
+     * A faixa de voz FICA quando o microfone está mudo: mudo é um estado DENTRO da conversa por
+     * voz, não a saída dela (era `mode === 'voz' && micOn`, e mutar zera o `micOn` — então a
+     * faixa sumia e a tela virava a de quem encerrou a voz). E mora no topo porque já derrubei a
+     * tela do dono uma vez usando uma constante acima da linha em que ela nasce.
+     */
+    const emVoz = mode === 'voz' && (micOn || Boolean(view.micMudo));
 
     dot.setAttribute('data-state', state);
     const label = STATE_LABELS[state] ?? state;
@@ -677,7 +686,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
 
     // Parar de falar só existe enquanto há fala. Fora disso, nem ocupa linha.
     if (calarBtn.parentElement !== acoes) acoes.append(calarBtn);
-    calarBtn.hidden = !falando;
+    // Com a faixa de voz na tela, calar é o ícone de som (que também corta a resposta em curso):
+    // o botão largo embaixo virou uma segunda porta para a mesma ação.
+    calarBtn.hidden = !falando || emVoz;
     acoes.hidden = Boolean(confirmacao) || (!falando && canAsk);
 
     // ⚠ UMA AÇÃO PRINCIPAL POR ESTADO. Ouvindo, o rodapé é a faixa de voz — sem campo de texto e
@@ -686,15 +697,6 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // ⚠ `micOn` e não `canAsk`: durante uma ferramenta `canAsk` é falso, e a faixa inteira
     // desaparecia no meio do turno — justamente quando ela tem de dizer "consultando o diagrama".
     // Rodapé que se esvazia no meio do turno é o que faz o aluno achar que travou.
-    /**
-     * ⚠ A faixa de voz FICA quando o microfone está mudo.
-     *
-     * Era `mode === 'voz' && micOn`, e mutar zera o `micOn` — então a faixa sumia, o compositor
-     * voltava e a tela ficava idêntica à de quem encerrou a voz (dono, 2026-11-15: *"ele volta
-     * como se fosse a mesma coisa do botão stop"*). Mudo é um estado DENTRO da conversa por voz,
-     * não a saída dela.
-     */
-    const emVoz = mode === 'voz' && (micOn || Boolean(view.micMudo));
     // Pedido de confirmação é a ação do momento: ele toma o rodapé e o resto sai.
     const perguntando = Boolean(confirmacao);
     const perguntaNova = perguntando && confirmaBox.hidden;
@@ -721,7 +723,13 @@ export function createWidget({ session, credentials, onClose } = {}) {
     }
     faixaVoz.hidden = perguntando || !emVoz;
     composer.hidden = perguntando || !canAsk || emVoz;
-    micLabel.hidden = perguntando || !(mode === 'voz' && canAsk) || micOn;
+    /**
+     * ⚠ UMA linha sobre o estado da voz, nunca duas. Com o microfone mudo, a faixa dizia
+     * "Microfone mudo" e esta linha dizia "o ajudante está respondendo…" logo abaixo — duas
+     * frases sobre a mesma coisa, com uma quebra visual no meio (print do dono, 2026-11-15).
+     * Enquanto a faixa existe, ela é a voz da tela.
+     */
+    micLabel.hidden = perguntando || !(mode === 'voz' && canAsk) || micOn || emVoz;
 
     // O microfone é a PORTA da voz: clicar nele é que leva a sessão para o modo voz. Por isso
     // ele aparece no modo texto também — era o seletor lá de cima que fazia esse papel.
@@ -839,7 +847,17 @@ export function createWidget({ session, credentials, onClose } = {}) {
     }
   });
 
-  pararBtn.addEventListener('click', () => session.stopMic());
+  /**
+   * O STOP da voz CALA TAMBÉM.
+   *
+   * ⚠ Ele fechava só o microfone, e o aluno voltava para a tela de escrever com o agente ainda
+   * falando (dono, 2026-11-15: *"às vezes ela continua falando, mesmo a gente clicando em
+   * stop"*). Sair da conversa por voz e continuar ouvindo a voz é contradição.
+   */
+  pararBtn.addEventListener('click', () => {
+    session.pararDeFalar();
+    session.stopMic();
+  });
   mudoMicBtn.addEventListener('click', () => session.mutarMicrofone(!(ultimaVista?.micMudo ?? false)));
   mudoAgenteBtn.addEventListener('click', () => session.silenciarAgente(!(ultimaVista?.agenteMudo ?? false)));
   simBtn.addEventListener('click', () => session.confirmar(true));

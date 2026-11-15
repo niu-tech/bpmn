@@ -263,15 +263,27 @@ export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
     }
   }
 
-  const selecionado = (() => {
+  const selecionados = (() => {
     try {
-      return acesso.selecionado();
+      // ⚠ Com recuo para `selecionado()`: camada de acesso sem o verbo novo (e todo dublê de
+      // teste escrito antes dele) continua contando o que tem.
+      const muitos = (acesso.selecionados?.() ?? []).filter((e) => e && !e.labelTarget);
+      if (muitos.length) return muitos;
+      const um = acesso.selecionado?.();
+      return um && !um.labelTarget ? [um] : [];
     } catch {
-      return null;
+      return [];
     }
   })();
-  if (selecionado && !selecionado.labelTarget) {
-    partes.push(`O aluno tem ${marca(selecionado)} selecionado.`);
+  /**
+   * ⚠ A frase conta QUANTOS. Ela dizia sempre "o aluno tem X selecionado" (o primeiro), e com
+   * quatro marcados isso é o contrário do fato — foi uma das três bocas por onde o modelo ouvia
+   * "um só" (as outras: a nota da página e a projeção do prompt).
+   */
+  if (selecionados.length === 1) {
+    partes.push(`O aluno tem ${marca(selecionados[0])} selecionado.`);
+  } else if (selecionados.length > 1) {
+    partes.push(`O aluno tem ${selecionados.length} elementos selecionados: ${selecionados.map(marca).join(', ')}.`);
   }
 
   const alvo = tocado ? acesso.porId(tocado) : null;
@@ -372,11 +384,14 @@ export function criarExecutoresDeLeitura({ acesso, lerSimulacao = () => null } =
         .map(resumir);
 
       const sel = acesso.selecionado();
+      const selMuitos = (acesso.selecionados?.() ?? []).filter((e) => e && !e.labelTarget);
       return {
         processo: raiz ? { id: raiz.id ?? null, nome: nomeDe(raiz) } : null,
         total: conteudo.length,
         contagem,
         raias,
+        // A seleção INTEIRA quando há mais de uma: é o conjunto de que o aluno fala.
+        selecionados: selMuitos.length > 1 ? selMuitos.map(resumir) : [],
         // Lista vazia significa "procurei e não há", e não "não olhei": por isso ela vai sempre,
         // junto do aviso de que a varredura foi completa.
         semLigacao,

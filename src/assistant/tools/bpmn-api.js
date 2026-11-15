@@ -275,6 +275,24 @@ export function criarAcessoBpmn(modelador) {
    * Só as de dentro do conjunto: refazer a seta que sai para fora moveria o desenho de quem o
    * aluno não mandou tocar.
    */
+  /**
+   * Refaz o traçado de TODAS as ligações que tocam estes elementos (e não só as internas).
+   * Usado depois de inserir no meio de um fluxo, onde o que atrapalha é a seta de FORA.
+   */
+  const endireitarVizinhanca = (els) => {
+    if (typeof modeling.layoutConnection !== 'function') return 0;
+    const vistas = new Set();
+    let quantas = 0;
+    for (const e of (els ?? []).filter(Boolean)) {
+      for (const c of [...(e.incoming ?? []), ...(e.outgoing ?? [])]) {
+        if (!c || vistas.has(c.id)) continue;
+        vistas.add(c.id);
+        try { modeling.layoutConnection(c); quantas++; } catch { /* roteador recusou */ }
+      }
+    }
+    return quantas;
+  };
+
   const endireitarEntre = (els) => {
     if (typeof modeling.layoutConnection !== 'function') return 0;
     const dentro = new Set((els ?? []).map((e) => e?.id).filter(Boolean));
@@ -823,6 +841,19 @@ export function criarAcessoBpmn(modelador) {
       const ponto = meioDoFluxo(fluxo);
       if (!ponto || !aceita(forma, fluxo, ponto)) throw new Error('sem_lugar_para_criar');
       const novo = modeling.createShape(forma, ponto, fluxo);
+      /**
+       * E AS SETAS DA VIZINHANÇA SÃO REDESENHADAS.
+       *
+       * ⚠ Entrar no meio de um fluxo não mexe nas OUTRAS ligações que passam por ali — e numa
+       * região com laço (o caso do dono: o gateway baseado em eventos volta para "Ask for the
+       * pizza") uma delas passava POR CIMA do elemento novo. Pedir para "resolver" só movia a
+       * forma: a linha continuava torta, porque ninguém a recalculava.
+       *
+       * Redesenha só o que toca a vizinhança imediata (origem, destino e o novo). Isso descarta
+       * um traçado que o aluno tenha ajustado à mão ali — é o preço, e o outro lado da moeda era
+       * uma seta cortando uma tarefa.
+       */
+      endireitarVizinhanca([de, para, novo]);
       try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o elemento já está lá */ }
       return novo;
     },
