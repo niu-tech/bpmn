@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Reteste da rodada 2 · ajudante BPMN</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+    --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:14.5px/1.5 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:26px 26px 30px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:11.5px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:24px; line-height:1.12; letter-spacing:-.02em; font-weight:600; margin:10px 0 6px; }
+  .sub { font-size:14.5px; color:var(--suave); margin:0 0 16px; max-width:80ch; }
+  h2 { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 7px; }
+  section { margin-bottom:17px; page-break-inside:avoid; }
+  .passo { background:var(--papel); border:1px solid var(--linha); border-radius:12px;
+    padding:11px 14px; margin-bottom:14px; font-size:13px; }
+  .passo code { font-family:Consolas,monospace; font-size:12.5px; background:#f4f4f8;
+    padding:2px 6px; border-radius:5px; }
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:12px; overflow:hidden; font-size:12.8px; }
+  th { text-align:left; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:6px 11px; border-bottom:1px solid var(--linha); }
+  td { padding:6px 11px; border-bottom:1px solid #f1f1f5; vertical-align:top; color:#3f4049; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--tinta); font-weight:600; }
+  .cx { width:22px; color:var(--fraco); font-size:15px; text-align:center; }
+  .fala { width:42%; color:var(--tinta); }
+  .fala em { color:var(--suave); font-style:normal; font-size:12.5px; }
+  .antes { background:var(--vinho-fraco); color:#7a2a22; font-size:12px; padding:2px 6px;
+    border-radius:5px; display:inline-block; margin-top:4px; }
+  .nota { background:var(--azul-fraco); border:1px solid #cfdcec; border-radius:12px;
+    padding:13px 15px; font-size:13.2px; color:#2e3d50; }
+  .nota b { color:var(--azul); }
+  .aberto { background:var(--ambar-fraco); border:1px solid #f0d9b5; border-radius:12px;
+    padding:13px 15px; font-size:13.2px; color:#5d4320; }
+  .aberto b { color:var(--ambar); }
+  .aberto li { margin-bottom:7px; }
+  footer { margin-top:28px; padding-top:14px; border-top:1px solid var(--linha);
+    font-size:12.2px; color:var(--fraco); }
+  @media print { body { background:#fff; } .env { padding:0 0 8px; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Reteste · rodada 2</span>
+  <h1>O que mudou depois do seu teste — e como ver cada coisa</h1>
+  <p class="sub">Só o que você reportou. Em cada linha: o que fazer, o que tem de acontecer agora,
+  e em vermelho o que acontecia antes — é assim que você sabe que está olhando a diferença certa.
+  Sua aba já está recarregada com esta versão, com a chave no campo.</p>
+
+  <div class="passo">
+    <b>Antes de começar</b> &nbsp;·&nbsp; a janela do Edge já está aberta e pronta: clique em
+    <b>Começar</b> e depois no <b>microfone</b>. A trilha continua gravando — não precisa me
+    contar o que aconteceu, eu leio.
+  </div>
+
+  <section>
+    <h2>1 · A sessão (o que mais te incomodou)</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você faz</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Converse normalmente por uns minutos, passando dos 10</em></td>
+          <td>Se a conexão cair, ela volta <b>sozinha</b> e a conversa continua. Nenhum recado de
+          limite de sessão.
+          <div class="antes">antes: "o limite de sessões da sua chave foi atingido", mandando fechar abas</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Se algum recado vermelho aparecer, espere</em></td>
+          <td>Ele <b>some sozinho</b> quando a conexão volta.
+          <div class="antes">antes: ficava na tela com o painel já dizendo "pronto"</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Fale uma frase e, se der azar de cair no meio dela</em></td>
+          <td>Ele diz: <b>"A conexão caiu enquanto você falava, e o que você disse não chegou.
+          Pode repetir."</b>
+          <div class="antes">antes: o turno sumia em silêncio — foi o que te aconteceu no turno 8</div></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>2 · O desenho</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você fala</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Cria uma tarefa Conferir estoque depois do início”</b></td>
+          <td>Ela entra <b>no meio do caminho</b> (início → conferir estoque → Select a pizza), já
+          religada.
+          <div class="antes">antes: nascia como ramo paralelo pendurado embaixo da linha</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Põe uma tarefa Embalar entre Select a pizza e Order a pizza”</b></td>
+          <td>Ela entra no meio e <b>o resto anda para a direita</b> para abrir espaço — nada fica
+          por cima de nada.
+          <div class="antes">antes: sobrepunha as duas vizinhas (27 px de vão para uma tarefa de 100)</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Selecione duas que estejam perto:</em> <b>“alinha essas duas na mesma linha”</b></td>
+          <td>Ficam na mesma altura <b>e lado a lado</b>: quem ficaria por cima anda o mínimo para
+          caber.
+          <div class="antes">antes: mesma linha, uma em cima da outra</div></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>3 · A conversa</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você faz</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Peça algo que dê trabalho (apagar, por exemplo) e olhe a tela enquanto espera</em></td>
+          <td>Aparece <b>“pensando…”</b> na hora em que você para de falar, e a etiqueta do topo
+          vira <b>consultando</b> quando ele usa uma ferramenta.
+          <div class="antes">antes: nada acontecia na tela até a resposta chegar</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Enquanto ele fala, role a conversa para cima</em></td>
+          <td>A tela <b>fica onde você deixou</b>. Para voltar a seguir, role de volta ao fim.
+          <div class="antes">antes: era puxado de volta para baixo a cada pedaço da resposta</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique em</em> <b>Mutar meu microfone</b> <em>com gente falando perto</em></td>
+          <td>O microfone fecha, o botão fica amarelo, e <b>a sessão continua</b> — ninguém
+          interrompe o agente sem querer. Clique de novo para voltar.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique em</em> <b>Só texto</b> <em>no meio de uma resposta</em></td>
+          <td>Ele <b>cala na hora</b> e continua respondendo <b>por escrito</b>, na mesma sessão.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>4 · A primeira tela</h2>
+    <table>
+      <tr><th class="cx">✓</th><th class="fala">Você faz</th><th>Tem de acontecer</th></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Abra o ajudante numa aba limpa (<code>Ctrl+Shift+N</code>)</em></td>
+          <td>Abre dizendo <b>o que ele é</b> e que a chave é gratuita, com o link de onde tirar —
+          e só então pede a chave.
+          <div class="antes">antes: abria pelo aviso de privacidade e pelo campo, cobrando de cara</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Com a chave guardada, olhe a conversa vazia</em></td>
+          <td><b>“Converse com o seu diagrama”</b> + quatro exemplos <b>clicáveis</b> (um deles é
+          "quero modelar o MEU processo") + a linha dizendo que a pizzaria é só um exemplo.
+          <div class="antes">antes: "Pergunte sobre notação BPMN: eventos, atividades, gateways…"</div></td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique num dos exemplos</em></td>
+          <td>Com a sessão de pé, ele <b>manda a pergunta</b>; sem sessão, escreve no campo e espera você.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Ainda em aberto</h2>
+    <div class="aberto">
+      <ul style="margin:0;padding-left:18px">
+        <li><b>A tela base / introdução.</b> Vai virar estudo próprio, com referência visual — o
+        handoff está pronto para abrir em outra conversa.</li>
+        <li><b>Mover um elemento que JÁ existe para o meio do fluxo.</b> Hoje, se você pedir para
+        reposicionar algo que já está no desenho, o modelo tende a <b>criar outro</b>. Foi assim
+        que nasceram os dois "conferir estoque". O encadeamento de hoje evita o caso mais comum,
+        mas falta o verbo "mova este para cá".</li>
+        <li><b>"Pode continuar" retomando o assunto errado.</b> Você pediu para continuar e ele
+        voltou ao gateway paralelo, de dois turnos antes. É pedagogia do tutor (quando retomar o
+        quê), não mecânica — está no mesmo estudo.</li>
+        <li><b>A fala cortada no meio da frase.</b> Quando você pausa pensando, o servidor fecha o
+        turno e ele responde pela metade ("Eu não consigo ver" / "prints da sua tela"). Precisa de
+        medição própria do fim de fala.</li>
+        <li><b>Duas abas ao mesmo tempo</b> e <b>Wi-Fi desligado na mão</b>: você não testou, e
+        não há pressa — a primeira ficou mais difícil de acontecer agora que a sessão espera a vaga.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    Ajudante BPMN (TCC) · rodada de 2026-11-15 · commits <code>c92d22d</code> …
+    <code>4177c95</code> em <code>main</code> · a trilha da sua sessão fica em
+    <code>artifacts/sessoes/</code>
+  </footer>
+</div>
+</body>
+</html>
