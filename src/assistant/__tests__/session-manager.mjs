@@ -1023,6 +1023,34 @@ testAsync('apagar fica RECUSADO até o aluno responder — e a resposta dele bas
   forgetSecrets();
 });
 
+testAsync('a marca pendente NÃO vira mina: duas falas depois, o portão pergunta de novo', async () => {
+  // Achado da corrida ao vivo de 2026-11-15, a primeira a rodar as 33 perguntas numa SESSÃO SÓ
+  // (antes cada pergunta tinha a sua, e a marca morria com a aba): a recusa deixava a marca viva
+  // para sempre, e qualquer fala posterior do aluno — sobre qualquer assunto — abria o portão.
+  // Numa aula de 50 minutos, isso é apagar sem perguntar porque alguém pediu outra coisa antes.
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  const primeira = await apagar(d, 'c1');
+  assert.equal(primeira.erro, 'falta_confirmacao', 'recusa, como sempre');
+
+  // O aluno fala DUAS vezes, sobre outra coisa: a janela da resposta passou.
+  session.ask('como eu faço um gateway?');
+  session.ask('e uma raia?');
+
+  const segunda = await apagar(d, 'c2');
+  assert.equal(segunda.erro, 'falta_confirmacao', 'a marca velha não autoriza: pergunta de novo');
+  assert.equal(estado.removido, false, 'nada foi apagado');
+
+  // E a pergunta nova vale: a PRÓXIMA fala abre.
+  session.ask('pode apagar');
+  const terceira = await apagar(d, 'c3');
+  assert.equal(terceira.ok, true, JSON.stringify(terceira));
+  forgetSecrets();
+});
+
 testAsync('um "sim" dito ANTES da pergunta não autoriza nada', async () => {
   const { session, live, estado } = montarComDiagrama();
   await session.connect('voz');

@@ -221,6 +221,11 @@ export function mountAssistant({
     },
     /** O que o aluno escolheu num candidato clicavel, pelo caminho do painel. */
     escolher: (candidato) => session.escolherCandidato(candidato),
+    /**
+     * Esquece portões de confirmação pendentes. Diagnóstico: devolve o estado que uma aba nova
+     * daria de graça, para quem roda várias provas na MESMA sessão (ver `session-manager`).
+     */
+    limparPortoes: () => session.limparPortoes(),
     /** A nota da pagina que ainda nao saiu (fila de um). So leitura, so diagnostico. */
     get notaPendente() { return session.notaDaPagina; },
     /**

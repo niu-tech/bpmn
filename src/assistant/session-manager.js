@@ -226,9 +226,37 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     if (notaDaPagina) descartarNota('o aluno falou primeiro');
   }
 
+  /**
+   * O aluno respondeu A ESTA pergunta?
+   *
+   * ⚠ A janela é a **próxima** fala dele, e não "qualquer uma depois" (`> p.perguntou`). O que
+   * havia aqui deixava a marca pendente viva para sempre: numa conversa longa, uma recusa de
+   * `remover` às 2 min 30 era aberta por algo que o aluno digitasse dez minutos depois, sobre
+   * outro assunto — mina armada, e o agente apagava sem perguntar de novo. Visto na corrida ao
+   * vivo das 33 perguntas de 2026-11-15, que foi a primeira a rodar numa sessão só (antes cada
+   * pergunta tinha a sua, e a marca morria com a aba).
+   *
+   * Com a janela de uma fala, passado o momento a marca não vale mais: a ferramenta é recusada
+   * de novo e o agente **pergunta outra vez**, que é o pior que pode acontecer aqui. Continua sem
+   * olhar o TEXTO da resposta — é ordem, nunca palavra-chave (constituição §III: determinismo
+   * perto de ferramenta serve para segurança, e "sim, mas antes me explica" nunca foi sim).
+   */
   function portaoRespondido(nome) {
     const p = portoes.get(nome);
-    return !!p && (p.aberto || epocaDoAluno > p.perguntou);
+    return !!p && (p.aberto || epocaDoAluno === p.perguntou + 1);
+  }
+
+  /**
+   * Esquece os portões pendentes. **Diagnóstico**, e existe porque a corrida ao vivo passou a
+   * usar uma sessão só para o lote: o estado que a aba nova dava de graça precisa ser pedido.
+   * Sem isto, a pergunta que mede "a recusa acontece" deixa a marca para a pergunta seguinte,
+   * e a seguinte mede outra coisa.
+   */
+  function limparPortoes() {
+    const quantos = portoes.size;
+    portoes.clear();
+    if (quantos) diag.state('portao', `${quantos} pendente(s) esquecido(s) por pedido`);
+    return quantos;
   }
 
   function abrir(nome, motivo) {
@@ -244,10 +272,16 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   async function esperarPortao(nome, { tolerancia = TOLERANCIA_DE_FALA_MS, passo = 120 } = {}) {
     if (portaoRespondido(nome)) return abrir(nome, 'aberto pelo aluno');
 
-    if (!portoes.has(nome)) {
-      portoes.set(nome, { perguntou: epocaDoAluno, aberto: false });
-      diag.state('portao', `${nome}: perguntado, esperando o aluno`);
-    }
+    /**
+     * A pergunta é REFEITA, e a marca velha não é herdada.
+     *
+     * ⚠ Isto era `if (!portoes.has(nome))`, e a diferença é a mina: a marca de uma recusa
+     * antiga ficava com a época ANTIGA, e ou autorizava algo que o aluno não respondeu (quando a
+     * janela calhava de bater) ou nunca mais abria (quando ele já tinha falado duas vezes), e o
+     * agente perguntava para sempre sem conseguir apagar. Tentativa nova = janela nova.
+     */
+    portoes.set(nome, { perguntou: epocaDoAluno, aberto: false });
+    diag.state('portao', `${nome}: perguntado, esperando o aluno`);
 
     const fim = Date.now() + Math.max(0, tolerancia);
     while (Date.now() < fim) {
@@ -441,6 +475,18 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     if (!confirmacao) return;
     const { resolver, acao, alvo } = confirmacao;
     confirmacao = null;
+    /**
+     * ⚠ Um **NÃO explícito** desarma a marca pendente daquela ação.
+     *
+     * Sem isto, clicar "Cancelar" deixava o portão PRIMADO: a próxima fala do aluno abria a
+     * marca que a recusa dele tinha deixado, e a ação destrutiva seguinte passava sem pergunta.
+     * Dizer "não" nunca pode autorizar nada — e aqui não há adivinhação: o clique é o fato.
+     *
+     * ponytail: defensiva de uma linha. O diálogo com botão só aparece pelo caminho do EXECUTOR
+     * direto (`pedirConfirmacao`), e não pelo despachante — que barra antes, pela ordem. Quem
+     * exercita esse caminho é a camada determinística do acervo dourado.
+     */
+    if (!sim) portoes.delete(acao);
     diag.record('tool', sim ? 'confirmacao-dada' : 'confirmacao-recusada', `${acao} ${alvo?.id ?? ''}`);
     publish();
     try { resolver(Boolean(sim)); } catch { /* promessa já resolvida */ }
@@ -1589,6 +1635,11 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
     confirmar(sim) {
       fecharConfirmacao(sim);
+    },
+
+    /** Esquece portões pendentes (diagnóstico; ver `limparPortoes`). Devolve quantos havia. */
+    limparPortoes() {
+      return limparPortoes();
     },
 
     /**

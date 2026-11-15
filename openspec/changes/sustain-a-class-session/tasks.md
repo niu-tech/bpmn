@@ -126,7 +126,19 @@
       regressão de produto. Quem sabe qual é o diagrama base é a página, então ela passa
       (`mountAssistant({ diagramaBase })`) e o verbo **recusa** em vez de adivinhar. Com a base
       certa: geometria **5/5**.
-- [x] 7.6 **A corrida guarda a própria sessão** (`artifacts/avaliacao/sessao-ao-vivo-<perfil>-*.json`)
+- [x] 7.6 **A sessão compartilhada achou um defeito de SEGURANÇA que a sessão por pergunta
+      escondia** (item T22 do `open-items.md`). A corrida das 33 reprovou
+      `confirmacao-nao-presumida` com `tool.executando remover` e *"Apaguei a tarefa"*: o portão
+      deixou passar. O diário salvo conta a história em quatro linhas — `147765 state.portao
+      remover: perguntado`, `151270 tool.sem-confirmacao`, `158776 state.portao remover: aberto
+      pelo aluno`, `158776 tool.executando remover`: a marca pendente da pergunta ANTERIOR foi
+      aberta pela pergunta SEGUINTE. A regra era `época > perguntou` (qualquer fala posterior, a
+      qualquer momento) e a marca velha não era refeita a cada tentativa. Agora a janela é a
+      **próxima** fala, cada tentativa refaz a pergunta, e um NÃO explícito desarma. Sem olhar o
+      texto da resposta — ordem, nunca palavra-chave. Com isso, `confirmacao` voltou a **2/2 ao
+      vivo**, na mesma sessão. **Numa sessão por pergunta este defeito era invisível**, e é o
+      melhor argumento desta seção: a prova passou a ter a forma de uma aula.
+- [x] 7.7 **A corrida guarda a própria sessão** (`artifacts/avaliacao/sessao-ao-vivo-<perfil>-*.json`)
       e a corrida imprime quantos `out.setup` houve no lote. É o que transforma "usamos uma sessão
       só" em número conferido por quem lê, e não em narração nossa; `ws.resumption` no mesmo
       diário diz quando houve retomada.

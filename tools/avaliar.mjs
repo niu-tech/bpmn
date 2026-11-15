@@ -338,6 +338,11 @@ function passoDaPergunta(p, chave) {
          // seguinte não sai — defeito que só existe porque a sessão agora é compartilhada.
          const cancelar = window.__btn('Cancelar');
          if (cancelar) { cancelar.click(); await new Promise((r) => setTimeout(r, 300)); }
+         // ⚠ E a marca pendente que NÃO tem botão: quando o agente pergunta FALANDO, a recusa
+         // deixa um portão esperando a próxima fala do aluno — e a próxima fala, aqui, é a
+         // pergunta seguinte do acervo. Foi assim que a prova confirmacao-nao-presumida mediu o
+         // portão da pergunta ANTERIOR e reprovou (corrida de 2026-11-15, uma sessão só).
+         window.__bpmnAssist.limparPortoes();
          try { await window.__bpmnAssist.recarregarDiagrama(); } catch (e) {
            return { ok: false, servico: 'n\u00e3o deu: o diagrama n\u00e3o voltou ao estado base (' + (e?.message ?? e) + ')' };
          }
