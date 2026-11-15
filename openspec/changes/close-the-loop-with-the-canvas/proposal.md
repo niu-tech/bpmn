@@ -8,8 +8,14 @@ Três sintomas da mesma falta, todos medidos nesta semana:
 1. **O elemento nasceu como ramo e o agente narrou como sequência.** O `criar_elemento` respondia
    `{criado, ligadoA, ligacao}` — tudo verdade, e mesmo assim insuficiente: o bpmn-js tinha
    desenhado um caminho paralelo um degrau abaixo, e isso não estava na resposta. O conserto
-   (`ramo` + `avisoDeRamo`, 2026-11-14) resolveu **esse** caso com um campo novo. O próximo caso
-   vai pedir outro campo, e o seguinte outro: o que falta não é um campo, é a **leitura da tela**.
+   (`ramo` + `avisoDeRamo`, 2026-11-14) resolveu **esse** caso com um campo novo.
+
+   A previsão de que o próximo caso pediria outro campo levou menos de um dia para se cumprir: a
+   rodada seguinte (`criar_pool` e `criar_raia`, 2026-11-15) acrescentou mais três —
+   `virouColaboracao` e `adotou`, porque o primeiro pool troca a raiz do XML para
+   `bpmn:Collaboration` e engole o desenho inteiro, e `criouAFaixaDoQueJaExistia`, porque a
+   primeira raia de um pool nasce **em dupla**. São cinco campos para cinco surpresas, cada um
+   verdadeiro e nenhum reaproveitável. O que falta não é o sexto campo: é a **leitura da tela**.
 2. **Candidato devolvido morre como texto.** `sem_lugar` já devolve os pools possíveis e
    `buscar_elemento` já devolve os elementos que casam. O aluno lê os nomes e tem de digitar a
    resposta — num produto em que ele está falando, de mãos livres, olhando o desenho.

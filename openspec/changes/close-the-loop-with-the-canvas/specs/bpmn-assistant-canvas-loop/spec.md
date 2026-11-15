@@ -17,6 +17,15 @@ desenho **depois** da operação, produzida a partir do registro vivo da página
 - **WHEN** o diagrama tem mais elementos do que cabe na leitura
 - **THEN** a leitura é cortada no teto declarado e diz que foi cortada
 
+#### Scenario: O primeiro pool reestrutura o diagrama
+- **WHEN** `criar_pool` é chamado num diagrama que ainda não tem pool
+- **THEN** a leitura diz que o diagrama agora é uma colaboração e quantas formas passaram a estar
+  dentro do pool novo
+
+#### Scenario: A primeira raia nasce em dupla
+- **WHEN** `criar_raia` cria a primeira faixa de um pool
+- **THEN** a leitura diz quantas faixas esse pool tem agora
+
 ### Requirement: A página fala com o modelo sem virar o aluno
 O sistema SHALL permitir que a página envie um fato ao modelo com a marca `(da página)`, e SHALL
 NOT apresentar esse texto como mensagem do aluno nem deixá-lo alterar o idioma da resposta.

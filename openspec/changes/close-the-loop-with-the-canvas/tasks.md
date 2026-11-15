@@ -13,8 +13,11 @@
 ## 2. O resultado da escrita carrega a leitura
 
 - [ ] 2.1 `criar_elemento`, `conectar`, `renomear`, `mover`, `alinhar`, `trocar_tipo`, `destacar`,
-      `desfazer` e `remover` passam a devolver `tela`.
-- [ ] 2.2 O `avisoDeRamo` deixa de ser campo próprio: o fato passa a sair da leitura (um lugar só).
+      `desfazer`, `remover`, `criar_pool` e `criar_raia` passam a devolver `tela`.
+- [ ] 2.2 Os **cinco** campos de ocasião saem, cada um com substituto declarado na leitura:
+      `ramo` e `avisoDeRamo` (ramo paralelo), `virouColaboracao` e `adotou` (a raiz virou
+      colaboração e o pool adotou o desenho — forma, não conexão) e `criouAFaixaDoQueJaExistia`
+      (o pool passou a ter duas faixas). Teste por campo: o fato continua chegando ao modelo.
 - [ ] 2.3 Testes de escrita atualizados; nenhum campo existente some sem substituto.
 - [ ] 2.4 Medir o tamanho que isso acrescenta ao turno (entra na conta de contexto por turno).
 

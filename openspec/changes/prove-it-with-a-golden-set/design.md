@@ -31,6 +31,12 @@ A camada determinística roteiriza o modelo (o dublê de socket devolve `toolCal
 `serverContent` como o servidor devolve). Ela não mede inteligência — mede **governança**: o que
 foi oferecido, o que foi recusado, o que foi executado, o que voltou. É barata e roda sempre.
 
+Quando a pergunta precisa do **bpmn-js de verdade** (a vaga, a adoção do pool, a faixa que nasce
+em dupla), a camada determinística roda no navegador em vez de em Node, dirigindo a ferramenta por
+`__bpmnAssist.ferramenta(nome, args)` — o caminho do modelo, com a mesma política e o mesmo
+diário, sem abrir sessão Live. Foi assim que os portões de geometria e de pool/raia ficaram verdes
+sem gastar um turno de cota, e é assim que a maior parte deste acervo se verifica de graça.
+
 A camada ao vivo mede a parte que é do modelo. É cara: cada pergunta é uma sessão, e a cota é o
 teto prático (T16). Por isso ela roda por lote, com descanso entre sessões, e o resultado é
 carimbado com data.

@@ -32,12 +32,20 @@ pergunta "o que muda a próxima decisão?":
 - o diagrama é processo ou colaboração, e quantos elementos tem;
 - o que está selecionado (é com isso que o aluno diz "esse aqui");
 - do elemento tocado: entradas e saídas, e se ficou como ramo;
+- se o elemento tocado é (ou está dentro de) um pool: **quantas faixas esse pool tem**;
 - **pontas soltas**: o que não liga em nada (é o defeito mais comum de aluno, e o agente hoje não
   enxerga);
 - uma linha de regra: o que o agente não faz sem perguntar.
 
 Alternativa recusada: devolver o XML ou a lista inteira. É o erro H4 de novo — 22 KB por turno
 para o modelo reler o que já sabe, pago pela cota do aluno.
+
+Esses dois itens não são enfeite: com "processo ou colaboração" e "quantas faixas", os cinco
+campos de ocasião (`ramo`, `avisoDeRamo`, `virouColaboracao`, `adotou`,
+`criouAFaixaDoQueJaExistia`) somem **com substituto** — o fato continua chegando ao modelo, só que
+pela mesma porta de sempre. Ao contar o que entrou num pool novo, a leitura conta **forma, não
+conexão**: o bpmn-js leva as setas junto, e somá-las daria um número que não bate com o que o
+aluno vê.
 
 ### 3. Mensagem da página é um TIPO, não um texto esperto
 
