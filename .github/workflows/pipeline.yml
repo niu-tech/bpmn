@@ -93,6 +93,28 @@ jobs:
           fi
           echo "nenhuma credencial nos arquivos servidos"
 
+      # Guarda de MODO. O bundle servido nao pode ser build de desenvolvimento.
+      #
+      # Em 2026-11-15 o site ficou no ar com o devtool `eval` -- 3.826.419 bytes, 555 `eval()` e o
+      # aviso do proprio webpack dentro do arquivo publicado -- porque
+      # `npm run build -- --mode production` pregava a flag no FIM de uma CADEIA de comandos, e ela
+      # caiu no script do acervo em vez do webpack. CI verde, imagem verde, smoke test verde: o
+      # unico sinal era o tamanho. Esta etapa transforma esse sinal em reprovacao.
+      - name: The shipped bundle is a production build
+        run: |
+          if grep -qiI 'the "eval" devtool has been used' ./shipped/bundle.js; then
+            echo "::error::o bundle servido esta em modo desenvolvimento (devtool eval)"
+            exit 1
+          fi
+          tamanho=$(stat -c%s ./shipped/bundle.js)
+          echo "bundle servido: $tamanho bytes"
+          # producao mede ~1,0 MB; desenvolvimento, ~3,8 MB. O teto fica no meio, com folga para
+          # o bundle crescer de verdade sem virar alarme falso.
+          if [ "$tamanho" -gt 2000000 ]; then
+            echo "::error::bundle servido com $tamanho bytes -- a minificacao provavelmente nao rodou"
+            exit 1
+          fi
+
   pages:
     name: Publish provisional URL (GitHub Pages)
     runs-on: ubuntu-latest
