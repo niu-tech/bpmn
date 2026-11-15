@@ -566,7 +566,7 @@ async function run() {
   // baseline pre-P2, que nao tem erro nenhum no console. O ajudante e um overlay fixo e nao
   // precisa existir antes do diagrama. Falhar aqui nao pode levar o modelador junto.
   try {
-    mountAssistant({ modelador: modeler });
+    mountAssistant({ modelador: modeler, diagramaBase: DEFAULT_DIAGRAM_URL });
   } catch (e) {
     console.warn("Ajudante indisponivel:", e);
   }

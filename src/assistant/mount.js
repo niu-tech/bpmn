@@ -60,7 +60,21 @@ function reservarRodape(root) {
  * ENXERGAR a tela (fase F3): sem ele o ajudante monta igual e conversa sobre BPMN em geral, com
  * o diagrama chegando vazio ao prompt — que era o estado até aqui (dívida T7).
  */
-export function mountAssistant({ container = document.body, debug = false, pagina = 'modelador', modelador = null } = {}) {
+export function mountAssistant({
+  container = document.body,
+  debug = false,
+  pagina = 'modelador',
+  modelador = null,
+  /**
+   * O diagrama que ESTA página abre quando não há nada salvo. Quem sabe é a página, e por isso
+   * ela passa: duplicar a constante aqui foi o defeito de 2026-11-15, quando o reset da corrida
+   * ao vivo recarregou o `diagram.bpmn` (um starter com um evento de início e nada mais) em vez
+   * do `pizza-collaboration.bpmn` — e metade do acervo passou a reprovar por **fixture**:
+   * *"Não encontrei as tarefas 'Bake the pizza'..."*, que é a resposta CERTA para o diagrama
+   * errado. Sem este parâmetro, `recarregarDiagrama` recusa em vez de adivinhar.
+   */
+  diagramaBase = null,
+} = {}) {
   if (document.documentElement.dataset[MARK] === '1') return null;
   document.documentElement.dataset[MARK] = '1';
 
@@ -197,7 +211,8 @@ export function mountAssistant({ container = document.body, debug = false, pagin
      * Diagnóstico: importa o XML base pelo mesmo `importXML` do produto e re-sincroniza o olho,
      * para o modelo não seguir falando do diagrama anterior.
      */
-    async recarregarDiagrama(url = 'diagram.bpmn') {
+    async recarregarDiagrama(url = diagramaBase) {
+      if (!url) throw new Error('esta página não declarou `diagramaBase`: não há base para voltar');
       const resposta = await fetch(new URL(url, location.href).href);
       if (!resposta.ok) throw new Error(`diagrama base não veio: ${resposta.status}`);
       await modelador.importXML(await resposta.text());

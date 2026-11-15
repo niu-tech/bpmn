@@ -75,7 +75,7 @@ let ajudante = null;
 
   // Ajudante BPMN. A barra da simulacao vive em cima a direita; o ajudante, em baixo a direita.
   try {
-    ajudante = mountAssistant({ pagina: 'viewer', modelador: viewer });
+    ajudante = mountAssistant({ pagina: 'viewer', modelador: viewer, diagramaBase: DEFAULT_DIAGRAM_URL });
   } catch (e) {
     console.warn('Ajudante indisponivel:', e);
   }

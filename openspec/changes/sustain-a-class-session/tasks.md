@@ -111,7 +111,22 @@
       retomada); `session-manager` — com a conversa aberta a sonda **não cria sessão nova**, sem
       sessão ela abre a dela e fecha, e a retomada não reenvia histórico enquanto a queda sem
       alça reenvia.
-- [x] 7.5 **A corrida guarda a própria sessão** (`artifacts/avaliacao/sessao-ao-vivo-<perfil>-*.json`)
+- [x] 7.5 **Prova ao vivo, lida do diário salvo** (`artifacts/avaliacao/sessao-ao-vivo-modelador-2026-11-15T17-16-44-689Z.json`,
+      categoria geometria): `out.setup = 1` para **cinco** perguntas — uma sessão, como um aluno
+      teria, no lugar das cinco de antes — e `ws.resumption = 1` aos **572 ms**, ou seja o
+      servidor passou a mandar a alça logo depois do setup. Essa alça **nunca chegava** antes
+      desta change: o setup não a pedia. Custo do lote: 34 826 tokens em 5 turnos (34 577 de
+      entrada — o contexto acumula, que é exatamente o que a 5.2 mede).
+
+      ⚠ **E a mesma corrida achou um defeito do RESET**, que vale registrar porque é o mesmo modo
+      de falha do acervo em 3.2: `recarregarDiagrama` nasceu com `'diagram.bpmn'` por padrão — o
+      *starter* com um evento de início e nada mais — enquanto a página abre
+      `pizza-collaboration.bpmn`. A corrida inteira passou a responder a verdade sobre o diagrama
+      ERRADO (*"não encontrei as tarefas 'Bake the pizza'..."*, geometria 0/5) e isso **parecia**
+      regressão de produto. Quem sabe qual é o diagrama base é a página, então ela passa
+      (`mountAssistant({ diagramaBase })`) e o verbo **recusa** em vez de adivinhar. Com a base
+      certa: geometria **5/5**.
+- [x] 7.6 **A corrida guarda a própria sessão** (`artifacts/avaliacao/sessao-ao-vivo-<perfil>-*.json`)
       e a corrida imprime quantos `out.setup` houve no lote. É o que transforma "usamos uma sessão
       só" em número conferido por quem lê, e não em narração nossa; `ws.resumption` no mesmo
       diário diz quando houve retomada.
