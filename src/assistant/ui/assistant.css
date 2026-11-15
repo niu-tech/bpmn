@@ -666,3 +666,47 @@
    porque é ele que o aluno aperta por reflexo quando não leu a frase inteira. */
 .bpmn-assist__confirma .bpmn-assist__btn--perigo { background: var(--cor-erro); color: #fff; }
 .bpmn-assist__confirma .bpmn-assist__btn--perigo:hover { background: #991b1b; }
+
+/* ---------------------------------------------------------------- candidatos clicaveis (tarefa 4)
+ *
+ * Ambiguidade ("em qual destes dois pools?") e a unica recusa em que a proxima decisao nao e do
+ * modelo nem nossa: e do aluno. Os botoes nascem DENTRO da bolha da ferramenta, para a escolha
+ * pertencer aquele momento da conversa.
+ *
+ * ⚠ `font-style: normal` porque a bolha de ferramenta e italica: botao em italico parece texto.
+ */
+.bpmn-assist__cands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+.bpmn-assist__cand {
+  font: inherit;
+  font-style: normal;
+  font-size: .8rem;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+  color: #1e40af;
+  cursor: pointer;
+  /* Alvo de toque: o aluno de celular escolhe com o dedo. */
+  min-height: 32px;
+}
+.bpmn-assist__cand:hover { background: #dbeafe; }
+.bpmn-assist__cand:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+/* Escolhido: fica na tela como registro do que ele clicou, sem poder ser clicado de novo. */
+.bpmn-assist__cand--escolhido { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.bpmn-assist__cand:disabled { opacity: .55; cursor: default; }
+
+/* A nota da PAGINA: fato da tela, nao fala de ninguem. Discreta de proposito — ela informa o
+ * modelo, e o aluno so precisa saber que ela existiu. */
+.bpmn-assist__msg--pagina {
+  color: #475569;
+  background: rgba(100, 116, 139, 0.08);
+  border-radius: 10px;
+  padding: 6px 10px;
+  text-align: left;
+  font-style: italic;
+}

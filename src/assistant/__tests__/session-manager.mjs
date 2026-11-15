@@ -28,8 +28,18 @@ function fakeLive() {
       get state() { return state; },
       get lastUsage() { return null; },
       start() { state = 'connecting'; opts.onState?.({ state, reason: null }); },
-      // Como a sessao de verdade: devolve a identidade do turno.
-      ask(t, ctx = null) { s.enviados.push({ tipo: 'texto', t, ctx }); return ++s.turnos; },
+      // Como a sessao de verdade: devolve a identidade do turno E ABRE o turno.
+      //
+      // ⚠ O `setState('listening')` não é enfeite do dublê: é o que a `live/session.js` faz dentro
+      // de `ask`. Sem ele o dublê ficava em 'pronto' com uma pergunta em voo — e aí qualquer coisa
+      // que dependa de "o modelo está calado" (a fila da página, por exemplo) media o estado
+      // errado e passava por engano.
+      ask(t, ctx = null) {
+        s.enviados.push({ tipo: 'texto', t, ctx });
+        state = 'listening';
+        opts.onState?.({ state, reason: null });
+        return ++s.turnos;
+      },
       // F3: o contexto viaja por fora do `setup`. O dublê registra os dois frames para o teste
       // poder perguntar O QUE o modelo recebeu, e não só se a chamada aconteceu.
       enviarContexto(texto) { s.enviados.push({ tipo: 'contexto', t: texto }); return true; },
@@ -953,6 +963,10 @@ function montarComDiagrama(extra = {}) {
     selecionado: () => null,
     entradasESaidas: () => ({ entradas: [], saidas: [] }),
     remover: () => { estado.removido = true; },
+    // O clique num candidato DESTACA o elemento: o aluno clicou num nome e o que ele quer saber
+    // é qual é no desenho. Sem estas duas, o destaque falha calado e o teste não veria nada.
+    destacar: ({ els, cores }) => { estado.pintados = els.map((e) => e.id); estado.cor = cores.fill; },
+    corDe: () => ({ fundo: estado.cor ?? null, borda: null }),
     assinar: () => () => {},
   };
   // Tolerância curta: o que se mede aqui é a ordem, não o relógio.
@@ -1055,6 +1069,200 @@ testAsync('ferramenta sem portão não espera por ninguém', async () => {
   const r = (await d.despachar([{ id: 'c1', name: 'descrever_diagrama', args: {} }]))[0].response;
 
   assert.equal(r.ok, true, 'ler o diagrama nunca precisou de autorização');
+  forgetSecrets();
+});
+
+
+console.log('\n▶ o canal da página (close-the-loop-with-the-canvas)');
+
+/** O que o modelo de fato recebeu pelo canal — frames de contexto com a marca. */
+const notasEnviadas = (live) => live.ultima.enviados
+  .filter((e) => e.tipo === 'contexto' && e.t.startsWith('(da página)'))
+  .map((e) => e.t);
+
+testAsync('a nota sai marcada, vira nota de SISTEMA e nunca bolha de aluno', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+
+  assert.equal(session.anunciarNaPagina('o aluno selecionou "Assar a pizza" (task) no desenho.'), true);
+
+  const notas = notasEnviadas(live);
+  assert.equal(notas.length, 1, 'o modelo recebeu a nota');
+  assert.match(notas[0], /^[(]da página[)] o aluno selecionou/, 'a marca é posta pela sessão, não pelo chamador');
+
+  const bolha = session.messages.at(-1);
+  assert.equal(bolha.role, 'system', 'o aluno não disse isso: a bolha é nota de sistema');
+  assert.equal(bolha.kind, 'pagina');
+  assert.equal(session.messages.filter((m) => m.role === 'user').length, 0, 'nenhuma bolha de aluno foi criada');
+  forgetSecrets();
+});
+
+testAsync('nota com turno aberto NÃO atropela: espera a brecha entre turnos', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('o que é um gateway?');          // turno aberto: o estado deixa de ser 'pronto'
+
+  session.anunciarNaPagina('o aluno rodou a simulação do diagrama.');
+  assert.equal(notasEnviadas(live).length, 0, 'nada sai enquanto o turno está aberto');
+  assert.ok(session.notaDaPagina, 'a nota fica pendente');
+
+  live.ultima.texto('um gateway exclusivo escolhe um caminho.', { complete: true });
+  live.ultima.fimDeTurno();                    // a brecha
+  assert.equal(notasEnviadas(live).length, 1, 'saiu na brecha entre turnos');
+  forgetSecrets();
+});
+
+testAsync('o aluno falou primeiro: a nota é DESCARTADA, não enfileirada para depois', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('primeira pergunta');            // turno aberto
+
+  session.anunciarNaPagina('o aluno selecionou "Assar a pizza" (task) no desenho.');
+  assert.ok(session.notaDaPagina, 'pendente');
+
+  // ⚠ A vez é dele. Perguntar algo novo mata o fato velho: entregá-lo depois faria o agente
+  // responder sobre um clique que o aluno já esqueceu.
+  session.ask('na verdade, me explica raia');
+  assert.equal(session.notaDaPagina, null, 'a nota morreu quando ele falou');
+
+  live.ultima.fimDeTurno();
+  assert.equal(notasEnviadas(live).length, 0, 'ela nunca chegou ao modelo');
+  const descartes = session.diagnostics.events.filter((e) => e.key === 'pagina.descartou');
+  assert.equal(descartes.length, 1, 'o diário registra o descarte com o motivo');
+  forgetSecrets();
+});
+
+testAsync('fato velho não vira pergunta fora de hora: expira', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('pergunta');
+
+  session.anunciarNaPagina('o aluno desfez a última mudança (Ctrl+Z).');
+  // Envelhece a nota à mão: o que se mede é o PRAZO, e relógio falso para 45 s seria teatro.
+  const pendente = session.notaDaPagina;
+  assert.ok(pendente.ate > Date.now(), 'nasce com prazo no futuro');
+
+  const { session: s2, live: l2 } = montarComDiagrama();
+  await s2.connect('texto');
+  l2.ultima.pronta();
+  s2.ask('pergunta');
+  s2.anunciarNaPagina('fato velho');
+  // 45 s depois, do ponto de vista da fila.
+  const original = Date.now;
+  Date.now = () => original() + 46000;
+  try {
+    l2.ultima.fimDeTurno();
+  } finally {
+    Date.now = original;
+  }
+  assert.equal(notasEnviadas(l2).length, 0, 'nota vencida não é entregue');
+  assert.equal(s2.notaDaPagina, null);
+  assert.ok(s2.diagnostics.events.some((e) => e.key === 'pagina.descartou'), 'e o descarte é registrado');
+  forgetSecrets();
+});
+
+testAsync('uma nota por vez: a nova substitui a velha', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('pergunta');
+
+  session.anunciarNaPagina('o aluno selecionou A.');
+  session.anunciarNaPagina('o aluno selecionou B.');
+  live.ultima.fimDeTurno();
+
+  const notas = notasEnviadas(live);
+  assert.equal(notas.length, 1, 'uma só chegou');
+  assert.match(notas[0], /selecionou B/, 'a última é a que vale — a de antes já não é o estado da tela');
+  forgetSecrets();
+});
+
+testAsync('sem sessão não há a quem contar, e nada fica guardado', async () => {
+  const { session } = montarComDiagrama();
+  assert.equal(session.anunciarNaPagina('o aluno selecionou A.'), false);
+  assert.equal(session.notaDaPagina, null);
+  forgetSecrets();
+});
+
+testAsync('encerrar a sessão derruba a nota pendente', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('pergunta');
+  session.anunciarNaPagina('o aluno selecionou A.');
+
+  await session.stop();
+
+  assert.equal(session.notaDaPagina, null, 'a nota não atravessa para a sessão seguinte');
+  forgetSecrets();
+});
+
+console.log('\n▶ ambiguidade resolvida em um clique');
+
+testAsync('escolher um candidato manda a escolha MARCADA e destaca no desenho', async () => {
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+
+  const ok = session.escolherCandidato({ id: 'Task_1', nome: 'Assar a pizza', tipo: 'Task', rotulo: 'Assar a pizza (task)' });
+  assert.equal(ok, true);
+  // Deixa o destaque (que corre pelo caminho do modelo) terminar.
+  await new Promise((r) => setTimeout(r, 10));
+
+  const enviado = live.ultima.enviados.filter((e) => e.tipo === 'texto').at(-1);
+  assert.match(enviado.t, /^\(escolhido no chat\) Assar a pizza \(task\)/, 'o modelo sabe que foi um clique, nao digitacao');
+
+  const bolha = session.messages.filter((m) => m.role === 'user').at(-1);
+  assert.equal(bolha.via, 'escolha', 'a conversa nao mente sobre o gesto');
+  assert.equal(bolha.text, 'Assar a pizza (task)');
+  assert.deepEqual(estado.pintados, ['Task_1'], 'o elemento escolhido aparece destacado');
+  // E a bolha de espera e a mesma de qualquer pergunta: a escolha abre um turno.
+  assert.ok(session.messages.at(-1).rodando);
+  forgetSecrets();
+});
+
+testAsync('clicar num candidato NAO abre o portao de confirmacao', async () => {
+  // ⚠ A invariante que liga as duas changes: clicar em "Pizza vendor" para desambiguar um pool
+  // nao e o aluno autorizando apagar nada. Se o clique contasse como fala, um candidato clicado
+  // viraria consentimento para a proxima remocao — e o aluno nunca disse sim a ela.
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  // O modelo tenta apagar: recusado, como deve ser.
+  assert.equal((await apagar(d, 'c1')).erro, 'falta_confirmacao');
+
+  // O aluno clica num candidato (outra conversa, outro assunto).
+  session.escolherCandidato({ id: 'Task_1', rotulo: 'Assar a pizza' });
+  await new Promise((r) => setTimeout(r, 10));
+
+  // E a remocao continua recusada.
+  assert.equal((await apagar(d, 'c2')).erro, 'falta_confirmacao', 'um clique nao e um sim');
+  assert.equal(estado.removido, false);
+  forgetSecrets();
+});
+
+testAsync('sem sessao, escolher avisa em vez de perder o clique', async () => {
+  const { session } = montarComDiagrama();
+  assert.equal(session.escolherCandidato({ id: 'Task_1', rotulo: 'Assar' }), false);
+  assert.match(session.messages.at(-1).text, /conecte antes/i);
+  forgetSecrets();
+});
+
+testAsync('candidato vazio nao vira turno', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  const antes = live.ultima.enviados.length;
+
+  assert.equal(session.escolherCandidato({}), false);
+  assert.equal(session.escolherCandidato(null), false);
+  assert.equal(live.ultima.enviados.length, antes);
   forgetSecrets();
 });
 

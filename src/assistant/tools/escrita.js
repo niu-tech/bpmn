@@ -20,7 +20,7 @@
 // ponytail: funções sobre a camada fina, como as de leitura. Sem transação, sem fila de
 // comandos própria — o `commandStack` do bpmn-js já é as duas coisas.
 
-import { assinaturaDoDiagrama, estadoDaTela, instantaneoDaTela } from './leitura.js';
+import { assinaturaDoDiagrama, estadoDaTela, fatosDaTela, instantaneoDaTela } from './leitura.js';
 
 export const ERROS_ESCRITA = Object.freeze({
   SEM_DIAGRAMA: 'sem_diagrama',
@@ -62,9 +62,18 @@ const CORES = Object.freeze({
 });
 export const CORES_DESTAQUE = Object.freeze(Object.keys(CORES));
 
-function nomeado(nome, detalhe) {
+/**
+ * Erro NOMEADO, e — quando a recusa é por AMBIGUIDADE — com os candidatos em forma.
+ *
+ * ⚠ Os nomes já iam no texto da recusa, e o modelo lia bem. Quem não lê prosa é a TELA: o aluno
+ * ouvia "em qual pool?" e tinha de digitar a resposta, num produto em que ele está falando, de
+ * mãos livres, olhando o desenho. Os candidatos estruturados são o que o painel transforma em
+ * botão (change `close-the-loop-with-the-canvas`, tarefa 4).
+ */
+function nomeado(nome, detalhe, candidatos = null) {
   const e = new Error(detalhe ? `${nome}: ${detalhe}` : nome);
   e.nome = nome;
+  if (candidatos?.length) e.candidatos = candidatos;
   return e;
 }
 
@@ -143,6 +152,15 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
    */
   const retrato = () => instantaneoDaTela(acesso);
   const tela = (tocado, antes) => estadoDaTela(acesso, { tocado, antes });
+  /**
+   * Os mesmos fatos, EM FORMA, para a linha que o aluno lê na tela.
+   *
+   * ⚠ Só nas três ferramentas cujo desenho se reorganiza (ramo paralelo, pool que adota o que já
+   * existia, primeira raia que nasce em dupla). Não é o sexto campo de ocasião: é UM campo, com
+   * forma declarada, produzido pela MESMA leitura — e existe porque o apresentador perdeu essas
+   * três frases quando os cinco campos saíram, e a tela do aluno emagreceu em silêncio.
+   */
+  const fatos = (tocado, antes) => fatosDaTela(acesso, { tocado, antes });
 
   const exigirElemento = (id, papel) => {
     const el = acesso.porId(id);
@@ -175,7 +193,11 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
           const r = resumir(l);
           return r.nome ? `"${r.nome}" (${r.id})` : `${r.tipo} ${r.id}`;
         }).join(', ');
-        throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `há mais de um lugar possível — diga em qual com dentroDe: ${nomes}`);
+        throw nomeado(
+          ERROS_ESCRITA.SEM_LUGAR,
+          `há mais de um lugar possível — diga em qual com dentroDe: ${nomes}`,
+          lugares.map(resumir),
+        );
       }
     }
     return acesso.criarSolto({ tipo: tipoBpmn, dentro });
@@ -280,6 +302,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
         total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
         // O ramo paralelo (a âncora já tinha saída) sai daqui: a leitura olha o DESENHO.
         tela: tela(confirmado.id, retratoAntes),
+        fatos: fatos(confirmado.id, retratoAntes),
       };
     },
 
@@ -360,6 +383,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
         // A raiz virar colaboração e o pool adotar o desenho são fatos do DESENHO: saem da leitura,
         // que conta forma e não conexão (o bpmn-js leva as setas junto).
         tela: tela(confirmado.id, retratoAntes),
+        fatos: fatos(confirmado.id, retratoAntes),
       };
     },
 
@@ -397,7 +421,11 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
             const r = resumir(p);
             return r.nome ? `"${r.nome}" (${r.id})` : r.id;
           }).join(', ');
-          throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `há mais de um pool — diga em qual com dentroDe: ${nomes}`);
+          throw nomeado(
+            ERROS_ESCRITA.SEM_LUGAR,
+            `há mais de um pool — diga em qual com dentroDe: ${nomes}`,
+            pools.map(resumir),
+          );
         }
         [alvo] = pools;
       }
@@ -435,6 +463,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
         // As DUAS faixas do primeiro pedido (o `addLane` cria a do que já estava lá) são o
         // desenho mudando: quem conta isso é a leitura.
         tela: tela(confirmada.id, retratoAntes),
+        fatos: fatos(confirmada.id, retratoAntes),
       };
     },
 

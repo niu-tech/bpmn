@@ -263,4 +263,39 @@ testAsync('sem portão declarado, nada espera — o default não pode travar o p
   assert.equal(perguntou, 0, 'ferramenta sem portão nem consulta');
 });
 
+testAsync('a recusa por ambiguidade ATRAVESSA com os candidatos', async () => {
+  // Change `close-the-loop-with-the-canvas`, tarefa 4: a unica recusa em que a proxima decisao
+  // nao e do modelo nem nossa, e do aluno. O painel precisa da lista em forma para desenhar um
+  // botao por candidato; o modelo continua recebendo o texto, que ja nomeava os dois.
+  const d = createToolDispatcher({
+    executores: {
+      criar_elemento: async () => {
+        const e = new Error('sem_lugar: ha mais de um lugar possivel');
+        e.nome = 'sem_lugar';
+        e.candidatos = [{ id: 'Pool_a', nome: 'Cliente', tipo: 'Participant' }, { id: 'Pool_b', nome: 'Loja', tipo: 'Participant' }];
+        throw e;
+      },
+    },
+    permitido: () => true,
+  });
+
+  const r = (await d.despachar([{ id: 'c1', name: 'criar_elemento', args: {} }]))[0].response;
+
+  assert.equal(r.ok, false);
+  assert.equal(r.erro, ERROS.FALHOU);
+  assert.deepEqual(r.candidatos.map((c) => c.id), ['Pool_a', 'Pool_b']);
+  assert.match(r.motivo, /mais de um lugar/);
+});
+
+testAsync('falha comum NAO ganha campo de candidatos', async () => {
+  const d = createToolDispatcher({
+    executores: { criar_elemento: async () => { throw new Error('tipo_invalido: banana'); } },
+    permitido: () => true,
+  });
+
+  const r = (await d.despachar([{ id: 'c1', name: 'criar_elemento', args: {} }]))[0].response;
+
+  assert.equal('candidatos' in r, false, 'botao que aparece sem haver escolha e ruido');
+});
+
 report('despacho');

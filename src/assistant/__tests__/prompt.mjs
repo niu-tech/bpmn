@@ -255,4 +255,39 @@ test('modelar QUALQUER assunto continua sendo BPMN (recusa nao pode comer o prod
   assert.match(renderizar(ctxTexto), /pizzaria, hospital, financeiro/);
 });
 
+console.log('\n▶ a página fala, e o portão espera');
+
+test('a regra do "(" existe, e manda AGIR em vez de narrar', () => {
+  // Tarefa 3.5 da change `close-the-loop-with-the-canvas`. Sem esta regra o modelo lê a nota em
+  // voz alta ("a página informou que você selecionou a tarefa X") — o aluno acabou de clicar
+  // nela, ele sabe — ou pior: responde à nota como se fosse pergunta.
+  const p = renderizar(ctxTexto);
+  assert.match(p, /\(da página\)/, 'a marca é dita ao modelo, não só posta no texto');
+  assert.match(p, /não é o aluno falando/i);
+  assert.match(p, /não responda a ela/i);
+  assert.match(p, /não muda a sua língua/i);
+});
+
+test('a regra do portão manda PERGUNTAR e ESPERAR, nos dois perfis', () => {
+  // Tarefa 5.2 da change `spoken-confirmation-gates`. A recusa já chega estruturada no resultado
+  // da ferramenta; esta prosa existe porque o modelo tende a perguntar E seguir no mesmo turno.
+  for (const p of [renderizar(ctxTexto), renderizar(ctxVoz)]) {
+    assert.match(p, /falta_confirmacao/);
+    assert.match(p, /ESPERE a resposta/);
+    assert.match(p, /nunca diga que fez/i);
+  }
+});
+
+test('as duas seções novas não estouram o teto do prompt estável', () => {
+  // ⚠ O teto é do ORÇAMENTO, não do gosto: cada caractere do tier estável viaja no `setup` de
+  // toda sessão e é pago pela cota do aluno. 5 KB é o piso de folga que a medição de contexto
+  // (change `sustain-a-class-session`) assume para o volátil caber.
+  const estavel = renderizar(resolverContexto({ modo: 'voz' }));
+  assert.ok(estavel.length < 5000, `o prompt estável está com ${estavel.length} caracteres`);
+  // E as duas seções são CURTAS: regra que ninguém lê inteira não é regra.
+  const porId = new Map(renderizarSecoes(ctxVoz).map((s) => [s.id, s.texto]));
+  assert.ok(porId.get('pagina').length < 600, 'a regra da página cabe num parágrafo');
+  assert.ok(porId.get('confirmar').length < 600, 'a regra do portão cabe num parágrafo');
+});
+
 report('prompt');

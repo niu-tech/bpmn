@@ -85,8 +85,9 @@ const COMO_MOSTRAR = {
         + ' entre ' + lado(r.inseridoEntre.de) + ' e ' + lado(r.inseridoEntre.para);
     }
     // ⚠ Ramo: a âncora já tinha saída, então isto NÃO entrou na linha — e o aluno precisa saber,
-    // senão ele olha a tela e acha que o ajudante desenhou torto de graça.
-    const ramo = r.ramo ? ' (como ramo paralelo)' : '';
+    // senão ele olha a tela e acha que o ajudante desenhou torto de graça. O fato vem de `fatos`,
+    // que a leitura produz: o campo `ramo` de ocasião saiu na change close-the-loop-with-the-canvas.
+    const ramo = r.fatos?.ramo ? ' (como ramo paralelo)' : '';
     return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '') + ramo;
   },
 
@@ -95,8 +96,10 @@ const COMO_MOSTRAR = {
     const nome = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
     // ⚠ A reestruturação entra na linha: o aluno vê o desenho inteiro mudar de lugar, e a linha
     // é o único lugar da tela que explica por quê.
-    if (r.virouColaboracao) {
-      const adotou = r.adotou ? ' e pôs ' + plural(r.adotou, 'elemento', 'elementos') + ' dentro' : '';
+    // O desenho inteiro pulando para dentro do pool é a maior surpresa visual que o agente
+    // causa. A linha é o único lugar da tela que explica por quê.
+    if (r.fatos?.adotou !== null && r.fatos?.adotou !== undefined) {
+      const adotou = r.fatos.adotou ? ' e pôs ' + plural(r.fatos.adotou, 'elemento', 'elementos') + ' dentro' : '';
       return 'criei o pool ' + nome + adotou;
     }
     return 'criei o pool ' + nome;
@@ -107,7 +110,7 @@ const COMO_MOSTRAR = {
     const nome = r.criada.nome ? QUOTE + r.criada.nome + QUOTE : r.criada.id;
     const onde = r.em?.nome ? ' em ' + QUOTE + r.em.nome + QUOTE : '';
     // Duas faixas quando era a primeira: dizer isso evita o aluno achar que apareceu lixo.
-    const par = r.criouAFaixaDoQueJaExistia ? ' (e uma faixa para o que já estava lá)' : '';
+    const par = r.fatos?.faixas?.length ? ' (e uma faixa para o que já estava lá)' : '';
     return 'criei a raia ' + nome + onde + par;
   },
 
@@ -191,6 +194,45 @@ const COMO_MOSTRAR = {
     ? `anotei${e?.categoria ? ` (${e.categoria})` : ''}`
     : 'tentei anotar'),
 };
+
+/** Quantos candidatos viram botão. Mais que isto é uma lista para ler, não uma escolha para fazer. */
+const MAX_CANDIDATOS = 6;
+
+/**
+ * Os CANDIDATOS de um resultado de ferramenta — o que o aluno pode escolher com um clique.
+ *
+ * Por que existe (change `close-the-loop-with-the-canvas`, tarefa 4): `sem_lugar` já devolvia os
+ * pools possíveis e `buscar_elemento` já devolvia os elementos que casam — e isso morria como
+ * texto. O aluno lia os nomes e tinha de digitar a resposta, num produto em que ele está falando,
+ * de mãos livres, olhando o desenho.
+ *
+ * ⚠ Esta função NÃO decide nada e não fala com o modelo: ela lê o resultado que já existe. Um
+ * resultado sem ambiguidade devolve lista vazia — botão que aparece sem haver escolha é ruído.
+ */
+export function candidatosDoResultado(nome, resposta) {
+  const envelope = resposta && typeof resposta === 'object' ? resposta : {};
+  const resultado = 'resultado' in envelope ? envelope.resultado : envelope;
+
+  // Recusa por ambiguidade: os candidatos vêm do erro nomeado, pelo despachante.
+  const daRecusa = Array.isArray(envelope.candidatos) ? envelope.candidatos : null;
+  // Busca que achou mais de um: a escolha é do aluno, e ele quer VER qual é qual no desenho.
+  const daBusca = nome === 'buscar_elemento' && Array.isArray(resultado?.elementos) && resultado.elementos.length > 1
+    ? resultado.elementos
+    : null;
+
+  const lista = daRecusa ?? daBusca ?? [];
+  return lista
+    .filter((c) => c && (c.id || c.nome))
+    .slice(0, MAX_CANDIDATOS)
+    .map((c) => ({
+      id: c.id ?? null,
+      nome: c.nome ?? null,
+      tipo: c.tipo ?? null,
+      // O rótulo é o que vai no botão E no que o aluno "diz" ao escolher: um texto só, para a
+      // tela e a conversa não discordarem sobre o que foi escolhido.
+      rotulo: c.nome ? `${c.nome}${c.tipo ? ` (${String(c.tipo).toLowerCase()})` : ''}` : (c.id ?? '?'),
+    }));
+}
 
 /** Enquanto roda: o aluno precisa saber que há algo acontecendo, antes de haver resultado. */
 export function linhaDeInicio(nome) {

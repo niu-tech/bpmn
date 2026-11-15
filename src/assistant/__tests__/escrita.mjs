@@ -844,6 +844,69 @@ testAsync('colaboração com dois pools: a ferramenta PERGUNTA em qual, e não d
   assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'createShape'), []);
 });
 
+testAsync('a leitura descreve o REGISTRO, não os argumentos da chamada', async () => {
+  // Tarefa 1.3 da change `close-the-loop-with-the-canvas`. O ponto inteiro da leitura é não ser
+  // uma paráfrase do pedido: a operação é aceita, o registro fica num estado que a chamada não
+  // descreve, e é o registro que o modelo recebe.
+  const falso = criarModeladorFalso();
+  // Alguém já tinha deixado uma tarefa SOLTA no diagrama — o defeito mais comum de aluno, e algo
+  // que nenhum argumento de `criar_elemento` menciona.
+  falso.guardar({
+    id: 'Task_orfa', type: 'bpmn:Task', parent: falso.raiz,
+    businessObject: { name: 'Conferir estoque' }, incoming: [], outgoing: [],
+  });
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  const r = await exec.criar_elemento({ tipo: 'Task', nome: 'Assar a pizza' });
+
+  assert.match(r.tela, /Sem nenhuma ligação:/, 'a ponta solta do registro chegou ao modelo');
+  assert.match(r.tela, /Conferir estoque/, 'inclusive o elemento que a chamada nunca citou');
+  // E a contagem é a do registro, não "criei um": duas formas, a órfã e a nova.
+  assert.match(r.tela, /com 2 formas/);
+});
+
+testAsync('a leitura cabe no turno: medida, não estimada', async () => {
+  // Tarefa 2.4 — toda escrita passou a carregar um parágrafo a mais, e isso é pago pela cota do
+  // aluno. O teto está em `MAX_TELA` (760); o que este teste fixa é o tamanho TÍPICO, que é o
+  // que entra na conta de contexto por turno da change `sustain-a-class-session`.
+  const falso = criarModeladorFalso();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  const inicio = await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Pedido recebido' });
+  const tarefa = await exec.criar_elemento({ tipo: 'Task', nome: 'Assar a pizza', depoisDe: inicio.criado.id });
+
+  console.log(`      (leitura: ${inicio.tela.length} e ${tarefa.tela.length} caracteres)`);
+  assert.ok(tarefa.tela.length <= 760, 'o teto declarado vale');
+  assert.ok(tarefa.tela.length < 400, `a leitura típica ficou em ${tarefa.tela.length} caracteres`);
+  // A linha de regra está sempre lá: é ela que o modelo lê antes de decidir mexer em algo.
+  assert.match(tarefa.tela, /Você não apaga, não move e não troca o tipo/);
+});
+
+testAsync('a recusa por ambiguidade carrega os candidatos EM FORMA, e não só no texto', async () => {
+  // Tarefa 4 da change `close-the-loop-with-the-canvas`. Os nomes já iam no texto e o modelo lia
+  // bem; quem não lê prosa é a TELA. Sem isto, o aluno ouvia "em qual pool?" e tinha de digitar
+  // a resposta — de mãos livres, olhando o desenho.
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  const erro = await exec.criar_elemento({ tipo: 'StartEvent', nome: 'Pedido' }).then(() => null, (e) => e);
+
+  assert.ok(Array.isArray(erro.candidatos), 'a recusa traz a lista');
+  assert.deepEqual(erro.candidatos.map((c) => c.id), ['Pool_cliente', 'Pool_loja']);
+  assert.deepEqual(erro.candidatos.map((c) => c.nome), ['Pizza Customer', 'Pizza vendor']);
+  assert.equal(erro.candidatos[0].tipo, 'Participant');
+});
+
+testAsync('duas raias possíveis: a recusa também traz os pools clicáveis', async () => {
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  const erro = await exec.criar_raia({ nome: 'Atendimento' }).then(() => null, (e) => e);
+
+  assert.equal(erro.nome, ERROS_ESCRITA.SEM_LUGAR);
+  assert.deepEqual(erro.candidatos.map((c) => c.id), ['Pool_cliente', 'Pool_loja']);
+});
+
 testAsync('com `dentroDe`, o elemento nasce DENTRO do pool escolhido', async () => {
   const falso = colaboracaoFalsa();
   const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });

@@ -19,7 +19,7 @@
 import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { portaoDaFerramenta } from './agent/catalog.js';
-import { linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
+import { candidatosDoResultado, linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
 import { criarExecutoresDeLeitura } from './tools/leitura.js';
@@ -210,6 +210,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
   function alunoFalou() {
     epocaDoAluno++;
+    // A vez é dele: o fato que a página ia contar morre aqui, e não espera a próxima brecha.
+    if (notaDaPagina) descartarNota('o aluno falou primeiro');
   }
 
   function portaoRespondido(nome) {
@@ -257,6 +259,74 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     portoes.delete(nome);
     return true;
   }
+
+  /* ---------------------------------------------------------------- o canal da página
+   *
+   * Change `close-the-loop-with-the-canvas`. O aluno age no canvas (clica, importa, dá Ctrl+Z) e
+   * a conversa seguia cega: o contexto só era recalculado na borda do turno seguinte, então ele
+   * dizia "e esse aqui?" e ouvia sobre o elemento anterior.
+   *
+   * Três regras, e as três existem por causa de um defeito previsível:
+   *
+   *  - **marca obrigatória.** O texto sai sempre com `(da página)` e a marca é posta AQUI, não
+   *    por quem chama: uma nota que chegue ao modelo sem marca é indistinguível de fala do aluno,
+   *    e aí a conversa mente sobre quem disse o quê.
+   *  - **a vez é do aluno.** Fila de UM, e ela morre se ele falar antes de sair. Mandar na hora
+   *    faria o agente passar por cima da fala dele — a mesma reclamação que já consertamos no
+   *    áudio, repetida na conversa.
+   *  - **fato velho não vira pergunta.** Prazo declarado: uma seleção de um minuto atrás,
+   *    contada agora, chega como pergunta fora de hora.
+   *
+   * ⚠ Vai por `enviarContexto` (par user+model FECHADO), e não por `ask`: a nota é informação que
+   * o modelo passa a ter, nunca um turno pedindo resposta. Sugestão proativa é outra decisão
+   * (E2/F8b) e precisa do portão de confirmação — aqui a página só CONTA. */
+
+  /** A marca que faz a nota ser nota. Vive num lugar só, e o prompt fala dela. */
+  const MARCA_DA_PAGINA = '(da página)';
+
+  /** Prazo da nota pendente. Passou disto, o fato é velho e não vale um turno de contexto. */
+  const PRAZO_DA_NOTA_MS = 45000;
+
+  /** `{ texto, epoca, ate }` — uma por vez; a nova substitui a velha. */
+  let notaDaPagina = null;
+
+  function descartarNota(motivo) {
+    if (!notaDaPagina) return false;
+    const texto = notaDaPagina.texto;
+    notaDaPagina = null;
+    diag.record('pagina', 'descartou', `${motivo}: ${texto.slice(0, 60)}`);
+    return true;
+  }
+
+  /** O modelo está calado e sem turno aberto? É a única hora em que a nota pode sair. */
+  const momentoCalado = () => Boolean(session) && state === 'ready';
+
+  function escoarNota() {
+    if (!notaDaPagina) return false;
+    if (notaDaPagina.epoca !== epocaDoAluno) return descartarNota('o aluno falou primeiro') && false;
+    if (Date.now() > notaDaPagina.ate) return descartarNota('passou do prazo') && false;
+    if (!momentoCalado()) return false;
+
+    const { texto } = notaDaPagina;
+    notaDaPagina = null;
+    const foi = session.enviarContexto(texto);
+    diag.record('pagina', foi ? 'enviou' : 'recusado', texto.slice(0, 80));
+    // A bolha é NOTA DE SISTEMA. Nunca bolha de aluno: ele não disse isso.
+    if (foi) note(texto, 'pagina');
+    return foi;
+  }
+
+  function anunciarNaPagina(frase) {
+    const t = String(frase ?? '').trim();
+    if (!t) return false;
+    if (!session) return false;                 // sem sessão não há a quem contar
+    const texto = t.startsWith(MARCA_DA_PAGINA) ? t : `${MARCA_DA_PAGINA} ${t}`;
+    notaDaPagina = { texto, epoca: epocaDoAluno, ate: Date.now() + PRAZO_DA_NOTA_MS };
+    diag.record('pagina', 'enfileirou', texto.slice(0, 80));
+    escoarNota();
+    return true;
+  }
+
   let teardownInFlight = null;
 
   /**
@@ -493,6 +563,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     // ferramenta esperando um clique que não vem mais prende o turno até o teto, e o aluno vê o
     // ajudante "pensando" para sempre. Fechar é a resposta segura — ninguém apaga nada.
     fecharConfirmacao(false);
+    // Nota pendente numa sessão que morreu não tem para quem ir — e ressuscitá-la na sessão
+    // seguinte contaria um fato de outra conversa.
+    descartarNota('a sessão encerrou');
 
     teardownInFlight = (async () => {
       // Ordem: microfone primeiro (apaga o indicador do navegador na hora), depois som, depois fio.
@@ -689,6 +762,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         if (atividade) {
           atividade.text = linhaDeFim(nome, entrada, resultado);
           atividade.rodando = false;
+          /**
+           * AMBIGUIDADE VIRA BOTÃO (change `close-the-loop-with-the-canvas`, tarefa 4).
+           *
+           * Os candidatos ficam na MENSAGEM da ferramenta, não num estado à parte do painel: eles
+           * pertencem àquele momento da conversa. Uma lista num campo solto sobreviveria à
+           * resposta seguinte, e o aluno clicaria num "em qual pool?" que já não está mais em pé.
+           */
+          const candidatos = candidatosDoResultado(nome, resultado);
+          if (candidatos.length) atividade.candidatos = candidatos;
           atividade = null;
         }
         // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
@@ -795,6 +877,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // Fim de turno é o retrato que interessa: o que acabou de ser falado saiu inteiro?
         if (s === 'ready') speaker?.stats?.();
         setState(s, r);
+        // A brecha ENTRE turnos é a única hora em que a nota da página pode sair sem atropelar
+        // ninguém. Em escuta contínua o turno reabre no quadro seguinte do microfone, então esta
+        // é a janela — e é por isso que o escoamento é dirigido por estado, não por relógio.
+        if (s === 'ready') escoarNota();
         // Pedido do dono (2026-11-11): "clicar em voz já poderia aparecer a parada de voz" — ou
         // seja, escolher voz é começar a falar, não desbloquear mais um botão. Consome a marca
         // UMA vez: `ready` também volta no fim de cada turno, e reabrir o microfone sozinho a
@@ -981,6 +1067,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
     /** O que o modelo mandou guardar nesta aba. Só leitura — escrever é pela ferramenta. */
     get memoria() { return memoria.estado; },
+
+    /**
+     * A PÁGINA conta um fato ao modelo (change `close-the-loop-with-the-canvas`).
+     *
+     * Devolve `true` quando o fato foi ACEITO na fila — não quando chegou ao modelo: a nota pode
+     * esperar a brecha entre turnos, ou morrer porque o aluno falou. Quem quer saber o que de
+     * fato saiu lê o diário (`pagina.enviou` / `pagina.descartou`).
+     */
+    anunciarNaPagina(frase) {
+      return anunciarNaPagina(frase);
+    },
+
+    /** A nota que ainda não saiu, para teste e diagnóstico. Só leitura. */
+    get notaDaPagina() {
+      return notaDaPagina ? { ...notaDaPagina } : null;
+    },
 
     /** O contexto resolvido como o prompt o vê. Para teste e diagnóstico. */
     get contexto() {
@@ -1326,6 +1428,43 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
 
     confirmar(sim) {
       fecharConfirmacao(sim);
+    },
+
+    /**
+     * O aluno ESCOLHEU um candidato clicando (change `close-the-loop-with-the-canvas`, tarefa 4).
+     *
+     * Três decisões, e as três são sobre honestidade:
+     *
+     *  1. **Destaca primeiro.** Ele clicou num nome; o que ele quer saber é QUAL é no desenho. A
+     *     cor vai antes da resposta do modelo porque a resposta leva segundos.
+     *  2. **A mensagem é marcada como escolha**, não como digitação: ele não escreveu isso. A
+     *     bolha diz "escolhido no chat", e o texto que vai ao modelo também.
+     *  3. **NÃO conta como fala do aluno** para o portão de confirmação. Clicar num pool não
+     *     autoriza apagar nada — o portão é da change irmã e exige fala ou digitação depois da
+     *     pergunta. Confundir os dois transformaria um clique de desambiguação em consentimento.
+     */
+    escolherCandidato(candidato) {
+      const alvo = candidato && typeof candidato === 'object' ? candidato : { rotulo: String(candidato ?? '') };
+      const rotulo = String(alvo.rotulo ?? alvo.nome ?? alvo.id ?? '').trim();
+      if (!rotulo) return false;
+      if (!session || !(state === 'ready' || state === 'listening' || state === 'speaking')) {
+        note('conecte antes de escolher.', 'error');
+        return false;
+      }
+
+      if (alvo.id) {
+        // Pelo caminho do MODELO: mesma política, mesmo teto, mesma linha na conversa.
+        Promise.resolve(api.dirigirFerramenta('destacar', { ids: [alvo.id], cor: 'azul' }))
+          .catch(() => { /* destacar é cortesia: a escolha segue mesmo sem cor */ });
+      }
+
+      voltarAFalar('escolha no chat');
+      const delta = calcularDelta();
+      const daSessao = session.ask(`(escolhido no chat) ${rotulo}`, delta);
+      const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);
+      push({ role: 'user', text: rotulo, via: 'escolha', turn: n });
+      push({ role: 'assistant', text: 'pensando…', rodando: true, turn: n });
+      return true;
     },
 
     /** Encerramento completo e idempotente. */

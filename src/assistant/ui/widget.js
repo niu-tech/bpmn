@@ -368,6 +368,37 @@ export function createWidget({ session, credentials, onClose } = {}) {
     c.scrollTop = c.scrollHeight;
   }
 
+  /**
+   * Os CANDIDATOS de uma mensagem de ferramenta, como botões (change close-the-loop, tarefa 4).
+   *
+   * ⚠ Nascem DENTRO da bolha da ferramenta, e não numa área fixa do painel: a escolha pertence
+   * àquele momento da conversa. Numa área fixa ela sobreviveria à resposta seguinte, e o aluno
+   * clicaria num "em qual pool?" que já não está mais em pé.
+   *
+   * São `<button>` de verdade (não `div` com clique): foco por Tab, Enter e Espaço de graça, e
+   * leitor de tela os anuncia como ação. O aluno de mãos livres é o caso de uso inteiro.
+   */
+  function montarCandidatos(m) {
+    const caixa = el('div', { className: 'bpmn-assist__cands' });
+    caixa.setAttribute('role', 'group');
+    caixa.setAttribute('aria-label', 'Escolha uma opção');
+    for (const c of m.candidatos) {
+      const b = el('button', { className: 'bpmn-assist__cand', type: 'button', textContent: c.rotulo });
+      b.title = c.id ? `escolher ${c.rotulo} (${c.id})` : `escolher ${c.rotulo}`;
+      b.addEventListener('click', () => {
+        // UMA vez: duas escolhas para a mesma pergunta chegariam ao modelo fora de ordem, e a
+        // segunda valeria — o aluno veria o agente agir sobre o que ele NÃO clicou.
+        if (caixa.dataset.escolhido === '1') return;
+        caixa.dataset.escolhido = '1';
+        for (const outro of caixa.querySelectorAll('button')) outro.disabled = true;
+        b.classList.add('bpmn-assist__cand--escolhido');
+        session.escolherCandidato(c);
+      });
+      caixa.append(b);
+    }
+    return caixa;
+  }
+
   function renderMessages(messages) {
     // Medido ANTES de crescer: depois de inserir, todo mundo parece longe do fim.
     const seguir = estaNoFim();
@@ -379,8 +410,14 @@ export function createWidget({ session, credentials, onClose } = {}) {
       if (m.kind) li.classList.add(`bpmn-assist__msg--${m.kind}`);
       if (m.rodando) li.classList.add('bpmn-assist__msg--rodando');
       li.dataset.id = String(m.id);
-      if (m.via) li.append(el('span', { className: 'bpmn-assist__via', textContent: m.via === 'voz' ? 'por voz' : 'digitado' }));
+      if (m.via) {
+        // ⚠ "escolhido no chat" é um terceiro canal, e não um sinônimo de digitado: o aluno
+        // clicou num candidato. Dizer "digitado" ali seria a conversa mentindo sobre o gesto.
+        const comoVeio = { voz: 'por voz', escolha: 'escolhido no chat' }[m.via] ?? 'digitado';
+        li.append(el('span', { className: 'bpmn-assist__via', textContent: comoVeio }));
+      }
       li.append(el('span', { className: 'bpmn-assist__text', textContent: m.text }));
+      if (m.candidatos?.length) li.append(montarCandidatos(m));
       log.append(li);
     }
     // Bolhas CRESCEM no lugar: a legenda chega em pedaços, e a linha da ferramenta começa em
@@ -392,6 +429,13 @@ export function createWidget({ session, credentials, onClose } = {}) {
       if (alvo && alvo.textContent !== m.text) alvo.textContent = m.text;
       const li = log.querySelector(`[data-id="${m.id}"]`);
       if (li) li.classList.toggle('bpmn-assist__msg--rodando', Boolean(m.rodando));
+      // ⚠ Os candidatos chegam DEPOIS da bolha: a linha da ferramenta nasce em "criando…" e só
+      // no fim se sabe que a ferramenta recusou por ambiguidade. Sem este ramo, os botões só
+      // apareceriam na próxima mensagem — ou nunca.
+      if (li && m.candidatos?.length && !li.querySelector('.bpmn-assist__cands')) {
+        li.append(montarCandidatos(m));
+        if (seguir) descerAteOFim();
+      }
     }
     renderedUpTo = messages.length;
     empty.hidden = messages.length > 0;

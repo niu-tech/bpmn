@@ -14,6 +14,7 @@ import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
 import { createWidget } from './ui/widget.js';
+import { ligarAnunciosDaPagina } from './pagina.js';
 import { citacoesFaladas } from './agent/fala.js';
 import { diagnosticoDoPrompt } from './agent/render.js';
 import { startCapture } from './live/audio.js';
@@ -97,6 +98,20 @@ export function mountAssistant({ container = document.body, debug = false, pagin
   });
 
   const view = () => session.vista;
+
+  /**
+   * O canal da PÁGINA (change `close-the-loop-with-the-canvas`): seleção, import e Ctrl+Z do
+   * aluno chegam ao modelo marcados como fato da tela, nunca como fala dele.
+   *
+   * ⚠ `ocupado` é o estado `tool`: enquanto uma ferramenta roda, tudo o que muda no canvas é o
+   * AGENTE mexendo. Sem essa guarda, cada criação dele viraria um "o aluno selecionou…" — o
+   * agente contando a própria ação de volta e decidindo em cima dela.
+   */
+  const daPagina = ligarAnunciosDaPagina({
+    acesso,
+    anunciar: (frase) => session.anunciarNaPagina(frase),
+    ocupado: () => session.state === 'tool',
+  });
 
   widget = createWidget({ session, credentials });
   container.append(widget.root);
@@ -241,11 +256,14 @@ export function mountAssistant({ container = document.body, debug = false, pagin
         resumo: resultado,
         assinatura: acesso.disponivel ? assinaturaDoDiagrama(acesso.elementos()) : null,
       };
+      // O quarto fato do canal da página: o agente comenta a corrida, não a dispara (design T5).
+      daPagina.simulacaoRodou(resultado);
       return simulacao;
     },
     /** Desmonta de verdade: encerra a sessão, tira os listeners e libera a marca. */
     async destroy() {
       pararDeMedir();
+      daPagina.dispose();
       olho.dispose();
       widget.dispose?.();
       if (window.__bpmnAssist) delete window.__bpmnAssist;

@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 
 import { citacoesFaladas, contarCitacoesFaladas, instrucaoDeCanais } from '../agent/fala.js';
-import { linhaDeFim, linhaDeInicio } from '../tools/apresentador.js';
+import { candidatosDoResultado, linhaDeFim, linhaDeInicio } from '../tools/apresentador.js';
 import { report, test } from '../../../tools/test-harness.mjs';
 
 (() => {
@@ -109,6 +109,50 @@ import { report, test } from '../../../tools/test-harness.mjs';
     const linha = linhaDeFim('buscar_elemento', {}, { ok: true, resultado: r });
     assert.equal(contarCitacoesFaladas(linha.replace(/"[^"]*"/g, '')), 0, `a linha vazou estrutura: ${linha}`);
     assert.ok(!linha.includes('{'), linha);
+  });
+
+  // ---- tarefa 4: ambiguidade vira botao --------------------------------------------------------
+
+  test('recusa com candidatos vira um candidato por pool, com rotulo legivel', () => {
+    const resposta = {
+      ok: false,
+      erro: 'ferramenta_falhou',
+      motivo: 'sem_lugar: ha mais de um lugar possivel',
+      candidatos: [
+        { id: 'Pool_cliente', nome: 'Pizza Customer', tipo: 'Participant' },
+        { id: 'Pool_loja', nome: 'Pizza vendor', tipo: 'Participant' },
+      ],
+    };
+
+    const c = candidatosDoResultado('criar_elemento', resposta);
+
+    assert.equal(c.length, 2);
+    assert.equal(c[0].rotulo, 'Pizza Customer (participant)');
+    assert.equal(c[0].id, 'Pool_cliente');
+  });
+
+  test('busca que achou VARIOS da escolha; busca que achou um nao', () => {
+    const tres = { ok: true, resultado: { elementos: [{ id: 'T1', nome: 'Assar', tipo: 'Task' }, { id: 'T2', nome: 'Assar de novo', tipo: 'Task' }] } };
+    assert.equal(candidatosDoResultado('buscar_elemento', tres).length, 2);
+
+    const um = { ok: true, resultado: { elementos: [{ id: 'T1', nome: 'Assar', tipo: 'Task' }] } };
+    assert.deepEqual(candidatosDoResultado('buscar_elemento', um), [], 'um resultado nao e uma escolha');
+  });
+
+  test('resultado comum nao produz botao nenhum', () => {
+    assert.deepEqual(candidatosDoResultado('criar_elemento', { ok: true, resultado: { criado: { id: 'T1' } } }), []);
+    assert.deepEqual(candidatosDoResultado('remover', null), []);
+    assert.deepEqual(candidatosDoResultado('mover', { ok: false, erro: 'nada_mudou' }), []);
+  });
+
+  test('elemento sem nome ainda da um botao clicavel (o id serve de rotulo)', () => {
+    const c = candidatosDoResultado('criar_elemento', { ok: false, candidatos: [{ id: 'Pool_1', nome: null, tipo: 'Participant' }] });
+    assert.equal(c[0].rotulo, 'Pool_1');
+  });
+
+  test('a lista tem TETO: muitos candidatos sao uma lista para ler, nao uma escolha', () => {
+    const muitos = Array.from({ length: 20 }, (_, i) => ({ id: `P_${i}`, nome: `Pool ${i}`, tipo: 'Participant' }));
+    assert.equal(candidatosDoResultado('criar_elemento', { ok: false, candidatos: muitos }).length, 6);
   });
 
   report('canais');

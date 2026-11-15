@@ -145,6 +145,63 @@ export function instantaneoDaTela(acesso) {
 }
 
 /**
+ * Os três fatos de ARRANJO que a leitura descobre, **em forma** — não em prosa.
+ *
+ * ⚠ Existe porque a leitura tem DOIS leitores, e um deles não lê português: o modelo recebe o
+ * texto de `estadoDaTela`, e a LINHA DA TELA do aluno (`tools/apresentador.js`) precisa dos
+ * mesmos fatos para dizer "como ramo paralelo", "e pôs 2 elementos dentro", "(e uma faixa para o
+ * que já estava lá)". Ao retirar os cinco campos de ocasião, essas três frases ficaram sem fonte
+ * e a linha do aluno emagreceu em silêncio — ele via o desenho inteiro pular para dentro de um
+ * pool e lia só "criei o pool X".
+ *
+ * Um campo, uma forma, o MESMO produtor do texto. Não são os cinco campos de volta: nenhuma
+ * ferramenta calcula nada aqui, e a próxima surpresa do bpmn-js continua cabendo na leitura.
+ */
+export function fatosDaTela(acesso, { tocado = null, antes = null } = {}) {
+  if (!acesso?.disponivel) return null;
+
+  let todos;
+  try {
+    todos = uteis(acesso.elementos());
+  } catch {
+    return null;
+  }
+
+  const raiz = raizDe(todos);
+  const colaboracao = raiz?.type === COLABORACAO;
+  const faixas = faixasPorPool(todos);
+  const fatos = { colaboracao, adotou: null, ramo: null, faixas: [] };
+
+  // O primeiro pool troca a raiz do XML para `bpmn:Collaboration` e engole o desenho que já
+  // existia. Conta FORMA, não conexão: o bpmn-js leva as setas junto, e somá-las daria um número
+  // que não bate com o que o aluno vê.
+  if (antes && !antes.colaboracao && colaboracao) fatos.adotou = antes.formas;
+
+  for (const p of todos.filter((e) => e?.type === POOL)) {
+    const agora = faixas[p.id] ?? 0;
+    const tinha = antes?.faixas?.[p.id] ?? 0;
+    // A primeira raia de um pool nasce em DUPLA: a do que já estava lá, e a nova.
+    if (antes && agora > tinha + 1) {
+      fatos.faixas.push({ pool: p.id, nome: nomeDe(p), de: tinha, para: agora });
+    }
+  }
+
+  const alvo = tocado ? acesso.porId(tocado) : null;
+  if (alvo) {
+    try {
+      const anterior = acesso.entradasESaidas(alvo.id).entradas[0]?.source ?? null;
+      const irmas = anterior ? acesso.entradasESaidas(anterior.id).saidas.length : 0;
+      // Ramo paralelo: quem vem antes já tinha outra saída, e por isso o bpmn-js desceu um degrau.
+      if (irmas > 1) fatos.ramo = { de: anterior.id, nome: nomeDe(anterior), saidas: irmas };
+    } catch {
+      // Registro inconsistente no meio da operação: sem fato é melhor que fato inventado.
+    }
+  }
+
+  return fatos;
+}
+
+/**
  * A tela como o aluno a vê agora, em uma frase por fato.
  *
  * `tocado` é o id do elemento que a operação mexeu (quando há um); `antes` é o retrato de
@@ -167,6 +224,9 @@ export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
   const ligacoes = conteudo.filter((e) => e.waypoints);
   const pools = conteudo.filter((e) => e.type === POOL);
   const faixas = faixasPorPool(todos);
+  // Os fatos de arranjo saem de UM lugar só: o texto daqui e a linha da tela do aluno não podem
+  // discordar sobre o que aconteceu com o desenho.
+  const fatos = fatosDaTela(acesso, { tocado, antes }) ?? { adotou: null, ramo: null, faixas: [] };
 
   const partes = [];
   partes.push(
@@ -176,9 +236,9 @@ export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
   );
 
   // A transição que reorganiza o desenho inteiro: sem ela o aluno vê tudo mudar de lugar sem explicação.
-  if (antes && !antes.colaboracao && colaboracao) {
+  if (fatos.adotou !== null) {
     partes.push(
-      `O diagrama virou uma colaboração: as ${antes.formas} formas que já estavam desenhadas `
+      `O diagrama virou uma colaboração: as ${fatos.adotou} formas que já estavam desenhadas `
       + 'passaram a ficar dentro do pool novo (as ligações foram junto).',
     );
   }
@@ -196,13 +256,10 @@ export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
       const n = faixas[p.id] ?? 0;
       return `${marca(p)} (${n === 0 ? 'sem faixas' : `${n} ${n === 1 ? 'faixa' : 'faixas'}`})`;
     }).join(', ')}.`);
-    for (const p of pools) {
-      const agora = faixas[p.id] ?? 0;
-      const tinha = antes?.faixas?.[p.id] ?? 0;
-      // A primeira raia de um pool nasce em DUPLA: a do que já estava lá, e a nova.
-      if (antes && agora > tinha + 1) {
-        partes.push(`${marca(p)} passou de ${tinha} para ${agora} faixas: a faixa do que já estava no pool também foi criada.`);
-      }
+    for (const nova of fatos.faixas) {
+      const p = pools.find((x) => x.id === nova.pool);
+      if (!p) continue;
+      partes.push(`${marca(p)} passou de ${nova.de} para ${nova.para} faixas: a faixa do que já estava no pool também foi criada.`);
     }
   }
 
@@ -225,16 +282,13 @@ export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
       + `${entradas.length} de entrada e ${saidas.length} de saída.`,
     );
     // Ramo paralelo: quem vem antes já tinha outra saída, e por isso o bpmn-js desceu um degrau.
-    const anterior = entradas[0]?.source ?? null;
+    const anterior = fatos.ramo ? entradas[0]?.source ?? null : null;
     if (anterior) {
-      const irmas = acesso.entradasESaidas(anterior.id).saidas.length;
-      if (irmas > 1) {
-        partes.push(
-          `${marca(anterior)} tem ${irmas} saídas, então ${marca(alvo)} é um caminho paralelo, `
-          + 'desenhado abaixo da linha — não a continuação dela. Para pôr no meio da sequência, '
-          + 'use criar_elemento com entre.',
-        );
-      }
+      partes.push(
+        `${marca(anterior)} tem ${fatos.ramo.saidas} saídas, então ${marca(alvo)} é um caminho paralelo, `
+        + 'desenhado abaixo da linha — não a continuação dela. Para pôr no meio da sequência, '
+        + 'use criar_elemento com entre.',
+      );
     }
   }
 

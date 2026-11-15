@@ -115,7 +115,16 @@ export function createToolDispatcher({
           // `redact` porque mensagem de erro é o lugar clássico onde a URL com a chave vaza.
           const motivo = redact(String(err?.message ?? err)).slice(0, 200);
           ev('falhou', `${nome}: ${motivo}`);
-          resolve({ ok: false, erro: ERROS.FALHOU, motivo });
+          /**
+           * Os CANDIDATOS atravessam a recusa (change `close-the-loop-with-the-canvas`).
+           *
+           * Uma recusa por ambiguidade ("em qual destes dois pools?") é a única em que a próxima
+           * decisão não é do modelo nem nossa: é do aluno. Mandá-los em forma permite ao painel
+           * desenhar um botão por candidato — e o modelo continua recebendo o texto da recusa,
+           * que já nomeava os dois.
+           */
+          const candidatos = Array.isArray(err?.candidatos) ? err.candidatos.slice(0, 8) : null;
+          resolve({ ok: false, erro: ERROS.FALHOU, motivo, ...(candidatos ? { candidatos } : {}) });
         },
       );
     });
