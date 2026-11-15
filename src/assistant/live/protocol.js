@@ -125,6 +125,25 @@ export function buildSetup({
      * sem alça é começar de zero; reabrir com a alça é o mesmo fio de conversa.
      */
     sessionResumption: resumptionHandle ? { handle: resumptionHandle } : {},
+    /**
+     * A PAUSA DELE NÃO FECHA O TURNO.
+     *
+     * ⚠ O detector de fala do servidor encerra o turno no silêncio, e o padrão é curto demais
+     * para quem está pensando: o dono disse *"tentei fazer algo parecido com esse da tarefa
+     * embalar e esse… deixa eu ver aqui"* e a frase saiu partida em DOIS turnos — o agente
+     * respondeu metade (*"Eu não consigo ver"*) e depois a outra metade. Numa aula, quem está
+     * aprendendo pausa no meio da frase o tempo todo.
+     *
+     * `END_SENSITIVITY_LOW` deixa o servidor mais relutante em declarar fim de fala, e
+     * `silenceDurationMs` dá a ele 1,2 s de silêncio antes de fechar — o suficiente para um
+     * "é…" no meio da frase, e ainda curto o bastante para a conversa não ficar lenta.
+     */
+    realtimeInputConfig: {
+      automaticActivityDetection: {
+        endOfSpeechSensitivity: 'END_SENSITIVITY_LOW',
+        silenceDurationMs: 1200,
+      },
+    },
   };
 
   const declaracoes = [];

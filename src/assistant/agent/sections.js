@@ -188,6 +188,28 @@ export const SECOES = Object.freeze([
 
   {
     /**
+     * O FIO DA CONVERSA.
+     *
+     * ⚠ Nasceu de um turno ao vivo (dono, 2026-11-15): ele perguntou sobre gateways, depois
+     * clicou numa tarefa e perguntou dela, e em seguida disse *"pode continuar"* — e o modelo
+     * retomou os GATEWAYS, dois turnos atrás. Não foi erro de ferramenta nem de contexto: foi
+     * escolha de assunto, e por isso o conserto é PROSA, não código. Nada aqui detecta palavra
+     * nenhuma: quem decide continua sendo o modelo, com uma regra de bom senso escrita.
+     */
+    id: 'fio',
+    titulo: 'Quando ele manda continuar',
+    tier: 'estavel',
+    render: () => [
+      'Pedidos vagos — "continua", "pode seguir", "e aí?", "o que mais?" — retomam o ÚLTIMO',
+      'assunto da conversa, o do turno imediatamente anterior, e não um anterior a ele. Se há algo',
+      'selecionado na tela, é desse elemento que ele está falando. Se dois assuntos couberem na',
+      'frase, pergunte em UMA linha qual dos dois — não escolha por ele, e não volte sozinho a um',
+      'assunto que já tinha sido encerrado.',
+    ].join(' '),
+  },
+
+  {
+    /**
      * O PORTÃO, dito ao modelo (change `spoken-confirmation-gates`).
      *
      * A recusa `falta_confirmacao` já chega estruturada no resultado da ferramenta, com o
