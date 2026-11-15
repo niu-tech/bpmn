@@ -446,17 +446,40 @@ test('recusa ANTES do setup, mas com a chave JA testada na aba, nao culpa a chav
   MockSocket.instances.length = 0;
   const { session, ws } = ready({ skipSetupComplete: true, chaveJaFuncionou: () => true });
   ws.serverClose(1011, '');
-  assert.equal(session.reason, 'quota', 'chave que ja funcionou nao vira bad-key');
+  assert.notEqual(session.reason, 'bad-key', 'chave que ja funcionou nao vira bad-key');
+  assert.equal(session.state, 'connecting', 'vaga de sessao se ESPERA, nao vira erro');
 });
 
-test('recusa DEPOIS do setup aceito vira quota: a chave ja autenticou', () => {
-  for (const code of [1007, 1008, 1011]) {
-    MockSocket.instances.length = 0;
-    const { session, ws } = ready();          // `ready()` emite setupComplete
-    ws.serverClose(code, 'API key not valid.');   // ate com o texto de chave: ela JA passou
-    assert.equal(session.reason, 'quota', `${code} depois do setup deveria ser quota`);
-    assert.equal(MockSocket.instances.length, 1, 'limite nao se conserta repetindo');
+test('sem vaga: a sessao ESPERA e volta sozinha, sem falar com o aluno', () => {
+  // Relato do dono (2026-11-15), com a sessao dele aberta: "ela parou do nada... era para
+  // reconectar". A disputa era com a NOSSA propria reconexao — o fio morria, a gente reabria em
+  // meio segundo e o servidor ainda nao tinha liberado a vaga do fio morto. Erro na cara dele,
+  // mandando fechar abas que nao existiam.
+  MockSocket.instances.length = 0;
+  const { session, ws, clock } = ready();
+  ws.serverClose(1011, '');
+  assert.equal(session.state, 'connecting', 'esperando a vaga');
+  assert.equal(session.reason, 'esperando-vaga');
+  assert.equal(MockSocket.instances.length, 1, 'ainda nao reabriu: a espera e' + "' com recuo");
+
+  clock.flush();
+  assert.equal(MockSocket.instances.length, 2, 'voltou sozinha');
+  const volta = MockSocket.instances.at(-1);
+  volta.open();
+  volta.emit({ setupComplete: {} });
+  assert.equal(session.state, 'ready', 'de pe de novo, sem o aluno fazer nada');
+});
+
+test('sem vaga MESMO: depois do teto de esperas, a' + "i sim e' erro nomeado", () => {
+  MockSocket.instances.length = 0;
+  const { session, clock } = ready({ maxEsperasPorVaga: 2 });
+  for (let i = 0; i < 3; i++) {
+    const atual = MockSocket.instances.at(-1);
+    atual.serverClose(1011, '');
+    clock.flush();
   }
+  assert.equal(session.state, 'error');
+  assert.equal(session.reason, 'quota', 'desistiu com o nome certo, depois de tentar');
 });
 
 test('queda comum reconecta com recuo e PARA no teto', () => {
