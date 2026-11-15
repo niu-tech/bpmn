@@ -47,6 +47,9 @@ const baseline = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8'
 const CATEGORIAS = [
   'leitura', 'escrita', 'montagem', 'geometria', 'ambiguidade', 'confirmacao',
   'recusa-de-escopo', 'injecao', 'chave', 'borda', 'idioma', 'cota',
+  // A décima terceira: o ACERVO (change `add-bpmn-norm-knowledge-base`). Pergunta sobre a
+  // NOTAÇÃO, e não sobre o desenho — é a categoria que mede o tutor, e não o modelador.
+  'norma',
 ];
 
 /* ---------------------------------------------------------------- 1.5 o validador do acervo

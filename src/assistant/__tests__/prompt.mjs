@@ -299,4 +299,24 @@ test('as seções novas não estouram o teto do prompt estável', () => {
   assert.ok(porId.get('confirmar').length < 600, 'a regra do portão cabe num parágrafo');
 });
 
+test('a secao das DUAS FONTES existe, na ordem, e identica nos dois perfis (K7)', () => {
+  // ⚠ A prova que a F2 ja fazia, aplicada a uma secao nova: ela entra pelo REGISTRO, sem tocar
+  // uma linha do renderizador. E a prosa e' a mesma nos dois perfis — regra que muda de texto
+  // conforme o canal e' regra que o modelo aprende duas vezes, e obedece pela metade.
+  const comoMapa = (secoes) => new Map(secoes.map((x) => [x.id, x.texto]));
+  const t = comoMapa(renderizarSecoes(ctxTexto));
+  const v = comoMapa(renderizarSecoes(ctxVoz));
+  assert.ok(t.get('fontes'), 'a secao existe no perfil texto');
+  assert.equal(t.get('fontes'), v.get('fontes'), 'prosa identica nos dois perfis');
+  assert.match(t.get('fontes'), /acervo/i);
+  assert.match(t.get('fontes'), /conhecimento geral/i, 'as DUAS fontes, nomeadas');
+  assert.match(t.get('fontes'), /\[fonte:/, 'ensina a marca que o aplicativo confere');
+  assert.match(t.get('fontes'), /N verbetes/, 'ausencia no acervo nao vira ausencia na norma (K8)');
+
+  // A ordem importa: a secao das fontes vem antes da do portao, porque citar e' sobre o que ele
+  // DIZ, e o portao e' sobre o que ele FAZ.
+  const ids = renderizarSecoes(ctxVoz).map((x) => x.id);
+  assert.ok(ids.indexOf('fontes') < ids.indexOf('confirmar'));
+});
+
 report('prompt');

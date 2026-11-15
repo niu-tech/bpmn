@@ -19,7 +19,7 @@
 import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { portaoDaFerramenta } from './agent/catalog.js';
-import { candidatosDoResultado, linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
+import { avisoDeCitacaoNaVoz, candidatosDoResultado, linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
 import { criarExecutoresDeLeitura } from './tools/leitura.js';
@@ -989,7 +989,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           return;
         }
         if (atividade) {
-          atividade.text = linhaDeFim(nome, entrada, resultado);
+          // + a assimetria da voz, quando ela importa (K6): ver `avisoDeCitacaoNaVoz`.
+          atividade.text = linhaDeFim(nome, entrada, resultado) + avisoDeCitacaoNaVoz(nome, mode);
           atividade.rodando = false;
           /**
            * AMBIGUIDADE VIRA BOTÃO (change `close-the-loop-with-the-canvas`, tarefa 4).

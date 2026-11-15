@@ -1501,6 +1501,24 @@ testAsync('a PAUSA dele vira "pensando" antes de o modelo responder', async () =
 });
 
 
+testAsync('citacao inventada chega ao aluno como NAO CONFERIDA (K6)', async () => {
+  // ⚠ Prompt pede; codigo impede. O modelo pode escrever qualquer marca [fonte:*] — o que vale
+  // e' o conjunto que as consultas DESTA sessao serviram. Sem consulta nenhuma, toda marca cai.
+  // O texto dele continua inteiro: so' a etiqueta erra  da e' trocada.
+  const { session, live } = montar();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('o que e um gateway exclusivo?');
+  live.ultima.texto('O exclusivo escolhe um caminho [fonte:gateways:exclusivo].', { complete: true });
+
+  const resposta = session.messages.filter((m) => m.role === 'assistant').at(-1).text;
+  assert.ok(!resposta.includes('[fonte:gateways:exclusivo]'), 'a marca nao consultada nao passa');
+  assert.match(resposta, /não conferida/i);
+  assert.match(resposta, /O exclusivo escolhe um caminho/, 'o texto do modelo continua inteiro');
+  forgetSecrets();
+});
+
+
 console.log('\n▶ os dois mudos');
 
 testAsync('mutar o microfone NAO encerra a voz, e abrir o microfone DESMUTA', async () => {

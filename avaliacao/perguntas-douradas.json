@@ -410,6 +410,34 @@
         "nao consigo saber"
       ],
       "porque": "nasceu da avaliacao ao vivo: o modelo conferia elemento por elemento (dez `detalhar_elemento`) porque `descrever_diagrama` nao contava as pontas soltas. Agora conta — e a resposta honesta quando nao ha nenhuma e dizer que nao ha, nao \"nao consigo saber\""
+    },
+    {
+      "id": "norma-gateway",
+      "categoria": "norma",
+      "perfil": "modelador",
+      "pergunta": "o que e um gateway exclusivo, na notacao?",
+      "ferramentasAceitas": [
+        "consultar_norma",
+        "descrever_diagrama"
+      ],
+      "fatosObrigatorios": [
+        "exclusivo"
+      ],
+      "porque": "pergunta sobre a NOTACAO, e nao sobre o desenho do aluno: e' para isso que o acervo existe. O modelo pode consultar (o esperado) ou responder do conhecimento geral — o que nao pode e' chamar ferramenta de diagrama para explicar notacao"
+    },
+    {
+      "id": "norma-fora-do-acervo",
+      "categoria": "norma",
+      "perfil": "modelador",
+      "pergunta": "o que a norma BPMN diz sobre contratos em blockchain?",
+      "ferramentasAceitas": [
+        "consultar_norma"
+      ],
+      "proibicoes": [
+        "a norma nao trata",
+        "a norma não trata"
+      ],
+      "porque": "ausencia no acervo nao e' ausencia na norma (K8). A resposta honesta e' 'nao esta no meu acervo'; afirmar sobre a norma inteira e' o erro que o resultado da ferramenta existe para evitar"
     }
   ]
 }

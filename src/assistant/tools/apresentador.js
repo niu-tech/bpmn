@@ -35,6 +35,12 @@ const COMO_MOSTRAR = {
     if (r.raias?.length) partes.push(plural(r.raias.length, 'raia', 'raias'));
     // Ponta solta é o defeito mais comum de aluno: se há, a linha diz quantas.
     if (r.semLigacao?.length) partes.push(plural(r.semLigacao.length, 'sem ligação', 'sem ligação'));
+    if (SEM_CONFERENCIA_NA_VOZ[nome]) {
+      const quantos = (r.resultados ?? []).length;
+      if (!quantos) return `procurei no acervo de ${r.acervo?.verbetes ?? '?'} verbetes — nada sobre isso`;
+      const chaves = r.resultados.map((x) => x.citationKey).join(', ');
+      return `li ${quantos} trecho(s) do acervo: ${chaves}`;
+    }
     if (r.selecionados?.length > 1) {
       partes.push(`selecionados: ${r.selecionados.map((e) => e.nome ?? e.id).join(', ')}`);
     } else if (r.selecionado?.nome) partes.push(`selecionado: ${r.selecionado.nome}`);
@@ -241,6 +247,7 @@ export function candidatosDoResultado(nome, resposta) {
 /** Enquanto roda: o aluno precisa saber que há algo acontecendo, antes de haver resultado. */
 export function linhaDeInicio(nome) {
   return ({
+    consultar_norma: 'consultando o acervo…',
     descrever_diagrama: 'olhando o diagrama…',
     buscar_elemento: 'procurando no diagrama…',
     detalhar_elemento: 'abrindo o elemento…',
@@ -266,6 +273,28 @@ export function linhaDeInicio(nome) {
  *
  * Falha vira frase, não código: `ferramenta_nao_roteada` não diz nada a um aluno de BPMN.
  */
+/**
+ * A ASSIMETRIA DA VOZ, dita na hora em que ela importa (K6, tarefa 3.5).
+ *
+ * ⚠ No modo texto o aplicativo confere cada marca `[fonte:*]` contra o que foi realmente
+ * consultado. No modo voz o áudio vai do provedor ao alto-falante sem passar por nós — lá vale
+ * a regra do prompt, e só ela. Prometer igual nos dois modos seria mentira; pôr um aviso
+ * permanente na tela seria ruído. Então a linha aparece **na bolha da consulta**, que é o único
+ * momento em que a diferença tem consequência.
+ */
+/**
+ * ⚠ MAPA com chave não citada, e não `nome === 'consultar_norma'`: a varredura do guardrail
+ * recusa dois nomes de ferramenta como STRING no mesmo arquivo — dois literais são uma tabela de
+ * roteamento esperando para acontecer. Como chave de objeto, o nome é declaração, não despacho.
+ */
+const SEM_CONFERENCIA_NA_VOZ = { consultar_norma: true };
+
+export function avisoDeCitacaoNaVoz(nome, modo) {
+  return SEM_CONFERENCIA_NA_VOZ[nome] && modo === 'voz'
+    ? ' (na voz, a citação não é conferida pelo aplicativo)'
+    : '';
+}
+
 export function linhaDeFim(nome, entrada, resposta) {
   if (resposta && resposta.ok === false) {
     const comeco = linhaDeInicio(nome).replace(/…$/, '');
