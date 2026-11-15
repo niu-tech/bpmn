@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rodada · a tela base</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:62ch; }
+  .numeros { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+  .feito { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .f { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .f:last-child { border-bottom:none; }
+  .f p { margin:0; font-size:14.5px; }
+  .f p b { font-weight:600; }
+  .f p span { display:block; color:var(--fraco); font-size:13px; margin-top:2px; }
+  .prova { font-size:12.5px; color:var(--verde); font-weight:600; white-space:nowrap; }
+  .alerta { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; line-height:1.55; color:#4a4b54; }
+  .alerta b { color:var(--ambar); }
+  .decisao { background:var(--roxo-fraco); border:1px solid #ddd9f7; border-radius:13px;
+    padding:17px 20px; font-size:15px; line-height:1.55; }
+  .decisao b { color:var(--roxo); }
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .f{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Rodada · 15 nov 2026</div>
+  <h1>A pizzaria não abre mais sozinha</h1>
+  <p class="sub">Quem chega agora escolhe por onde começar. O estudo está ao lado, com os três
+  conceitos e o custo de cada um — este documento é só o que foi feito, e o que ficou para você.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>4</b><span>caminhos na primeira tela</span></div>
+    <div class="num ok"><b>21/21</b><span>bateria, no navegador</span></div>
+    <div class="num ok"><b>25</b><span>suítes, zero falhas</span></div>
+    <div class="num"><b>0</b><span>chave pedida antes de mostrar valor</span></div>
+  </div>
+
+  <section>
+    <h2>O que mudou na tela</h2>
+    <div class="feito">
+      <div class="f">
+        <p><b>Sem trabalho salvo, o canvas recebe um convite</b>
+        <span>"Seu processo começa aqui" — descrever o seu processo (cartão principal), ver o exemplo, começar do zero, e a entrada "não sabe o que é BPMN?"</span></p>
+        <span class="prova">o exemplo não carrega sozinho</span></div>
+      <div class="f">
+        <p><b>Quem já tem diagrama salvo nunca vê a tela base</b>
+        <span>abre direto no que deixou; a decisão de abertura virou função pura, com 13 testes</span></p>
+        <span class="prova">4 saídas</span></div>
+      <div class="f">
+        <p><b>O exemplo nasce marcado como exemplo</b>
+        <span>uma tira diz "Exemplo: pedido de pizza · começar o meu", e ela some na primeira edição — quando o desenho deixa de ser exemplo e passa a ser seu</span></p>
+        <span class="prova">provado no navegador</span></div>
+      <div class="f">
+        <p><b>"Descreva o seu processo" abre o painel com a frase pronta</b>
+        <span>digitada, nunca enviada: quem acabou de chegar não tem chave, e um erro não pode ser a primeira resposta do produto. Nenhum segundo campo de conversa</span></p>
+        <span class="prova">nada enviado</span></div>
+      <div class="f">
+        <p><b><code>#exemplo</code> abre a demonstração direto</b>
+        <span>é o link para mostrar o produto a alguém — e é por ele que os 16 cenários antigos da bateria continuam entrando</span></p>
+        <span class="prova">sem apagar nada</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Os dois defeitos que só o print pegou</h2>
+    <div class="proximo">
+      <div class="p"><b>O fundo vazava</b><span>com 4% de transparência, o evento de início e a paleta apareciam esmaecidos por trás do convite: parecia desenho pela metade e barra quebrada. Ficou opaco</span></div>
+      <div class="p"><b>O título sumia no celular</b><span>em 375 px a barra da simulação cobria "Seu processo começa aqui". 76 px de folga no topo, e a bateria passou a medir isso</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>A armadilha que a tira revelou</h2>
+    <div class="alerta">
+      A tira <b>não sumia ao editar</b>, e o sintoma mentia bem: o evento acontecia (o autosave
+      gravava), o ouvinte estava no mesmo <i>eventBus</i> e no mesmo modelador, e não havia um erro
+      sequer no console. A causa é uma regra do bpmn-js: <b>ouvinte que devolve qualquer coisa
+      encerra a propagação do evento</b> — e o autosave era <code>async</code>, que devolve sempre
+      uma Promise. Ele engolia <code>commandStack.changed</code> para <b>todo ouvinte registrado
+      depois dele</b>, desde sempre. Corrigido na raiz, no autosave, e não contornado com
+      prioridade: do contrário a armadilha ficava montada para o próximo.
+    </div>
+  </section>
+
+  <section>
+    <h2>A decisão é sua</h2>
+    <div class="decisao">
+      <b>Foi implementado o conceito A</b> (o recomendado), com o selo de B e o convite de C. O
+      estudo com os três está do lado, e trocar é barato: o texto e os cartões vivem num arquivo só.
+      <b>Nada foi publicado</b> — está commitado aqui, e o site continua como estava até você mandar
+      subir.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que ficou fora, de propósito</h2>
+    <div class="proximo">
+      <div class="p"><b>A citação virou possível hoje</b><span>a base de conhecimento fechou na frente paralela, horas depois do estudo começar. A tela ainda não promete "com a fonte citada" — é uma linha de texto, na próxima rodada</span></div>
+      <div class="p"><b>O botão "♻️ Novo" da barra</b><span>ainda recarrega a pizzaria e apaga o seu trabalho sem perguntar. Contradiz a tela nova; está em <code>open-items.md</code></span></div>
+      <div class="p"><b>O exemplo continua em inglês</b><span>traduzir muda o nome dos elementos em ~15 cenários da bateria. A tira já diz que é exemplo, que era a parte que confundia</span></div>
+      <div class="p"><b>A pedagogia do tutor (F8b)</b><span>quando propor e quando calar continua em aberto — por isso a tela convida a descrever, e não promete condução completa</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>introduce-bpmn-first-run-workspace</code> · commit <code>e6eb737</code> · não publicado</span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>
