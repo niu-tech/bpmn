@@ -17,7 +17,7 @@
  */
 import assert from 'node:assert/strict';
 
-import { ERROS_LEITURA, assinaturaDoDiagrama, criarExecutoresDeLeitura } from '../tools/leitura.js';
+import { ERROS_LEITURA, assinaturaDoDiagrama, criarExecutoresDeLeitura, estadoDaTela, instantaneoDaTela } from '../tools/leitura.js';
 import { criarAcessoBpmn } from '../tools/bpmn-api.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
@@ -226,6 +226,97 @@ test('a camada fina sem modelador e inerte, e nao explode', () => {
 test('modelador que nao responde .get tambem e inerte', () => {
   assert.equal(criarAcessoBpmn({}).disponivel, false);
   assert.equal(criarAcessoBpmn({ get: () => { throw new Error('nao existe'); } }).disponivel, false);
+});
+
+/* ---------------------------------------------------------------- a tela, depois da ação
+ *
+ * A leitura que toda escrita devolve (change `close-the-loop-with-the-canvas`). O que ela
+ * protege: o modelo decide o próximo passo pelo DESENHO de agora, não pela memória do que pediu —
+ * e os cinco campos de ocasião que nasceram em 48 horas (`ramo`, `avisoDeRamo`,
+ * `virouColaboracao`, `adotou`, `criouAFaixaDoQueJaExistia`) saem todos daqui, com substituto. */
+
+test('a leitura diz o que o diagrama é, e conta forma separada de ligação', () => {
+  const tela = estadoDaTela(acessoFalso());
+
+  assert.match(tela, /é um processo/);
+  // 5 formas (início, 3 tarefas, gateway): raia é continente e o rótulo não conta duas vezes.
+  assert.match(tela, /5 formas e 1 ligação/);
+});
+
+test('a leitura nomeia quem está sem nenhuma ligação — o defeito mais comum de aluno', () => {
+  const tela = estadoDaTela(acessoFalso());
+
+  assert.match(tela, /Sem nenhuma ligação/);
+  assert.match(tela, /"Assar a pizza"/);
+  // "Montar a pizza" tem entrada: não é ponta solta.
+  assert.ok(!/Sem nenhuma ligação:[^.]*Montar/.test(tela));
+});
+
+test('a leitura diz o que o aluno selecionou, porque é com isso que ele fala "esse aqui"', () => {
+  assert.match(estadoDaTela(acessoFalso(DIAGRAMA, { selecionado: assar })), /selecionado/);
+  assert.ok(!/selecionado/.test(estadoDaTela(acessoFalso())));
+});
+
+test('a leitura sempre lembra o modelo do que ele não pode fazer sozinho', () => {
+  assert.match(estadoDaTela(acessoFalso()), /não apaga, não move/);
+});
+
+test('sem diagrama a leitura diz isso, em vez de estourar', () => {
+  assert.match(estadoDaTela(criarAcessoBpmn(null)), /Não há diagrama/);
+  assert.equal(instantaneoDaTela(criarAcessoBpmn(null)), null);
+});
+
+test('diagrama grande não vira despejo: a lista de pontas soltas se limita sozinha', () => {
+  const muitos = [raiz];
+  for (let i = 0; i < 80; i++) {
+    muitos.push(el('T' + i, 'bpmn:Task', 'Tarefa com um nome bem comprido numero ' + i));
+  }
+
+  const tela = estadoDaTela(acessoFalso(muitos));
+
+  assert.ok(tela.length <= 800, 'passou do teto: ' + tela.length);
+  assert.match(tela, /e mais 76./, 'nomeia alguns e conta o resto');
+});
+
+test('a leitura tem teto, e o corte é DITO', () => {
+  // Quem pode estourar o teto é a linha dos pools, que nomeia TODOS: 30 pools com nome de clínica
+  // são mais de 760 caracteres só nela.
+  const colaboracao = { id: 'Collaboration_1', type: 'bpmn:Collaboration', businessObject: {} };
+  const muitos = [colaboracao];
+  for (let i = 0; i < 30; i++) {
+    muitos.push({
+      id: 'Pool_' + i, type: 'bpmn:Participant', parent: colaboracao,
+      businessObject: { name: 'Departamento de atendimento ao cliente numero ' + i },
+    });
+  }
+
+  const tela = estadoDaTela(acessoFalso(muitos));
+
+  assert.ok(tela.length <= 800, 'passou do teto: ' + tela.length);
+  assert.match(tela, /leitura cortada/);
+});
+
+test('processo com raias e SEM pool não é lido como um desenho sem faixas', () => {
+  const tela = estadoDaTela(acessoFalso());
+
+  assert.match(tela, /O processo tem 1 faixa, sem pool/);
+});
+
+test('o retrato de antes são três números, e é ele que deixa a leitura contar a transição', () => {
+  const antes = instantaneoDaTela(acessoFalso());
+
+  assert.equal(antes.colaboracao, false);
+  assert.equal(antes.formas, 5);
+  // A raia do diagrama pendura no processo, não num pool: o retrato conta por dono, qualquer que seja.
+  assert.deepEqual(antes.faixas, { Process_1: 1 });
+
+  // A mesma leitura, com o retrato de um diagrama que era processo e agora é colaboração.
+  const colaboracao = { id: 'Collaboration_1', type: 'bpmn:Collaboration', businessObject: {} };
+  const pool = { id: 'Pool_1', type: 'bpmn:Participant', parent: colaboracao, businessObject: { name: 'Pizzaria' } };
+  const tela = estadoDaTela(acessoFalso([colaboracao, pool]), { antes });
+
+  assert.match(tela, /virou uma colaboração/);
+  assert.match(tela, /as 5 formas que já estavam desenhadas/);
 });
 
 report('leitura');

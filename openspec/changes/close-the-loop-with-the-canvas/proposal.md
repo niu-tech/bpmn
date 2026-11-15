@@ -1,3 +1,7 @@
+> **Bloco do roadmap:** F8a — a mecânica do tutor. Esta change entrega a metade "o agente decide
+> pelo desenho de agora", e é ela que prova *não mexeu no que não foi pedido*. Irmã:
+> `spoken-confirmation-gates`.
+
 ## Why
 
 Hoje a ferramenta devolve **o que ela fez**; o aluno olha **o que ficou na tela**. São duas coisas

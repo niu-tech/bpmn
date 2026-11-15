@@ -226,4 +226,41 @@ await (async () => {
   });
 })();
 
+testAsync('ferramenta que exige confirmação não chega ao executor sem ela', async () => {
+  // O mecanismo, no nível do despachante: o portão é do ALUNO (a página responde), e é conferido
+  // ANTES do executor — uma remoção recusada não pode ter tocado no diagrama.
+  const chamou = [];
+  let aberto = false;
+  const d = createToolDispatcher({
+    executores: { remover: async () => { chamou.push('remover'); return { removido: true }; } },
+    permitido: () => true,
+    portaoDe: (nome) => (nome === 'remover' ? 'remover' : null),
+    esperarPortao: async () => aberto,
+  });
+
+  const recusada = (await d.despachar([{ id: 'c1', name: 'remover', args: {} }]))[0].response;
+  assert.equal(recusada.ok, false);
+  assert.equal(recusada.erro, ERROS.SEM_CONFIRMACAO);
+  assert.equal(recusada.portao, 'remover');
+  assert.match(recusada.comoProsseguir, /UMA frase/);
+  assert.deepEqual(chamou, [], 'o executor não pode ter rodado');
+
+  aberto = true;
+  const feita = (await d.despachar([{ id: 'c2', name: 'remover', args: {} }]))[0].response;
+  assert.equal(feita.ok, true);
+  assert.deepEqual(chamou, ['remover']);
+});
+
+testAsync('sem portão declarado, nada espera — o default não pode travar o produto', async () => {
+  let perguntou = 0;
+  const d = createToolDispatcher({
+    executores: { ler: async () => ({ ok: true }) },
+    permitido: () => true,
+    esperarPortao: async () => { perguntou++; return false; },
+  });
+
+  assert.equal((await d.despachar([{ id: 'c1', name: 'ler', args: {} }]))[0].response.ok, true);
+  assert.equal(perguntou, 0, 'ferramenta sem portão nem consulta');
+});
+
 report('despacho');

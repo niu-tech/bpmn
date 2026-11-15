@@ -1,3 +1,7 @@
+> **Bloco do roadmap:** F8a — a mecânica do tutor. Esta change entrega a metade "propõe e espera":
+> sem ela, *propõe e não decide pelo aluno* continua sendo prosa no prompt. Irmã:
+> `close-the-loop-with-the-canvas`. Destrava E1 (o que desfazer em bloco) e E2 (sugestão proativa).
+
 ## Why
 
 A única confirmação que o ajudante tem hoje exige **clique**.

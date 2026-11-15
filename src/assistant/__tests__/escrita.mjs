@@ -662,7 +662,8 @@ testAsync('renomear devolve o nome de antes e o de agora, lido de volta do regis
   const { exec, raiz, guardar } = montar();
   guardar({ id: 'T', type: 'bpmn:Task', parent: raiz, businessObject: { name: 'Tarefa' } });
   const r = await exec.renomear({ id: 'T', nome: 'Assar a pizza' });
-  assert.deepEqual(r, { id: 'T', de: 'Tarefa', para: 'Assar a pizza' });
+  assert.deepEqual({ id: r.id, de: r.de, para: r.para }, { id: 'T', de: 'Tarefa', para: 'Assar a pizza' });
+  assert.match(r.tela, /Assar a pizza/, 'a leitura da tela acompanha toda escrita');
 });
 
 testAsync('nome vazio não vira rótulo em branco: erro nomeado', async () => {
@@ -1145,12 +1146,12 @@ testAsync('criar depois de quem JÁ tem saída avisa que é ramo, e diz qual é 
   const g = montarGeometria();
 
   const ramo = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Avisar cliente', depoisDe: 'Task_1' });
-  assert.equal(ramo.ramo, true);
-  assert.match(ramo.avisoDeRamo, /entre/);
+  assert.match(ramo.tela, /caminho paralelo/);
+  assert.match(ramo.tela, /entre/, 'a leitura diz qual é o verbo certo');
+  assert.equal(ramo.ramo, undefined, 'o campo de ocasião foi aposentado: quem conta é a leitura');
 
   const emLinha = await g.exec.criar_elemento({ tipo: 'EndEvent', nome: 'Fim', depoisDe: 'Task_2' });
-  assert.equal(emLinha.ramo, false);
-  assert.equal(emLinha.avisoDeRamo, null);
+  assert.ok(!/caminho paralelo/.test(emLinha.tela), 'continuação da linha não é ramo');
 });
 
 /* ---------------------------------------------------------------- pool e raia
@@ -1178,9 +1179,12 @@ testAsync('o primeiro pool de um processo plano ADOTA o desenho — e o resultad
 
   assert.equal(r.criado.tipo, 'Participant');
   assert.equal(r.criado.nome, 'Pizzaria');
-  // Os dois fatos que explicam ao aluno por que o desenho inteiro mudou de lugar.
-  assert.equal(r.virouColaboracao, true);
-  assert.equal(r.adotou, 2);
+  // Os dois fatos que explicam ao aluno por que o desenho inteiro mudou de lugar, ditos pela
+  // leitura da tela: o campo por caso (`virouColaboracao`/`adotou`) foi aposentado.
+  assert.match(r.tela, /virou uma colaboração/);
+  assert.match(r.tela, /as 2 formas que já estavam desenhadas/);
+  assert.equal(r.virouColaboracao, undefined);
+  assert.equal(r.adotou, undefined);
   assert.equal(acesso.raiz().type, 'bpmn:Collaboration');
   // ⚠ A fábrica certa: participante SEM `processRef` é pool que não guarda nada.
   assert.ok(falso.chamadas.some((c) => c.fn === 'elementFactory.createParticipantShape'));
@@ -1199,8 +1203,9 @@ testAsync('numa colaboração o pool novo nasce ABAIXO dos que já existem, sem 
 
   const r = await exec.criar_pool({ nome: 'Entregador' });
 
-  assert.equal(r.virouColaboracao, false);
-  assert.equal(r.adotou, 0, 'pool novo em colaboração não adota ninguém');
+  // Nada foi reestruturado: a leitura NÃO pode dizer que o diagrama virou colaboração (já era).
+  assert.ok(!/virou uma colaboração/.test(r.tela));
+  assert.match(r.tela, /O diagrama é uma colaboração/);
   assert.equal(r.poolsAntes, 2);
   assert.equal(r.totalDePools, 3);
   // Os pools de `colaboracaoFalsa` terminam em y=520; o novo entra embaixo, alinhado à esquerda.
@@ -1261,12 +1266,13 @@ testAsync('a PRIMEIRA raia de um pool cria duas faixas, e o resultado avisa', as
   assert.equal(r.em.id, 'Pool_loja');
   assert.equal(r.raiasAntes, 0);
   assert.equal(r.raiasAgora, 2, 'a do conteúdo que já estava lá + a nova');
-  assert.equal(r.criouAFaixaDoQueJaExistia, true);
+  assert.match(r.tela, /passou de 0 para 2 faixas/, 'a leitura avisa a faixa que ele não pediu');
+  assert.equal(r.criouAFaixaDoQueJaExistia, undefined);
 
   // A segunda já entra sozinha.
   const segunda = await exec.criar_raia({ nome: 'Atendimento', dentroDe: 'Pool_loja', onde: 'acima' });
   assert.equal(segunda.raiasAgora, 3);
-  assert.equal(segunda.criouAFaixaDoQueJaExistia, false);
+  assert.ok(!/passou de/.test(segunda.tela), 'a segunda raia entra sozinha, sem surpresa a contar');
   assert.equal(segunda.onde, 'acima');
   assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'addLane').map((c) => c.lugar), ['bottom', 'top']);
 });

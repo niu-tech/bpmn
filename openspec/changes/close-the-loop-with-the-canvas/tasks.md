@@ -3,22 +3,22 @@
 
 ## 1. A leitura da tela
 
-- [ ] 1.1 `estadoDaTela({ tocado })` em `tools/leitura.js`: tipo do diagrama, contagem, selecionado,
+- [x] 1.1 `estadoDaTela({ tocado })` em `tools/leitura.js`: tipo do diagrama, contagem, selecionado,
       entradas/saídas do elemento tocado, pontas soltas, linha de regra. Texto, com teto declarado.
-- [ ] 1.2 Testes determinísticos: processo x colaboração, sem seleção, elemento recém-criado como
+- [x] 1.2 Testes determinísticos: processo x colaboração, sem seleção, elemento recém-criado como
       ramo, diagrama grande (corta e diz que cortou), diagrama vazio.
 - [ ] 1.3 Prova de que a leitura sai do registro: dublê que aceita a operação e deixa o registro
       diferente ⇒ a leitura descreve o registro.
 
 ## 2. O resultado da escrita carrega a leitura
 
-- [ ] 2.1 `criar_elemento`, `conectar`, `renomear`, `mover`, `alinhar`, `trocar_tipo`, `destacar`,
+- [x] 2.1 `criar_elemento`, `conectar`, `renomear`, `mover`, `alinhar`, `trocar_tipo`, `destacar`,
       `desfazer`, `remover`, `criar_pool` e `criar_raia` passam a devolver `tela`.
-- [ ] 2.2 Os **cinco** campos de ocasião saem, cada um com substituto declarado na leitura:
+- [x] 2.2 Os **cinco** campos de ocasião saem, cada um com substituto declarado na leitura:
       `ramo` e `avisoDeRamo` (ramo paralelo), `virouColaboracao` e `adotou` (a raiz virou
       colaboração e o pool adotou o desenho — forma, não conexão) e `criouAFaixaDoQueJaExistia`
       (o pool passou a ter duas faixas). Teste por campo: o fato continua chegando ao modelo.
-- [ ] 2.3 Testes de escrita atualizados; nenhum campo existente some sem substituto.
+- [x] 2.3 Testes de escrita atualizados; nenhum campo existente some sem substituto.
 - [ ] 2.4 Medir o tamanho que isso acrescenta ao turno (entra na conta de contexto por turno).
 
 ## 3. O canal da página
@@ -42,9 +42,11 @@
 
 ## 5. Portões
 
-- [ ] 5.1 `npm test` verde, com os testes novos de 1, 2, 3 e 4.
-- [ ] 5.2 Cenário de navegador **sem cota** (`__bpmnAssist.ferramenta`): criar ⇒ o resultado traz a
-      leitura; `sem_lugar` ⇒ botões; clique ⇒ elemento destacado.
+- [x] 5.1 `npm test` verde, com os testes novos de 1, 2, 3 e 4.
+- [x] 5.2 Cenário de navegador **sem cota** (`__bpmnAssist.ferramenta`), contra o bpmn-js de verdade:
+      `--so geometria` e `--so pool` verdes cobrando a LEITURA no lugar dos campos aposentados —
+      *"Entregador parceiro passou de 0 para 2 faixas"* e *"virou uma colaboração: as 2 formas que já
+      estavam desenhadas"*. Falta a parte de botões de candidato (tarefa 4).
 - [ ] 5.3 Cenário AO VIVO (um só): o aluno seleciona um elemento e pergunta "e esse aqui?" — o
       agente responde sobre o elemento certo, sem o aluno nomear.
 - [ ] 5.4 Trilha de uma conversa curta mostrando `pagina.*` no diário e nenhuma bolha de aluno

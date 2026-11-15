@@ -252,12 +252,39 @@ quando há escolha · monta em passos que o aluno aceita · propõe sem decidir 
 > ⚠ **Metade do portão F8 já está provada** (2026-11-14, cenário 4.5): três frases do aluno
 > viraram início, três tarefas e fim **ligados, legíveis, dentro do pool e em ordem de leitura**.
 > O que falta é a camada que torna isso um TUTOR: **propor antes de aplicar** (proposta nomeada
-> que o aluno aceita), explicar a escolha, e não mexer no que não foi pedido. A mecânica existe;
-> a pedagogia, não.
+> que o aluno aceita), explicar a escolha, e não mexer no que não foi pedido.
 
 > **Portão F8** — AO VIVO: descrever um processo em três frases produz uma **proposta nomeada**;
 > ao aceitar, o diagrama ganha início, tarefas e fim ligados; e o agente não mexe no que não foi
 > pedido.
+
+#### F8a — A mecânica do tutor (2026-11-15)
+
+Até aqui, "propõe e não decide pelo aluno" era **prosa no prompt**: a única coisa que impedia o
+agente de agir sozinho era ele obedecer à própria instrução. Prosa não é portão, e o estudo do
+*appointment agent* do Orbit (Gemini 3.8 Live dirigindo a interface de outro produto) mostrou as
+duas peças que faltavam — e que não são pedagógicas, são mecânicas:
+
+| Peça | O que resolve | Change |
+|---|---|---|
+| **A leitura da tela de volta** | o agente decide o próximo passo pelo desenho de agora, não pela memória do que pediu — e é o que prova "não mexeu no que não foi pedido" | `close-the-loop-with-the-canvas` |
+| **O portão por fala** | a proposta fica **recusada** até o aluno falar depois dela; quem conta é a página, por ordem de turno, não o modelo | `spoken-confirmation-gates` |
+
+Com as duas, "proposta nomeada que o aluno aceita" deixa de ser uma frase no prompt e vira um
+estado do produto: o agente propõe, a ferramenta **recusa** enquanto não houver resposta, e a
+leitura da tela mostra o que mudou — e o que não mudou.
+
+Duas frentes de apoio saem do mesmo estudo: `sustain-a-class-session` (a aula inteira não pode
+bater no teto da sessão, e a latência precisa ser medida) e `prove-it-with-a-golden-set` (taxa por
+categoria e linha de base, de onde saem as tabelas da dissertação). Planejamento e origem:
+`openspec/apresentacoes/plano-pos-orbit.html`.
+
+#### F8b — A pedagogia, que continua em aberto
+
+O que a mecânica **não** resolve, e segue sendo o conteúdo da fase: quando propor e quando calar,
+como explicar a escolha de representação (por que gateway exclusivo e não paralelo), quanto
+corrigir de uma vez, e como apontar um erro sem desfazer o trabalho do aluno. Isso se decide com
+diagrama de aula na frente, não no código.
 
 ### FK — Conhecimento citável
 Acervo OKF autoral de BPMN servido como arquivo estático · `consultar_norma` escolhida por

@@ -1,3 +1,5 @@
+> **Bloco do roadmap:** apoio ao F8 — a aula inteira. Fecha T16 e M7 do `open-items.md`.
+
 ## Why
 
 Uma aula é uma conversa longa. O ajudante nunca foi medido numa.

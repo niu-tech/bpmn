@@ -931,5 +931,132 @@ await (async () => {
     forgetSecrets();
   });
 
-  report('session-manager');
+  /* ---------------------------------------------------------------- portões de confirmação
+ *
+ * Change `spoken-confirmation-gates`. O que estes testes protegem é ORDEM: a ação fica recusada
+ * até o aluno falar ou digitar DEPOIS de a pergunta ter sido feita. Nenhum deles olha o conteúdo
+ * do que ele disse — "sim" não é lido em lugar nenhum, e é assim de propósito (constituição §III).
+ *
+ * Os dois erros possíveis são caros e opostos: para o lado frouxo, o agente apaga o diagrama do
+ * aluno sem ele ter dito nada; para o lado duro, a conversa trava. */
+
+function montarComDiagrama(extra = {}) {
+  const raiz = { id: 'Process_1', type: 'bpmn:Process', businessObject: {} };
+  const alvo = { id: 'Task_1', type: 'bpmn:Task', parent: raiz, businessObject: { name: 'Assar a pizza' } };
+  const estado = { removido: false, perguntasNoBotao: 0 };
+  const vivos = () => (estado.removido ? [raiz] : [raiz, alvo]);
+  const acesso = {
+    disponivel: true,
+    editavel: true,
+    elementos: vivos,
+    porId: (id) => vivos().find((e) => e.id === id) ?? null,
+    selecionado: () => null,
+    entradasESaidas: () => ({ entradas: [], saidas: [] }),
+    remover: () => { estado.removido = true; },
+    assinar: () => () => {},
+  };
+  // Tolerância curta: o que se mede aqui é a ordem, não o relógio.
+  const montado = montar({ acesso, pagina: 'modelador', toleranciaDeConfirmacaoMs: 40, ...extra });
+  return { ...montado, estado };
+}
+
+const apagar = (d, id) => d.despachar([{ id, name: 'remover', args: { id: 'Task_1' } }]).then((r) => r[0].response);
+
+testAsync('apagar fica RECUSADO até o aluno responder — e a resposta dele basta, sem clique', async () => {
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  // 1. O modelo tenta apagar antes de o aluno responder: recusa NOMEADA, e nada é apagado.
+  const primeira = await apagar(d, 'c1');
+  assert.equal(primeira.ok, false);
+  assert.equal(primeira.erro, 'falta_confirmacao');
+  assert.match(primeira.comoProsseguir, /espere/i);
+  assert.equal(estado.removido, false);
+
+  // 2. O aluno responde. (Digitar e falar produzem o mesmo turno de aluno.)
+  session.ask('pode apagar');
+
+  // 3. Agora passa — e sem nenhum clique: o diálogo não foi usado.
+  const segunda = await apagar(d, 'c2');
+  assert.equal(segunda.ok, true, JSON.stringify(segunda));
+  assert.equal(estado.removido, true);
+  forgetSecrets();
+});
+
+testAsync('um "sim" dito ANTES da pergunta não autoriza nada', async () => {
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  // O aluno falou — mas sobre outra coisa, antes de o agente perguntar qualquer coisa.
+  session.ask('pode apagar, sim');
+
+  const r = await apagar(d, 'c1');
+
+  assert.equal(r.erro, 'falta_confirmacao', 'a fala anterior à pergunta não conta');
+  assert.equal(estado.removido, false);
+  forgetSecrets();
+});
+
+testAsync('o modelo alegando que o aluno confirmou não abre o portão', async () => {
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  const r = (await d.despachar([
+    { id: 'c1', name: 'remover', args: { id: 'Task_1', confirmadoPeloAluno: true, oAlunoDisseSim: 'sim' } },
+  ]))[0].response;
+
+  assert.equal(r.erro, 'falta_confirmacao', 'quem conta é a aba, não a narração do modelo');
+  assert.equal(estado.removido, false);
+  forgetSecrets();
+});
+
+testAsync('a legenda atrasada ainda conta: o aluno falou, a transcrição chegou depois', async () => {
+  const { session, live, estado } = montarComDiagrama({ toleranciaDeConfirmacaoMs: 1500 });
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  // A pergunta aparece e o modelo já chama a ferramenta; a resposta do aluno chega 150 ms depois.
+  const esperando = apagar(d, 'c1');
+  setTimeout(() => session.ask('pode apagar'), 150);
+
+  assert.equal((await esperando).ok, true, 'a espera curta existe por causa deste atraso');
+  assert.equal(estado.removido, true);
+  forgetSecrets();
+});
+
+testAsync('o portão é CONSUMIDO: um sim autoriza uma remoção, não todas as próximas', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  assert.equal((await apagar(d, 'c1')).erro, 'falta_confirmacao');
+  session.ask('pode apagar');
+  assert.equal((await apagar(d, 'c2')).ok, true);
+
+  // Mesmo aluno, mesma conversa, elemento já apagado: a próxima remoção pergunta de novo.
+  assert.equal((await apagar(d, 'c3')).erro, 'falta_confirmacao');
+  forgetSecrets();
+});
+
+testAsync('ferramenta sem portão não espera por ninguém', async () => {
+  const { session, live } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  const r = (await d.despachar([{ id: 'c1', name: 'descrever_diagrama', args: {} }]))[0].response;
+
+  assert.equal(r.ok, true, 'ler o diagrama nunca precisou de autorização');
+  forgetSecrets();
+});
+
+report('session-manager');
 })();

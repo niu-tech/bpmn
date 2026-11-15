@@ -26,6 +26,7 @@ import { redact } from '../live/redact.js';
 export const ERROS = Object.freeze({
   NAO_PERMITIDA: 'ferramenta_nao_permitida',
   NAO_ROTEADA: 'ferramenta_nao_roteada',
+  SEM_CONFIRMACAO: 'falta_confirmacao',
   TEMPO: 'tempo_esgotado',
   FALHOU: 'ferramenta_falhou',
   ENCERRADA: 'sessao_encerrada',
@@ -51,6 +52,16 @@ export function createToolDispatcher({
   executores = {},
   /** Política do perfil. Default-deny de verdade mora em quem constrói este objeto. */
   permitido = () => false,
+  /**
+   * O portão que a ferramenta exige (`null` = nenhum), e se o aluno já respondeu.
+   *
+   * ⚠ Separado da política de propósito: a política diz o que EXISTE para este perfil; o portão
+   * diz se o ALUNO autorizou esta ação agora. Default: nenhuma ferramenta exige portão, e quem
+   * não declarar o esperador nunca é barrado — o default-deny aqui seria travar o produto inteiro
+   * por uma dependência esquecida.
+   */
+  portaoDe = () => null,
+  esperarPortao = async () => true,
   tetoMs = 8000,
   /**
    * Teto DIFERENTE para ferramentas específicas.
@@ -117,6 +128,19 @@ export function createToolDispatcher({
       if (!permitido(nome)) { ev('recusada', `${nome}: politica`); return { ok: false, erro: ERROS.NAO_PERMITIDA }; }
       const executor = executores[nome];
       if (typeof executor !== 'function') { ev('nao-roteada', nome); return { ok: false, erro: ERROS.NAO_ROTEADA }; }
+      const portao = portaoDe(nome);
+      if (portao && !(await esperarPortao(portao))) {
+        // Recusa é RESULTADO, não exceção: o turno segue vivo e o modelo sabe o que fazer.
+        ev('sem-confirmacao', `${nome}: ${portao}`);
+        return {
+          ok: false,
+          erro: ERROS.SEM_CONFIRMACAO,
+          portao,
+          comoProsseguir: 'Pergunte ao aluno, em UMA frase curta, se pode fazer isso, e espere a resposta dele. '
+            + 'Não chame esta ferramenta de novo antes de ele responder.',
+        };
+      }
+
       ev('executando', nome);
       const entrada = call.args ?? {};
       try { onAtividade?.({ nome, fase: 'inicio', entrada }); } catch { /* tela nunca derruba */ }

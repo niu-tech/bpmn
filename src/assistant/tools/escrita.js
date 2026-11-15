@@ -20,7 +20,7 @@
 // ponytail: funções sobre a camada fina, como as de leitura. Sem transação, sem fila de
 // comandos própria — o `commandStack` do bpmn-js já é as duas coisas.
 
-import { assinaturaDoDiagrama } from './leitura.js';
+import { assinaturaDoDiagrama, estadoDaTela, instantaneoDaTela } from './leitura.js';
 
 export const ERROS_ESCRITA = Object.freeze({
   SEM_DIAGRAMA: 'sem_diagrama',
@@ -124,7 +124,7 @@ function resolverTipo(tipo) {
  * decide é o aluno, nunca este módulo. Sem ela, remover é recusado: ferramenta destrutiva sem
  * quem perguntar não roda.
  */
-export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {}) {
+export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, portaoAberto = () => false } = {}) {
   const exigirEdicao = () => {
     if (!acesso?.disponivel) throw nomeado(ERROS_ESCRITA.SEM_DIAGRAMA);
     // ⚠ Segunda trava, DEPOIS da política. A política esconde a ferramenta do modelo numa página
@@ -132,6 +132,17 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
     // vazado. Duas travas porque o custo de errar aqui é a tela do aluno.
     if (!acesso.editavel) throw nomeado(ERROS_ESCRITA.NAO_EDITAVEL);
   };
+
+  /**
+   * A TELA, depois da ação — e não o que a ferramenta fez.
+   *
+   * Toda escrita devolve `tela`, porque o modelo decide o passo seguinte DENTRO do turno e o que
+   * ele precisa é o desenho de agora. O retrato de antes é de três números e serve para a leitura
+   * contar a transição (o diagrama virou colaboração, o pool ganhou duas faixas) sem que cada
+   * ferramenta precise do seu próprio campo para isso — foram cinco em 48 horas antes desta regra.
+   */
+  const retrato = () => instantaneoDaTela(acesso);
+  const tela = (tocado, antes) => estadoDaTela(acesso, { tocado, antes });
 
   const exigirElemento = (id, papel) => {
     const el = acesso.porId(id);
@@ -199,14 +210,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
       const ancora = !anterior && depoisDe ? exigirElemento(depoisDe, 'depoisDe') : null;
       const dentro = !anterior && !ancora && dentroDe ? exigirElemento(dentroDe, 'dentroDe') : null;
 
-      /**
-       * Quantas saídas a âncora já tinha. É o FATO que distingue os dois desenhos possíveis de
-       * "depois de X": com zero saídas a cadeia segue em linha; com uma ou mais, o bpmn-js
-       * desenha um RAMO — um degrau abaixo, correto para o BPMN e quase nunca o que o aluno
-       * pediu ("não tá na mesma linha, era para ser contínuo", trilha de 2026-11-14). Dizer isso
-       * no resultado deixa o modelo oferecer `entre`, que é o verbo certo para esse caso.
-       */
-      const saidasAntes = ancora ? acesso.entradasESaidas(ancora.id).saidas.length : 0;
+      const retratoAntes = retrato();
 
       /**
        * `sem_lugar_para_criar` é o aviso da camada de acesso de que o bpmn-js NÃO guardaria o
@@ -273,17 +277,9 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         // Inserido no meio: o bpmn-js religou os dois lados, então ele JÁ está no caminho.
         inseridoEntre: anterior ? { de: resumir(anterior), para: resumir(seguinte) } : null,
         religado: anterior ? { entradas: entradas.length, saidas: saidas.length } : null,
-        /**
-         * ⚠ Ramo: a âncora já tinha saída, então isto nasceu como CAMINHO PARALELO e o bpmn-js o
-         * desenhou um degrau abaixo. Se o aluno queria a sequência contínua, o verbo é
-         * `criar_elemento` com `entre`.
-         */
-        ramo: ancora ? saidasAntes > 0 : false,
-        avisoDeRamo: ancora && saidasAntes > 0
-          ? `${ancora.id} já tinha ${saidasAntes} saída(s): este elemento é um ramo paralelo, desenhado abaixo da linha. `
-            + 'Para pôr no meio da sequência, use entre: [anterior, seguinte].'
-          : null,
         total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
+        // O ramo paralelo (a âncora já tinha saída) sai daqui: a leitura olha o DESENHO.
+        tela: tela(confirmado.id, retratoAntes),
       };
     },
 
@@ -297,6 +293,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async conectar({ de, para } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const origem = exigirElemento(de, 'de');
       const destino = exigirElemento(para, 'para');
 
@@ -317,6 +314,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         // `SequenceFlow` ou `MessageFlow`: quem decidiu foi a regra do BPMN dentro do bpmn-js.
         tipoDaLigacao: tipoCurto(conexao.type),
         id: conexao.id,
+        tela: tela(destino.id, retratoAntes),
       };
     },
 
@@ -332,8 +330,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async criar_pool({ nome } = {}) {
       exigirEdicao();
-      const raizAntes = acesso.raiz();
-      const eraProcesso = String(raizAntes?.type ?? '') === 'bpmn:Process';
+      const retratoAntes = retrato();
       const poolsAntes = acesso.pools().length;
 
       let criado;
@@ -356,22 +353,13 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         }
       }
 
-      const raizAgora = acesso.raiz();
       return {
         criado: resumir(acesso.porId(confirmado.id)),
-        // O fato que o agente precisa contar: a raiz do diagrama mudou de tipo.
-        virouColaboracao: eraProcesso && String(raizAgora?.type ?? '') === 'bpmn:Collaboration',
-        /**
-         * Quantos ELEMENTOS o pool novo adotou — zero numa tela vazia, o processo inteiro no
-         * primeiro pool de um diagrama plano.
-         *
-         * ⚠ Conta forma, não conexão: o bpmn-js move as setas junto, e somá-las faria o número
-         * dito ao aluno ("pus 5 elementos dentro") não bater com o que ele conta na tela.
-         */
-        adotou: (acesso.porId(confirmado.id)?.children ?? [])
-          .filter((e) => e && !e.labelTarget && !Array.isArray(e.waypoints)).length,
         totalDePools: acesso.pools().length,
         poolsAntes,
+        // A raiz virar colaboração e o pool adotar o desenho são fatos do DESENHO: saem da leitura,
+        // que conta forma e não conexão (o bpmn-js leva as setas junto).
+        tela: tela(confirmado.id, retratoAntes),
       };
     },
 
@@ -386,6 +374,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async criar_raia({ nome, dentroDe, onde } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const lugar = String(onde ?? 'abaixo').toLowerCase();
       if (!['abaixo', 'acima'].includes(lugar)) {
         throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, `onde ${onde} (use: abaixo, acima)`);
@@ -441,14 +430,11 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         criada: resumir(acesso.porId(confirmada.id)),
         em: resumir(alvo),
         onde: lugar,
-        /**
-         * ⚠ O primeiro pedido de raia cria DUAS: a do conteúdo que já estava no pool e a nova.
-         * É o `addLane` do bpmn-js, e o agente precisa contar isso — o aluno vai ver duas faixas
-         * aparecerem e só pediu uma.
-         */
         raiasAgora: acesso.raiasDe(alvo).length,
         raiasAntes,
-        criouAFaixaDoQueJaExistia: raiasAntes === 0,
+        // As DUAS faixas do primeiro pedido (o `addLane` cria a do que já estava lá) são o
+        // desenho mudando: quem conta isso é a leitura.
+        tela: tela(confirmada.id, retratoAntes),
       };
     },
 
@@ -467,6 +453,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async mover({ id, direcao, passos, dentroDe } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const el = exigirElemento(id);
       const dentro = dentroDe ? exigirElemento(dentroDe, 'dentroDe') : null;
       if (!dentro && !direcao) {
@@ -504,6 +491,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         movido: resumir(acesso.porId(id)),
         andou: { x: depois.x - antes.x, y: depois.y - antes.y },
         dentroDe: dentro ? resumir(dentro) : null,
+        tela: tela(id, retratoAntes),
       };
     },
 
@@ -519,6 +507,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async alinhar({ ids, eixo } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const lista = Array.isArray(ids) ? ids.filter((x) => typeof x === 'string' && x.trim()) : [];
       if (lista.length < 2) throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, 'alinhar pede pelo menos dois ids');
       const tipo = EIXOS[String(eixo ?? '').toLowerCase()];
@@ -544,7 +533,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
       if (centros.some((v) => Math.abs(v - centros[0]) > 1)) {
         throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'os elementos seguem fora de linha');
       }
-      return { alinhados: els.map(resumir), eixo, em: centros[0] };
+      return { alinhados: els.map(resumir), eixo, em: centros[0], tela: tela(lista[0], retratoAntes) };
     },
 
     /**
@@ -558,6 +547,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async trocar_tipo({ id, tipo } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const el = exigirElemento(id);
       const tipoBpmn = resolverTipo(tipo);
       const de = resumir(el);
@@ -586,6 +576,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         // O id novo é a parte que o modelo PRECISA guardar: o antigo não existe mais.
         idNovo: confirmado.id,
         ligacoesPreservadas: entradas.length + saidas.length,
+        tela: tela(confirmado.id, retratoAntes),
       };
     },
 
@@ -598,6 +589,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async desfazer() {
       exigirEdicao();
+      const retratoAntes = retrato();
       const idsDe = () => acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).map((e) => e.id);
       const antes = idsDe();
 
@@ -621,6 +613,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
         voltaramAoDiagrama: depois.filter((id) => !antes.includes(id)),
         total: depois.length,
         aindaDaParaDesfazer: r?.aindaDaParaDesfazer ?? null,
+        tela: tela(null, retratoAntes),
       };
     },
 
@@ -633,6 +626,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async destacar({ ids, cor } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const lista = Array.isArray(ids) ? ids.filter((x) => typeof x === 'string' && x.trim()) : [];
       if (!lista.length) throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, 'destacar pede pelo menos um id');
       const chave = String(cor ?? '').toLowerCase();
@@ -647,7 +641,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
       const pintados = els.map((el) => ({ id: el.id, ...acesso.corDe(el.id) }));
       const confere = pintados.every((p) => String(p.fundo ?? '').toLowerCase() === esperado);
       if (!confere) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `a cor não ficou em ${pintados.map((p) => p.id).join(', ')}`);
-      return { destacados: els.map(resumir), cor: chave };
+      return { destacados: els.map(resumir), cor: chave, tela: tela(lista[0], retratoAntes) };
     },
 
     /**
@@ -658,6 +652,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async renomear({ id, nome } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const el = exigirElemento(id);
       const antes = nomeDe(el);
       const novo = typeof nome === 'string' ? nome.trim() : '';
@@ -667,7 +662,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
 
       const depois = nomeDe(acesso.porId(id));
       if (depois !== novo) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `nome segue "${depois ?? ''}"`);
-      return { id, de: antes, para: depois };
+      return { id, de: antes, para: depois, tela: tela(id, retratoAntes) };
     },
 
     /**
@@ -679,6 +674,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
      */
     async remover({ id } = {}) {
       exigirEdicao();
+      const retratoAntes = retrato();
       const el = exigirElemento(id);
       const alvo = resumir(el);
 
@@ -688,7 +684,15 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
       }
 
       const versao = assinaturaDoDiagrama(acesso.elementos());
-      const autorizado = await pedirConfirmacao({ acao: 'remover', alvo, versao });
+      /**
+       * O aluno já respondeu FALANDO (ou digitando) depois da pergunta? Então não se pergunta de
+       * novo com um botão: ele acabou de responder. Em voz, as mãos dele não estão no teclado, e
+       * exigir o clique era quebrar a conversa no único momento em que o agente precisa da pessoa.
+       *
+       * O diálogo continua para quem não respondeu — e a assinatura do diagrama (H14) é conferida
+       * nos dois caminhos, logo abaixo.
+       */
+      const autorizado = portaoAberto('remover') || await pedirConfirmacao({ acao: 'remover', alvo, versao });
       if (!autorizado) {
         // Recusa é FATO que volta ao modelo. Sem isso ele narra a remoção como feita.
         return { removido: false, recusadoPeloAluno: true, alvo };
@@ -700,7 +704,12 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
       acesso.remover({ el });
 
       if (acesso.porId(id)) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `${id} continua no diagrama`);
-      return { removido: true, alvo, total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length };
+      return {
+        removido: true,
+        alvo,
+        total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
+        tela: tela(null, retratoAntes),
+      };
     },
   };
 }

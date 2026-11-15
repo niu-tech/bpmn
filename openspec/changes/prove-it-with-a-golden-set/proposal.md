@@ -1,3 +1,6 @@
+> **Bloco do roadmap:** a frente acadêmica (TCC como entrega). É daqui que saem as tabelas do
+> capítulo de validação; a latência por turno vem da irmã `sustain-a-class-session`.
+
 ## Why
 
 A bateria prova **cenários**: dez situações escolhidas à mão, cada uma com o seu veredito. Isso

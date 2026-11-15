@@ -77,6 +77,186 @@ export function assinaturaDoDiagrama(elementos) {
   return `${ids.length}:${ids.join(',')}`;
 }
 
+/* ---------------------------------------------------------------- a tela, depois da ação
+ *
+ * Por que isto existe (change `close-the-loop-with-the-canvas`): a ferramenta devolvia O QUE ELA
+ * FEZ, e o aluno olha O QUE FICOU NA TELA. São coisas diferentes, e o modelo só recebia a
+ * primeira — então decidia o passo seguinte pela memória do que pediu, não pelo desenho.
+ *
+ * O preço de não ter isto foi medido: em menos de 48 horas nasceram CINCO campos de ocasião, um
+ * por surpresa do bpmn-js — `ramo` e `avisoDeRamo` (criar depois de quem já tem saída desenha um
+ * caminho paralelo), `virouColaboracao` e `adotou` (o primeiro pool troca a raiz do XML e engole
+ * o desenho), `criouAFaixaDoQueJaExistia` (a primeira raia nasce em dupla). Cada um verdadeiro,
+ * nenhum reaproveitável. Esta leitura os substitui todos, porque descreve o DESENHO e não a
+ * operação: a próxima surpresa do bpmn-js já cabe aqui sem campo novo.
+ *
+ * ⚠ Curta por construção (H4). Não é o XML, não é a lista inteira: é o que muda a próxima
+ * decisão, com teto declarado e o corte DITO. */
+
+/** Teto da leitura, em caracteres. Passou disto, o resto é custo sem decisão. */
+const MAX_TELA = 760;
+
+/** Quantas pontas soltas são nomeadas antes de virar contagem. */
+const MAX_SOLTAS = 4;
+
+const COLABORACAO = 'bpmn:Collaboration';
+const POOL = 'bpmn:Participant';
+const RAIA = 'bpmn:Lane';
+
+/** Pool e raia são o CONTINENTE: não entram na conta de "o que o aluno desenhou". */
+const CONTINENTE = new Set([POOL, RAIA]);
+
+const marca = (el) => {
+  const n = nomeDe(el);
+  return n ? `"${n}"` : `${tipoCurto(el?.type)} ${el?.id ?? '?'}`;
+};
+
+function raizDe(todos) {
+  return todos.find((e) => !e.parent) ?? null;
+}
+
+/** As faixas de cada pool, por id. Raia aninhada conta na faixa de cima, como o bpmn-js desenha. */
+function faixasPorPool(todos) {
+  const contagem = {};
+  for (const el of todos) {
+    if (el?.type !== RAIA || !el.parent) continue;
+    const dono = el.parent.id;
+    contagem[dono] = (contagem[dono] ?? 0) + 1;
+  }
+  return contagem;
+}
+
+/**
+ * Retrato de ANTES, tirado pela ferramenta imediatamente antes de aplicar a operação.
+ *
+ * Três números, nada de árvore: é o que permite a leitura contar a TRANSIÇÃO ("o diagrama virou
+ * uma colaboração e o pool adotou o que já existia") sem que cada ferramenta precise do seu
+ * próprio campo para isso.
+ */
+export function instantaneoDaTela(acesso) {
+  if (!acesso?.disponivel) return null;
+  const todos = uteis(acesso.elementos());
+  const raiz = raizDe(todos);
+  return {
+    colaboracao: raiz?.type === COLABORACAO,
+    formas: todos.filter((e) => e !== raiz && !e.waypoints && !CONTINENTE.has(e.type)).length,
+    faixas: faixasPorPool(todos),
+  };
+}
+
+/**
+ * A tela como o aluno a vê agora, em uma frase por fato.
+ *
+ * `tocado` é o id do elemento que a operação mexeu (quando há um); `antes` é o retrato de
+ * `instantaneoDaTela` tirado antes dela.
+ */
+export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
+  if (!acesso?.disponivel) return 'Não há diagrama aberto nesta página.';
+
+  let todos;
+  try {
+    todos = uteis(acesso.elementos());
+  } catch {
+    return 'O diagrama não pôde ser lido agora.';
+  }
+
+  const raiz = raizDe(todos);
+  const colaboracao = raiz?.type === COLABORACAO;
+  const conteudo = todos.filter((e) => e !== raiz);
+  const formas = conteudo.filter((e) => !e.waypoints && !CONTINENTE.has(e.type));
+  const ligacoes = conteudo.filter((e) => e.waypoints);
+  const pools = conteudo.filter((e) => e.type === POOL);
+  const faixas = faixasPorPool(todos);
+
+  const partes = [];
+  partes.push(
+    `O diagrama é ${colaboracao ? 'uma colaboração' : 'um processo'} com `
+    + `${formas.length} ${formas.length === 1 ? 'forma' : 'formas'} e `
+    + `${ligacoes.length} ${ligacoes.length === 1 ? 'ligação' : 'ligações'}.`,
+  );
+
+  // A transição que reorganiza o desenho inteiro: sem ela o aluno vê tudo mudar de lugar sem explicação.
+  if (antes && !antes.colaboracao && colaboracao) {
+    partes.push(
+      `O diagrama virou uma colaboração: as ${antes.formas} formas que já estavam desenhadas `
+      + 'passaram a ficar dentro do pool novo (as ligações foram junto).',
+    );
+  }
+
+  // Processo com raias e SEM pool: existe (é o que vem de um diagrama importado, e de muito
+  // material de aula). Sem esta linha, a leitura descreveria um desenho com faixas como se não
+  // tivesse nenhuma — porque faixa é continente e não entra na conta de formas.
+  if (!pools.length && (faixas[raiz?.id] ?? 0) > 0) {
+    const n = faixas[raiz.id];
+    partes.push(`O processo tem ${n} ${n === 1 ? 'faixa' : 'faixas'}, sem pool.`);
+  }
+
+  if (pools.length) {
+    partes.push(`Pools: ${pools.map((p) => {
+      const n = faixas[p.id] ?? 0;
+      return `${marca(p)} (${n === 0 ? 'sem faixas' : `${n} ${n === 1 ? 'faixa' : 'faixas'}`})`;
+    }).join(', ')}.`);
+    for (const p of pools) {
+      const agora = faixas[p.id] ?? 0;
+      const tinha = antes?.faixas?.[p.id] ?? 0;
+      // A primeira raia de um pool nasce em DUPLA: a do que já estava lá, e a nova.
+      if (antes && agora > tinha + 1) {
+        partes.push(`${marca(p)} passou de ${tinha} para ${agora} faixas: a faixa do que já estava no pool também foi criada.`);
+      }
+    }
+  }
+
+  const selecionado = (() => {
+    try {
+      return acesso.selecionado();
+    } catch {
+      return null;
+    }
+  })();
+  if (selecionado && !selecionado.labelTarget) {
+    partes.push(`O aluno tem ${marca(selecionado)} selecionado.`);
+  }
+
+  const alvo = tocado ? acesso.porId(tocado) : null;
+  if (alvo) {
+    const { entradas, saidas } = acesso.entradasESaidas(alvo.id);
+    partes.push(
+      `${marca(alvo)} (${tipoCurto(alvo.type)}) tem `
+      + `${entradas.length} de entrada e ${saidas.length} de saída.`,
+    );
+    // Ramo paralelo: quem vem antes já tinha outra saída, e por isso o bpmn-js desceu um degrau.
+    const anterior = entradas[0]?.source ?? null;
+    if (anterior) {
+      const irmas = acesso.entradasESaidas(anterior.id).saidas.length;
+      if (irmas > 1) {
+        partes.push(
+          `${marca(anterior)} tem ${irmas} saídas, então ${marca(alvo)} é um caminho paralelo, `
+          + 'desenhado abaixo da linha — não a continuação dela. Para pôr no meio da sequência, '
+          + 'use criar_elemento com entre.',
+        );
+      }
+    }
+  }
+
+  // Ponta solta é o defeito mais comum de aluno, e o agente não enxergava nenhuma.
+  const soltas = formas.filter((e) => {
+    const { entradas, saidas } = acesso.entradasESaidas(e.id);
+    return entradas.length === 0 && saidas.length === 0;
+  });
+  if (soltas.length) {
+    const nomeadas = soltas.slice(0, MAX_SOLTAS).map(marca).join(', ');
+    partes.push(
+      `Sem nenhuma ligação: ${nomeadas}`
+      + (soltas.length > MAX_SOLTAS ? ` e mais ${soltas.length - MAX_SOLTAS}.` : '.'),
+    );
+  }
+
+  partes.push('Você não apaga, não move e não troca o tipo de nada que o aluno não tenha pedido ou confirmado.');
+
+  const texto = partes.join(' ');
+  return texto.length <= MAX_TELA ? texto : `${texto.slice(0, MAX_TELA)}… (leitura cortada)`;
+}
+
 /**
  * Monta os executores de leitura. Recebe a camada fina (`tools/bpmn-api.js`) e, opcionalmente,
  * de onde vem a última corrida de simulação — que é a PÁGINA quem registra, porque é ela que

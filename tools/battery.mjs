@@ -632,16 +632,18 @@ const CENARIOS = [
       const dentroDepois = dentroAntes.filter((id) => window.__dentroDe(id, vendor) === true);
 
       return {
-        ok: p && p.ok === true && p.resultado.virouColaboracao === false && p.resultado.adotou === 0
+        // Os fatos saem da LEITURA DA TELA (change close-the-loop-with-the-canvas): o campo por
+        // caso foi aposentado, e quem conta a reestruturação é o desenho.
+        ok: p && p.ok === true && !/virou uma colaboração/.test(p.resultado.tela)
+          && /O diagrama é uma colaboração/.test(p.resultado.tela)
           && pools() === poolsAntes + 1 && !!caixaDoPool
-          && r1 && r1.ok === true && r1.resultado.criouAFaixaDoQueJaExistia === true
+          && r1 && r1.ok === true && /passou de 0 para 2 faixas/.test(r1.resultado.tela)
           && r1.resultado.raiasAgora === 2
-          && r2 && r2.ok === true && r2.resultado.criouAFaixaDoQueJaExistia === false
+          && r2 && r2.ok === true && !/passou de/.test(r2.resultado.tela)
           && raias() === raiasAntes + 3
           && dentroDepois.length === dentroAntes.length,
         poolsAntes, poolsAgora: pools(),
-        virouColaboracao: p && p.resultado ? p.resultado.virouColaboracao : null,
-        adotou: p && p.resultado ? p.resultado.adotou : null,
+        telaDoPool: p && p.resultado ? p.resultado.tela : null,
         caixaDoPool,
         primeiraRaia: r1 && r1.resultado ? r1.resultado : (r1 || {}).erro,
         raiaIrma: r2 && r2.resultado ? r2.resultado : (r2 || {}).erro,
@@ -698,14 +700,14 @@ const CENARIOS = [
 
       return {
         ok: recusa && recusa.ok === false && /sem_lugar/.test(JSON.stringify(recusa))
-          && p && p.ok === true && p.resultado.virouColaboracao === true && p.resultado.adotou === 2
+          && p && p.ok === true && /virou uma colaboração/.test(p.resultado.tela)
+          && /as 2 formas que já estavam desenhadas/.test(p.resultado.tela)
           && dentro.every((x) => x === true)
           && r && r.ok === true && comRaias === 2
           && und && und.ok === true && raiasDepoisDeUmUndo === 2 && nomeAntes === 'Atendimento' && nomeDepois === null
           && und2 && und2.ok === true && depoisDoUndo === 0,
         recusouSemPool: recusa ? recusa.erro || JSON.parse(JSON.stringify(recusa)).motivo : null,
-        virouColaboracao: p && p.resultado ? p.resultado.virouColaboracao : null,
-        adotou: p && p.resultado ? p.resultado.adotou : null,
+        telaDoPool: p && p.resultado ? p.resultado.tela : null,
         oQueEstavaSoltoEstaDentro: dentro,
         caixaDoPool: caixa,
         raiasDepoisDeCriar: comRaias,

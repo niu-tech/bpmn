@@ -422,6 +422,12 @@ export const FERRAMENTAS = Object.freeze([
   {
     nome: 'remover',
     escreve: true,
+    /**
+     * ⚠ Exige CONFIRMAÇÃO do aluno, e o portão é da página (change `spoken-confirmation-gates`):
+     * a ação fica recusada até ele falar ou digitar DEPOIS de a pergunta ter sido feita. Não é o
+     * modelo que conta — ele pode afirmar que o aluno concordou e isso não abre nada.
+     */
+    exigeConfirmacao: 'remover',
     // ⚠ Destrutiva, e o aluno CONFIRMA na tela antes de executar. A declaração avisa o modelo
     // disso para ele não narrar a remoção antes de ter o resultado — recusa do aluno é uma
     // resposta legítima e comum, não falha.
@@ -444,4 +450,14 @@ export const FERRAMENTAS = Object.freeze([
 /** Existe no catálogo? É só isso — se vale AQUI é pergunta da política (`policy.js`). */
 export function declarada(nome) {
   return FERRAMENTAS.some((f) => f.nome === nome);
+}
+
+/**
+ * O portão que esta ferramenta exige, ou `null`.
+ *
+ * Fica no catálogo porque é declaração — "esta ação precisa do aluno" —, não decisão de execução.
+ * Quem decide se o portão está aberto é a página; quem recusa antes do executor é o despachante.
+ */
+export function portaoDaFerramenta(nome) {
+  return FERRAMENTAS.find((f) => f.nome === nome)?.exigeConfirmacao ?? null;
 }

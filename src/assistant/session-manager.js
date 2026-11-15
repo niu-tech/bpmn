@@ -18,6 +18,7 @@
 
 import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
+import { portaoDaFerramenta } from './agent/catalog.js';
 import { linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
@@ -174,6 +175,88 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let rastreador = null;
   /** O turno LOCAL da fala em curso: o rastreador fala de turno dele, a tela fala do nosso. */
   let turnoDaFala = null;
+
+  /* ---------------------------------------------------------------- portões de confirmação
+   *
+   * Change `spoken-confirmation-gates`. Uma ação que exige o aluno fica recusada até ele falar ou
+   * digitar **depois** de a pergunta ter sido feita. O que se mede é ORDEM, nunca conteúdo:
+   *
+   *  - olhar o texto ("tem 'sim'?") seria classificação por palavra-chave, proibida pela
+   *    constituição §III — e erraria em "sim, mas antes me explica";
+   *  - acreditar no modelo ("o aluno confirmou") é aceitar a narração no lugar do fato, que é
+   *    justamente o que `nada_mudou` existe para não fazer.
+   *
+   * A época sobe com o ALUNO e só com ele: nota da página, clique em candidato e fala do modelo
+   * não contam. */
+
+  /** Quantas vezes o aluno falou ou digitou nesta aba. */
+  let epocaDoAluno = 0;
+  /** O turno falado que já foi contado — a legenda chega em pedaços, e o aluno falou uma vez. */
+  let turnoFaladoContado = null;
+  /** portão -> `{ perguntou, aberto }`: a época em que a pergunta apareceu e se o aluno respondeu. */
+  const portoes = new Map();
+
+  /**
+   * Quanto se espera pela resposta do aluno antes de recusar.
+   *
+   * ⚠ Não é generosidade: a legenda FINAL do que ele falou chega depois de o modelo já ter
+   * chamado a ferramenta. Sem esta espera, ele diz "pode apagar", ouve "você ainda não confirmou"
+   * e repete — a pior experiência possível, por meio segundo. Medido nos dois produtos que rodam
+   * este modelo.
+   */
+  const TOLERANCIA_DE_FALA_MS = Number.isFinite(deps.toleranciaDeConfirmacaoMs)
+    ? deps.toleranciaDeConfirmacaoMs
+    : 3500;
+
+  function alunoFalou() {
+    epocaDoAluno++;
+  }
+
+  function portaoRespondido(nome) {
+    const p = portoes.get(nome);
+    return !!p && (p.aberto || epocaDoAluno > p.perguntou);
+  }
+
+  function abrir(nome, motivo) {
+    portoes.set(nome, { perguntou: epocaDoAluno, aberto: true });
+    diag.state('portao', `${nome}: ${motivo}`);
+    return true;
+  }
+
+  /**
+   * O portão desta ação está aberto? Abre SÓ com fala ou digitação posterior à pergunta, e **é
+   * consumido** quando abre: um "sim" autoriza uma ação, não todas as próximas.
+   */
+  async function esperarPortao(nome, { tolerancia = TOLERANCIA_DE_FALA_MS, passo = 120 } = {}) {
+    if (portaoRespondido(nome)) return abrir(nome, 'aberto pelo aluno');
+
+    if (!portoes.has(nome)) {
+      portoes.set(nome, { perguntou: epocaDoAluno, aberto: false });
+      diag.state('portao', `${nome}: perguntado, esperando o aluno`);
+    }
+
+    const fim = Date.now() + Math.max(0, tolerancia);
+    while (Date.now() < fim) {
+      await new Promise((r) => setTimeout(r, passo));
+      if (portaoRespondido(nome)) return abrir(nome, 'aberto pelo aluno (legenda atrasada)');
+    }
+
+    return false;
+  }
+
+  /**
+   * O portão já aberto, sem esperar — é o que faz `remover` não perguntar com um botão o que o
+   * aluno acabou de responder falando.
+   *
+   * ⚠ CONSOME: um "sim" autoriza UMA ação, não todas as próximas da conversa. Quem lê aqui é o
+   * executor, depois de o despachante já ter esperado — por isso a espera não pode consumir.
+   */
+  function portaoAberto(nome) {
+    const p = portoes.get(nome);
+    if (!p?.aberto) return false;
+    portoes.delete(nome);
+    return true;
+  }
   let teardownInFlight = null;
 
   /**
@@ -588,6 +671,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // contexto mudou — e é exatamente assim que uma ferramenta de escrita acabaria rodando
       // numa página que só lê.
       permitido: (nome) => permitida(nome, contextoAtual()),
+      // O que a ferramenta EXIGE está declarado no catálogo; se o aluno respondeu, quem sabe é a aba.
+      portaoDe: (nome) => portaoDaFerramenta(nome),
+      esperarPortao: (nome) => esperarPortao(nome),
       onEvent: (src, kind, detail) => diag.record(src, kind, detail),
       // O aluno PRECISA ver o que foi consultado — a resposta sozinha não diz de onde veio.
       onAtividade: ({ nome, fase, entrada, resultado }) => {
@@ -625,7 +711,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         ...criarExecutoresDeLeitura({ acesso: deps.acesso, lerSimulacao: deps.lerSimulacao }),
         // As que ESCREVEM (F7). A política já as esconde numa página que só lê; a camada fina
         // recusa de novo se a declaração vazar de uma sessão anterior.
-        ...criarExecutoresDeEscrita({ acesso: deps.acesso, pedirConfirmacao }),
+        ...criarExecutoresDeEscrita({ acesso: deps.acesso, pedirConfirmacao, portaoAberto }),
       },
       // `remover` espera uma pessoa decidir. Dois minutos é tempo de ler e clicar; o relógio do
       // turno fica pausado enquanto isso.
@@ -643,6 +729,11 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // Provisório ATUALIZA a mesma bolha; final apenas a fecha — a bolha já está certa.
       onFala: ({ tipo, texto }) => {
         if (turnoDaFala == null) return;
+        // Uma vez por TURNO falado: a legenda chega em pedaços, e quem conta é o aluno, não o pedaço.
+        if (turnoFaladoContado !== turnoDaFala) {
+          turnoFaladoContado = turnoDaFala;
+          alunoFalou();
+        }
         const bolha = falaDoTurno(turnoDaFala);
         if (bolha) { bolha.text = texto; bolha.parcial = tipo !== EventoDeFala.Final; }
         else push({ role: 'user', text: texto, via: 'voz', turn: turnoDaFala, parcial: tipo !== EventoDeFala.Final });
@@ -1060,6 +1151,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // turno: o numero e nosso, e perder a contagem quebraria desde o aviso de troca de modo
       // ate a origem do que o modelo mandar guardar.
       voltarAFalar('pergunta nova');
+      alunoFalou();
       const daSessao = session.ask(q, delta);
       const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);
       push({ role: 'user', text: q, via: 'texto', turn: n });
