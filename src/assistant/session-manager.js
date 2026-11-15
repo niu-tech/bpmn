@@ -54,7 +54,10 @@ export const ERROR_LABELS = {
   'no-mic': 'nenhum microfone encontrado',
   'insecure-context': 'precisa de https ou localhost',
   unsupported: 'este navegador não tem AudioWorklet',
-  quota: 'a cota da sua chave acabou ou há sessões demais',
+  // ⚠ NÃO é "sessões demais": medimos (tools/medir-cota.mjs, 2026-11-15) seis sessões em
+  // sequência sem pausa e quatro ao mesmo tempo, todas aceitas. O que o servidor recusa com
+  // 1011 é CONSUMO no minuto. O rótulo errado mandava o aluno fechar abas à toa.
+  quota: 'a sua chave passou do consumo permitido neste minuto',
   timeout: 'o servidor não respondeu',
 };
 
@@ -327,6 +330,49 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     return true;
   }
 
+  /* ---------------------------------------------------------------- teto de sessão
+   *
+   * Change `sustain-a-class-session`, tarefa 2. A sessão Live cobra enquanto existe, não enquanto
+   * é usada: uma aba esquecida aberta depois da aula continua consumindo a cota DO ALUNO — e a
+   * chave é dele, com cobrança na conta dele (é todo o contrato BYOK deste produto). Quem deixa
+   * a aba aberta não é descuidado; é alguém que foi almoçar.
+   *
+   * O teto é por TEMPO DE SESSÃO e não por inatividade de propósito: medir inatividade exigiria
+   * decidir o que conta como atividade (o aluno lendo a resposta está ativo?), e errar isso
+   * derruba a sessão de quem está no meio de um raciocínio. Tempo total é grosseiro e honesto.
+   *
+   * 25 minutos: mais que uma explicação longa com idas e voltas, menos que uma aula inteira
+   * esquecida. Ao encostar, a sessão ENCERRA com motivo nomeado e a tela diz como recomeçar —
+   * em vez de morrer calada e o aluno descobrir pela cota. */
+
+  /** Quanto uma sessão pode durar antes de o produto encerrá-la sozinho. */
+  const TETO_DA_SESSAO_MS = Number.isFinite(deps.tetoDaSessaoMs) ? deps.tetoDaSessaoMs : 25 * 60 * 1000;
+  let relogioDaSessao = null;
+
+  function desarmarTetoDaSessao() {
+    if (relogioDaSessao) { clearTimeout(relogioDaSessao); relogioDaSessao = null; }
+  }
+
+  function armarTetoDaSessao() {
+    desarmarTetoDaSessao();
+    if (!(TETO_DA_SESSAO_MS > 0)) return;
+    relogioDaSessao = setTimeout(async () => {
+      relogioDaSessao = null;
+      if (state === 'idle') return;
+      const minutos = Math.round(TETO_DA_SESSAO_MS / 60000);
+      diag.state('teto-da-sessao', `${minutos} min`);
+      await api.stop();
+      // ⚠ A nota entra DEPOIS do `stop`: `teardown` não apaga a conversa, e é ela que o aluno vai
+      // ler quando voltar. Sem explicação, "parou sozinho" vira "quebrou".
+      note(
+        `Encerrei a sessão depois de ${minutos} minutos para não gastar a sua cota com a aba `
+        + 'aberta. A conversa continua aqui — clique em Começar para retomar.',
+        'context-reset',
+      );
+    }, TETO_DA_SESSAO_MS);
+    relogioDaSessao?.unref?.();
+  }
+
   let teardownInFlight = null;
 
   /**
@@ -559,6 +605,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     micOn = false; level = 0;
 
     if (relogioDeSom) { clearInterval(relogioDeSom); relogioDeSom = null; }
+    desarmarTetoDaSessao();
     // ⚠ Confirmação em aberto na hora de fechar vira NÃO. A promessa tem de resolver: uma
     // ferramenta esperando um clique que não vem mais prende o turno até o teto, e o aluno vê o
     // ajudante "pensando" para sempre. Fechar é a resposta segura — ninguém apaga nada.
@@ -917,7 +964,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
          * quando a cota voltou.
          */
         if (r === 'quota') {
-          note('espere alguns segundos e use "Testar conexão" no menu ⋯ antes de recomeçar — a conversa continua aqui.', 'error');
+          /**
+           * ⚠ O RECADO DIZ O QUE FOI MEDIDO, e não um chute (tarefa 3.3).
+           *
+           * "há sessões demais" era a nossa leitura do código 1011 — e a medição de 2026-11-15
+           * (`tools/medir-cota.mjs`) mostrou que ela estava errada: seis sessões em sequência sem
+           * pausa nenhuma e quatro ao mesmo tempo foram todas ACEITAS. O que o servidor recusa é
+           * CONSUMO (o áudio e os tokens do minuto), não a frequência de abrir sessão. Dizer o
+           * contrário faz o aluno fechar abas achando que resolve.
+           */
+          note(
+            'O Google recusou pelo consumo da sua chave neste minuto — não é por abrir sessões '
+            + 'demais (medimos: seis seguidas e quatro ao mesmo tempo passam). Espere um pouco, '
+            + 'use "Testar conexão" no menu ⋯ para saber quando voltou, e então recomece. A '
+            + 'conversa continua aqui.',
+            'error',
+          );
         }
         if (r === 'bad-key') {
           note('confira a chave em aistudio.google.com e informe de novo em "Usar esta chave".', 'error');
@@ -1164,6 +1226,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         contextoEnviado,
         som: lastStats,
         uso: session?.lastUsage ?? null,
+        /**
+         * O custo e a espera, por turno (change `sustain-a-class-session`, 4.2/5.2).
+         *
+         * ⚠ Sem os TURNOS aqui, a latência só existia como linha de diário — legível, mas não
+         * somável. É desta lista que sai a tabela de latência por turno da dissertação.
+         */
+        turnos: (session?.turns ?? []).map((t) => ({
+          n: t.n, tipo: t.kind, tempos: t.tempos ?? null,
+          tokens: t.usage?.totalTokenCount ?? null, vazio: Boolean(t.empty), fallback: Boolean(t.fallback),
+        })),
+        usoAcumulado: session?.uso ?? null,
         relatorio: this.report(),
       };
     },
@@ -1176,7 +1249,11 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           turnos: String(turnSeq),
           escuta: meiaDuplex ? 'meia-duplex (rede de seguranca)' : 'continua',
           mensagens: String(messages.length),
-          uso: session?.lastUsage ? JSON.stringify(session.lastUsage) : '(sem contagem)',
+          // O ACUMULADO, e não o último turno: a pergunta do aluno é "quanto esta conversa gastou
+          // da minha chave", e um turno sozinho não responde isso.
+          uso: session?.uso?.turnos
+            ? `${session.uso.total} tokens em ${session.uso.turnos} turno(s) (entrada ${session.uso.entrada}, saída ${session.uso.saida})`
+            : '(sem contagem)',
           som: lastStats ? JSON.stringify(lastStats) : '(sem reproducao)',
         },
       });
@@ -1208,6 +1285,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       mode = targetMode;
       setState('connecting');
       openSession(targetMode);
+      // O relógio começa com a SESSÃO, não com a aba: trocar de modo abre outra sessão e o teto
+      // recomeça com ela, que é o que o servidor também faz.
+      armarTetoDaSessao();
       return true;
     },
 

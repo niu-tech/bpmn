@@ -216,6 +216,28 @@ function encerrar() {
     if (notas.enfileirou) {
       console.log(`página: ${notas.enviou} nota(s) entregue(s), ${notas.descartou} descartada(s) de ${notas.enfileirou}`);
     }
+    /**
+     * A LATÊNCIA e o CUSTO da sessão (change `sustain-a-class-session`, 4.2/5.2).
+     *
+     * Uma linha por turno sairia longa demais numa aula de 40 perguntas; o que fica aqui é a
+     * mediana — e a mediana, não a média, porque um turno travado estraga a média e não muda o
+     * que o aluno sente na maioria das vezes. Os números por turno ficam no JSON.
+     */
+    const turnos = (ultima.turnos ?? []).filter((t) => t.tempos);
+    if (turnos.length) {
+      const mediana = (xs) => {
+        const l = xs.filter((x) => x != null).sort((a2, b2) => a2 - b2);
+        return l.length ? l[Math.floor(l.length / 2)] : null;
+      };
+      const seg = (ms) => (ms == null ? '-' : (ms / 1000).toFixed(1).replace('.', ',') + ' s');
+      console.log(`turnos: ${turnos.length} · mediana ouviu ${seg(mediana(turnos.map((t) => t.tempos.ouviuMs)))}`
+        + ` · primeira resposta ${seg(mediana(turnos.map((t) => t.tempos.primeiraMs)))}`
+        + ` · turno inteiro ${seg(mediana(turnos.map((t) => t.tempos.totalMs)))}`);
+    }
+    const uso = ultima.usoAcumulado;
+    if (uso?.turnos) {
+      console.log(`custo: ${uso.total} tokens em ${uso.turnos} turno(s) — entrada ${uso.entrada}, saída ${uso.saida}`);
+    }
     if (esperasDoPortao.length) {
       const media = (esperasDoPortao.reduce((a, b) => a + b.segundos, 0) / esperasDoPortao.length).toFixed(1).replace('.', ',');
       console.log(`portão: ${esperasDoPortao.length} confirmação(ões), o aluno levou ${media} s em média`);

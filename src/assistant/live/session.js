@@ -103,6 +103,15 @@ export function createSession({
   let pendente = null;
   let resumptionHandle = null; // alça de retomada que o servidor manda; não usada ainda
   let lastUsage = null;
+  /**
+   * O USO ACUMULADO da sessão (change `sustain-a-class-session`, 5.1).
+   *
+   * O servidor manda `usageMetadata` por turno; somar é nosso. Sem a soma, "quanto custou esta
+   * aula" não tem resposta — e é a pergunta que decide se o produto cabe na chave de um aluno.
+   */
+  let usoTotal = { entrada: 0, saida: 0, total: 0, turnos: 0 };
+  /** Carimbo de tempo, injetável como o resto do relógio: teste mede ordem, não espera. */
+  const agora = () => (typeof clock.now === 'function' ? clock.now() : Date.now());
   let setupsAceitos = 0;       // quantos setups o servidor ja aceitou nesta sessao (reconexao > 1)        // contagem de tokens do último turno (custo é a cota do aluno)
 
   const log = (...parts) => onLog?.(parts.map((p) => redact(p)).join(' '));
@@ -230,7 +239,19 @@ export function createSession({
       pendente = turn;
       ev('state', 'turno-atropelado', `n=${turn.n}`);
     }
-    turn = { n: ++seqTurno, kind, prompt, text: '', spoken: '', delivered: false, audioFrames: 0, complete: false };
+    turn = {
+      n: ++seqTurno, kind, prompt, text: '', spoken: '', delivered: false, audioFrames: 0, complete: false,
+      /**
+       * Os quatro instantes que descrevem a ESPERA do aluno (tarefa 4.1). Cada um responde uma
+       * pergunta diferente quando ele diz "está lento":
+       *   t0        quando o turno abriu (ele falou / mandou a pergunta);
+       *   tOuviu    quando o servidor devolveu a transcrição do que ele disse — é o "ele me ouviu";
+       *   tPrimeira a primeira coisa que voltou (texto ou áudio) — é o "ele começou a responder";
+       *   tAudio*   a janela em que a fala chegou — é onde se vê fala picotada;
+       *   tFim      o turno fechado.
+       */
+      t0: agora(), tOuviu: null, tPrimeira: null, tAudioInicio: null, tAudioFim: null, tFim: null,
+    };
     // Turno novo no rastreador: tudo preso ao anterior passa a ser velho, inclusive chamada.
     rastreador.abrirTurno();
     armTurnTimer();
@@ -306,6 +327,36 @@ export function createSession({
     }
     turn.idle = idle;
     turn.usage = lastUsage;
+    turn.tFim = agora();
+    /**
+     * Os tempos do turno, em milissegundos, no DIÁRIO — que é onde a trilha os lê.
+     *
+     * ⚠ Em relação ao INÍCIO DO TURNO, não ao relógio de parede: o que interessa é a espera de
+     * quem perguntou. `ouviu` só existe em turno de voz (no digitado o servidor não transcreve
+     * nada), e `janela` é o tempo entre o primeiro e o último quadro de áudio — fala picotada
+     * aparece como janela muito maior que a duração do áudio.
+     */
+    const dif = (t) => (t == null ? null : t - turn.t0);
+    turn.tempos = {
+      ouviuMs: dif(turn.tOuviu),
+      primeiraMs: dif(turn.tPrimeira),
+      audioMs: dif(turn.tAudioInicio),
+      janelaDeAudioMs: turn.tAudioInicio != null && turn.tAudioFim != null ? turn.tAudioFim - turn.tAudioInicio : null,
+      totalMs: dif(turn.tFim),
+    };
+    const s = (ms) => (ms == null ? '-' : (ms / 1000).toFixed(1) + 's');
+    ev('state', 'turno-fechado',
+      `n=${turn.n} ouviu=${s(turn.tempos.ouviuMs)} primeira=${s(turn.tempos.primeiraMs)} `
+      + `audio=${s(turn.tempos.audioMs)} janela=${s(turn.tempos.janelaDeAudioMs)} total=${s(turn.tempos.totalMs)}`
+      + (turn.usage ? ` tokens=${turn.usage.totalTokenCount ?? '?'}` : ''));
+    if (turn.usage) {
+      usoTotal = {
+        entrada: usoTotal.entrada + (turn.usage.promptTokenCount ?? 0),
+        saida: usoTotal.saida + (turn.usage.responseTokenCount ?? 0),
+        total: usoTotal.total + (turn.usage.totalTokenCount ?? 0),
+        turnos: usoTotal.turnos + 1,
+      };
+    }
     ultimoEncerrado = turn;
     turns.push(turn);
     if (turnTimer) { clock.clearTimeout(turnTimer); turnTimer = null; }
@@ -364,6 +415,16 @@ export function createSession({
     encerrarTurno(alvo, idle);
   }
 
+  /**
+   * Carimba o instante da PRIMEIRA resposta deste turno (tarefa 4.1).
+   *
+   * Vale para texto e para áudio: o que o aluno percebe como "ele começou a responder" é o que
+   * vier primeiro, e nos dois modos isso é coisa diferente (no texto, a entrega; na voz, o áudio).
+   */
+  function marcarPrimeira(alvo) {
+    if (alvo && alvo.tPrimeira == null) alvo.tPrimeira = agora();
+  }
+
   function handleFrame(raw) {
     const frame = parseServerFrame(raw);
 
@@ -389,7 +450,15 @@ export function createSession({
 
       case 'audio': {
         const alvo = dono();
-        if (alvo) alvo.audioFrames++;
+        if (alvo) {
+          alvo.audioFrames++;
+          marcarPrimeira(alvo);
+          // A JANELA do áudio: entre o primeiro e o último quadro. Fala picotada aparece aqui
+          // como janela muito maior que a duração do som — e é o número que faltava para
+          // separar "o modelo demorou" de "o som chegou aos pedaços".
+          if (alvo.tAudioInicio == null) alvo.tAudioInicio = agora();
+          alvo.tAudioFim = agora();
+        }
         setState('speaking');
         armTurnTimer();
         onAudio?.(frame.pcm16Base64);
@@ -417,6 +486,10 @@ export function createSession({
         return;
 
       case 'input-text':
+        // ⚠ É o servidor dizendo que ENTENDEU a fala — não que vai responder. Entre este instante
+        // e a primeira resposta está o tempo de pensar; antes dele, o tempo de ouvir. Separar os
+        // dois é o que transforma "está lento" em um número com dono.
+        if (turn) turn.tOuviu = agora();
         // A fala do aluno é do turno NOVO: é ela que o abre. Nunca do atropelado.
         onTranscript?.({ side: 'input', text: frame.text, turno: turn?.n ?? null });
         armTurnTimer();
@@ -424,7 +497,7 @@ export function createSession({
 
       case 'output-text': {
         const alvo = dono();
-        if (alvo) alvo.spoken += frame.text;
+        if (alvo) { alvo.spoken += frame.text; marcarPrimeira(alvo); }
         onTranscript?.({ side: 'output', text: frame.text, turno: alvo?.n ?? null });
         armTurnTimer();
         return;
@@ -440,6 +513,8 @@ export function createSession({
             log('entrega repetida ignorada');
           } else if (alvo) {
             alvo.delivered = true;
+            // No modo TEXTO a resposta chega por aqui: e' este o instante em que o aluno ve algo.
+            marcarPrimeira(alvo);
             alvo.text = frame.delivery;
             onText?.({ text: frame.delivery, fallback: false, complete: false, turno: alvo.n });
           }
@@ -637,6 +712,8 @@ export function createSession({
     get isReady() { return ready; },
     get resumptionHandle() { return resumptionHandle; },
     get lastUsage() { return lastUsage; },
+    /** O uso ACUMULADO da sessão: é o custo da aula, não o do último turno. */
+    get uso() { return { ...usoTotal }; },
 
     start() {
       if (!apiKey) { fail('bad-key', 'chave ausente'); return; }

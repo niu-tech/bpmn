@@ -81,10 +81,18 @@ export function mockFactory() {
 /** Relógio controlado: nada de `setTimeout` real nos testes. */
 export function fakeClock() {
   let seq = 0;
+  let relogio = 0;
   const timers = new Map();
   return {
     setTimeout(fn, ms) { const id = ++seq; timers.set(id, { fn, ms }); return id; },
     clearTimeout(id) { timers.delete(id); },
+    /**
+     * O AGORA controlado. Existe para a medição de latência por turno
+     * (change `sustain-a-class-session`, 4.3): os quatro tempos de um turno são diferenças entre
+     * carimbos, e medir diferença com relógio de verdade num teste é medir a máquina de quem roda.
+     */
+    now() { return relogio; },
+    avancar(ms) { relogio += ms; return relogio; },
     /** Dispara todos os timers pendentes, uma vez. */
     flush() {
       const due = [...timers.entries()];

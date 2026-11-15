@@ -970,7 +970,25 @@ function montarComDiagrama(extra = {}) {
     assinar: () => () => {},
   };
   // Tolerância curta: o que se mede aqui é a ordem, não o relógio.
-  const montado = montar({ acesso, pagina: 'modelador', toleranciaDeConfirmacaoMs: 40, ...extra });
+  //
+  // `lerDiagrama` existe porque o contexto do prompt NÃO sai do `acesso`: ele sai da projeção
+  // (`agent/diagram.js`), que na página vem do observador. Sem isto, uma sessão com diagrama
+  // aberto aparecia para o modelo como página vazia — e um teste que afirme "o diagrama continua
+  // no contexto" estaria medindo o dublê, não o produto.
+  const montado = montar({
+    acesso,
+    pagina: 'modelador',
+    toleranciaDeConfirmacaoMs: 40,
+    lerDiagrama: () => ({
+      processo: { id: raiz.id, nome: null },
+      total: vivos().length - 1,
+      contagem: { Task: estado.removido ? 0 : 1 },
+      raias: [],
+      amostra: vivos().filter((e) => e !== raiz).map((e) => ({ id: e.id, tipo: 'Task', nome: e.businessObject?.name ?? null })),
+      selecionado: null,
+    }),
+    ...extra,
+  });
   return { ...montado, estado };
 }
 
@@ -1294,6 +1312,104 @@ testAsync('a FALA do aluno conta UMA vez por turno, nao uma por pedaco de legend
   live.ultima.legenda('Pode apagar', 'input');
   assert.equal((await apagar(d, 'c2')).ok, true, 'a resposta falada abre o portao');
   assert.equal(estado.removido, true);
+  forgetSecrets();
+});
+
+console.log('\n\u25b6 a aula inteira cabe numa sessao (sustain-a-class-session)');
+
+testAsync('40 turnos: uma sessao so, sem corte e sem reabrir', async () => {
+  // Tarefa 1.3. O medo e' concreto: ao encostar no teto de contexto o servidor ENCERRA a sessao,
+  // e a conversa morre no meio da aula. A compressao de janela deslizante (no setup) e' o que
+  // evita isso do lado do servidor; deste lado, o que se prova e' que NADA no produto reabre a
+  // sessao sozinho ao longo de uma conversa longa — reabrir perderia o contexto do modelo.
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  const socketsNoComeco = live.criadas.length;
+
+  for (let i = 1; i <= 40; i++) {
+    session.ask(`pergunta ${i}`);
+    live.ultima.texto(`resposta ${i}`, { complete: true });
+    live.ultima.fimDeTurno();
+  }
+
+  assert.equal(live.criadas.length, socketsNoComeco, 'nenhuma sessao nova foi aberta');
+  assert.equal(session.state, 'ready');
+  assert.equal(session.messages.filter((m) => m.role === 'assistant' && m.completa).length, 40);
+  // E o modelo continua enxergando o diagrama no fim da conversa: o contexto e' recalculado a
+  // cada turno, nao semeado uma vez no comeco.
+  assert.ok(session.contexto.diagrama, 'o diagrama continua no contexto depois de 40 turnos');
+  forgetSecrets();
+});
+
+testAsync('o historico que viaja tem TETO: conversa longa nao vira transcricao', async () => {
+  // O outro lado da mesma moeda: a sessao aguenta 40 turnos, mas o que se manda para uma sessao
+  // NOVA nao pode ser a conversa inteira — isso e' cota do aluno indo embora.
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  for (let i = 1; i <= 40; i++) {
+    session.ask(`pergunta ${i}`);
+    live.ultima.texto(`resposta ${i}`, { complete: true });
+    live.ultima.fimDeTurno();
+  }
+
+  await session.switchMode('voz');
+  live.ultima.pronta();
+  const historico = live.ultima.enviados.find((e) => e.tipo === 'historico');
+  assert.ok(historico, 'a sessao nova nasce com o passado');
+  assert.ok(historico.turnos.length <= 12, `levou ${historico.turnos.length} turnos`);
+  forgetSecrets();
+});
+
+testAsync('a sessao tem TETO de tempo, e ela diz por que encerrou', async () => {
+  // Tarefa 2.1/2.2/2.3. A sessao cobra enquanto existe, nao enquanto e' usada: a aba esquecida
+  // depois da aula gasta a cota DO ALUNO. O teto e' injetado aqui para o teste medir ORDEM, nao
+  // esperar 25 minutos.
+  const { session, live } = montarComDiagrama({ tetoDaSessaoMs: 60 });
+  await session.connect('texto');
+  live.ultima.pronta();
+  assert.equal(session.state, 'ready');
+
+  await new Promise((r) => setTimeout(r, 140));
+
+  assert.equal(session.state, 'idle', 'a sessao encerrou sozinha');
+  assert.equal(live.ultima.fechada, true, 'e o socket foi fechado de verdade');
+  const aviso = session.messages.filter((m) => m.role === 'system').at(-1);
+  assert.match(aviso.text, /Encerrei a sess/i);
+  assert.match(aviso.text, /cota/i, 'diz POR QUE encerrou');
+  assert.match(aviso.text, /Comec|Começar/i, 'e como recomecar');
+  assert.ok(session.diagnostics.events.some((e) => e.key === 'state.teto-da-sessao'), 'com motivo nomeado no diario');
+  forgetSecrets();
+});
+
+testAsync('abaixo do teto, a sessao NAO encerra', async () => {
+  const { session, live } = montarComDiagrama({ tetoDaSessaoMs: 5000 });
+  await session.connect('texto');
+  live.ultima.pronta();
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(session.state, 'ready');
+  await session.stop();
+  forgetSecrets();
+});
+
+testAsync('o recado de cota diz o que foi MEDIDO, e aponta o verbo que resolve', async () => {
+  // Tarefa 3.4. "ha sessoes demais" era a nossa leitura do codigo 1011, e a medicao mostrou que
+  // estava errada — seis sessoes seguidas e quatro ao mesmo tempo passam. Recado que manda o
+  // aluno fechar abas quando o problema e' consumo faz ele perder tempo com o que nao resolve.
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  live.ultima.falha('quota');
+
+  const avisos = session.messages.filter((m) => m.role === 'system').map((m) => m.text).join(' | ');
+  assert.match(avisos, /consumo/i);
+  assert.match(avisos, /Testar conex/i, 'aponta o verbo que diz quando voltou');
+  // ⚠ A frase do recado CITA a leitura errada para negar ("não é por abrir sessões demais"),
+  // então o que se cobra aqui é o RÓTULO do erro — que era onde a leitura errada estava afirmada.
+  const rotulo = avisos.split('|')[0];
+  assert.ok(!/há sessões demais/.test(rotulo), 'o rótulo do erro não afirma mais o que era falso');
+  assert.match(rotulo, /consumo permitido/);
   forgetSecrets();
 });
 

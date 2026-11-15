@@ -92,6 +92,20 @@ export function buildSetup({
     // e o fallback quando o turno termina sem chamada de entrega.
     inputAudioTranscription: {},
     outputAudioTranscription: {},
+    /**
+     * A CONVERSA LONGA NÃO PODE SER CORTADA (change `sustain-a-class-session`, 1.1).
+     *
+     * A sessão Live tem um teto de contexto, e ao encostar nele o servidor ENCERRA a sessão em
+     * vez de esquecer o começo. Numa aula isso é a pior falha possível: tudo funcionando, e a
+     * conversa morre no meio porque durou. Com a janela deslizante o servidor descarta os turnos
+     * mais antigos sozinho e a sessão continua — o aluno perde o começo da conversa, que é
+     * exatamente o que uma pessoa também perderia, em vez de perder a sessão inteira.
+     *
+     * Três linhas, e é o item mais barato de todo o roadmap. O `{}` é o default do servidor
+     * (ele escolhe o tamanho da janela); declarar número aqui seria chutar um teto que a
+     * documentação não fixa.
+     */
+    contextWindowCompression: { slidingWindow: {} },
   };
 
   const declaracoes = [];
