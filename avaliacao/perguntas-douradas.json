@@ -33,11 +33,14 @@
       "id": "leitura-busca",
       "categoria": "leitura",
       "perfil": "modelador",
-      "pergunta": "existe alguma tarefa chamada Assar a pizza?",
+      "pergunta": "existe alguma tarefa chamada Emitir nota fiscal nesse diagrama?",
       "ferramentasEsperadas": [
         "buscar_elemento"
       ],
-      "porque": "a amostra do contexto não autoriza afirmar inexistência; a busca varre o registro inteiro (design H13)"
+      "porque": "a amostra do contexto prova presenca, mas NAO prova ausencia: so a varredura do registro inteiro autoriza dizer \"nao existe\" (design H13). Por isso a pergunta e sobre algo que o diagrama NAO tem — perguntar por algo visivel nao obrigaria ferramenta nenhuma",
+      "proibicoes": [
+        "nao consta no resumo"
+      ]
     },
     {
       "id": "leitura-detalhe",
@@ -355,7 +358,12 @@
       "perfil": "modelador",
       "pergunta": "me explica o que faz a Bake the pizza",
       "respostaNoIdioma": "pt",
-      "porque": "o diagrama padrão está todo em inglês e empurra o modelo para o idioma do dado a cada turno (H9)"
+      "porque": "o diagrama padrao deste site esta TODO em ingles e empurra o modelo para o idioma do dado a cada turno (H9). Olhar o elemento com uma ferramenta e legitimo; o que se cobra e a LINGUA da resposta",
+      "ferramentasAceitas": [
+        "buscar_elemento",
+        "detalhar_elemento",
+        "descrever_diagrama"
+      ]
     },
     {
       "id": "cota-recado",
