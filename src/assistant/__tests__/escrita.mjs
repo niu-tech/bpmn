@@ -118,13 +118,37 @@ function criarModeladorFalso({
         businessObject: atributos.name ? { name: atributos.name } : {},
         incoming: [],
         outgoing: [],
-        x: Math.round((posicao?.x ?? 0) - 50),
-        y: Math.round((posicao?.y ?? 0) - 40),
-        width: 100,
-        height: 80,
+        // A forma chega PRONTA do `elementFactory` (um pool tem 600×250, e o nosso cálculo pode
+        // tê-lo esticado para envolver o conteúdo): respeitar a medida dela é o que faz o teste
+        // alcançar a geometria do pool.
+        x: Math.round((posicao?.x ?? 0) - (atributos.width ?? 100) / 2),
+        y: Math.round((posicao?.y ?? 0) - (atributos.height ?? 80) / 2),
+        width: atributos.width ?? 100,
+        height: atributos.height ?? 80,
       });
       if (!noFluxo) {
-        registrar('createShape', () => mapa.delete(novo.id));
+        /**
+         * Primeiro pool de um processo plano: o bpmn-js troca a RAIZ para colaboração e move todo
+         * o conteúdo para dentro do pool novo (`CreateParticipantBehavior`), no MESMO comando.
+         * Sem dublar isso, o teste não alcança os dois fatos que a ferramenta promete ao modelo
+         * (`virouColaboracao` e `adotou`) — e são justamente eles que explicam ao aluno por que o
+         * desenho inteiro mudou de lugar.
+         */
+        const virou = atributos.type === 'bpmn:Participant' && raiz.type === 'bpmn:Process';
+        const adotados = virou
+          ? [...mapa.values()].filter((e) => e !== novo && e.parent === raiz && !e.waypoints && !e.labelTarget)
+          : [];
+        if (virou) {
+          raiz.type = 'bpmn:Collaboration';
+          for (const e of adotados) e.parent = novo;
+          novo.children = adotados;
+        }
+        registrar('createShape', () => {
+          mapa.delete(novo.id);
+          if (!virou) return;
+          raiz.type = 'bpmn:Process';
+          for (const e of adotados) e.parent = raiz;
+        });
         return novo;
       }
 
@@ -180,6 +204,47 @@ function criarModeladorFalso({
       registrar('alignElements', () => {
         for (const a of antes) { a.f.x = a.x; a.f.y = a.y; }
       });
+    },
+
+    /**
+     * `addLane` como o bpmn-js o faz (`AddLaneHandler`): quando o pool ainda NÃO tem raia, ele
+     * cria também a faixa do conteúdo que já estava lá — então o primeiro pedido de raia produz
+     * DUAS. O dublê precisa disso porque é o fato que a ferramenta promete contar ao aluno.
+     */
+    addLane(alvo, lugar) {
+      chamadas.push({ fn: 'addLane', alvo: alvo.id, lugar });
+      const dono = String(alvo.type) === 'bpmn:Lane' ? alvo.parent : alvo;
+      dono.children = dono.children ?? [];
+      const criadas = [];
+      const faixa = (y, altura) => {
+        const l = guardar({
+          id: `Lane_${++seq}`,
+          type: 'bpmn:Lane',
+          parent: dono,
+          businessObject: {},
+          x: (dono.x ?? 0) + 30,
+          y,
+          width: (dono.width ?? 600) - 30,
+          height: altura,
+          children: [],
+        });
+        dono.children.push(l);
+        criadas.push(l);
+        return l;
+      };
+
+      if (!dono.children.some((c) => String(c?.type) === 'bpmn:Lane')) {
+        faixa(dono.y ?? 0, dono.height ?? 120);
+      }
+      const base = lugar === 'top' ? (alvo.y ?? 0) - 120 : (alvo.y ?? 0) + (alvo.height ?? 0);
+      const nova = faixa(base, 120);
+      registrar('addLane', () => {
+        for (const l of criadas) {
+          mapa.delete(l.id);
+          dono.children = dono.children.filter((c) => c !== l);
+        }
+      });
+      return nova;
     },
 
     setColor(formas, cores) {
@@ -249,6 +314,21 @@ function criarModeladorFalso({
     createShape(atributos) {
       chamadas.push({ fn: 'elementFactory.createShape', tipo: atributos.type });
       return { ...atributos, width: 100, height: 80 };
+    },
+    /**
+     * ⚠ Um pool nasce com 600×250 E com `processRef` — o processo de dentro dele. Participante
+     * sem processo é pool que não guarda nada, e o primeiro elemento criado lá estouraria no
+     * `BpmnUpdater` com a forma já desenhada (o fantasma do portão 4.5).
+     */
+    createParticipantShape(atributos = {}) {
+      chamadas.push({ fn: 'elementFactory.createParticipantShape' });
+      return {
+        type: 'bpmn:Participant',
+        width: 600,
+        height: 250,
+        businessObject: { processRef: { id: `Process_do_pool_${++seq}` } },
+        ...atributos,
+      };
     },
   };
 
@@ -664,7 +744,7 @@ test('a política esconde TODA ferramenta de escrita de uma página que só lê'
   // ⚠ A lista cresce junto com o catálogo: `mover`, `alinhar` e `trocar_tipo` nasceram depois e
   // precisam do mesmo portão. Ferramenta de escrita nova que não entre aqui passa despercebida
   // no viewer — e o viewer é a página que o aluno abre para LER o processo de alguém.
-  const nomes = ['criar_elemento', 'conectar', 'renomear', 'remover', 'mover', 'alinhar', 'trocar_tipo'];
+  const nomes = ['criar_elemento', 'conectar', 'renomear', 'remover', 'mover', 'alinhar', 'trocar_tipo', 'criar_pool', 'criar_raia', 'desfazer', 'destacar'];
   for (const n of nomes) {
     assert.equal(permitida(n, { pagina: 'viewer' }), false, n);
     assert.equal(permitida(n, { pagina: 'modelador' }), true, n);
@@ -731,7 +811,14 @@ testAsync('desfazer devolve o diagrama ao que era: o que o agente criou sai do r
  */
 function colaboracaoFalsa() {
   const falso = criarModeladorFalso({
-    regras: (forma, alvo) => alvo.type !== 'bpmn:Collaboration',
+    /**
+     * A regra do bpmn-js, nos dois casos que importam: uma colaboração NÃO guarda fluxo (não tem
+     * `flowElements`), mas RECEBE participante — é assim que o aluno acrescenta um pool a um
+     * diagrama que já tem dois. Dublar só a primeira metade fazia o pool novo ser recusado.
+     */
+    regras: (forma, alvo) => (String(forma?.type) === 'bpmn:Participant'
+      ? ['bpmn:Process', 'bpmn:Collaboration'].includes(String(alvo?.type))
+      : alvo.type !== 'bpmn:Collaboration'),
   });
   falso.raiz.type = 'bpmn:Collaboration';
   const pool = (id, nome, y) => falso.guardar({
@@ -1066,6 +1153,140 @@ testAsync('criar depois de quem JÁ tem saída avisa que é ramo, e diz qual é 
   assert.equal(emLinha.avisoDeRamo, null);
 });
 
+/* ---------------------------------------------------------------- pool e raia
+ *
+ * O pedido que faltava: *"cria uma raia para o entregador"*. Estava fora da lista de tipos
+ * criáveis de propósito — pool e raia não são "mais um elemento": o PRIMEIRO pool troca a raiz do
+ * XML do aluno (`bpmn:Process` → `bpmn:Collaboration`) e adota todo o desenho, e a primeira raia
+ * cria DUAS faixas. Os dois fatos vão no resultado, porque o aluno vê o desenho mudar e pediu uma
+ * coisa pequena. */
+
+testAsync('o primeiro pool de um processo plano ADOTA o desenho — e o resultado diz isso', async () => {
+  const falso = criarModeladorFalso();
+  falso.guardar({
+    id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: falso.raiz, businessObject: { name: 'Pedido' },
+    x: 200, y: 200, width: 36, height: 36, incoming: [], outgoing: [],
+  });
+  falso.guardar({
+    id: 'Task_1', type: 'bpmn:Task', parent: falso.raiz, businessObject: { name: 'Assar' },
+    x: 300, y: 180, width: 100, height: 80, incoming: [], outgoing: [],
+  });
+  const acesso = criarAcessoBpmn(falso.modelador);
+  const exec = criarExecutoresDeEscrita({ acesso, pedirConfirmacao: async () => true });
+
+  const r = await exec.criar_pool({ nome: 'Pizzaria' });
+
+  assert.equal(r.criado.tipo, 'Participant');
+  assert.equal(r.criado.nome, 'Pizzaria');
+  // Os dois fatos que explicam ao aluno por que o desenho inteiro mudou de lugar.
+  assert.equal(r.virouColaboracao, true);
+  assert.equal(r.adotou, 2);
+  assert.equal(acesso.raiz().type, 'bpmn:Collaboration');
+  // ⚠ A fábrica certa: participante SEM `processRef` é pool que não guarda nada.
+  assert.ok(falso.chamadas.some((c) => c.fn === 'elementFactory.createParticipantShape'));
+  // E o pool ENVOLVE o que adotou: criado por comando, o bpmn-js não o redimensiona sozinho —
+  // conteúdo maior que 600×250 ficaria desenhado fora do próprio pool.
+  const caixa = acesso.caixaDe(r.criado.id);
+  assert.ok(caixa.x <= 200 - 50, `pool começa em ${caixa.x}`);
+  assert.ok(caixa.x + caixa.w >= 400 + 20, `pool termina em ${caixa.x + caixa.w}`);
+  assert.ok(caixa.y <= 180 - 20 && caixa.y + caixa.h >= 236 + 20);
+});
+
+testAsync('numa colaboração o pool novo nasce ABAIXO dos que já existem, sem mexer na raiz', async () => {
+  const falso = colaboracaoFalsa();
+  const acesso = criarAcessoBpmn(falso.modelador);
+  const exec = criarExecutoresDeEscrita({ acesso, pedirConfirmacao: async () => true });
+
+  const r = await exec.criar_pool({ nome: 'Entregador' });
+
+  assert.equal(r.virouColaboracao, false);
+  assert.equal(r.adotou, 0, 'pool novo em colaboração não adota ninguém');
+  assert.equal(r.poolsAntes, 2);
+  assert.equal(r.totalDePools, 3);
+  // Os pools de `colaboracaoFalsa` terminam em y=520; o novo entra embaixo, alinhado à esquerda.
+  const caixa = acesso.caixaDe(r.criado.id);
+  assert.ok(caixa.y >= 520, `nasceu em y=${caixa.y}`);
+  assert.equal(caixa.x, 100);
+});
+
+testAsync('desfazer o primeiro pool devolve a raiz a processo — um Ctrl+Z, não dois', async () => {
+  const falso = criarModeladorFalso();
+  falso.guardar({
+    id: 'Task_1', type: 'bpmn:Task', parent: falso.raiz, businessObject: { name: 'Assar' },
+    x: 300, y: 180, width: 100, height: 80, incoming: [], outgoing: [],
+  });
+  const acesso = criarAcessoBpmn(falso.modelador);
+  const exec = criarExecutoresDeEscrita({ acesso, pedirConfirmacao: async () => true });
+  const r = await exec.criar_pool({});
+
+  await exec.desfazer();
+
+  assert.equal(acesso.porId(r.criado.id), null);
+  assert.equal(acesso.raiz().type, 'bpmn:Process');
+  assert.equal(acesso.porId('Task_1').parent, falso.raiz);
+});
+
+testAsync('raia num diagrama SEM pool é `sem_lugar` com o próximo passo no texto', async () => {
+  // O modelo resolve isto sozinho se a recusa disser o que fazer — e não resolve com "deu erro".
+  const falso = criarModeladorFalso();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.criar_raia({ nome: 'Entregador' }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR && /pool primeiro/.test(e.message),
+  );
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'addLane'), []);
+});
+
+testAsync('com mais de um pool, a raia PERGUNTA em qual — e devolve os nomes', async () => {
+  const falso = colaboracaoFalsa();
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.criar_raia({ nome: 'Entregador' }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR && /Pizza Customer/.test(e.message) && /Pizza vendor/.test(e.message),
+  );
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'addLane'), []);
+});
+
+testAsync('a PRIMEIRA raia de um pool cria duas faixas, e o resultado avisa', async () => {
+  const falso = colaboracaoFalsa();
+  const acesso = criarAcessoBpmn(falso.modelador);
+  const exec = criarExecutoresDeEscrita({ acesso, pedirConfirmacao: async () => true });
+
+  const r = await exec.criar_raia({ nome: 'Entregador', dentroDe: 'Pool_loja' });
+
+  assert.equal(r.criada.tipo, 'Lane');
+  assert.equal(r.criada.nome, 'Entregador');
+  assert.equal(r.em.id, 'Pool_loja');
+  assert.equal(r.raiasAntes, 0);
+  assert.equal(r.raiasAgora, 2, 'a do conteúdo que já estava lá + a nova');
+  assert.equal(r.criouAFaixaDoQueJaExistia, true);
+
+  // A segunda já entra sozinha.
+  const segunda = await exec.criar_raia({ nome: 'Atendimento', dentroDe: 'Pool_loja', onde: 'acima' });
+  assert.equal(segunda.raiasAgora, 3);
+  assert.equal(segunda.criouAFaixaDoQueJaExistia, false);
+  assert.equal(segunda.onde, 'acima');
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'addLane').map((c) => c.lugar), ['bottom', 'top']);
+});
+
+testAsync('alvo que não é pool nem raia, e `onde` desconhecido, são recusas nomeadas', async () => {
+  const falso = colaboracaoFalsa();
+  falso.guardar({ id: 'Task_1', type: 'bpmn:Task', parent: falso.raiz, businessObject: {}, x: 150, y: 150, width: 100, height: 80 });
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.criar_raia({ dentroDe: 'Task_1' }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR && /não é um pool/.test(e.message),
+  );
+  await assert.rejects(
+    () => exec.criar_raia({ dentroDe: 'Pool_loja', onde: 'no meio' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /abaixo/.test(e.message),
+  );
+  assert.deepEqual(falso.chamadas.filter((c) => c.fn === 'addLane'), []);
+});
+
 /* ---------------------------------------------------------------- desfazer e destacar */
 
 testAsync('desfazer pela conversa é a MESMA pilha do Ctrl+Z: criar com nome são dois passos', async () => {
@@ -1170,7 +1391,7 @@ test('toda ferramenta que ESCREVE tem executor, nome coerente e portão no viewe
     pedirConfirmacao: async () => true,
   });
   const escritoras = FERRAMENTAS.filter((f) => f.escreve);
-  assert.ok(escritoras.length >= 7, `só ${escritoras.length} ferramentas de escrita no catálogo`);
+  assert.ok(escritoras.length >= 11, `só ${escritoras.length} ferramentas de escrita no catálogo`);
   for (const f of escritoras) {
     assert.equal(typeof exec[f.nome], 'function', `${f.nome} declarada e não roteada`);
     assert.equal(f.declaracao?.name, f.nome, `${f.nome} com nome divergente na declaração`);

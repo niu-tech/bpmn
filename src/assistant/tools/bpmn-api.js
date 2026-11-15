@@ -41,6 +41,11 @@ export function criarAcessoBpmn(modelador) {
     inserirEntre: () => { throw new Error('pagina_somente_leitura'); },
     desfazer: () => { throw new Error('pagina_somente_leitura'); },
     destacar: () => { throw new Error('pagina_somente_leitura'); },
+    criarPool: () => { throw new Error('pagina_somente_leitura'); },
+    criarRaia: () => { throw new Error('pagina_somente_leitura'); },
+    raiz: () => null,
+    pools: () => [],
+    raiasDe: () => [],
     caixaDe: () => null,
     fluxoEntre: () => null,
     corDe: () => ({ fundo: null, borda: null }),
@@ -280,6 +285,60 @@ export function criarAcessoBpmn(modelador) {
     return { x: 220, y: Math.max(...desenhados.map((e) => e.y + e.height)) + 80 };
   };
 
+  /**
+   * As medidas do POOL, e por que elas são nossas de propósito.
+   *
+   * Os três números são do bpmn-js (`CreateParticipantBehavior`): 20 px de folga em volta do
+   * conteúdo e 30 px de faixa do rótulo, na borda esquerda. A conta existe aqui porque aquele
+   * comportamento só roda no ARRASTO (`create.start`): criando por comando, o pool nasce com o
+   * tamanho padrão e o bpmn-js, logo depois, move TODO o processo para dentro dele — conteúdo
+   * maior que 600×250 ficaria desenhado fora do próprio pool.
+   */
+  const FOLGA_DO_POOL = 20;
+  const FAIXA_DO_ROTULO = 30;
+
+  /** Quem está DESENHADO na tela, medido. É o que decide tamanho e vaga do pool. */
+  const desenhadosMedidos = () => {
+    try {
+      return (registry.getAll() ?? []).filter((e) => e && !e.waypoints && !e.labelTarget
+        && Number.isFinite(e.x) && Number.isFinite(e.width));
+    } catch {
+      return [];
+    }
+  };
+
+  /**
+   * Onde o pool novo nasce — e, no primeiro pool de um processo plano, de que TAMANHO.
+   *
+   * Dois casos, e eles são diferentes de verdade:
+   *  - **processo plano com conteúdo**: o pool tem de ENVOLVER o que já existe, porque o bpmn-js
+   *    vai mudar a raiz para colaboração e mover tudo para dentro dele. A forma é esticada aqui
+   *    (mutação de `forma`, que é o objeto que vai ao `createShape`).
+   *  - **colaboração, ou tela vazia**: embaixo do que já está desenhado, alinhado à esquerda com
+   *    os pools que já existem.
+   */
+  const vagaDePool = (raiz, forma) => {
+    const ehColaboracao = String(raiz?.type ?? '') === 'bpmn:Collaboration';
+    const desenhados = desenhadosMedidos().filter((e) => e !== raiz);
+
+    if (!ehColaboracao && desenhados.length) {
+      const x1 = Math.min(...desenhados.map((e) => e.x));
+      const y1 = Math.min(...desenhados.map((e) => e.y));
+      const x2 = Math.max(...desenhados.map((e) => e.x + e.width));
+      const y2 = Math.max(...desenhados.map((e) => e.y + e.height));
+      forma.width = Math.max(forma.width ?? 0, (x2 - x1) + FOLGA_DO_POOL * 2 + FAIXA_DO_ROTULO);
+      forma.height = Math.max(forma.height ?? 0, (y2 - y1) + FOLGA_DO_POOL * 2);
+      // A faixa do rótulo fica à esquerda: sem o recuo, o primeiro elemento nasce debaixo dela.
+      const esquerda = x1 - FOLGA_DO_POOL - FAIXA_DO_ROTULO;
+      const topo = (y1 + y2) / 2 - forma.height / 2;
+      return { x: Math.round(esquerda + forma.width / 2), y: Math.round(topo + forma.height / 2) };
+    }
+
+    if (!desenhados.length) return { x: 160 + forma.width / 2, y: 80 + forma.height / 2 };
+    const esquerda = Math.min(...desenhados.map((e) => e.x));
+    const fundo = Math.max(...desenhados.map((e) => e.y + e.height));
+    return { x: Math.round(esquerda + forma.width / 2), y: Math.round(fundo + 60 + forma.height / 2) };
+  };
 
   if (!registry || !eventBus) return inerte;
 
@@ -372,6 +431,67 @@ export function criarAcessoBpmn(modelador) {
     /** Os lugares que ACEITAM um elemento deste tipo. Quem decide e o `rules` do bpmn-js. */
     lugaresParaCriar(tipo) {
       return candidatosPara(formaDe(tipo));
+    },
+
+    /** A raiz do desenho: é ela que diz se o diagrama é um processo plano ou uma colaboração. */
+    raiz() {
+      try {
+        return canvas.getRootElement();
+      } catch {
+        return null;
+      }
+    },
+
+    /**
+     * Cria um POOL (participante).
+     *
+     * ⚠ `createParticipantShape` e não `createShape`: é ele que cria o `bpmn:Process` do pool
+     * (`processRef`). Um participante SEM processo é um pool que não guarda nada — e o primeiro
+     * elemento que o aluno pedisse lá dentro estouraria no `BpmnUpdater` com a forma já
+     * desenhada, que é o mesmo fantasma do portão 4.5.
+     *
+     * No primeiro pool de um processo plano, o bpmn-js troca a RAIZ para colaboração e move todo
+     * o conteúdo para dentro do pool novo (`CreateParticipantBehavior`). Isso não é efeito
+     * colateral nosso: é o que o arrasto da paleta faz. O que é nosso é o tamanho (ver
+     * `vagaDePool`) e dizer ao modelo que a raiz mudou.
+     */
+    criarPool() {
+      const raiz = canvas.getRootElement();
+      const forma = elementFactory
+        ? elementFactory.createParticipantShape()
+        : { type: 'bpmn:Participant', width: 600, height: 250 };
+      if (!aceita(forma, raiz)) throw new Error('sem_lugar_para_criar');
+      const novo = modeling.createShape(forma, vagaDePool(raiz, forma), raiz);
+      try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o pool já está lá */ }
+      return novo;
+    },
+
+    /**
+     * Cria uma RAIA dentro de um pool (ou ao lado de outra raia).
+     *
+     * `modeling.addLane` é o mesmo verbo do botão de raia do bpmn-js: ele abre espaço no desenho
+     * (empurra o que está abaixo), cria a faixa e — quando o pool ainda não tinha raia nenhuma —
+     * cria TAMBÉM a faixa do conteúdo que já estava lá. É isso que faz "cria uma raia para o
+     * entregador" não embaralhar o processo que o aluno já desenhou.
+     */
+    criarRaia({ alvo, onde = 'abaixo' }) {
+      const lugar = String(onde).toLowerCase() === 'acima' ? 'top' : 'bottom';
+      const nova = modeling.addLane(alvo, lugar);
+      if (!nova) throw new Error('nada_mudou');
+      try { canvas.scrollToElement(nova); } catch { /* sem o verbo: a raia já está lá */ }
+      return nova;
+    },
+
+    /** As raias de um pool (ou as irmãs de uma raia). Leitura direta dos filhos. */
+    raiasDe(el) {
+      const dono = String(el?.type ?? '') === 'bpmn:Lane' ? el.parent : el;
+      const filhos = Array.isArray(dono?.children) ? dono.children : [];
+      return filhos.filter((e) => String(e?.type ?? '') === 'bpmn:Lane');
+    },
+
+    /** Os pools do desenho. Vazio = o diagrama é um processo plano. */
+    pools() {
+      return this.elementos().filter((e) => String(e?.type ?? '') === 'bpmn:Participant' && !e.labelTarget);
     },
 
     /**

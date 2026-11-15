@@ -224,6 +224,27 @@ porque reimplementar a regra do BPMN é ter duas versões dela — e a nossa est
 > a âncora já tem saída, porque ali é um ramo paralelo. A resposta certa era dar o verbo de
 > inserir no meio e DIZER ao modelo que aquilo é um ramo — não achatar o desenho.
 
+#### F7c — Pool e raia  ✅ 2026-11-15
+`criar_pool` · `criar_raia`. Estavam fora da lista de tipos criáveis de propósito, e a razão
+continua válida: não são "mais um elemento". O **primeiro pool** de um diagrama plano troca a raiz
+de `bpmn:Process` para `bpmn:Collaboration` e adota todo o desenho (`CreateParticipantBehavior`);
+a **primeira raia** de um pool cria DUAS faixas (`addLane`). Os dois fatos vão no resultado
+(`virouColaboracao` · `adotou` · `criouAFaixaDoQueJaExistia`), porque o aluno vê o desenho mudar
+muito mais do que o tamanho do pedido dele. Sem pool, a raia recusa dizendo o próximo passo; com
+mais de um, pergunta em qual.
+
+> **Portão F7c** — sem cota (`node tools/battery.mjs --so "pool e raia"`): na colaboração, 2→3
+> pools com as **4 tarefas ainda dentro** do pool do vendedor e 3→6 raias; no processo plano
+> importado, `adotou: 2` com os dois elementos soltos medidos **dentro** do pool (610×260) e zero
+> sobreposição; dois `Ctrl+Z` (nome, depois faixas) devolvem o desenho. Ao vivo, o modelo escolheu
+> sozinho: *"uma raia para o entregador"* → `criar_raia`; *"um pool para a transportadora"* →
+> `criar_pool`.
+>
+> **A armadilha que só o navegador deu:** o bpmn-js ajusta o tamanho do pool ao conteúdo apenas no
+> ARRASTO (`create.start`). Criado por comando, ele nasceria 600×250 e um processo maior ficaria
+> desenhado FORA do próprio pool — nenhum teste com dublê alcança isso. A conta (20 px de folga +
+> 30 px da faixa do rótulo) ficou nossa, com a origem nomeada no código.
+
 ### F8 — Tutor
 Ensina com o diagrama como exemplo · propõe a representação a partir de uma descrição · recomenda
 quando há escolha · monta em passos que o aluno aceita · propõe sem decidir pelo aluno.

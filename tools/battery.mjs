@@ -156,6 +156,46 @@ window.__respostaFalada = async (quantasAntes = 0) => {
 `;
 
 /** Instala o dublê do socket e abre o painel. Primeiro passo de todo cenário com sessão. */
+/**
+ * Um processo PLANO (sem pool), para o caso que mais mexe no XML do aluno: o primeiro pool troca
+ * a raiz de `bpmn:Process` para `bpmn:Collaboration` e adota todo o desenho.
+ *
+ * Entra na página pelo input de arquivo que a barra já tem (`#file-bpmn`) — nada de recarregar a
+ * aba no meio do cenário, que é onde o passo seguinte pega contexto destruído.
+ */
+const XML_PROCESSO_PLANO = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"',
+  ' xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"',
+  ' xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"',
+  ' xmlns:di="http://www.omg.org/spec/DD/20100524/DI"',
+  ' id="Defs_plano" targetNamespace="http://bpmn.io/schema/bpmn">',
+  '  <bpmn:process id="Process_plano" isExecutable="false">',
+  '    <bpmn:startEvent id="Inicio" name="Pedido recebido">',
+  '      <bpmn:outgoing>Flow_1</bpmn:outgoing>',
+  '    </bpmn:startEvent>',
+  '    <bpmn:task id="Tarefa_1" name="Preparar o pedido">',
+  '      <bpmn:incoming>Flow_1</bpmn:incoming>',
+  '    </bpmn:task>',
+  '    <bpmn:sequenceFlow id="Flow_1" sourceRef="Inicio" targetRef="Tarefa_1" />',
+  '  </bpmn:process>',
+  '  <bpmndi:BPMNDiagram id="Diag_1">',
+  '    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_plano">',
+  '      <bpmndi:BPMNShape id="Inicio_di" bpmnElement="Inicio">',
+  '        <dc:Bounds x="180" y="200" width="36" height="36" />',
+  '      </bpmndi:BPMNShape>',
+  '      <bpmndi:BPMNShape id="Tarefa_1_di" bpmnElement="Tarefa_1">',
+  '        <dc:Bounds x="280" y="178" width="100" height="80" />',
+  '      </bpmndi:BPMNShape>',
+  '      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">',
+  '        <di:waypoint x="216" y="218" />',
+  '        <di:waypoint x="280" y="218" />',
+  '      </bpmndi:BPMNEdge>',
+  '    </bpmndi:BPMNPlane>',
+  '  </bpmndi:BPMNDiagram>',
+  '</bpmn:definitions>',
+].join('\n');
+
 const PREPARAR = `
 window.__frames = [];
 window.__sockets = 0;
@@ -547,6 +587,133 @@ const CENARIOS = [
         pintou: pintado,
         depoisDoDesfazer: depoisDoUndo,
         desfez: und ? und.ok : null,
+      };
+    `],
+  },
+
+  /**
+   * POOL e RAIA contra o bpmn-js de verdade — o verbo com mais risco de todos, porque o primeiro
+   * pool REESCREVE a raiz do XML do aluno (`bpmn:Process` → `bpmn:Collaboration`) e move o
+   * desenho inteiro para dentro dele. É comportamento do próprio bpmn-js
+   * (`CreateParticipantBehavior`), mas com uma pegadinha: ele só AJUSTA o tamanho do pool ao
+   * conteúdo durante o ARRASTO. Criado por comando, o pool nasceria 600×250 e um processo maior
+   * ficaria desenhado FORA do próprio pool — e nenhum teste com dublê pega isso.
+   *
+   * Os dois casos, no mesmo cenário: colaboração (a pizzaria) e processo plano (importado pelo
+   * input de arquivo da barra).
+   */
+  {
+    nome: 'pool e raia contra o bpmn-js de verdade: colaboracao e processo plano (T19)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    passos: [`
+      for (let i = 0; i < 40 && !window.__bpmnAssist; i++) await new Promise((r) => setTimeout(r, 250));
+      if (!window.__bpmnAssist) return { ok: false, erro: 'o ajudante nao montou' };
+      ${MEDIR_SOBREPOSICAO}
+      const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
+      const raias = () => window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Lane').length;
+      const pools = () => window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Participant').length;
+
+      const poolsAntes = pools();
+      const raiasAntes = raias();
+
+      // (1) Pool novo numa COLABORACAO: nao mexe na raiz e nao adota ninguem.
+      const p = await F('criar_pool', { nome: 'Entregador parceiro' });
+      const novoPool = p && p.resultado && p.resultado.criado ? p.resultado.criado.id : null;
+      const caixaDoPool = window.__caixa(novoPool);
+
+      // (2) Primeira raia DO POOL NOVO: o bpmn-js cria tambem a faixa do conteudo, sempre.
+      const r1 = await F('criar_raia', { nome: 'Motoboy', dentroDe: novoPool });
+
+      // (3) Raia num pool que JA tem raias: entra como irma, e o que estava dentro continua dentro.
+      const vendor = window.__conteinerChamado('Pizza vendor');
+      const dentroAntes = window.__bpmnAssist.desenho.nos
+        .filter((n) => /Task/.test(n.tipo) && window.__dentroDe(n.id, vendor) === true).map((n) => n.id);
+      const r2 = await F('criar_raia', { nome: 'Pos-venda', dentroDe: vendor, onde: 'abaixo' });
+      const dentroDepois = dentroAntes.filter((id) => window.__dentroDe(id, vendor) === true);
+
+      return {
+        ok: p && p.ok === true && p.resultado.virouColaboracao === false && p.resultado.adotou === 0
+          && pools() === poolsAntes + 1 && !!caixaDoPool
+          && r1 && r1.ok === true && r1.resultado.criouAFaixaDoQueJaExistia === true
+          && r1.resultado.raiasAgora === 2
+          && r2 && r2.ok === true && r2.resultado.criouAFaixaDoQueJaExistia === false
+          && raias() === raiasAntes + 3
+          && dentroDepois.length === dentroAntes.length,
+        poolsAntes, poolsAgora: pools(),
+        virouColaboracao: p && p.resultado ? p.resultado.virouColaboracao : null,
+        adotou: p && p.resultado ? p.resultado.adotou : null,
+        caixaDoPool,
+        primeiraRaia: r1 && r1.resultado ? r1.resultado : (r1 || {}).erro,
+        raiaIrma: r2 && r2.resultado ? r2.resultado : (r2 || {}).erro,
+        raiasAntes, raiasAgora: raias(),
+        tarefasQueSeguemNoPool: dentroDepois.length + ' de ' + dentroAntes.length,
+      };
+    `, `
+      ${MEDIR_SOBREPOSICAO}
+      const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
+
+      // Troca o diagrama por um processo PLANO, pelo input de arquivo da propria barra.
+      const entrada = document.querySelector('#bz-file-input');
+      if (!entrada) return { ok: false, erro: 'a barra do modelador nao tem o input de arquivo' };
+      const dt = new DataTransfer();
+      dt.items.add(new File([${JSON.stringify(XML_PROCESSO_PLANO)}], 'plano.bpmn', { type: 'text/xml' }));
+      entrada.files = dt.files;
+      entrada.dispatchEvent(new Event('change'));
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        const d = window.__bpmnAssist.desenho;
+        if (d.nos.some((n) => n.id === 'Tarefa_1') && !d.nos.some((n) => n.tipo === 'Participant')) break;
+      }
+      const planoAberto = window.__bpmnAssist.desenho;
+      const semPool = !planoAberto.nos.some((n) => n.tipo === 'Participant');
+      if (!semPool) return { ok: false, erro: 'o processo plano nao abriu' };
+
+      // Raia ANTES de haver pool: a recusa tem de dizer o proximo passo.
+      const recusa = await F('criar_raia', { nome: 'Atendimento' });
+
+      // O primeiro pool: reescreve a raiz e ADOTA o desenho.
+      const p = await F('criar_pool', { nome: 'Pizzaria' });
+      const pool = p && p.resultado && p.resultado.criado ? p.resultado.criado.id : null;
+      // A prova independente do resultado da ferramenta: o que estava solto esta DENTRO do pool.
+      const dentro = ['Inicio', 'Tarefa_1'].map((id) => window.__dentroDe(id, pool));
+      const caixa = window.__caixa(pool);
+
+      // E agora a raia entra sem dizer onde: ha um pool so.
+      const r = await F('criar_raia', { nome: 'Atendimento' });
+      const raias = () => window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Lane').length;
+      const comRaias = raias();
+
+      /**
+       * ⚠ Criar COM NOME sao dois comandos, aqui como em criar_elemento (T12): o primeiro
+       * Ctrl+Z tira o NOME e o segundo tira as faixas. Medido: a primeira versao deste portao
+       * esperava um desfazer so e reprovou o produto por um fato que o produto conta.
+       */
+      const nomeDaRaia = () => (window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Lane' && n.nome) || {}).nome || null;
+      const nomeAntes = nomeDaRaia();
+      const und = await F('desfazer', {});
+      const raiasDepoisDeUmUndo = raias();
+      const nomeDepois = nomeDaRaia();
+      const und2 = await F('desfazer', {});
+      const depoisDoUndo = raias();
+
+      return {
+        ok: recusa && recusa.ok === false && /sem_lugar/.test(JSON.stringify(recusa))
+          && p && p.ok === true && p.resultado.virouColaboracao === true && p.resultado.adotou === 2
+          && dentro.every((x) => x === true)
+          && r && r.ok === true && comRaias === 2
+          && und && und.ok === true && raiasDepoisDeUmUndo === 2 && nomeAntes === 'Atendimento' && nomeDepois === null
+          && und2 && und2.ok === true && depoisDoUndo === 0,
+        recusouSemPool: recusa ? recusa.erro || JSON.parse(JSON.stringify(recusa)).motivo : null,
+        virouColaboracao: p && p.resultado ? p.resultado.virouColaboracao : null,
+        adotou: p && p.resultado ? p.resultado.adotou : null,
+        oQueEstavaSoltoEstaDentro: dentro,
+        caixaDoPool: caixa,
+        raiasDepoisDeCriar: comRaias,
+        // Dois desfazer para uma criacao com nome: o primeiro tira o rotulo, o segundo as faixas.
+        nomeDaRaia: nomeAntes + ' -> ' + String(nomeDepois),
+        raiasDepoisDeUmUndo,
+        raiasDepoisDeDoisUndos: depoisDoUndo,
+        sobrepoe: window.__sobrepoe(pool),
       };
     `],
   },
@@ -1532,6 +1699,60 @@ if (chaveViva) {
          virou: achado ? achado.tipo : null,
          nomeManteve: achado ? achado.nome : null,
          ligacoesPreservadas: ligacoes,
+         ferramentasChamadas: chamadas,
+         respondeu: r.slice(0, 300),
+       };`,
+    ],
+  });
+
+  CENARIOS.push({
+    nome: 'AO VIVO: "uma raia para o entregador" — o modelo escolhe pool e raia (T19)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    espera: 4500,
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${MEDIR_SOBREPOSICAO}
+       window.__raias = () => window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Lane');
+       window.__pools = () => window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Participant');
+       window.__raiasAntes = window.__raias().length;
+       window.__poolsAntes = window.__pools().length;
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto',
+         raiasAntes: window.__raiasAntes,
+         poolsAntes: window.__poolsAntes,
+       };`,
+
+      `// A frase que comecou tudo isto. Ha DOIS pools no diagrama, entao a ferramenta recusa a
+       // primeira tentativa e devolve os nomes — o modelo tem de perguntar ou escolher pelo nome.
+       const r = await window.__resposta('Preciso de uma raia nova para o entregador dentro do pool da pizzaria (Pizza vendor). Cria pra mim?');
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && window.__raias().length === window.__raiasAntes + 1
+           && chamadas.includes('criar_raia'),
+         raiasAgora: window.__raias().length,
+         nomesDasRaias: window.__raias().map((n) => n.nome),
+         ferramentasChamadas: chamadas,
+         respondeu: r.slice(0, 300),
+       };`,
+
+      `// E o pool: o aluno fala de um participante novo, nao de "um elemento".
+       const r = await window.__resposta('Agora cria um pool separado para a transportadora que leva as pizzas.');
+       const pools = window.__pools();
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && pools.length === window.__poolsAntes + 1
+           && chamadas.includes('criar_pool'),
+         poolsAgora: pools.length,
+         nomes: pools.map((p) => p.nome),
          ferramentasChamadas: chamadas,
          respondeu: r.slice(0, 300),
        };`,

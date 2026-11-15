@@ -321,6 +321,138 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null } = {
     },
 
     /**
+     * Cria um POOL (participante) — a caixa que representa quem executa o processo.
+     *
+     * ⚠ O primeiro pool de um diagrama plano REESTRUTURA o desenho: o bpmn-js troca a raiz de
+     * `bpmn:Process` para `bpmn:Collaboration` e move todo o conteúdo para dentro do pool novo.
+     * É exatamente o que acontece quando o aluno arrasta um pool da paleta, mas é grande o
+     * bastante para o resultado DIZER que aconteceu (`virouColaboracao`, `adotou`) — senão o
+     * agente narraria "criei um pool" e o aluno veria o diagrama inteiro mudar de lugar sem
+     * explicação. Um `Ctrl+Z` desfaz tudo junto (os comandos ficam aninhados num só).
+     */
+    async criar_pool({ nome } = {}) {
+      exigirEdicao();
+      const raizAntes = acesso.raiz();
+      const eraProcesso = String(raizAntes?.type ?? '') === 'bpmn:Process';
+      const poolsAntes = acesso.pools().length;
+
+      let criado;
+      try {
+        criado = acesso.criarPool();
+      } catch (err) {
+        if (!/sem_lugar_para_criar/.test(err?.message ?? '')) throw err;
+        // A raiz recusou o participante: é o caso do diagrama que não é processo nem colaboração.
+        throw nomeado(ERROS_ESCRITA.SEM_LUGAR, 'este diagrama não recebe um pool');
+      }
+
+      const confirmado = acesso.porId(criado?.id);
+      if (!confirmado) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o pool não apareceu no registro');
+
+      const rotulo = typeof nome === 'string' ? nome.trim() : '';
+      if (rotulo) {
+        acesso.renomear({ el: confirmado, nome: rotulo });
+        if (nomeDe(acesso.porId(confirmado.id)) !== rotulo) {
+          throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o pool nasceu sem o nome "${rotulo}"`);
+        }
+      }
+
+      const raizAgora = acesso.raiz();
+      return {
+        criado: resumir(acesso.porId(confirmado.id)),
+        // O fato que o agente precisa contar: a raiz do diagrama mudou de tipo.
+        virouColaboracao: eraProcesso && String(raizAgora?.type ?? '') === 'bpmn:Collaboration',
+        /**
+         * Quantos ELEMENTOS o pool novo adotou — zero numa tela vazia, o processo inteiro no
+         * primeiro pool de um diagrama plano.
+         *
+         * ⚠ Conta forma, não conexão: o bpmn-js move as setas junto, e somá-las faria o número
+         * dito ao aluno ("pus 5 elementos dentro") não bater com o que ele conta na tela.
+         */
+        adotou: (acesso.porId(confirmado.id)?.children ?? [])
+          .filter((e) => e && !e.labelTarget && !Array.isArray(e.waypoints)).length,
+        totalDePools: acesso.pools().length,
+        poolsAntes,
+      };
+    },
+
+    /**
+     * Cria uma RAIA dentro de um pool — a faixa de quem faz cada parte.
+     *
+     * Sem `dentroDe`, usa o único pool do diagrama; com mais de um, RECUSA e devolve os nomes,
+     * como `criar_elemento` faz. Adivinhar o pool colocaria o papel novo na organização errada.
+     *
+     * ⚠ Diagrama plano não tem onde pôr raia: a recusa diz isso com o próximo passo no texto
+     * (criar um pool primeiro), porque é um fato que o modelo consegue resolver sozinho.
+     */
+    async criar_raia({ nome, dentroDe, onde } = {}) {
+      exigirEdicao();
+      const lugar = String(onde ?? 'abaixo').toLowerCase();
+      if (!['abaixo', 'acima'].includes(lugar)) {
+        throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, `onde ${onde} (use: abaixo, acima)`);
+      }
+
+      let alvo = dentroDe ? exigirElemento(dentroDe, 'dentroDe') : null;
+      if (alvo && !['bpmn:Participant', 'bpmn:Lane'].includes(String(alvo.type))) {
+        throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `${alvo.id} não é um pool nem uma raia`);
+      }
+      if (!alvo) {
+        const pools = acesso.pools();
+        if (!pools.length) {
+          throw nomeado(
+            ERROS_ESCRITA.SEM_LUGAR,
+            'este diagrama não tem pool; crie um pool primeiro e depois as raias dele',
+          );
+        }
+        if (pools.length > 1) {
+          const nomes = pools.map((p) => {
+            const r = resumir(p);
+            return r.nome ? `"${r.nome}" (${r.id})` : r.id;
+          }).join(', ');
+          throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `há mais de um pool — diga em qual com dentroDe: ${nomes}`);
+        }
+        [alvo] = pools;
+      }
+
+      const raiasAntes = acesso.raiasDe(alvo).length;
+      let nova;
+      try {
+        nova = acesso.criarRaia({ alvo, onde: lugar });
+      } catch (err) {
+        if (/nada_mudou/.test(err?.message ?? '')) {
+          throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o bpmn-js não devolveu a raia nova');
+        }
+        throw err;
+      }
+
+      const confirmada = acesso.porId(nova?.id);
+      if (!confirmada || String(confirmada.type) !== 'bpmn:Lane') {
+        throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'a raia não apareceu no registro');
+      }
+
+      const rotulo = typeof nome === 'string' ? nome.trim() : '';
+      if (rotulo) {
+        acesso.renomear({ el: confirmada, nome: rotulo });
+        if (nomeDe(acesso.porId(confirmada.id)) !== rotulo) {
+          throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `a raia nasceu sem o nome "${rotulo}"`);
+        }
+      }
+
+      return {
+        criada: resumir(acesso.porId(confirmada.id)),
+        em: resumir(alvo),
+        onde: lugar,
+        /**
+         * ⚠ O primeiro pedido de raia cria DUAS: a do conteúdo que já estava no pool e a nova.
+         * É o `addLane` do bpmn-js, e o agente precisa contar isso — o aluno vai ver duas faixas
+         * aparecerem e só pediu uma.
+         */
+        raiasAgora: acesso.raiasDe(alvo).length,
+        raiasAntes,
+        criouAFaixaDoQueJaExistia: raiasAntes === 0,
+      };
+    },
+
+    /**
      * MOVE um elemento. O verbo que faltava: até 2026-11-14 o agente conseguia criar e remover,
      * e quando o aluno dizia "tira esse e põe na linha de cima" ele só conseguia a metade
      * destrutiva do pedido (trilha T14).

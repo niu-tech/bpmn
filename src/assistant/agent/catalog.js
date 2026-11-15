@@ -178,6 +178,61 @@ export const FERRAMENTAS = Object.freeze([
   },
 
   {
+    nome: 'criar_pool',
+    escreve: true,
+    // ⚠ A declaração AVISA que o primeiro pool reestrutura o diagrama. Sem isso o modelo narra
+    // "criei um pool" e o aluno vê o desenho inteiro mudar de lugar sem explicação.
+    declaracao: {
+      name: 'criar_pool',
+      description:
+        'Cria um pool (participante) — a caixa que representa QUEM executa o processo: uma '
+        + 'empresa, um setor, um sistema. Use quando o aluno falar de mais de um lado do '
+        + 'processo ("o cliente faz isso, a loja faz aquilo"). ATENÇÃO: num diagrama que ainda '
+        + 'não tem pool, o primeiro pool muda o diagrama para colaboração e passa a CONTER tudo '
+        + 'o que já estava desenhado — o resultado diz isso em virouColaboracao e adotou, e você '
+        + 'deve contar ao aluno. Um Ctrl+Z desfaz tudo junto. Para as faixas de dentro do pool, '
+        + 'use criar_raia.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nome: { type: 'string', description: 'O nome de quem o pool representa.' },
+        },
+      },
+    },
+  },
+
+  {
+    nome: 'criar_raia',
+    escreve: true,
+    declaracao: {
+      name: 'criar_raia',
+      description:
+        'Cria uma raia (faixa) dentro de um pool — o papel de quem faz cada parte do processo '
+        + '("uma raia para o entregador"). Sem dentroDe usa o único pool do diagrama; se houver '
+        + 'mais de um, a ferramenta recusa com sem_lugar e devolve os nomes: pergunte em qual. '
+        + 'Num diagrama SEM pool a resposta é sem_lugar dizendo para criar um pool primeiro. '
+        + 'ATENÇÃO: o primeiro pedido de raia num pool cria DUAS faixas — a do conteúdo que já '
+        + 'estava lá e a nova (o resultado traz criouAFaixaDoQueJaExistia); avise o aluno, '
+        + 'porque ele vê duas aparecerem e pediu uma.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nome: { type: 'string', description: 'O nome do papel, como o aluno falou.' },
+          dentroDe: {
+            type: 'string',
+            description: 'Id do pool que recebe a raia, ou de uma raia existente para pôr a nova ao lado dela.',
+          },
+          onde: {
+            type: 'string',
+            enum: ['abaixo', 'acima'],
+            description: 'Onde a faixa nova entra em relação ao alvo. O padrão é abaixo.',
+          },
+        },
+      },
+    },
+  },
+
+  {
     nome: 'mover',
     escreve: true,
     // ⚠ Sem pixel na declaração de propósito: o modelo não recebe coordenada nenhuma no contexto

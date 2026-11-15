@@ -90,6 +90,27 @@ const COMO_MOSTRAR = {
     return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '') + ramo;
   },
 
+  criar_pool: (e, r) => {
+    if (!r || r.ok === false || !r.criado) return 'tentei criar um pool';
+    const nome = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
+    // ⚠ A reestruturação entra na linha: o aluno vê o desenho inteiro mudar de lugar, e a linha
+    // é o único lugar da tela que explica por quê.
+    if (r.virouColaboracao) {
+      const adotou = r.adotou ? ' e pôs ' + plural(r.adotou, 'elemento', 'elementos') + ' dentro' : '';
+      return 'criei o pool ' + nome + adotou;
+    }
+    return 'criei o pool ' + nome;
+  },
+
+  criar_raia: (e, r) => {
+    if (!r || r.ok === false || !r.criada) return 'tentei criar uma raia';
+    const nome = r.criada.nome ? QUOTE + r.criada.nome + QUOTE : r.criada.id;
+    const onde = r.em?.nome ? ' em ' + QUOTE + r.em.nome + QUOTE : '';
+    // Duas faixas quando era a primeira: dizer isso evita o aluno achar que apareceu lixo.
+    const par = r.criouAFaixaDoQueJaExistia ? ' (e uma faixa para o que já estava lá)' : '';
+    return 'criei a raia ' + nome + onde + par;
+  },
+
   mover: (e, r) => {
     if (!r || r.ok === false || !r.movido) return 'tentei mover';
     const nome = r.movido.nome ? QUOTE + r.movido.nome + QUOTE : (r.movido.id ?? e?.id ?? 'o elemento');
@@ -179,6 +200,8 @@ export function linhaDeInicio(nome) {
     detalhar_elemento: 'abrindo o elemento…',
     resumir_simulacao: 'lendo a simulação…',
     criar_elemento: 'criando no diagrama…',
+    criar_pool: 'criando o pool…',
+    criar_raia: 'criando a raia…',
     conectar: 'ligando os elementos…',
     renomear: 'renomeando…',
     mover: 'movendo no desenho…',
