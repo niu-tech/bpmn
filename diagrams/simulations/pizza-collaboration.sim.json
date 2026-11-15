@@ -24,22 +24,22 @@
   },
 
   "resources": {
-    "_6-650": { "capacity": 1, "name": "Atendente (clerk)" },
-    "_6-446": { "capacity": 2, "name": "Pizzaiolo (chef)" },
-    "_6-448": { "capacity": 2, "name": "Entregador (delivery)" }
+    "_6-650": { "capacity": 1, "name": "Atendente" },
+    "_6-446": { "capacity": 2, "name": "Pizzaiolo" },
+    "_6-448": { "capacity": 2, "name": "Entregador" }
   },
 
   "activityDurations": {
-    "_6-74":  { "type": "exponential", "mean": 2.0,  "name": "Select a pizza" },
-    "_6-127": { "type": "exponential", "mean": 1.5,  "name": "Order a pizza" },
-    "_6-236": { "type": "exponential", "mean": 1.0,  "name": "Ask for the pizza" },
-    "_6-304": { "type": "normal",      "mean": 1.5,  "sd": 0.3, "name": "Pay the pizza" },
-    "_6-355": { "type": "normal",      "mean": 25.0, "sd": 8.0, "name": "Eat the pizza" },
+    "_6-74":  { "type": "exponential", "mean": 2.0,  "name": "Escolher a pizza" },
+    "_6-127": { "type": "exponential", "mean": 1.5,  "name": "Pedir a pizza" },
+    "_6-236": { "type": "exponential", "mean": 1.0,  "name": "Cobrar a pizza" },
+    "_6-304": { "type": "normal",      "mean": 1.5,  "sd": 0.3, "name": "Pagar a pizza" },
+    "_6-355": { "type": "normal",      "mean": 25.0, "sd": 8.0, "name": "Comer a pizza" },
 
-    "_6-463": { "type": "normal",      "mean": 12.0, "sd": 3.0, "name": "Bake the pizza" },
-    "_6-514": { "type": "normal",      "mean": 15.0, "sd": 4.0, "name": "Deliver the pizza" },
-    "_6-565": { "type": "normal",      "mean": 1.0,  "sd": 0.2, "name": "Receive payment" },
-    "_6-695": { "type": "exponential", "mean": 4.0,  "name": "Calm customer" }
+    "_6-463": { "type": "normal",      "mean": 12.0, "sd": 3.0, "name": "Assar a pizza" },
+    "_6-514": { "type": "normal",      "mean": 15.0, "sd": 4.0, "name": "Entregar a pizza" },
+    "_6-565": { "type": "normal",      "mean": 1.0,  "sd": 0.2, "name": "Receber o pagamento" },
+    "_6-695": { "type": "exponential", "mean": 4.0,  "name": "Acalmar o cliente" }
   },
 
   "timerEvents": {
@@ -47,9 +47,9 @@
   },
 
   "messageFlowDelays": {
-    "_6-638": { "type": "fixed", "value": 0.2, "name": "pizza order (chamada)" },
+    "_6-638": { "type": "fixed", "value": 0.2, "name": "pedido de pizza (chamada)" },
     "_6-640": { "type": "fixed", "value": 0.2, "name": "pizza handover" },
-    "_6-642": { "type": "fixed", "value": 0.2, "name": "where is my pizza?" },
+    "_6-642": { "type": "fixed", "value": 0.2, "name": "cade a minha pizza?" },
     "_6-646": { "type": "fixed", "value": 0.1, "name": "receipt" },
     "_6-648": { "type": "fixed", "value": 0.1, "name": "money" },
     "_6-750": { "type": "fixed", "value": 0.1, "name": "calm customer ack" }

@@ -670,4 +670,4 @@ descobertas por acaso:
 | Ponta | O que acontece hoje | Por que não entrou |
 |---|---|---|
 | O botão **"♻️ Novo"** da barra do modelador | apaga o autosave **sem perguntar** e recarrega a pizzaria — ou seja, "novo" quer dizer "o exemplo de outra pessoa", e agora isso contradiz a tela base | é anterior a esta change e mora na barra do modelador, não na primeira tela. Consertar junto misturaria duas frentes; e o conserto certo (perguntar antes de descartar trabalho) é uma decisão de produto, não um ajuste |
-| O exemplo continua **em inglês** | *Select a pizza*, *Bake the pizza*, *Pizza vendor* | traduzir `pizza-collaboration.bpmn` muda o fixture de ~15 cenários da bateria e das provas ao vivo, que casam por nome de elemento. A tira passou a dizer que aquilo é um exemplo, que era a parte que confundia |
+| ~~O exemplo em inglês~~ | **fechado em 2026-11-15**, a pedido do dono | traduzido para pt-BR mantendo os ids (`_6-463` continua `_6-463`); os 56 pontos que casavam por nome foram atualizados junto — bateria e `npm test` verdes. Prova nas tarefas da change `introduce-bpmn-first-run-workspace`, bloco 8 |

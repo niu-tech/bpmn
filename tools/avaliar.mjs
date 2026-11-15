@@ -119,8 +119,8 @@ function bancada({ perfil = 'modelador', vazio = false, respondeu = false, comSi
       id, type: 'bpmn:Participant', parent: falso.raiz, businessObject: { name: nome },
       x: 100, y, width: 600, height: 200, children: [],
     });
-    const cliente = pool('Pool_cliente', 'Pizza Customer', 100);
-    const loja = pool('Pool_loja', 'Pizza vendor', 320);
+    const cliente = pool('Pool_cliente', 'Cliente', 100);
+    const loja = pool('Pool_loja', 'Pizzaria', 320);
     falso.raiz.children = [cliente, loja];
     const forma = (id, tipo, nome, pai, x, y) => {
       const el = falso.guardar({

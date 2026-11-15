@@ -4,22 +4,22 @@
     <semantic:message id="_1275940932433"/>
     <semantic:process isExecutable="false" id="_6-1">
         <semantic:laneSet id="ls_6-438">
-            <semantic:lane name="clerk" id="_6-650">
+            <semantic:lane name="atendente" id="_6-650">
                 <semantic:flowNodeRef>_6-450</semantic:flowNodeRef>
                 <semantic:flowNodeRef>_6-652</semantic:flowNodeRef>
                 <semantic:flowNodeRef>_6-674</semantic:flowNodeRef>
                 <semantic:flowNodeRef>_6-695</semantic:flowNodeRef>
             </semantic:lane>
-            <semantic:lane name="pizza chef" id="_6-446">
+            <semantic:lane name="pizzaiolo" id="_6-446">
                 <semantic:flowNodeRef>_6-463</semantic:flowNodeRef>
             </semantic:lane>
-            <semantic:lane name="delivery boy" id="_6-448">
+            <semantic:lane name="entregador" id="_6-448">
                 <semantic:flowNodeRef>_6-514</semantic:flowNodeRef>
                 <semantic:flowNodeRef>_6-565</semantic:flowNodeRef>
                 <semantic:flowNodeRef>_6-616</semantic:flowNodeRef>
             </semantic:lane>
         </semantic:laneSet>
-        <semantic:startEvent name="Order received" id="_6-450">
+        <semantic:startEvent name="Pedido recebido" id="_6-450">
             <semantic:outgoing>_6-630</semantic:outgoing>
             <semantic:messageEventDefinition messageRef="_1275940932310"/>
         </semantic:startEvent>
@@ -28,25 +28,25 @@
             <semantic:outgoing>_6-691</semantic:outgoing>
             <semantic:outgoing>_6-693</semantic:outgoing>
         </semantic:parallelGateway>
-        <semantic:intermediateCatchEvent parallelMultiple="false" name="&#8222;where is my pizza?&#8220;" id="_6-674">
+        <semantic:intermediateCatchEvent parallelMultiple="false" name="&#8222;cad&#234; a minha pizza?&#8220;" id="_6-674">
             <semantic:incoming>_6-691</semantic:incoming>
             <semantic:incoming>_6-746</semantic:incoming>
             <semantic:outgoing>_6-748</semantic:outgoing>
             <semantic:messageEventDefinition messageRef="_1275940932433"/>
         </semantic:intermediateCatchEvent>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Calm customer" id="_6-695">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Acalmar o cliente" id="_6-695">
             <semantic:incoming>_6-748</semantic:incoming>
             <semantic:outgoing>_6-746</semantic:outgoing>
         </semantic:task>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Bake the pizza" id="_6-463">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Assar a pizza" id="_6-463">
             <semantic:incoming>_6-693</semantic:incoming>
             <semantic:outgoing>_6-632</semantic:outgoing>
         </semantic:task>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Deliver the pizza" id="_6-514">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Entregar a pizza" id="_6-514">
             <semantic:incoming>_6-632</semantic:incoming>
             <semantic:outgoing>_6-634</semantic:outgoing>
         </semantic:task>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Receive payment" id="_6-565">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Receber o pagamento" id="_6-565">
             <semantic:incoming>_6-634</semantic:incoming>
             <semantic:outgoing>_6-636</semantic:outgoing>
         </semantic:task>
@@ -65,14 +65,14 @@
     </semantic:process>
     <semantic:message id="_1275940932198"/>
     <semantic:process isExecutable="false" id="_6-2">
-        <semantic:startEvent name="Hungry for pizza" id="_6-61">
+        <semantic:startEvent name="Com fome de pizza" id="_6-61">
             <semantic:outgoing>_6-125</semantic:outgoing>
         </semantic:startEvent>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Select a pizza" id="_6-74">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Escolher a pizza" id="_6-74">
             <semantic:incoming>_6-125</semantic:incoming>
             <semantic:outgoing>_6-178</semantic:outgoing>
         </semantic:task>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Order a pizza" id="_6-127">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Pedir a pizza" id="_6-127">
             <semantic:incoming>_6-178</semantic:incoming>
             <semantic:outgoing>_6-420</semantic:outgoing>
         </semantic:task>
@@ -82,31 +82,31 @@
             <semantic:outgoing>_6-422</semantic:outgoing>
             <semantic:outgoing>_6-424</semantic:outgoing>
         </semantic:eventBasedGateway>
-        <semantic:intermediateCatchEvent parallelMultiple="false" name="pizza received" id="_6-202">
+        <semantic:intermediateCatchEvent parallelMultiple="false" name="pizza recebida" id="_6-202">
             <semantic:incoming>_6-422</semantic:incoming>
             <semantic:outgoing>_6-428</semantic:outgoing>
             <semantic:messageEventDefinition messageRef="_1275940932198"/>
         </semantic:intermediateCatchEvent>
-        <semantic:intermediateCatchEvent parallelMultiple="false" name="60 minutes" id="_6-219">
+        <semantic:intermediateCatchEvent parallelMultiple="false" name="60 minutos" id="_6-219">
             <semantic:incoming>_6-424</semantic:incoming>
             <semantic:outgoing>_6-426</semantic:outgoing>
             <semantic:timerEventDefinition>
                 <semantic:timeDate/>
             </semantic:timerEventDefinition>
         </semantic:intermediateCatchEvent>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Ask for the pizza" id="_6-236">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Cobrar a pizza" id="_6-236">
             <semantic:incoming>_6-426</semantic:incoming>
             <semantic:outgoing>_6-430</semantic:outgoing>
         </semantic:task>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Pay the pizza" id="_6-304">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Pagar a pizza" id="_6-304">
             <semantic:incoming>_6-428</semantic:incoming>
             <semantic:outgoing>_6-434</semantic:outgoing>
         </semantic:task>
-        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Eat the pizza" id="_6-355">
+        <semantic:task completionQuantity="1" isForCompensation="false" startQuantity="1" name="Comer a pizza" id="_6-355">
             <semantic:incoming>_6-434</semantic:incoming>
             <semantic:outgoing>_6-436</semantic:outgoing>
         </semantic:task>
-        <semantic:endEvent name="Hunger satisfied" id="_6-406">
+        <semantic:endEvent name="Fome saciada" id="_6-406">
             <semantic:incoming>_6-436</semantic:incoming>
         </semantic:endEvent>
         <semantic:sequenceFlow sourceRef="_6-61" targetRef="_6-74" name="" id="_6-125"/>
@@ -121,16 +121,16 @@
         <semantic:sequenceFlow sourceRef="_6-355" targetRef="_6-406" name="" id="_6-436"/>
     </semantic:process>
     <semantic:collaboration id="C1275940932557">
-        <semantic:participant name="Pizza Customer" processRef="_6-2" id="_6-53"/>
-        <semantic:participant name="Pizza vendor" processRef="_6-1" id="_6-438"/>
-        <semantic:messageFlow name="pizza order" sourceRef="_6-127" targetRef="_6-450" id="_6-638"/>
+        <semantic:participant name="Cliente" processRef="_6-2" id="_6-53"/>
+        <semantic:participant name="Pizzaria" processRef="_6-1" id="_6-438"/>
+        <semantic:messageFlow name="pedido de pizza" sourceRef="_6-127" targetRef="_6-450" id="_6-638"/>
         <semantic:messageFlow name="" sourceRef="_6-236" targetRef="_6-674" id="_6-642"/>
-        <semantic:messageFlow name="receipt" sourceRef="_6-565" targetRef="_6-304" id="_6-646"/>
-        <semantic:messageFlow name="money" sourceRef="_6-304" targetRef="_6-565" id="_6-648"/>
+        <semantic:messageFlow name="recibo" sourceRef="_6-565" targetRef="_6-304" id="_6-646"/>
+        <semantic:messageFlow name="dinheiro" sourceRef="_6-304" targetRef="_6-565" id="_6-648"/>
         <semantic:messageFlow name="pizza" sourceRef="_6-514" targetRef="_6-202" id="_6-640"/>
         <semantic:messageFlow name="" sourceRef="_6-695" targetRef="_6-236" id="_6-750"/>
     </semantic:collaboration>
-    <bpmndi:BPMNDiagram documentation="" id="Trisotech.Visio-_6" name="Untitled Diagram" resolution="96.00000267028808">
+    <bpmndi:BPMNDiagram documentation="" id="Trisotech.Visio-_6" name="Pedido de pizza" resolution="96.00000267028808">
         <bpmndi:BPMNPlane bpmnElement="C1275940932557">
             <bpmndi:BPMNShape bpmnElement="_6-53" isHorizontal="true" id="Trisotech.Visio__6-53">
                 <dc:Bounds height="294.0" width="1044.0" x="12.0" y="12.0"/>

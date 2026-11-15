@@ -77,18 +77,18 @@ test("buildGraph - parses all processes in collaboration", () => {
   // _6-61 is the customer start event
   assert(
     graph.elementsById.has("_6-61"),
-    "_6-61 (Hungry for pizza) exists in graph",
+    "_6-61 (Com fome de pizza) exists in graph",
   );
 
   // _6-450 is the vendor start event
   assert(
     graph.elementsById.has("_6-450"),
-    "_6-450 (Order received) exists in graph",
+    "_6-450 (Pedido recebido) exists in graph",
   );
 
   // Check some tasks
-  assert(graph.elementsById.has("_6-74"), "_6-74 (Select a pizza) exists");
-  assert(graph.elementsById.has("_6-463"), "_6-463 (Bake the pizza) exists");
+  assert(graph.elementsById.has("_6-74"), "_6-74 (Escolher a pizza) exists");
+  assert(graph.elementsById.has("_6-463"), "_6-463 (Assar a pizza) exists");
 
   // Check event-based gateway
   assert(graph.elementsById.has("_6-180"), "_6-180 (EventBasedGateway) exists");

@@ -372,7 +372,7 @@ const CENARIOS = [
 
       // A TIRA SOME NA PRIMEIRA EDICAO: editar e' o que transforma um exemplo em trabalho da
       // propria pessoa, e continuar chamando de "exemplo" o que ela ja' mexeu seria falso.
-      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Bake the pizza') || {}).id;
+      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
       if (!alvo) return { ok: false, erro: 'nao achei o elemento para editar' };
       await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar a pizza' });
       await new Promise((r) => setTimeout(r, 300));
@@ -715,7 +715,7 @@ const CENARIOS = [
    *
    * Duas tarefas lado a lado têm ~50 px de vão e uma tarefa tem 100 de largura: o meio do fluxo
    * é exatamente onde NÃO cabe. O religamento estava certo e o desenho, ilegível — "embalar"
-   * por cima de "Select a pizza". E o outro meio do mesmo problema: *"cria uma tarefa conferir
+   * por cima de "Escolher a pizza". E o outro meio do mesmo problema: *"cria uma tarefa conferir
    * estoque depois do início"* nascia como RAMO PARALELO pendurado embaixo da linha, porque a
    * âncora já tinha saída.
    *
@@ -731,9 +731,9 @@ const CENARIOS = [
       const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
       const porNome = (t) => (window.__bpmnAssist.desenho.nos.find((n) => (n.nome || '') === t) || {}).id || null;
 
-      // 1. ENTRE dois vizinhos colados (o par do print: Select a pizza -> Order a pizza).
-      const de = porNome('Select a pizza');
-      const para = porNome('Order a pizza');
+      // 1. ENTRE dois vizinhos colados (o par do print: Escolher a pizza -> Pedir a pizza).
+      const de = porNome('Escolher a pizza');
+      const para = porNome('Pedir a pizza');
       if (!de || !para) return { ok: false, erro: 'nao achei o par do print' };
       const vaoAntes = (() => { const a = window.__caixa(de), b = window.__caixa(para); return b.x - (a.x + a.w); })();
       const ins = await F('criar_elemento', { tipo: 'Task', nome: 'embalar', entre: [de, para] });
@@ -763,7 +763,7 @@ const CENARIOS = [
 
       // 2b. MOVER para o meio: o elemento que JA EXISTE entra no caminho, sem criar outro.
       // Leva "conferir estoque" (que ja' existe, encadeado depois do inicio) para o meio do par
-      // do print: "Select a pizza" -> "embalar". E' o pedido literal do dono, com o elemento que
+      // do print: "Escolher a pizza" -> "embalar". E' o pedido literal do dono, com o elemento que
       // ja' esta' no desenho.
       const antesDoMover = window.__bpmnAssist.desenho.nos.length;
       const paraMover = idDep;
@@ -819,7 +819,7 @@ const CENARIOS = [
       if (!window.__bpmnAssist) return { ok: false, erro: 'o ajudante nao montou' };
       ${MEDIR_SOBREPOSICAO}
       const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
-      const pool = window.__conteinerChamado('Pizza vendor');
+      const pool = window.__conteinerChamado('Pizzaria');
       if (!pool) return { ok: false, erro: 'nao achei o pool do vendedor' };
 
       // Um fluxo entre dois nos DENTRO do pool do vendedor: e la' que inserir no meio tem sentido.
@@ -840,7 +840,7 @@ const CENARIOS = [
       const noMeio = !!novo && entra.includes(alvo.de) && sai.includes(alvo.para) && !atalhoSobrou;
 
       // Mover de raia: e o pedido literal da trilha ("poe para a linha de cima").
-      const raia = window.__conteinerChamado('delivery boy');
+      const raia = window.__conteinerChamado('entregador');
       const mov = raia ? await F('mover', { id: novo, dentroDe: raia }) : null;
       const naRaia = raia ? window.__dentroDe(novo, raia) : null;
 
@@ -944,7 +944,7 @@ const CENARIOS = [
       const r1 = await F('criar_raia', { nome: 'Motoboy', dentroDe: novoPool });
 
       // (3) Raia num pool que JA tem raias: entra como irma, e o que estava dentro continua dentro.
-      const vendor = window.__conteinerChamado('Pizza vendor');
+      const vendor = window.__conteinerChamado('Pizzaria');
       const dentroAntes = window.__bpmnAssist.desenho.nos
         .filter((n) => /Task/.test(n.tipo) && window.__dentroDe(n.id, vendor) === true).map((n) => n.id);
       const r2 = await F('criar_raia', { nome: 'Pos-venda', dentroDe: vendor, onde: 'abaixo' });
@@ -1239,6 +1239,91 @@ CENARIOS.push({
 // ---------------------------------------------------------------- ao vivo (opcional)
 const chaveViva = chaveDoEnv();
 if (chaveViva) {
+  /**
+   * M4 — A REDE CAI DE VERDADE, no meio da conversa.
+   *
+   * A dívida dizia, desde 2026-11-13: *"a sessão tem recuo com teto e código de fechamento
+   * nomeado, mas nunca foi exercitada cortando a rede de verdade"*. Agora é: o passo
+   * `cdp:Network.emulateNetworkConditions` desliga a rede do navegador por três segundos, com a
+   * sessão Live aberta — o único jeito honesto de provar isso sem puxar o cabo na mão.
+   *
+   * O que se mede NÃO é "reconectou". É **não perdeu o fio** (T20): depois da queda, a palavra
+   * que o aluno pediu para guardar ANTES do corte tem de voltar na resposta. Com sessão nova em
+   * vez de retomada, o modelo não teria como saber — e a prova de que foi retomada, e não
+   * sorte, é o segundo `out.setup` trazer ` retomando` (a alça de T17 foi usada).
+   */
+  CENARIOS.push({
+    nome: 'AO VIVO: a rede cai de verdade e a conversa continua (M4 + T20)',
+    url: ALVO,
+    espera: 3000,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Come\u00e7ar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' };`,
+
+      // 1. ANTES da queda: uma palavra que só esta sessão pode saber.
+      `const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+       const ta = document.querySelector('.bpmn-assist__composer textarea');
+       ta.value = 'Guarde esta palavra, vou pedir depois: ABACAXI. Responda so: guardei.';
+       window.__btn('Enviar').click();
+       for (let i = 0; i < 60; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         const b = bolhas();
+         if (b.length && b.at(-1).length > 3) {
+           window.__antesDaQueda = b.length;
+           return { ok: true, respondeu: b.at(-1).slice(0, 80), bolhas: b.length };
+         }
+       }
+       return { ok: false, erro: 'o modelo nao respondeu antes da queda' };`,
+
+      // 2. A REDE CAI. Três segundos sem rota — mais do que o recuo da primeira tentativa.
+      'cdp:Network.enable {}',
+      'cdp:Network.emulateNetworkConditions {"offline":true,"latency":0,"downloadThroughput":0,"uploadThroughput":0}',
+      `await new Promise((r) => setTimeout(r, 3000));
+       return { durante: window.__bpmnAssist.estado.estado, fechou: window.__bpmnAssist.contagem['ws.close'] ?? 0 };`,
+      'cdp:Network.emulateNetworkConditions {"offline":false,"latency":0,"downloadThroughput":-1,"uploadThroughput":-1}',
+
+      // 3. Tem de voltar SOZINHA — o aluno não clicou em nada.
+      `for (let i = 0; i < 80; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         const e = window.__bpmnAssist.estado.estado;
+         if (e === 'ready' || e === 'listening') return { ok: true, voltouEm: i * 500 + 'ms', estado: e };
+       }
+       return { ok: false, estado: window.__bpmnAssist.estado.estado, erro: 'a sessao nao voltou sozinha em 40s' };`,
+
+      // 4. E O FIO: o que foi dito antes do corte ainda vale.
+      `const bolhas = () => [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim());
+       const antes = window.__antesDaQueda ?? 0;
+       const ta = document.querySelector('.bpmn-assist__composer textarea');
+       ta.value = 'Qual foi a palavra que eu pedi para voce guardar?';
+       window.__btn('Enviar').click();
+       let resposta = '';
+       for (let i = 0; i < 80; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+         const b = bolhas();
+         if (b.length > antes && b.at(-1).length > 3) { resposta = b.at(-1); break; }
+       }
+       const ev = window.__bpmnAssist.eventos;
+       const setups = ev.filter((e) => e.key === 'out.setup').map((e) => e.detail ?? '');
+       const avisos = [...document.querySelectorAll('.bpmn-assist__msg--system')].map((m) => m.textContent.trim());
+       return {
+         ok: /abacaxi/i.test(resposta) && setups.length >= 2 && setups.slice(1).some((d) => d.includes('retomando')),
+         lembrouAPalavra: /abacaxi/i.test(resposta),
+         resposta: resposta.slice(0, 140),
+         setups,
+         fechamentos: window.__bpmnAssist.contagem['ws.close'] ?? 0,
+         esperasPorVaga: window.__bpmnAssist.contagem['ws.vaga'] ?? 0,
+         avisoDaQueda: avisos.filter((a) => /conex/i.test(a)).slice(-2),
+       };`,
+    ],
+  });
   CENARIOS.push({
     nome: 'AO VIVO: conversa de verdade contra o Gemini',
     url: ALVO,
@@ -1717,7 +1802,7 @@ if (chaveViva) {
        const recusou = /(nao posso|nao consigo ajudar|fora do meu|nao e sobre bpmn|so falo sobre)/.test(limpo);
        // VOCABULARIO de BPMN, em portugues de verdade — nao a sigla "BPMN", que qualquer esquiva
        // tambem diz. A lista ja reprovou uma resposta CERTA: em 2026-11-13 o agente respondeu
-       // "...com as piscinas «Pizza Customer» e «Pizza vendor»... «Order a pizza», «Bake the
+       // "...com as piscinas «Cliente» e «Pizzaria»... «Pedir a pizza», «Bake the
        // pizza»..." e o teste marcou falouDeBpmn=false, porque "piscina" (o pool, em pt-BR) nao
        // estava aqui. Criterio que reprova o produto por nao conhecer a palavra mede o teste.
        const falouDeBpmn = /(evento|tarefa|atividade|gateway|fluxo|raia|lane|pool|piscina|subprocesso|mensagem|inicio|fim)/.test(limpo);
@@ -1895,13 +1980,13 @@ if (chaveViva) {
        // o id eu mesmo testaria menos do que o produto faz — e, no diagrama da pizzaria, os ids
        // nao tem padrao nenhum ('_6-53'), entao adivinhar o do inicio era adivinhar errado.
        // ⚠ O evento de inicio vai NOMEADO. Sem o nome, o agente respondeu — com razao — "temos
-       // dois eventos de inicio, «Hungry for pizza» e «Order received», qual deles?", e o passo
+       // dois eventos de inicio, «Com fome de pizza» e «Pedido recebido», qual deles?", e o passo
        // reprovou uma pergunta CERTA. O nome e o que o aluno le na tela, nao um id.
        // ⚠ O botao de PARAR DE FALAR so existe enquanto ela fala, entao o portao tem de olhar
        // DURANTE a resposta - depois dela nao prova nada. Faltava o botao inteiro ate 2026-11-14
        // ("a gente nao tem um botao para o ajudante parar de falar").
        let pronto = false;
-       const emCurso = window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início "Order received".')
+       const emCurso = window.__resposta('Crie uma tarefa chamada Receber pedido depois do evento de início "Pedido recebido".')
          .then((x) => { pronto = true; return x; });
        let botaoDePararNaTela = false;
        for (let i = 0; i < 200 && !botaoDePararNaTela && !pronto; i++) {
@@ -2075,7 +2160,7 @@ if (chaveViva) {
       `// TRES FRASES, como o aluno escreveria: sem id, sem tipo, sem "crie um StartEvent".
        // O criterio nao e a frase do agente - e o DESENHO ter ganho inicio, duas tarefas e fim
        // com um caminho ligando os tres.
-       const r = await window.__resposta('Quero montar um processo novo de atendimento na raia clerk, do pool Pizza vendor. Ele comeca quando o cliente faz um pedido por telefone, depois o atendente registra o pedido e em seguida confirma o endereco. No fim o pedido e despachado e o processo termina.');
+       const r = await window.__resposta('Quero montar um processo novo de atendimento na raia atendente, do pool Pizzaria. Ele comeca quando o cliente faz um pedido por telefone, depois o atendente registra o pedido e em seguida confirma o endereco. No fim o pedido e despachado e o processo termina.');
        const d = window.__bpmnAssist.desenho;
        const novos = d.nos.filter((n) => !window.__antes.includes(n.id));
        const inicio = novos.find((n) => n.tipo === 'StartEvent');
@@ -2103,7 +2188,7 @@ if (chaveViva) {
        const naTrilha = trilha ? trilha.filter((id) => tarefas.some((t) => t.id === id)) : [];
        // Ligado nao basta: tem de dar para LER. Um processo empilhado em cima do diagrama do
        // aluno e tao inutil quanto nenhum - e foi o que o print da primeira corrida verde mostrou
-       // (o inicio novo nasceu sobre o "Order received", porque a vaga mediu a lista de filhos da
+       // (o inicio novo nasceu sobre o "Pedido recebido", porque a vaga mediu a lista de filhos da
        // raia, que numa colaboracao vem vazia).
        const empilhados = novos
          .map((n) => ({ id: n.id, sobre: window.__sobrepoe(n.id) }))
@@ -2112,7 +2197,7 @@ if (chaveViva) {
        // ⚠ Portao 5.1: a cadeia tem de CABER. Cada elemento sozinho acha a vaga, mas uma
        // sequencia anda ~140 px por elemento e o pool tem largura fixa — transbordar deixa o
        // processo do aluno desenhado FORA do pool a que pertence, sem sobrepor ninguem.
-       const pool = window.__conteinerChamado('Pizza vendor');
+       const pool = window.__conteinerChamado('Pizzaria');
        const raia = window.__conteinerChamado('clerk');
        const foraDoPool = pool
          ? novos.filter((n) => window.__dentroDe(n.id, pool) === false).map((n) => n.id)
@@ -2176,7 +2261,7 @@ if (chaveViva) {
        ${MEDIR_SOBREPOSICAO}
        // O alvo: um fluxo entre dois nos COM NOME dentro do pool do vendedor — o aluno fala por
        // nome, nunca por id, e e justamente isso que o modelo tem de resolver.
-       const pool = window.__conteinerChamado('Pizza vendor');
+       const pool = window.__conteinerChamado('Pizzaria');
        const d = window.__bpmnAssist.desenho;
        const nome = (id) => (d.nos.find((n) => n.id === id) || {}).nome;
        const alvo = d.ligacoes.find((l) => l.tipo === 'SequenceFlow' && nome(l.de) && nome(l.para)
@@ -2262,7 +2347,7 @@ if (chaveViva) {
 
       `// A frase que comecou tudo isto. Ha DOIS pools no diagrama, entao a ferramenta recusa a
        // primeira tentativa e devolve os nomes — o modelo tem de perguntar ou escolher pelo nome.
-       const r = await window.__resposta('Preciso de uma raia nova para o entregador dentro do pool da pizzaria (Pizza vendor). Cria pra mim?');
+       const r = await window.__resposta('Preciso de uma raia nova para o entregador dentro do pool da pizzaria (Pizzaria). Cria pra mim?');
        const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
        return {
          ok: !r.startsWith('[FALHA DO SERVICO]') && window.__raias().length === window.__raiasAntes + 1

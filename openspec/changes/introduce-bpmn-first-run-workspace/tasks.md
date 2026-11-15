@@ -86,3 +86,24 @@
 - [x] 7.1 `openspec/open-items.md`: o botão "♻️ Novo" recarrega a pizzaria e apaga o autosave sem
       perguntar — anterior a esta change, e agora contradiz a tela nova
 - [x] 7.2 `openspec/open-items.md`: o exemplo continua em inglês
+
+## 8. O exemplo em português (pedido do dono, 2026-11-15, depois da entrega)
+
+> Estava em `open-items.md` como ponta aberta desta change. O dono mandou fechar junto com o
+> "pode subir".
+
+- [x] 8.1 `diagrams/pizza-collaboration.bpmn`: os 25 `name=` traduzidos, **ids intactos**
+      (`_6-463` continua `_6-463`) — é o que mantém de pé toda asserção de estrutura, a fixture de
+      simulação e o `startEventId`
+- [x] 8.2 O arquivo fica **ASCII puro**: o único acento (`cadê`) vira entidade `&#234;`, como o
+      `&#8222;` que já estava lá. Encoding de `.bpmn` servido por HTTP não é lugar de descobrir
+      mojibake
+- [x] 8.3 Os dependentes que casam por NOME, atualizados no mesmo commit: `tools/battery.mjs` (22),
+      `avaliacao/perguntas-douradas.json` (13), `diagrams/simulations/*.sim.json` (14),
+      `src/batchsim/__tests__/{validate-pizza,smoke-refactor}.mjs` (5), `tools/avaliar.mjs` (2)
+- [x] 8.4 **Não** entram: a fixture inline dos testes do ajudante (dublê autocontido, não é "o
+      exemplo") nem `openspec/apresentacoes/*`, `changes/*/tasks.md` e `roadmap.md` — registro
+      datado, medido com aqueles nomes
+- [x] 8.5 `npm test` 25 suítes e bateria **21 de 21** com o diagrama traduzido; print olhado em
+      `artifacts/e2e-shots/tela-base-exemplo.png` — pools Cliente/Pizzaria, raias atendente ·
+      pizzaiolo · entregador, e o `cadê` com acento certo na tela

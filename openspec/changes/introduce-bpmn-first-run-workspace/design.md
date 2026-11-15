@@ -168,7 +168,8 @@ revelou, e porque "a tira não some" é o único sintoma que ele produziu em um 
 - **Quem clica em "descreva o seu processo" sem chave vê a tela da chave.** É o contrato BYOK:
   conversar exige credencial, e o painel já explica isso bem. A frase fica guardada no compositor e
   aparece no instante em que a conexão abre — a tela base não pede nada por conta própria.
-- **O exemplo continua em inglês.** Traduzir `pizza-collaboration.bpmn` é outra frente: a tira
-  passa a dizer que é um exemplo, o que já resolve a parte que confundia.
+- ~~**O exemplo continua em inglês.**~~ **Fechado no mesmo dia**, a pedido do dono: o diagrama foi
+  traduzido mantendo os **ids** intactos, que é o que permitiu mexer em 56 pontos de teste sem
+  reescrever uma asserção de estrutura. Ver tarefas, bloco 8.
 - **"Novo" da barra ainda recarrega a pizzaria** e apaga o autosave sem perguntar. É anterior a
   esta change e contradiz a tela nova; fica em `open-items.md` em vez de virar escopo escondido.

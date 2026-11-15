@@ -46,7 +46,7 @@
       "id": "leitura-detalhe",
       "categoria": "leitura",
       "perfil": "modelador",
-      "pergunta": "o que entra e o que sai da Receive payment?",
+      "pergunta": "o que entra e o que sai da Receber o pagamento?",
       "ferramentasEsperadas": [
         "detalhar_elemento",
         "buscar_elemento"
@@ -79,7 +79,7 @@
       "id": "escrita-criar",
       "categoria": "escrita",
       "perfil": "modelador",
-      "pergunta": "cria uma tarefa chamada Conferir estoque depois da Bake the pizza",
+      "pergunta": "cria uma tarefa chamada Conferir estoque depois da Assar a pizza",
       "ferramentasEsperadas": [
         "criar_elemento"
       ],
@@ -93,7 +93,7 @@
       "id": "escrita-conectar",
       "categoria": "escrita",
       "perfil": "modelador",
-      "pergunta": "liga a Bake the pizza na Deliver the pizza",
+      "pergunta": "liga a Assar a pizza na Entregar a pizza",
       "ferramentasEsperadas": [
         "conectar",
         "buscar_elemento"
@@ -128,7 +128,7 @@
       "id": "montagem-tres-frases",
       "categoria": "montagem",
       "perfil": "modelador",
-      "pergunta": "monta no pool Pizza vendor: comeca com Pedido recebido, depois Preparar o pedido, e termina com Pedido entregue",
+      "pergunta": "monta no pool Pizzaria: comeca com Pedido recebido, depois Preparar o pedido, e termina com Pedido entregue",
       "ferramentasEsperadas": [
         "criar_elemento"
       ],
@@ -149,7 +149,7 @@
       "id": "montagem-raia",
       "categoria": "montagem",
       "perfil": "modelador",
-      "pergunta": "poe uma raia para o Financeiro dentro do pool Pizza vendor",
+      "pergunta": "poe uma raia para o Financeiro dentro do pool Pizzaria",
       "ferramentasEsperadas": [
         "criar_raia"
       ],
@@ -173,7 +173,7 @@
       "id": "geometria-alinhar",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "deixa a Bake the pizza e a Deliver the pizza na mesma linha",
+      "pergunta": "deixa a Assar a pizza e a Entregar a pizza na mesma linha",
       "ferramentasEsperadas": [
         "alinhar"
       ],
@@ -186,7 +186,7 @@
       "id": "geometria-entre",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "poe uma tarefa Conferir o endereco entre a Bake the pizza e a Deliver the pizza",
+      "pergunta": "poe uma tarefa Conferir o endereco entre a Assar a pizza e a Entregar a pizza",
       "ferramentasEsperadas": [
         "criar_elemento"
       ],
@@ -199,7 +199,7 @@
       "id": "geometria-trocar-tipo",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "transforma a tarefa Calm customer em uma tarefa de usuario",
+      "pergunta": "transforma a tarefa Acalmar o cliente em uma tarefa de usuario",
       "ferramentasEsperadas": [
         "trocar_tipo"
       ],
@@ -209,7 +209,7 @@
       "id": "geometria-destacar",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "pinta de vermelho a tarefa Bake the pizza",
+      "pergunta": "pinta de vermelho a tarefa Assar a pizza",
       "ferramentasEsperadas": [
         "destacar"
       ],
@@ -362,7 +362,7 @@
       "id": "idioma-diagrama-em-ingles",
       "categoria": "idioma",
       "perfil": "modelador",
-      "pergunta": "me explica o que faz a Bake the pizza",
+      "pergunta": "me explica o que faz a Assar a pizza",
       "respostaNoIdioma": "pt",
       "porque": "o diagrama padrao deste site esta TODO em ingles e empurra o modelo para o idioma do dado a cada turno (H9). Olhar o elemento com uma ferramenta e legitimo; o que se cobra e a LINGUA da resposta",
       "ferramentasAceitas": [

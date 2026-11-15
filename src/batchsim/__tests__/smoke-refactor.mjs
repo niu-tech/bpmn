@@ -70,7 +70,7 @@ console.log(`tasks with waitTime>0: ${waitedTasks.length} / ${tasks.length}`);
 const terminateEvents = events.filter(e => e.eventType === 'case_end' && e.elementId === '_6-616');
 console.log('vendor terminate end fires:', terminateEvents.length);
 
-// Customer "60 minutes" escalation
+// Customer "60 minutos" escalation
 const timerFires = events.filter(e => e.eventType === 'enter' && e.elementId === '_6-219');
 const calmFires  = events.filter(e => e.eventType === 'enter' && e.elementId === '_6-695');
 console.log('60-min timer fires:', timerFires.length, '  calm-customer fires:', calmFires.length);
