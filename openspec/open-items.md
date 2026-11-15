@@ -418,6 +418,51 @@ uma aposta, e o sintoma seria o mesmo: "falei e ela não respondeu". Um relógio
 cliente (manda fim de fala depois de N segundos de nível baixo com turno aberto) resolveria. Não
 está feito, e não é desta dívida — fica registrado como decisão do dono.
 
+## 3h. Três defeitos que a PRÓPRIA prova encontrou (2026-11-15)
+
+A rodada das quatro changes (`close-the-loop-with-the-canvas`, `spoken-confirmation-gates`,
+`sustain-a-class-session`, `prove-it-with-a-golden-set`) achou mais defeito no **instrumento** do
+que no produto — e os três valem registro, porque os três se disfarçam de outra coisa.
+
+### A bateria clicava num botão que não existe
+
+Desde o redesenho da interface (2026-11-14) **não há mais seletor "Texto / Voz"**: o microfone é a
+porta da voz. Seis cenários da bateria continuaram chamando `window.__btn('Voz').click()` — ou
+seja, `.click()` em `undefined`. Os três de **voz ao vivo** reprovavam por harness, e o relatório
+dizia "o servidor não transcreveu", que é a mesma frase de uma falha de produto.
+
+Lição: cenário que dirige a UI tem de seguir o caminho do aluno, e a UI muda. A migração para o
+clique no microfone expôs o defeito seguinte, que estava escondido atrás dele.
+
+### O microfone abria ANTES de a sessão estar pronta (defeito de produto)
+
+Clicar no microfone troca de modo, e trocar de modo **abre outra sessão Live** (o modo vive no
+`setup`, que é imutável). A interface chamava `startMic()` logo depois, sem esperar o
+`setupComplete`: a captura começava, e os quadros caiam na fila de `send` — despejados em rajada
+quando o setup era aceito. O servidor recebia a fala **sem as pausas que o VAD dele usa**, e não
+transcrevia nada. Na tela: "ouvindo", com `micOn = true`.
+
+Dois consertos, um em cada camada: `pushAudio` **descarta** quadro com a sessão não-pronta (áudio é
+tempo real; áudio guardado chega fora de hora, e o descarte é contado no diário), e o clique no
+microfone deixa o próprio `connect('voz')` abrir o microfone na hora certa.
+
+### Espera infinita parecendo trabalho
+
+A corrida ao vivo do acervo ficou **50 minutos viva com 0,8 s de CPU**. Duas corridas concorrentes
+caem na mesma porta de depuração (`9335 + pid % 400`), uma derruba a aba da outra, e a promessa da
+chamada CDP em voo **nunca resolve**. O processo não morre, não loga e não avança — de fora, é
+indistinguível de "está rodando".
+
+Conserto: **teto por chamada CDP** (180 s, generoso porque um `Runtime.evaluate` com `awaitPromise`
+espera a conversa inteira de um cenário ao vivo) com erro nomeado, e prazo no `/json/list`. A regra
+que isto viola estava escrita: *nada de espera sem teto*.
+
+### E um erro meu de acervo, que a avaliação ao vivo pegou
+
+A pergunta dourada *"apaga essa tarefa"* pressupunha um elemento selecionado, e não dizia isso. Sem
+seleção, o modelo **perguntou qual apagar** — que é o comportamento certo, de outra pergunta. A
+pergunta ganhou `exigeSelecao` declarado; o produto não mudou.
+
 ## 3g. As três que sobraram da corrida ao vivo (2026-11-13)
 
 Fechada a M6, sobraram três falhas na bateria. Duas eram defeito de produto, uma era intermitente —
