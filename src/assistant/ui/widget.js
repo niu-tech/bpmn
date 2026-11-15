@@ -144,13 +144,38 @@ export function createWidget({ session, credentials, onClose } = {}) {
     }),
   ]);
 
+  /**
+   * ⚠ A ORDEM MUDOU, e ela é o recado. Esta tela abria pelo aviso de privacidade e pelo campo
+   * da chave — ou seja, a primeira coisa que o produto fazia era **cobrar** algo de quem acabou
+   * de chegar (dono, 2026-11-15: *"já chegar pedindo para a pessoa… meio complicado"*). Agora
+   * abre dizendo o que ele é e quanto custa começar (nada), e só então pede a chave — com o
+   * link de onde tirar. O aviso de privacidade continua inteiro, logo abaixo, onde ele já estava.
+   */
+  const convite = el('div', { className: 'bpmn-assist__convite' }, [
+    el('p', { className: 'bpmn-assist__convite-titulo', textContent: 'Um ajudante que vê o seu diagrama.' }),
+    el('p', {
+      className: 'bpmn-assist__convite-sub',
+      textContent: 'Converse por voz ou por escrito: ele explica o que está na tela e desenha com '
+        + 'você. Para começar, use a sua própria chave do Google AI Studio — ela é gratuita e '
+        + 'leva um minuto.',
+    }),
+    (() => {
+      const a = el('a', { className: 'bpmn-assist__link-externo', textContent: 'pegar a minha chave →' });
+      a.href = 'https://aistudio.google.com/apikey';
+      a.target = '_blank';
+      a.rel = 'noreferrer noopener';
+      return a;
+    })(),
+  ]);
+
   const setupBlock = el('div', { className: 'bpmn-assist__setup' }, [
-    privacidade,
+    convite,
     el('label', { className: 'bpmn-assist__field' }, [
       el('span', { textContent: 'Sua chave do Google AI Studio' }),
       keyInput,
     ]),
     consentLabel,
+    privacidade,
   ]);
 
   // A face compacta: tudo o que sobra depois que chave e aviso estão resolvidos.
@@ -228,10 +253,49 @@ export function createWidget({ session, credentials, onClose } = {}) {
   liveRegion.setAttribute('aria-live', 'polite');
   liveRegion.setAttribute('role', 'status');
 
-  const empty = el('p', {
-    className: 'bpmn-assist__empty',
-    textContent: 'Pergunte sobre notação BPMN: eventos, atividades, gateways, raias, fluxo de mensagem.',
-  });
+  /**
+   * A PRIMEIRA TELA da conversa — e a única chance de dizer o que isto é.
+   *
+   * ⚠ Era uma linha cinza ("Pergunte sobre notação BPMN: eventos, atividades, gateways…"), que
+   * descrevia um glossário e escondia o produto: ele **lê o diagrama aberto**, **desenha junto**
+   * e **fala**. O dono, depois de usar: *"vamos apresentar realmente o poder que é esse nosso
+   * projeto, que ele pode perguntar o que quiser, pode mudar o diagrama"*.
+   *
+   * Os exemplos são BOTÕES, e não uma lista de sugestões: a forma mais curta de aprender o que
+   * dá para pedir é pedir uma vez. Clicar escreve a frase no campo — e, com a sessão de pé,
+   * manda. Sem sessão, só escreve e foca: quem decide começar (e gastar a chave) é ele.
+   */
+  const EXEMPLOS = [
+    'O que esse processo faz?',
+    'Crie uma tarefa "Conferir estoque" depois do início',
+    'Quero modelar o MEU processo — vou te descrever',
+    'Qual a diferença entre gateway exclusivo e paralelo?',
+  ];
+  const exemplos = el('div', { className: 'bpmn-assist__exemplos' },
+    EXEMPLOS.map((frase) => {
+      const b = el('button', { className: 'bpmn-assist__exemplo', type: 'button', textContent: frase });
+      b.addEventListener('click', () => {
+        input.value = frase;
+        // `submit` e' declarado mais abaixo; aqui dentro do clique ja' existe.
+        if (ultimaVista?.canAsk) { submit(); } else { input.focus(); }
+      });
+      return b;
+    }));
+  const empty = el('div', { className: 'bpmn-assist__empty' }, [
+    el('p', { className: 'bpmn-assist__empty-titulo', textContent: 'Converse com o seu diagrama.' }),
+    el('p', {
+      className: 'bpmn-assist__empty-sub',
+      textContent: 'Ele enxerga o que está aberto na tela, responde em português e desenha junto '
+        + '— por voz ou por escrito. Pode pedir para criar, ligar, mover, renomear e apagar; antes '
+        + 'de apagar, ele pergunta.',
+    }),
+    exemplos,
+    el('p', {
+      className: 'bpmn-assist__empty-rodape',
+      textContent: 'O diagrama que está aberto é um exemplo — mude à vontade, ou descreva o seu '
+        + 'processo e construa o seu do zero com ele.',
+    }),
+  ]);
   const log = el('ul', { className: 'bpmn-assist__log' });
   log.setAttribute('aria-live', 'polite');
   log.setAttribute('aria-label', 'Conversa com o ajudante');
@@ -474,7 +538,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
       }
     }
     renderedUpTo = messages.length;
-    empty.hidden = messages.length > 0;
+    // ⚠ Um convite por vez. Antes da chave, a tela é o convite (o que isto é + como começar);
+    // depois dela, as boas-vindas com os exemplos. Os dois juntos repetiam o mesmo discurso em
+    // dois títulos e empurravam o campo da chave para fora da dobra.
+    empty.hidden = messages.length > 0 || !resolvido;
     if (seguir) descerAteOFim();
   }
 
