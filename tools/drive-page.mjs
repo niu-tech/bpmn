@@ -219,7 +219,43 @@ function encerrarNavegador(perfil) {
   ], { stdio: 'ignore', timeout: 20000 });
 }
 
-export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, micEmLaco = false, micSemCauda = false, headless = true } = {}) {
+/**
+ * FILMAR a corrida: um quadro a cada `intervaloMs` enquanto os passos rodam.
+ *
+ * Por que existe: prova de comportamento em texto e' leitura; o dono (e a banca) precisam VER a
+ * conversa acontecendo — o microfone abrindo, a pergunta aparecendo, o elemento sumindo. Nao ha
+ * ffmpeg nesta maquina, entao o "video" e' uma sequencia de quadros com carimbo de tempo, que o
+ * `tools/video-prova.mjs` monta num reprodutor HTML que toca sozinho.
+ *
+ * JPEG e qualidade modesta de proposito: sao centenas de quadros, e o que se precisa enxergar e'
+ * o painel e o desenho, nao o antialias da fonte.
+ */
+function comecarAFilmar(c, filme) {
+  const { pasta, intervaloMs = 700, qualidade = 55 } = filme;
+  mkdirSync(pasta, { recursive: true });
+  const quadros = [];
+  const t0 = Date.now();
+  let ocupado = false;
+  const relogio = setInterval(async () => {
+    // Sem reentrancia: uma captura lenta nao pode enfileirar outra em cima.
+    if (ocupado) return;
+    ocupado = true;
+    try {
+      const r = await c.envia('Page.captureScreenshot', { format: 'jpeg', quality: qualidade });
+      const nome = `quadro-${String(quadros.length + 1).padStart(4, '0')}.jpg`;
+      writeFileSync(resolve(pasta, nome), Buffer.from(r.data, 'base64'));
+      quadros.push({ arquivo: nome, ms: Date.now() - t0 });
+    } catch {
+      // Aba ocupada ou navegando: um quadro perdido nao derruba a corrida.
+    } finally {
+      ocupado = false;
+    }
+  }, intervaloMs);
+  relogio?.unref?.();
+  return { quadros, t0, parar() { clearInterval(relogio); return quadros; } };
+}
+
+export async function dirigir({ url, passos = [], shot = null, espera = 2500, porta = PORTA_PADRAO, largura = 1280, altura = 860, mic = null, micEmLaco = false, micSemCauda = false, headless = true, filme = null } = {}) {
   const exe = acharNavegador();
   // WAV como MICROFONE. A flag faz o getUserMedia devolver o arquivo em vez do tom sintetico,
   // entao o caminho do microfone roda inteiro (worklet, reamostragem, PCM16, socket) com fala
@@ -266,7 +302,7 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     'about:blank',
   ], { stdio: 'ignore', detached: false });
 
-  const saida = { url, mic: micAbs, console: [], excecoes: [], passos: [], shot: null };
+  const saida = { url, mic: micAbs, console: [], excecoes: [], passos: [], shot: null, filme: null };
 
   try {
     await esperarDevTools(porta);
@@ -290,6 +326,10 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
     // esperar o evento certo para cada caso seria mais frágil que esperar um pouco.
     await new Promise((r) => setTimeout(r, espera));
 
+    // A camera comeca ANTES do primeiro passo: o que se quer ver e' a conversa inteira, inclusive
+    // o painel abrindo.
+    const camera = filme ? comecarAFilmar(c, filme) : null;
+
     for (const passo of passos) {
       const r = await c.envia('Runtime.evaluate', {
         expression: `(async () => { ${passo} })()`,
@@ -302,6 +342,10 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
         erro: r.exceptionDetails?.exception?.description ?? r.exceptionDetails?.text ?? null,
       });
       await new Promise((r2) => setTimeout(r2, 150));
+    }
+
+    if (camera) {
+      saida.filme = { pasta: filme.pasta, quadros: camera.parar() };
     }
 
     if (shot) {

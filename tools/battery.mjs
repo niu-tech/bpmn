@@ -863,6 +863,66 @@ CENARIOS.push({
   ],
 });
 
+/**
+ * ---------------------------------------------------------------- portao falado, SEM COTA (6.2)
+ *
+ * O mesmo portao que o cenario AO VIVO prova com voz, aqui contra o bpmn-js de verdade e sem
+ * gastar uma sessao Live: a ferramenta e' dirigida pelo caminho do MODELO
+ * (`__bpmnAssist.ferramenta`), e a "resposta do aluno" e' um turno de aluno de verdade (ele
+ * digita). O que se mede e' a ORDEM — e ordem nao precisa de servidor para ser medida.
+ */
+CENARIOS.push({
+  nome: 'portao falado sem cota: recusa, o aluno responde, e so entao apaga (6.2)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    CONECTAR,
+    `
+    const alvo = window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && /bake/i.test(n.nome ?? ''))
+      ?? window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && n.nome);
+    window.__alvo = alvo;
+    const existe = () => window.__bpmnAssist.desenho.nos.some((n) => n.id === window.__alvo.id);
+
+    // 1. O modelo tenta apagar antes de o aluno dizer qualquer coisa.
+    const primeira = await window.__bpmnAssist.ferramenta('remover', { id: alvo.id });
+    const continuaLa = existe();
+
+    // 2. O aluno responde — digitando, que e' a mesma coisa que falar para o portao (o que conta
+    //    e' a ORDEM, nunca o conteudo: olhar o texto seria classificacao por palavra-chave).
+    const ta = document.querySelector('.bpmn-assist__composer textarea');
+    ta.value = 'pode apagar';
+    window.__btn('Enviar').click();
+    await new Promise((r) => setTimeout(r, 300));
+
+    // 3. Agora passa.
+    const segunda = await window.__bpmnAssist.ferramenta('remover', { id: alvo.id });
+    await new Promise((r) => setTimeout(r, 300));
+
+    const diario = window.__bpmnAssist.eventos.filter((e) => e.key.startsWith('tool.sem-confirmacao') || e.key === 'state.portao').map((e) => e.key + ' ' + (e.detail ?? ''));
+    return {
+      ok: primeira.ok === false && primeira.erro === 'falta_confirmacao' && continuaLa
+        && segunda.ok === true && !existe(),
+      recusouAntes: primeira.erro ?? null,
+      // A recusa DIZ ao modelo o que fazer: perguntar em uma frase e esperar.
+      comoProsseguir: (primeira.comoProsseguir ?? '').slice(0, 90),
+      elementoSobreviveuARecusa: continuaLa,
+      apagouDepoisDaResposta: !existe(),
+      diario,
+    };`,
+    `
+    // 4. E o portao e' CONSUMIDO: o "pode apagar" de antes nao autoriza a remocao seguinte.
+    const outro = window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && n.nome && n.id !== window.__alvo.id);
+    const terceira = await window.__bpmnAssist.ferramenta('remover', { id: outro.id });
+    const aindaLa = window.__bpmnAssist.desenho.nos.some((n) => n.id === outro.id);
+    return {
+      ok: terceira.ok === false && terceira.erro === 'falta_confirmacao' && aindaLa,
+      segundoAlvo: outro.nome,
+      recusou: terceira.erro ?? null,
+      continuaNoDesenho: aindaLa,
+    };`,
+  ],
+});
+
 // ---------------------------------------------------------------- ao vivo (opcional)
 const chaveViva = chaveDoEnv();
 if (chaveViva) {

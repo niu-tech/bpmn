@@ -651,6 +651,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let speakerEmVoo = null;
 
   /**
+   * GRAVACAO do que o modelo falou — diagnostico, desligada por padrao.
+   *
+   * Existe para a prova em VIDEO (change `prove-it-with-a-golden-set`, 5.1/5.2): sem o audio
+   * recebido, o filme mostra a conversa acontecendo e NAO tem trilha sonora, e a banca ve bolhas
+   * aparecendo sem ouvir o agente. Guarda o PCM como veio (base64, 24 kHz) com o carimbo de
+   * tempo, que e' o que permite remontar a fala na linha do tempo real.
+   *
+   * ⚠ Nunca entra no diario nem em relatorio: o `tools/ledger.mjs` recusa audio e base64 por
+   * regra, e esta gravacao morre com a aba.
+   */
+  let gravacaoDeAudio = null;
+  /** Teto: ~4000 quadros e' mais do que qualquer prova precisa, e evita a aba crescer sem fim. */
+  const MAX_QUADROS_GRAVADOS = 4000;
+
+  /**
    * O contexto como o modelo deve vê-lo AGORA. Recalcula a projeção do diagrama no momento da
    * leitura (o observador do `eventBus` só marca sujo) — então é chamado nas bordas de turno, e
    * não a cada evento do modelador.
@@ -997,6 +1012,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       },
       onAudio: async (b64) => {
         fecharFala('áudio do modelo');
+        if (gravacaoDeAudio && gravacaoDeAudio.quadros.length < MAX_QUADROS_GRAVADOS) {
+          gravacaoDeAudio.quadros.push({ b64, ms: Date.now() - gravacaoDeAudio.t0 });
+        }
         // O aluno mandou parar: o resto deste turno não toca. Contado, não silenciado às escuras.
         if (calado) { diag.ws('audio-descartado', 'aluno mandou parar'); return; }
         // Em escuta contínua o microfone FICA ABERTO aqui — é o que permite interromper falando
@@ -1419,6 +1437,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           acabar({ ok: false, erro: err?.message ?? String(err), ms: quanto() });
         }
       });
+    },
+
+    /**
+     * Liga/desliga a gravacao do audio do modelo (diagnostico; ver `gravacaoDeAudio`).
+     * Ligar zera o que havia: uma prova grava a sua propria corrida, nao a anterior.
+     */
+    gravarAudioDoModelo(ligar = true) {
+      gravacaoDeAudio = ligar ? { t0: Date.now(), quadros: [] } : null;
+      diag.state('gravacao', ligar ? 'ligada' : 'desligada');
+      return Boolean(gravacaoDeAudio);
+    },
+
+    /** O que foi gravado: `{ quadros: [{ b64, ms }] }` ou `null`. */
+    get audioGravado() {
+      return gravacaoDeAudio ? { t0: gravacaoDeAudio.t0, quadros: gravacaoDeAudio.quadros.slice() } : null;
     },
 
     /** Cala a resposta em curso. Devolve false quando não havia nada tocando. */

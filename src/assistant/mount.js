@@ -191,6 +191,12 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     /** A nota da pagina que ainda nao saiu (fila de um). So leitura, so diagnostico. */
     get notaPendente() { return session.notaDaPagina; },
     /**
+     * Grava o audio que o modelo mandar, para a prova em VIDEO poder ter trilha sonora.
+     * Diagnostico: desligado por padrao, morre com a aba, nunca entra no diario.
+     */
+    gravarAudio: (ligar = true) => session.gravarAudioDoModelo(ligar),
+    get audioDoModelo() { return session.audioGravado; },
+    /**
      * PROVA DA CAPTURA — grava o que o microfone produziria e devolve o PCM, SEM abrir sessão.
      *
      * Existe porque faltava exatamente isto para fechar a dívida M6 (2026-11-13): o relatório

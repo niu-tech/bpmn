@@ -14,12 +14,13 @@
  *   npm run trilha              # abre no servidor local se ele estiver de pé, senão no publicado
  *   npm run trilha -- --publicado
  *   npm run trilha -- --uma-vez # só captura o que já existe e sai
+ *   npm run trilha -- --de artifacts/sessoes/trilha-<carimbo>.json   # relê uma corrida salva
  *
  * O arquivo `atual.json` é sobrescrito a cada volta: é sempre o retrato de AGORA. O histórico
  * completo de cada corrida fica em `artifacts/sessoes/trilha-<carimbo>.json`, escrito no fim.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -33,6 +34,15 @@ const INTERNA = /^(edge|chrome|devtools|about|view-source):/;
 
 const umaVez = process.argv.includes('--uma-vez');
 const forcarPublicado = process.argv.includes('--publicado');
+/**
+ * RELER uma corrida salva, sem navegador.
+ *
+ * Existe por dois motivos, e os dois valem mais que a economia de um clique: a narração é a parte
+ * da trilha que mais muda (linha nova, resumo novo) e era a única que não dava para conferir sem
+ * uma pessoa testando ao vivo; e uma corrida guardada continua legível meses depois, que é o que
+ * a dissertação precisa de uma evidência.
+ */
+const deArquivo = (() => { const i = process.argv.indexOf('--de'); return i > 0 ? process.argv[i + 1] : null; })();
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -107,34 +117,39 @@ async function capturar(c) {
 
 const url = forcarPublicado ? PUBLICADO : (await servidorLocal() ? LOCAL : PUBLICADO);
 
-if (!(await porta())) {
+if (!deArquivo && !(await porta())) {
   console.log(`abrindo o Edge em ${url} (perfil separado, porta ${PORTA})…`);
   await abrirEdge(url);
-} else {
+} else if (!deArquivo) {
   console.log(`navegador já escutando em 127.0.0.1:${PORTA}`);
 }
 
 let alvo = null;
-for (let i = 0; i < 30 && !alvo; i++) {
+for (let i = 0; i < 30 && !alvo && !deArquivo; i++) {
   alvo = await acharAba();
   if (!alvo) await dormir(1000);
 }
-if (!alvo) {
+if (!alvo && !deArquivo) {
   console.error('Nenhuma aba com o ajudante montado. Abra a página nessa janela e rode de novo.');
   process.exit(5);
 }
 
-console.log(`aba: ${alvo.pagina.url}`);
-console.log('');
-console.log('Pode testar à vontade. Eu vou gravando — Ctrl+C encerra.');
-console.log('retrato de agora: artifacts/sessoes/atual.json');
-console.log('');
+if (!deArquivo) console.log(`aba: ${alvo.pagina.url}`);
+if (!deArquivo) {
+  console.log('');
+  console.log('Pode testar à vontade. Eu vou gravando — Ctrl+C encerra.');
+  console.log('retrato de agora: artifacts/sessoes/atual.json');
+  console.log('');
+}
 
 mkdirSync('artifacts/sessoes', { recursive: true });
 const carimbo = new Date().toISOString().replace(/[:.]/g, '-');
 let vistos = 0;
 let mensagensVistas = 0;
 let ultima = null;
+/** portão -> instante da pergunta, para medir quanto o aluno levou para responder (6.4). */
+const perguntasDoPortao = new Map();
+const esperasDoPortao = [];
 
 /** Uma linha por coisa que aconteceu: é o que dá para acompanhar sem abrir o JSON. */
 function narrar(dados) {
@@ -150,10 +165,32 @@ function narrar(dados) {
   const evs = dados.eventos ?? [];
   if (evs.length < vistos) vistos = 0;
   for (const e of evs.slice(vistos)) {
-    // Só o que muda o rumo: estado, erro, queda, ferramenta. O resto fica no JSON.
-    if (!/^(state|ws|tool|rede)\./.test(e.key)) continue;
+    // Só o que muda o rumo: estado, erro, queda, ferramenta, e o canal da PÁGINA. O resto fica no
+    // JSON. ⚠ `pagina.` entrou aqui porque sem ele a nota saía, a conversa mudava de rumo por
+    // causa dela, e a trilha não mostrava nada — o fato chegava ao modelo e não ao relatório.
+    if (!/^(state|ws|tool|rede|pagina)\./.test(e.key)) continue;
     if (/^ws\.(audio|output-text)/.test(e.key)) continue;
     console.log(`    · ${e.key}${e.detail ? ' ' + e.detail : ''}`);
+
+    /**
+     * O RELÓGIO DO PORTÃO (change `spoken-confirmation-gates`, 6.4).
+     *
+     * Entre "posso apagar?" e "pode" existe uma pessoa pensando, e esse tempo é a diferença entre
+     * um portão que conversa e um que atrapalha: curto demais e a confirmação some antes de ela
+     * responder; longo demais e o turno fica pendurado. Sem medir, a tolerância de 3,5 s seria um
+     * número escolhido no olho.
+     */
+    if (e.key === 'tool.sem-confirmacao') perguntasDoPortao.set(String(e.detail ?? '').split(':')[0].trim(), e.ms);
+    if (e.key === 'state.portao' && /aberto pelo aluno/.test(e.detail ?? '')) {
+      const nome = String(e.detail ?? '').split(':')[0].trim();
+      const quando = perguntasDoPortao.get(nome);
+      if (quando != null) {
+        const seg = ((e.ms - quando) / 1000).toFixed(1).replace('.', ',');
+        console.log(`    · portão "${nome}": o aluno respondeu em ${seg} s`);
+        esperasDoPortao.push({ portao: nome, segundos: Number(((e.ms - quando) / 1000).toFixed(1)) });
+        perguntasDoPortao.delete(nome);
+      }
+    }
   }
   vistos = evs.length;
 }
@@ -172,14 +209,43 @@ function encerrar() {
     writeFileSync(nome, JSON.stringify(ultima, null, 2), 'utf8');
     console.log(`\nTRILHA: ${nome}`);
     console.log(`mensagens=${ultima.mensagens?.length ?? 0} eventos=${ultima.eventos?.length ?? 0} estado=${ultima.estado?.state}`);
+    // O resumo que interessa a quem for ler depois: o canal da página funcionou? o portão esperou?
+    const evs = ultima.eventos ?? [];
+    const conta = (k) => evs.filter((e) => e.key === k).reduce((n, e) => n + (e.n ?? 1), 0);
+    const notas = { enviou: conta('pagina.enviou'), descartou: conta('pagina.descartou'), enfileirou: conta('pagina.enfileirou') };
+    if (notas.enfileirou) {
+      console.log(`página: ${notas.enviou} nota(s) entregue(s), ${notas.descartou} descartada(s) de ${notas.enfileirou}`);
+    }
+    if (esperasDoPortao.length) {
+      const media = (esperasDoPortao.reduce((a, b) => a + b.segundos, 0) / esperasDoPortao.length).toFixed(1).replace('.', ',');
+      console.log(`portão: ${esperasDoPortao.length} confirmação(ões), o aluno levou ${media} s em média`);
+    }
   }
   /**
    * ⚠ Sair no MESMO instante em que os sockets fecham faz o libuv do Node reclamar
    * ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)") DEPOIS de a trilha ter dado certo
    * — e o dono lê isso como falha. Fecha, deixa um tique para o fechamento terminar, e aí sai.
    */
-  try { alvo.c.fecha(); } catch { /* já fechada */ }
+  try { alvo?.c?.fecha(); } catch { /* já fechada */ }
   setTimeout(() => process.exit(0), 120);
+}
+
+if (deArquivo) {
+  if (!existsSync(deArquivo)) {
+    console.error(`não achei ${deArquivo}`);
+    process.exit(4);
+  }
+  const dados = JSON.parse(readFileSync(deArquivo, 'utf8'));
+  console.log(`relendo ${deArquivo}`);
+  console.log(`sessão de ${dados.quando ?? '(sem data)'} · ${dados.url ?? ''}`);
+  console.log('');
+  narrar(dados);
+  ultima = dados;
+  encerrar();
+  // `encerrar` adia a saida em um tique (ver o comentario la dentro); sem esperar por ele, o
+  // laco de captura rodaria sem aba e morreria com um TypeError DEPOIS de a releitura dar certo.
+  await dormir(200);
+  process.exit(0);
 }
 
 process.on('SIGINT', encerrar);

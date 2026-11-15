@@ -1266,5 +1266,36 @@ testAsync('candidato vazio nao vira turno', async () => {
   forgetSecrets();
 });
 
+testAsync('a FALA do aluno conta UMA vez por turno, nao uma por pedaco de legenda', async () => {
+  // Tarefa 1.3 da change `spoken-confirmation-gates`. A legenda de entrada chega em pedacos (e as
+  // vezes com a frase inteira repetida): se cada pedaco contasse como "o aluno falou", a epoca
+  // subiria tres vezes numa fala so — e um portao perguntado DEPOIS da fala pareceria respondido.
+  const { session, live, estado } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  const d = live.ultima.opts.dispatcher;
+
+  // 1. Uma fala do aluno, em tres pedacos, ANTES de qualquer pergunta.
+  live.ultima.legenda('Apaga', 'input');
+  live.ultima.legenda('Apaga essa', 'input');
+  live.ultima.legenda('Apaga essa tarefa', 'input');
+
+  // 2. O modelo tenta apagar: a fala veio ANTES da pergunta, entao o portao continua fechado.
+  assert.equal((await apagar(d, 'c1')).erro, 'falta_confirmacao');
+  assert.equal(estado.removido, false);
+
+  // 2b. E SEM fala nova ele continua fechado. Esta e a metade que prova a contagem: se cada
+  // pedaco de legenda contasse como "o aluno falou", os tres pedacos ja teriam passado da epoca
+  // da pergunta, e esta chamada abriria o portao sem ninguem ter respondido nada.
+  assert.equal((await apagar(d, 'c1b')).erro, 'falta_confirmacao', 'tres pedacos nao sao tres falas');
+
+  // 3. Agora o aluno responde — tambem em pedacos. UMA fala, uma autorizacao.
+  live.ultima.legenda('Pode', 'input');
+  live.ultima.legenda('Pode apagar', 'input');
+  assert.equal((await apagar(d, 'c2')).ok, true, 'a resposta falada abre o portao');
+  assert.equal(estado.removido, true);
+  forgetSecrets();
+});
+
 report('session-manager');
 })();
