@@ -81,6 +81,34 @@ Não desenhar do zero. Colher referências, mostrá-las ao dono e **só então**
 Entregar as referências como **imagens lado a lado** com uma legenda do que cada uma resolve, e
 dizer o que NÃO serve para nós (a maioria dessas telas não tem um agente que desenha junto).
 
+## ⚠ A tela base NÃO é só visual: ela é a porta do TUTOR
+
+Pedido do dono, depois de ver a primeira versão deste handoff (2026-11-15):
+
+> *"A tela base e introdução já podem entrar junto com um pouco daquilo que a gente estava
+> pensando do tutor. Então ele já poderia explicar o que é, dar uma introdução boa, então ele
+> deveria ter uma base de conhecimento que ele pudesse buscar. (…) Não vamos deixar isso ir para
+> longe do que a gente já está estruturando do modelo: saber entender e saber explicar para o
+> aluno o que é, e construir junto com o aluno."*
+
+Ou seja: o estudo continua sendo **visual** — referências, mockups, recomendação — mas o que a
+tela oferece tem de caber no que o agente sabe fazer, e empurrar o produto para onde ele vai:
+
+- **"me explica o que é isso"** tem de ser um caminho de primeira classe na tela, e não só um
+  exemplo de pergunta. Hoje o agente explica bem quando perguntado; o que falta é a tela convidar.
+- **A base de conhecimento.** Hoje ele responde do próprio modelo, sem fonte. Para ensinar BPMN
+  com segurana (e para o TCC poder dizer de onde veio a definição), ele precisa de um acervo que
+  possa **buscar** — uma ferramenta de leitura sobre um material curado (a especificação BPMN,
+  um glossário nosso, os exemplos do curso). Isso é ferramenta nova no catálogo, com política e
+  citação da fonte na resposta; não é prompt maior.
+- **Construir junto.** O caminho "descreva o seu processo" não é um formulário: é o tutor
+  conduzindo — pergunta o que inicia, o que acontece depois, quem faz, e **desenha enquanto
+  conversa**, confirmando cada passo no diagrama.
+
+O estudo deve dizer **qual parte disso a tela base promete** e qual fica para depois. Prometer na
+tela o que o agente ainda não sabe fazer é a única forma garantida de piorar a primeira
+impressão.
+
 ## O que entregar
 
 1. **Um levantamento** com as referências e a leitura de cada uma (o que copiar, o que descartar).
