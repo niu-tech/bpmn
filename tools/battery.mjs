@@ -1456,6 +1456,88 @@ if (chaveViva) {
     ],
   });
 
+  /**
+   * O que SÓ a sessão ao vivo prova: o MODELO escolhendo os verbos novos a partir da frase do
+   * aluno. A geometria em si já tem portão sem cota (`--so geometria`); aqui o que está sob teste
+   * é o function calling — se a descrição de `criar_elemento` com `entre` e de `trocar_tipo`
+   * basta para ele pedir a coisa certa quando o aluno fala como aluno.
+   */
+  CENARIOS.push({
+    nome: 'AO VIVO: o aluno pede em palavras, o modelo escolhe inserir no meio e trocar o tipo (F7b)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    espera: 4500,
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${MEDIR_SOBREPOSICAO}
+       // O alvo: um fluxo entre dois nos COM NOME dentro do pool do vendedor — o aluno fala por
+       // nome, nunca por id, e e justamente isso que o modelo tem de resolver.
+       const pool = window.__conteinerChamado('Pizza vendor');
+       const d = window.__bpmnAssist.desenho;
+       const nome = (id) => (d.nos.find((n) => n.id === id) || {}).nome;
+       const alvo = d.ligacoes.find((l) => l.tipo === 'SequenceFlow' && nome(l.de) && nome(l.para)
+         && window.__dentroDe(l.de, pool) === true && window.__dentroDe(l.para, pool) === true);
+       window.__alvo = alvo;
+       window.__antes = d.nos.map((n) => n.id);
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && !!alvo,
+         entre: alvo ? nome(alvo.de) + ' -> ' + nome(alvo.para) : null,
+       };`,
+
+      `// A frase e de aluno: sem id, sem tipo, sem nome de ferramenta.
+       const a = window.__alvo;
+       const d0 = window.__bpmnAssist.desenho;
+       const nome = (id) => (d0.nos.find((n) => n.id === id) || {}).nome;
+       const r = await window.__resposta('Esqueci um passo no meio do processo: entre "' + nome(a.de)
+         + '" e "' + nome(a.para) + '" tem que ter uma tarefa de conferir o pagamento. Poe ai pra mim?');
+       const d = window.__bpmnAssist.desenho;
+       const novos = d.nos.filter((n) => !window.__antes.includes(n.id));
+       const novo = novos[0] ? novos[0].id : null;
+       window.__novo = novo;
+       // O criterio e o DESENHO: o caminho passa pelo novo e o atalho direto nao existe mais.
+       const entra = d.ligacoes.filter((l) => l.para === novo).map((l) => l.de);
+       const sai = d.ligacoes.filter((l) => l.de === novo).map((l) => l.para);
+       const atalhoSobrou = d.ligacoes.some((l) => l.de === a.de && l.para === a.para);
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && !!novo
+           && entra.includes(a.de) && sai.includes(a.para) && !atalhoSobrou,
+         inseriuNoMeio: !!novo && entra.includes(a.de) && sai.includes(a.para),
+         atalhoSobrou,
+         ganhou: novos.map((n) => n.tipo + (n.nome ? ' "' + n.nome + '"' : '')),
+         ferramentasChamadas: chamadas,
+         respondeu: r.slice(0, 300),
+       };`,
+
+      `// Segundo pedido: trocar o tipo. O verbo preserva nome e ligacoes, e o id MUDA — se o
+       // modelo tratar o id velho como valido depois disto, aparece aqui.
+       const antes = window.__bpmnAssist.desenho;
+       const nomeDoNovo = (antes.nos.find((n) => n.id === window.__novo) || {}).nome;
+       const r = await window.__resposta('Na verdade essa tarefa de conferir o pagamento devia ser uma tarefa do usuario, do tipo que uma pessoa executa. Muda pra mim?');
+       const d = window.__bpmnAssist.desenho;
+       // Procura pelo NOME: o id mudou de proposito.
+       const achado = d.nos.find((n) => (n.nome || '') === (nomeDoNovo || '') && /Task/.test(n.tipo));
+       const ligacoes = achado ? d.ligacoes.filter((l) => l.de === achado.id || l.para === achado.id).length : 0;
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && !!achado && achado.tipo === 'UserTask' && ligacoes === 2,
+         virou: achado ? achado.tipo : null,
+         nomeManteve: achado ? achado.nome : null,
+         ligacoesPreservadas: ligacoes,
+         ferramentasChamadas: chamadas,
+         respondeu: r.slice(0, 300),
+       };`,
+    ],
+  });
+
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
