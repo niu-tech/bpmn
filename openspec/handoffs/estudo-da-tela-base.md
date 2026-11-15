@@ -97,7 +97,7 @@ tela oferece tem de caber no que o agente sabe fazer, e empurrar o produto para 
 - **"me explica o que é isso"** tem de ser um caminho de primeira classe na tela, e não só um
   exemplo de pergunta. Hoje o agente explica bem quando perguntado; o que falta é a tela convidar.
 - **A base de conhecimento.** Hoje ele responde do próprio modelo, sem fonte. Para ensinar BPMN
-  com segurana (e para o TCC poder dizer de onde veio a definição), ele precisa de um acervo que
+  com segurança (e para o TCC poder dizer de onde veio a definição), ele precisa de um acervo que
   possa **buscar** — uma ferramenta de leitura sobre um material curado (a especificação BPMN,
   um glossário nosso, os exemplos do curso). Isso é ferramenta nova no catálogo, com política e
   citação da fonte na resposta; não é prompt maior.
