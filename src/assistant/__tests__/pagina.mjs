@@ -10,6 +10,7 @@
 import assert from 'node:assert/strict';
 
 import { ligarAnunciosDaPagina } from '../pagina.js';
+import { criarAcessoBpmn } from '../tools/bpmn-api.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
 /** Dublê do `acesso`: guarda os handlers por evento para o teste disparar o que quiser. */
@@ -196,6 +197,49 @@ testAsync('a nota conta a SELECAO INTEIRA, e nao apenas o primeiro', async () =>
   assert.match(ditas[0], /Eat the pizza/, 'e nomeia todos, nao apenas o primeiro');
   assert.match(ditas[0], /esses/, 'e ensina como o aluno vai chamar o conjunto');
   canal.dispose();
+});
+
+test('listener NOSSO nao interrompe a cadeia do EventBus (achado de 2026-11-15)', () => {
+  /**
+   * No EventBus do diagram-js, listener que devolve qualquer coisa diferente de `undefined`
+   * ENCERRA a propagacao — e todo listener registrado depois dele para de ser chamado, em
+   * silencio. A outra sessao achou o estrago no `src/app.js` (autosave `async`, e `async`
+   * devolve sempre uma Promise): ele vinha engolindo `commandStack.changed` para todo mundo.
+   *
+   * Aqui o que se mede e' o nosso lado: `acesso.assinar` engole o retorno, entao nem um listener
+   * nosso escrito como `() => dizer(...)` derruba quem vem depois.
+   */
+  const ouvintes = new Map();
+  const eventBus = {
+    on(nome, fn) { ouvintes.set(nome, [...(ouvintes.get(nome) ?? []), fn]); },
+    off(nome, fn) {
+      const lista = ouvintes.get(nome) ?? [];
+      const i = lista.indexOf(fn);
+      if (i >= 0) lista.splice(i, 1);
+    },
+    emitir(nome) {
+      for (const fn of [...(ouvintes.get(nome) ?? [])]) {
+        const r = fn({});
+        if (r !== undefined) return 'interrompeu';
+      }
+      return 'chegou ao fim';
+    },
+  };
+  const modelador = { get: (nome) => (nome === 'eventBus' ? eventBus : null) };
+  const acesso = criarAcessoBpmn(modelador);
+
+  let depoisFoiChamado = false;
+  // Um listener NOSSO que devolve valor de proposito — o erro que a disciplina sozinha nao pega.
+  const parar = acesso.assinar('commandStack.changed', () => 'eu devolvo algo');
+  eventBus.on('commandStack.changed', () => { depoisFoiChamado = true; });
+
+  assert.equal(eventBus.emitir('commandStack.changed'), 'chegou ao fim', 'a cadeia nao foi cortada');
+  assert.equal(depoisFoiChamado, true, 'quem assinou DEPOIS continuou sendo chamado');
+
+  parar();
+  depoisFoiChamado = false;
+  eventBus.emitir('commandStack.changed');
+  assert.equal(depoisFoiChamado, true, 'desassinar tira o nosso, e so o nosso');
 });
 
 report('pagina');

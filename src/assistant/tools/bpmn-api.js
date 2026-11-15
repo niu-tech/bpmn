@@ -912,13 +912,29 @@ export function criarAcessoBpmn(modelador) {
       return { entrada: entrada?.id ?? null, saida: saida?.id ?? null };
     },
 
-    /** Assina eventos do modelador e devolve como desassinar. Quem decide o que fazer é o dono. */
+    /**
+     * Assina eventos do modelador e devolve como desassinar. Quem decide o que fazer é o dono.
+     *
+     * ⚠ **O RETORNO DO LISTENER É ENGOLIDO DE PROPÓSITO.** No EventBus do diagram-js, um
+     * listener que devolve qualquer coisa diferente de `undefined` **encerra a propagação** — e
+     * todo listener registrado DEPOIS dele deixa de ser chamado, em silêncio. A outra sessão
+     * desta mesma tarde achou o estrago no `src/app.js`, onde o autosave era `async` (e `async`
+     * devolve sempre uma Promise): ele vinha engolindo `commandStack.changed` para todo mundo,
+     * desde sempre.
+     *
+     * Nossos três listeners hoje não devolvem nada — mas isso é disciplina, e disciplina quebra
+     * no dia em que alguém escrever `() => dizer(...)` em vez de `() => { dizer(...); }`. Uma
+     * linha aqui tira a classe inteira de defeito, para quem assina hoje e para quem assinar
+     * depois. Quem precisar PARAR a propagação (ninguém precisa) usa o `eventBus` direto, e aí
+     * está escolhendo isso.
+     */
     assinar(nomes, fn) {
       const lista = Array.isArray(nomes) ? nomes : [nomes];
-      for (const nome of lista) eventBus.on(nome, fn);
+      const seguro = (...args) => { fn(...args); };
+      for (const nome of lista) eventBus.on(nome, seguro);
       return () => {
         for (const nome of lista) {
-          try { eventBus.off(nome, fn); } catch { /* já desligado */ }
+          try { eventBus.off(nome, seguro); } catch { /* já desligado */ }
         }
       };
     },

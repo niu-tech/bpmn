@@ -312,9 +312,31 @@ export function criarModeladorFalso({
     },
   };
 
+  /**
+   * EventBus com a semântica que importa: **listener que devolve algo ≠ undefined PARA a
+   * propagação**. O dublê tinha `on() {}` vazio, e por isso não conseguia reprovar o defeito que
+   * a outra sessão achou ao vivo no `src/app.js` (autosave `async` engolindo
+   * `commandStack.changed` para todo listener seguinte).
+   */
+  const ouvintes = new Map();
   const eventBus = {
-    on() {},
-    off() {},
+    on(nome, fn) {
+      if (!ouvintes.has(nome)) ouvintes.set(nome, []);
+      ouvintes.get(nome).push(fn);
+    },
+    off(nome, fn) {
+      const lista = ouvintes.get(nome) ?? [];
+      const i = lista.indexOf(fn);
+      if (i >= 0) lista.splice(i, 1);
+    },
+    /** Dispara como o diagram-js: para no primeiro retorno diferente de `undefined`. */
+    emitir(nome, dados) {
+      for (const fn of [...(ouvintes.get(nome) ?? [])]) {
+        const r = fn(dados);
+        if (r !== undefined) return r;
+      }
+      return undefined;
+    },
     fire(nome, dados) {
       if (nome !== 'autoPlace') return undefined;
       chamadas.push({ fn: 'consulta.vaga', de: dados?.source?.id });
