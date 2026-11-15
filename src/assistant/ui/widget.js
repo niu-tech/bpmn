@@ -689,7 +689,14 @@ export function createWidget({ session, credentials, onClose } = {}) {
    */
   talkBtn.addEventListener('click', async () => {
     if (session.micOn) { await session.stopMic(); return; }
-    if (session.mode !== 'voz') await session.switchMode('voz');
+    /**
+     * ⚠ Trocar de modo ABRE OUTRA sessão (o modo vive no `setup`, que é imutável), e ela leva
+     * alguns segundos para ficar pronta. Chamar `startMic` aqui abria o microfone ANTES disso: a
+     * captura começava, os quadros não tinham para onde ir, e a primeira frase do aluno se perdia
+     * com o painel dizendo "ouvindo". Quem abre o microfone na hora certa é o próprio
+     * `connect('voz')`, assim que o servidor aceita a sessão.
+     */
+    if (session.mode !== 'voz') { await session.switchMode('voz'); return; }
     await session.startMic();
   });
   calarBtn.addEventListener('click', () => session.pararDeFalar());

@@ -155,5 +155,16 @@ import { report, test } from '../../../tools/test-harness.mjs';
     assert.equal(candidatosDoResultado('criar_elemento', { ok: false, candidatos: muitos }).length, 6);
   });
 
+  test('recusa por ambiguidade PERGUNTA na linha, em vez de dizer "nao deu"', () => {
+    const comCandidatos = {
+      ok: false,
+      motivo: 'sem_lugar: ha mais de um lugar possivel',
+      candidatos: [{ id: 'Pool_a', nome: 'Cliente', tipo: 'Participant' }, { id: 'Pool_b', nome: 'Loja', tipo: 'Participant' }],
+    };
+    assert.match(linhaDeFim('criar_elemento', { tipo: 'Task' }, comCandidatos), /em qual destes\?/);
+    // Falha de verdade continua dizendo que nao deu: o aluno precisa saber a diferenca.
+    assert.match(linhaDeFim('criar_elemento', { tipo: 'Task' }, { ok: false, erro: 'tipo_invalido' }), /nao deu|não deu/);
+  });
+
   report('canais');
 })();

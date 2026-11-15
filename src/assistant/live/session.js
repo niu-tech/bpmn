@@ -734,8 +734,21 @@ export function createSession({
       return true;
     },
 
-    /** PROVA A: quadro do microfone (base64 PCM16 16 kHz). */
+    /**
+     * PROVA A: quadro do microfone (base64 PCM16 16 kHz).
+     *
+     * ⚠ ÁUDIO NÃO ENTRA NA FILA de `send`. Tudo o mais que sai daqui é informação (a pergunta, o
+     * contexto, o histórico) e pode esperar o `setupComplete`; o microfone é TEMPO REAL, e um
+     * segundo de fala guardado e despejado depois chega fora de hora — o servidor recebe uma
+     * rajada sem as pausas que o VAD dele usa para fechar o turno, e a frase simplesmente não é
+     * transcrita. Medido em 2026-11-15, no portão falado: o microfone abria junto com a troca de
+     * modo, a primeira frase inteira ficava na fila, e a sessão ficava muda com `micOn=true`.
+     *
+     * Descartar é a resposta honesta (e CONTADA no diário): o que foi dito antes de a sessão
+     * existir não foi ouvido por ninguém, e fingir que foi é pior.
+     */
     pushAudio(pcm16Base64) {
+      if (!ready) { ev('out', 'audio-descartado', 'sessao ainda nao esta pronta'); return null; }
       if (!turn) beginTurn('voice', null);
       send(buildAudioChunk(pcm16Base64));
       return turn.n;

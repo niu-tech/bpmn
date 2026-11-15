@@ -264,7 +264,12 @@ export function linhaDeInicio(nome) {
  */
 export function linhaDeFim(nome, entrada, resposta) {
   if (resposta && resposta.ok === false) {
-    return `${linhaDeInicio(nome).replace(/…$/, '')} — não deu`;
+    const comeco = linhaDeInicio(nome).replace(/…$/, '');
+    // ⚠ Recusa por AMBIGUIDADE não é falha: é uma pergunta. "não deu" em cima de dois botões de
+    // escolha diz ao aluno que algo quebrou, quando o que falta é ele clicar — e os botões estão
+    // logo ali, na mesma bolha.
+    if (candidatosDoResultado(nome, resposta).length) return `${comeco} — em qual destes?`;
+    return `${comeco} — não deu`;
   }
   // ⚠ O despachante entrega um ENVELOPE — `{ ok, resultado }` —, não o retorno cru da ferramenta.
   // Ler o envelope como se fosse o resultado fazia a busca dizer "na amostra" quando ela varre o

@@ -181,6 +181,16 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     ferramenta: (nome, args) => session.dirigirFerramenta(nome, args),
     definirContexto: (c) => session.definirContexto(c),
     /**
+     * Seleciona um elemento como o clique do aluno selecionaria (mesmo `selection.select`).
+     * Diagnostico: e com isto que o portao do navegador prova o canal da pagina sem uma pessoa
+     * na frente da tela.
+     */
+    selecionar: (id) => acesso.selecionar(id),
+    /** O que o aluno escolheu num candidato clicavel, pelo caminho do painel. */
+    escolher: (candidato) => session.escolherCandidato(candidato),
+    /** A nota da pagina que ainda nao saiu (fila de um). So leitura, so diagnostico. */
+    get notaPendente() { return session.notaDaPagina; },
+    /**
      * PROVA DA CAPTURA — grava o que o microfone produziria e devolve o PCM, SEM abrir sessão.
      *
      * Existe porque faltava exatamente isto para fechar a dívida M6 (2026-11-13): o relatório

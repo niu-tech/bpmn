@@ -373,6 +373,22 @@ export function criarAcessoBpmn(modelador) {
     },
 
     /**
+     * SELECIONA um elemento — o MESMO servico que o clique do aluno usa (`selection.select`),
+     * e por isso o mesmo evento `selection.changed` sai dele.
+     *
+     * Existe para o portao do navegador poder provar o canal da pagina sem uma pessoa clicando:
+     * o que se prova aqui e a cadeia selecao -> nota -> modelo; que o clique no SVG produz
+     * selecao e do bpmn-js, e nao e nosso para testar. Nenhuma ferramenta do modelo chama isto
+     * (nao esta no catalogo): e verbo de diagnostico, como o resto de `window.__bpmnAssist`.
+     */
+    selecionar(id) {
+      const el = this.porId(id);
+      if (!el || !selection?.select) return null;
+      selection.select(el);
+      return { id: el.id, tipo: String(el.type ?? '').replace('bpmn:', '') };
+    },
+
+    /**
      * Entradas e saídas de um elemento. O bpmn-js guarda isso no próprio elemento (`incoming` e
      * `outgoing`), então não há busca — é leitura direta, e por isso cabe nesta camada.
      */

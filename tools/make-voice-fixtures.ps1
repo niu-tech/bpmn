@@ -55,6 +55,13 @@ $fixtures = [ordered]@{
     # Gate 4.3: ferramenta de leitura numa sessao de VOZ. Pedir a ferramenta pelo nome e
     # do ALUNO; quem decide chamar continua sendo o modelo.
     'ferramenta'   = 'Chame a ferramenta descrever diagrama e me diga quantas raias o diagrama tem.'
+    # Change close-the-loop-with-the-canvas (5.3): o aluno NAO nomeia o elemento. Quem diz qual e
+    # e a selecao dele, que chega pelo canal da pagina e pelo contexto.
+    'esse-aqui'    = 'O que e esse aqui que eu selecionei?'
+    # Change spoken-confirmation-gates (6.3): o portao falado, nas duas falas que ele exige.
+    # A primeira pede; a segunda responde a pergunta que o agente faz no meio.
+    'apagar'       = 'Apaga essa tarefa que eu selecionei, por favor.'
+    'pode-apagar'  = 'Pode apagar, sim.'
 }
 
 $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(

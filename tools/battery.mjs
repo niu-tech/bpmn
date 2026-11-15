@@ -373,7 +373,10 @@ const CENARIOS = [
     url: ALVO,
     mic,
     passos: [PREPARAR, CONECTAR, `
-      window.__btn('Voz').click();
+      // ⚠ NAO existe mais botao 'Voz' (redesenho da UI, 2026-11-14): o MICROFONE e a porta da
+      // voz, e clicar nele e que leva a sessao para o modo voz. Este passo ficou chamando
+      // .click() em undefined - o cenario reprovava por harness, nao por produto.
+      document.querySelector('.bpmn-assist__mic').click();
       await new Promise((r) => setTimeout(r, 200));
       window.__responde({ setupComplete: {} });
       await new Promise((r) => setTimeout(r, 1200));
@@ -400,7 +403,10 @@ const CENARIOS = [
     url: ALVO,
     mic,
     passos: [PREPARAR, CONECTAR, `
-      window.__btn('Voz').click();
+      // ⚠ NAO existe mais botao 'Voz' (redesenho da UI, 2026-11-14): o MICROFONE e a porta da
+      // voz, e clicar nele e que leva a sessao para o modo voz. Este passo ficou chamando
+      // .click() em undefined - o cenario reprovava por harness, nao por produto.
+      document.querySelector('.bpmn-assist__mic').click();
       await new Promise((r) => setTimeout(r, 200));
       window.__responde({ setupComplete: {} });
       await new Promise((r) => setTimeout(r, 1000));
@@ -721,6 +727,142 @@ const CENARIOS = [
   },
 ];
 
+/**
+ * ---------------------------------------------------------------- canal da pagina + candidatos
+ *
+ * SEM COTA e contra o bpmn-js de verdade. O socket e o duble (os frames sao copias do protocolo
+ * real), entao da pra ler O QUE o modelo recebeu sem gastar uma sessao Live: e exatamente o que
+ * estas duas provas precisam — a nota marcada e a escolha clicada.
+ */
+CENARIOS.push({
+  nome: 'canal da pagina: a selecao do aluno chega MARCADA e nao vira bolha dele',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    CONECTAR,
+    `
+    // O aluno clica num elemento do desenho (mesmo \`selection.select\` do clique).
+    const alvo = window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && n.nome);
+    window.__bpmnAssist.selecionar(alvo.id);
+    // O debounce da selecao e de 500 ms; o escoamento espera a brecha entre turnos, e com a
+    // sessao parada em 'pronto' a brecha e agora.
+    await new Promise((r) => setTimeout(r, 1200));
+
+    const frames = window.__frames.map((f) => JSON.parse(f));
+    // A nota viaja como quadro de CONTEXTO (par user+model fechado), nunca como pergunta: ela
+    // informa o modelo, e nao pede resposta. Sugestao proativa e outra decisao (E2/F8b).
+    // ⚠ So' os quadros de CONTEUDO. O proprio setup tambem cita a marca (a regra do parentese
+    // esta no prompt), e conta-lo faria a prova dizer duas notas onde ha uma.
+    const MARCA = '(da p' + String.fromCharCode(225) + 'gina)';
+    const marcadas = frames.filter((f) => f.clientContent && JSON.stringify(f).includes(MARCA));
+
+    const bolhas = [...document.querySelectorAll('.bpmn-assist__msg')].map((m) => ({
+      papel: (m.className.match(/--(user|assistant|system|tool)/) ?? [])[1] ?? '?',
+      kind: m.className.includes('--pagina') ? 'pagina' : null,
+      texto: m.textContent.trim().slice(0, 90),
+    }));
+    const doAluno = bolhas.filter((b) => b.papel === 'user');
+    const nota = bolhas.find((b) => b.kind === 'pagina');
+
+    const diario = window.__bpmnAssist.eventos.filter((e) => e.key.startsWith('pagina.')).map((e) => e.key + ' ' + (e.detail ?? ''));
+
+    return {
+      ok: marcadas.length === 1 && !!nota && doAluno.length === 0 && diario.some((d) => d.startsWith('pagina.enviou')),
+      elementoSelecionado: alvo.nome,
+      // O que o MODELO recebeu, nas palavras dele.
+      recebeuPeloCanal: marcadas.length ? JSON.stringify(marcadas[0]).slice(0, 200) : '(nada)',
+      bolhasDeAluno: doAluno.length,
+      notaNaTela: nota ? nota.texto : '(nenhuma)',
+      diario,
+    };`,
+    `
+    // E a vez e do ALUNO. A ORDEM e o que se mede aqui: com o turno aberto a nota fica pendente,
+    // e se ele falar antes de ela sair, ela MORRE em vez de chegar depois — um fato que ele ja
+    // esqueceu, contado fora de hora, e pior que fato nenhum.
+    const antes = window.__frames.length;
+    const ta = document.querySelector('.bpmn-assist__composer textarea');
+    const perguntar = (t) => { ta.value = t; window.__btn('Enviar').click(); };
+
+    perguntar('o que e um gateway?');           // 1. turno aberto: o estado deixa de ser 'pronto'
+    const outro = window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Task' && n.nome)[1];
+    window.__bpmnAssist.selecionar(outro.id);   // 2. o aluno clica em outro elemento
+    await new Promise((r) => setTimeout(r, 900));
+    const pendente = !!window.__bpmnAssist.notaPendente;
+    perguntar('na verdade, me explica raia');   // 3. ele fala de novo: a nota morre aqui
+    await new Promise((r) => setTimeout(r, 400));
+
+    const novos = window.__frames.slice(antes).map((f) => JSON.parse(f));
+    const notasDepois = novos.filter((f) => f.clientContent && JSON.stringify(f).includes('(da p' + String.fromCharCode(225) + 'gina)'));
+    const descartes = window.__bpmnAssist.eventos.filter((e) => e.key === 'pagina.descartou');
+
+    return {
+      ok: notasDepois.length === 0 && descartes.length > 0 && pendente,
+      // As duas perguntas do aluno sairam; a nota, nao.
+      framesNovos: novos.length,
+      ficouPendenteComOTurnoAberto: pendente,
+      notasQueVazaram: notasDepois.length,
+      descartou: descartes.map((e) => e.detail ?? '').slice(0, 2),
+    };`,
+  ],
+});
+
+CENARIOS.push({
+  nome: 'candidato clicavel: dois pools viram botao, e o clique escolhe (tarefa 4)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    CONECTAR,
+    `
+    // O diagrama da aula e uma COLABORACAO com mais de um pool: criar solto e ambiguo de verdade.
+    const r = await window.__bpmnAssist.ferramenta('criar_elemento', { tipo: 'Task', nome: 'Verificar pagamento' });
+
+    const botoes = [...document.querySelectorAll('.bpmn-assist__cand')];
+    const pools = window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Participant');
+    return {
+      ok: r.ok === false && botoes.length >= 2 && botoes.length === pools.length
+        && botoes.every((b) => b.tagName === 'BUTTON' && !b.disabled),
+      recusou: r.erro ?? null,
+      // Os candidatos atravessaram a recusa EM FORMA — e o modelo continua recebendo o texto.
+      candidatos: (r.candidatos ?? []).map((c) => c.nome ?? c.id),
+      botoes: botoes.map((b) => b.textContent.trim()),
+      poolsNoDesenho: pools.length,
+      // Teclado alcanca: sao <button> de verdade, nao div com clique.
+      alcancaveisPorTeclado: botoes.every((b) => b.tabIndex >= 0),
+    };`,
+    `
+    const botoes = [...document.querySelectorAll('.bpmn-assist__cand')];
+    const escolhido = botoes[1];
+    const rotulo = escolhido.textContent.trim();
+    const antes = window.__frames.length;
+
+    escolhido.click();
+    await new Promise((r) => setTimeout(r, 600));
+    // Segundo clique: NAO manda de novo. Duas escolhas para a mesma pergunta chegariam fora de
+    // ordem, e a segunda valeria — o aluno veria o agente agir sobre o que ele NAO clicou.
+    escolhido.click();
+    botoes[0].click();
+    await new Promise((r) => setTimeout(r, 400));
+
+    const novos = window.__frames.slice(antes).map((f) => JSON.parse(f));
+    const escolhas = novos.filter((f) => JSON.stringify(f).includes('escolhido no chat'));
+    const bolha = [...document.querySelectorAll('.bpmn-assist__msg--user')].at(-1);
+    const via = bolha ? (bolha.querySelector('.bpmn-assist__via')?.textContent ?? '') : '';
+    // O elemento escolhido aparece DESTACADO no desenho: o aluno clicou num nome e precisa saber
+    // qual e. A cor vem do DI, lida de volta pela propria ferramenta.
+    const linhas = [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim());
+
+    return {
+      ok: escolhas.length === 1 && /escolhido no chat/i.test(via)
+        && botoes.every((b) => b.disabled) && linhas.some((l) => /destaquei/.test(l)),
+      escolheu: rotulo,
+      mandouQuantasVezes: escolhas.length,
+      marcaDaBolha: via,
+      linhasDeFerramenta: linhas.slice(-2),
+      botoesDesativados: botoes.every((b) => b.disabled),
+    };`,
+  ],
+});
+
 // ---------------------------------------------------------------- ao vivo (opcional)
 const chaveViva = chaveDoEnv();
 if (chaveViva) {
@@ -773,12 +915,18 @@ if (chaveViva) {
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
        c.checked = true; c.dispatchEvent(new Event('change'));
-       window.__btn('Voz').click();
        window.__btn('Começar').click();
-       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent === 'desligado'; i++) {
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
          await new Promise((r) => setTimeout(r, 500));
        }
-       return { ok: document.querySelector('.bpmn-assist__status').textContent !== 'desligado', status: document.querySelector('.bpmn-assist__status').textContent };`,
+       // O caminho do ALUNO desde o redesenho da UI: comecar, e entao clicar no MICROFONE. Nao
+       // ha mais seletor Texto/Voz — e clicar no microfone ABRE OUTRA sessao Live (o modo vive
+       // no setup, que e imutavel), o que custa uma sessao a mais da cota do aluno.
+       document.querySelector('.bpmn-assist__mic').click();
+       for (let i = 0; i < 60 && !window.__bpmnAssist.estado.micOn; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       return { ok: window.__bpmnAssist.estado.micOn === true, status: document.querySelector('.bpmn-assist__status').textContent, micAberto: window.__bpmnAssist.estado.micOn };`,
       // O WAV pt-BR toca como microfone; o VAD do servidor fecha o turno no silencio que vem
       // depois (por isso `%noloop`). Esperamos a transcricao de ENTRADA (prova de que o Gemini
       // ouviu) e o audio de SAIDA (prova de que respondeu falando).
@@ -859,9 +1007,14 @@ if (chaveViva) {
          document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
          const c = document.querySelector('#bpmn-assist-consent');
          c.checked = true; c.dispatchEvent(new Event('change'));
-         window.__btn('Voz').click();
          window.__btn('Começar').click();
-         for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent === 'desligado'; i++) {
+         for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+         }
+         // O microfone e a porta da voz (nao ha mais botao 'Voz'): clicar nele troca o modo,
+         // o que abre outra sessao Live e, nela, o microfone abre sozinho.
+         document.querySelector('.bpmn-assist__mic').click();
+         for (let i = 0; i < 60 && !window.__bpmnAssist.estado.micOn; i++) {
            await new Promise((r) => setTimeout(r, 500));
          }
          // NAO pergunta por texto. Medido em 2026-11-12: em modo voz com o microfone aberto, o
@@ -1079,7 +1232,7 @@ if (chaveViva) {
 
       `// Troca para VOZ: sessao nova, com o resumo da conversa indo junto.
        const respostasAntes = window.__bpmnAssist.mensagens.filter((m) => m.role === 'assistant').length;
-       window.__btn('Voz').click();
+       document.querySelector('.bpmn-assist__mic').click();
        for (let i = 0; i < 60 && !['pronto', 'ouvindo', 'falando'].includes(document.querySelector('.bpmn-assist__status').textContent); i++) {
          await new Promise((r) => setTimeout(r, 500));
        }
@@ -1115,12 +1268,13 @@ if (chaveViva) {
        document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
        const c = document.querySelector('#bpmn-assist-consent');
        c.checked = true; c.dispatchEvent(new Event('change'));
-       window.__btn('Voz').click();
        for (let i = 0; i < 40 && !window.__btn('Começar'); i++) await new Promise((r) => setTimeout(r, 250));
        window.__btn('Começar').click();
-       for (let i = 0; i < 60 && !['pronto', 'ouvindo', 'falando'].includes(document.querySelector('.bpmn-assist__status').textContent); i++) {
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
          await new Promise((r) => setTimeout(r, 500));
        }
+       document.querySelector('.bpmn-assist__mic').click();
+       for (let i = 0; i < 60 && !window.__bpmnAssist.estado.micOn; i++) await new Promise((r) => setTimeout(r, 500));
        // 35s: a fala entra pelo WAV, o modelo chama a ferramenta e (a pergunta desta medicao)
        // volta a falar depois do resultado.
        await new Promise((r) => setTimeout(r, 35000));
@@ -1760,6 +1914,140 @@ if (chaveViva) {
        };`,
     ],
   });
+
+  // ------------------------------------------------------- portao 5.3 (close-the-loop-with-the-canvas)
+  //
+  // O que SO a sessao ao vivo prova: o aluno NAO nomeia o elemento. Ele clica e diz "esse aqui" -
+  // e quem diz qual e a selecao, que chega por dois caminhos (a nota da pagina e o contexto).
+  // Ate 2026-11-13 o modelo respondia "como nao consigo ver qual elemento voce selecionou, voce
+  // poderia descreve-lo?" com a linha SELECIONADO ja no contexto.
+  CENARIOS.push({
+    nome: 'AO VIVO: o aluno clica e pergunta "e esse aqui?" (portao 5.3)',
+    url: ALVO,
+    espera: 3000,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${ESPERAR_RESPOSTA}
+       return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto', status: document.querySelector('.bpmn-assist__status').textContent };`,
+      `// O aluno CLICA num elemento do desenho. Nada e digitado sobre ele.
+       const alvo = window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && /bake/i.test(n.nome ?? ''))
+         ?? window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && n.nome);
+       window.__bpmnAssist.selecionar(alvo.id);
+       await new Promise((r) => setTimeout(r, 1500));
+       const enviou = window.__bpmnAssist.eventos.some((e) => e.key === 'pagina.enviou');
+
+       const r = await window.__resposta('E esse aqui, o que e?');
+       const limpo = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+       const palavra = limpo(alvo.nome).split(/\s+/).filter((w) => w.length > 3)[0] ?? limpo(alvo.nome);
+       const citou = limpo(r).includes(palavra);
+       const sePerdeu = /nao consigo ver|descrev|qual elemento voc|me diga qual/i.test(limpo(r));
+       return {
+         ok: !r.startsWith('[FALHA DO SERVICO]') && citou && !sePerdeu,
+         selecionou: alvo.nome,
+         notaDaPaginaSaiu: enviou,
+         citouOElementoCerto: citou,
+         pediuParaDescrever: sePerdeu,
+         respondeu: r.slice(0, 220),
+       };`,
+    ],
+  });
+
+  // ------------------------------------------------------- portao 6.3 (spoken-confirmation-gates)
+  //
+  // O portao falado, de ponta a ponta e por VOZ: o aluno pede para apagar, o agente PERGUNTA, o
+  // aluno responde falando, e so entao o elemento some. O WAV tem as duas falas com 14 s de
+  // silencio entre elas (tools/wav-pad.mjs juntar) - e esse silencio que da tempo de perguntar.
+  //
+  // A ORDEM e o que se mede. Um portao frouxo apaga o diagrama do aluno sem ele ter dito nada; um
+  // duro trava a conversa. Os dois erros sao de ordem, e e por isso que a prova olha QUANDO cada
+  // coisa aconteceu, e nao so o estado final.
+  const WAV_PORTAO = 'artifacts/voz/portao-falado.wav';
+  if (existsSync(WAV_PORTAO)) {
+    CENARIOS.push({
+      nome: 'AO VIVO: "apaga essa tarefa" pergunta antes, e so apaga depois do sim (portao 6.3)',
+      url: ALVO,
+      mic: WAV_PORTAO,
+      espera: 3000,
+      passos: [
+        `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Começar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+         // A SELECAO vem antes do microfone: a nota da pagina sai na brecha (estado pronto) e o
+         // quadro de contexto que o startMic manda ja leva o selecionado junto. Depois que o
+         // microfone abre, o turno fica aberto e a nota esperaria a proxima brecha.
+         const alvo = window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && /bake/i.test(n.nome ?? ''))
+           ?? window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && n.nome);
+         window.__alvo = alvo;
+         window.__bpmnAssist.selecionar(alvo.id);
+         await new Promise((r) => setTimeout(r, 1200));
+
+         document.querySelector('.bpmn-assist__mic').click();
+         for (let i = 0; i < 60 && !window.__bpmnAssist.estado.micOn; i++) await new Promise((r) => setTimeout(r, 500));
+         return {
+           ok: window.__bpmnAssist.estado.micOn === true,
+           alvo: alvo.nome,
+           micAberto: window.__bpmnAssist.estado.micOn,
+           // Diagnostico de quando NAO abre: estado, avisos na tela e a linha do tempo. Sem isto,
+           // "o microfone nao abriu" e a mesma linha para cota, troca de modo e erro de setup.
+           estado: window.__bpmnAssist.estado,
+           selo: document.querySelector('.bpmn-assist__status').textContent,
+           avisos: [...document.querySelectorAll('.bpmn-assist__msg--system')].map((m) => m.textContent.trim().slice(0, 120)),
+           eventos: window.__bpmnAssist.eventos.map((e) => e.key + (e.detail ? ' ' + e.detail : '')).slice(-25),
+         };`,
+
+        `// A primeira fala ja esta tocando. O agente deve RECUSAR a remocao e perguntar.
+         const existe = () => window.__bpmnAssist.desenho.nos.some((n) => n.id === window.__alvo.id);
+         let recusouEm = null;
+         for (let i = 0; i < 60; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+           const ev = window.__bpmnAssist.eventos.find((e) => e.key === 'tool.sem-confirmacao');
+           if (ev) { recusouEm = Number((ev.ms / 1000).toFixed(1)); break; }
+         }
+         return {
+           ok: recusouEm !== null && existe(),
+           // Enquanto o aluno nao responde, o elemento TEM de continuar la.
+           recusouEm: recusouEm === null ? 'nunca' : recusouEm + 's',
+           elementoAindaExiste: existe(),
+           perguntou: [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim()).at(-1)?.slice(0, 160) ?? '(sem fala)',
+         };`,
+
+        `// A segunda fala ("Pode apagar, sim") entra 14 s depois da primeira. So entao some.
+         const existe = () => window.__bpmnAssist.desenho.nos.some((n) => n.id === window.__alvo.id);
+         for (let i = 0; i < 90 && existe(); i++) await new Promise((r) => setTimeout(r, 500));
+
+         const ev = window.__bpmnAssist.eventos;
+         const quando = (k) => { const e = ev.find((x) => x.key === k); return e ? Number((e.ms / 1000).toFixed(1)) : null; };
+         const recusa = quando('tool.sem-confirmacao');
+         const falas = [...document.querySelectorAll('.bpmn-assist__msg--user')].map((m) => m.textContent.trim());
+         const linhas = [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim());
+         return {
+           ok: !existe() && recusa !== null,
+           // A ORDEM e a prova: recusou primeiro, apagou depois.
+           recusouEm: recusa + 's',
+           sumiu: !existe(),
+           ouviu: falas.map((f) => f.slice(0, 80)),
+           linhasDeFerramenta: linhas.slice(-3),
+           portoes: ev.filter((e) => e.key.startsWith('portao')).map((e) => e.detail ?? e.key),
+           linhaDoTempo: ev.filter((e) => ['ws.input-text', 'tool.executando', 'tool.sem-confirmacao', 'ws.audio', 'ws.turn-complete'].includes(e.key))
+             .map((e) => Number((e.ms / 1000).toFixed(1)) + 's ' + e.key + (e.detail ? ' ' + e.detail : '') + (e.n > 1 ? ' x' + e.n : '')),
+         };`,
+      ],
+    });
+  }
 
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
