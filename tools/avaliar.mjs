@@ -507,6 +507,17 @@ if (tem('--validar')) {
 const categoria = arg('--categoria');
 const n = Number(arg('--n') ?? 0);
 let perguntas = acervo.perguntas.filter((p) => !categoria || p.categoria === categoria);
+/**
+ * ⚠ Categoria com erro de digitação rodava ZERO pergunta e saía com 0 — verde por não ter medido
+ * nada, que é a mesma doença de "resultado que não pode falhar não é prova". Recusa nomeada, com
+ * a lista do que existe.
+ */
+if (!perguntas.length) {
+  console.error(categoria
+    ? `nenhuma pergunta na categoria "${categoria}". As que existem: ${[...new Set(acervo.perguntas.map((p) => p.categoria))].join(', ')}`
+    : 'o acervo está vazio');
+  process.exit(2);
+}
 if (n > 0) perguntas = perguntas.slice(0, n);
 
 const aoVivo = tem('--ao-vivo');
