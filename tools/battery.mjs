@@ -621,12 +621,23 @@ const CENARIOS = [
         && ligDepois.some((l) => l.de === paraMover && l.para === vizinho);
       const naoCriouOutro = window.__bpmnAssist.desenho.nos.length === antesDoMover;
 
+      // 2c. Um GATEWAY no meio: o mesmo caminho com um tipo que nao e' Task (o aluno pede
+      // "poe uma decisao aqui" tanto quanto pede tarefa).
+      const gw = (de && novo) ? await F('criar_elemento', { tipo: 'ExclusiveGateway', nome: 'Tem desconto?', entre: [paraMover, novo] }) : null;
+      const idGw = gw && gw.resultado && gw.resultado.criado ? gw.resultado.criado.id : null;
+      const ligGw = window.__bpmnAssist.desenho.ligacoes;
+      const gatewayNoMeio = !!idGw
+        && ligGw.some((l) => l.de === paraMover && l.para === idGw)
+        && ligGw.some((l) => l.de === idGw && l.para === novo);
+      const sobreGw = idGw ? window.__sobrepoe(idGw) : null;
+
       return {
         ok: noMeio && encadeou
           && Array.isArray(sobreNovo) && sobreNovo.length === 0
           && Array.isArray(sobreDep) && sobreDep.length === 0
           && !!ali && ali.ok === true && mesmaLinha && setas >= 1
           && moveuParaOMeio && naoCriouOutro
+          && gatewayNoMeio && Array.isArray(sobreGw) && sobreGw.length === 0
           && Array.isArray(sobreDepoisDoAlinhar) && sobreDepoisDoAlinhar.length === 0,
         vaoAntes,
         noMeio,
@@ -637,6 +648,8 @@ const CENARIOS = [
         setas,
         moveuParaOMeio,
         naoCriouOutro,
+        gatewayNoMeio,
+        sobreGw,
         sobreDepoisDoAlinhar,
       };
     `],
