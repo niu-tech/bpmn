@@ -161,6 +161,18 @@ export function criarModeladorFalso({
       return novo;
     },
 
+    /**
+     * ⚠ ESTE DUBLÊ NÃO PROVA "mover para o MEIO de um fluxo". Duas coisas faltam, e as duas
+     * importam: ele não tem `removeConnection` (a chamada estoura e o produto a engole, então as
+     * setas velhas ficam) e não tem o **DropOnFlowBehavior** do bpmn-js, que parte a conexão
+     * sozinho quando uma forma é solta em cima dela.
+     *
+     * Era esse segundo que escondia um defeito real: `moverParaOMeio` religava por cima do
+     * religamento do bpmn-js e deixava DUAS setas entre os mesmos dois elementos (medido ao vivo
+     * em 2026-11-15: ligações do desenho de 24 para 26). Teste escrito aqui passaria e não diria
+     * nada. A prova daquele verbo é o portão `mover para o meio NAO duplica a seta` em
+     * `tools/battery.mjs`, contra o bpmn-js de verdade e **sem cota**.
+     */
     moveElements(formas, delta, alvo) {
       chamadas.push({ fn: 'moveElements', ids: formas.map((f) => f.id), delta, alvo: alvo?.id ?? null });
       const antes = formas.map((f) => ({ f, x: f.x, y: f.y, pai: f.parent }));

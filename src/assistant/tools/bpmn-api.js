@@ -281,6 +281,14 @@ export function criarAcessoBpmn(modelador) {
    */
   /** O fluxo DIRETO de a para b, se existir. Lido do próprio elemento, sem busca. */
   const fluxoEntreDireto = (a, b) => (a?.outgoing ?? []).find((c) => c?.target === b) ?? null;
+  /**
+   * Liga dois elementos SÓ SE ainda não houver seta entre eles; devolve a seta (velha ou nova).
+   *
+   * Duas setas idênticas são invisíveis na tela e reais no arquivo: o aluno vê uma linha, o XML
+   * tem duas, e a segunda aparece quando ele exporta ou quando alguém conta o fluxo. Quem religa
+   * pergunta antes — ver o comentário do religamento em `moverParaOMeio`.
+   */
+  const ligarSeFaltar = (a, b) => fluxoEntreDireto(a, b) ?? modeling.connect(a, b);
 
   const endireitarVizinhanca = (els) => {
     if (typeof modeling.layoutConnection !== 'function') return 0;
@@ -889,7 +897,7 @@ export function criarAcessoBpmn(modelador) {
         try { modeling.removeConnection(c); } catch { /* já removida */ }
       }
       if (antes && depois && antes !== depois && antes !== el && depois !== el) {
-        try { modeling.connect(antes, depois); } catch { /* o bpmn-js recusou: fica sem o atalho */ }
+        try { ligarSeFaltar(antes, depois); } catch { /* o bpmn-js recusou: fica sem o atalho */ }
       }
 
       // Espaço e posição: o mesmo cálculo de quando o elemento nasce no meio.
@@ -901,13 +909,26 @@ export function criarAcessoBpmn(modelador) {
       const alvoY = Math.round((de.y ?? 0) + (de.height ?? 0) / 2 - (el.height ?? 80) / 2);
       modeling.moveElements([el], { x: alvoX - (el.x ?? 0), y: alvoY - (el.y ?? 0) }, el.parent);
 
-      // E o religamento, agora que ele está no lugar.
+      /**
+       * E o religamento — **só do que faltar**.
+       *
+       * ⚠ O `moveElements` acima pode JÁ ter religado tudo, sem a gente pedir: o bpmn-js tem o
+       * **DropOnFlowBehavior**, que parte a conexão sozinho quando uma forma é solta em cima
+       * dela — e é exatamente isso que "levar para o meio do fluxo" faz. Chamar `connect` depois
+       * dele criava o SEGUNDO par: duas setas entre os mesmos dois elementos, desenhadas uma
+       * sobre a outra, que o aluno vê como uma e o XML conta como duas.
+       *
+       * Medido no portão `mover para o meio NAO duplica a seta` (2026-11-15): `entradas` e
+       * `saidas` com **duas** cada, e as ligações do desenho indo de 24 para **26**. Não se
+       * desliga o comportamento do bpmn-js (é ele que faz arrastar-para-dentro-do-fluxo
+       * funcionar na mão) — liga-se só o que faltar.
+       */
       const velho = fluxoEntreDireto(de, para);
       if (velho) {
         try { modeling.removeConnection(velho); } catch { /* já removida */ }
       }
-      const entrada = modeling.connect(de, el);
-      const saida = modeling.connect(el, para);
+      const entrada = ligarSeFaltar(de, el);
+      const saida = ligarSeFaltar(el, para);
       endireitarVizinhanca([de, para, el]);
       return { entrada: entrada?.id ?? null, saida: saida?.id ?? null };
     },

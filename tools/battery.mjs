@@ -305,6 +305,42 @@ window.__conteinerChamado = (texto) => [...document.querySelectorAll('g.djs-shap
   }) ?? null;
 // Com quem o elemento se sobrepoe. So' FORMAS comuns (um fluxo encosta na borda por
 // desenho), e conter nao e sobrepor.
+/**
+ * A LINHA ATRAVESSA O ELEMENTO? O defeito que o dono fotografou em 2026-11-15.
+ *
+ * Ele pediu uma tarefa no meio do fluxo, ela entrou na posição certa e **sem sobrepor ninguém** —
+ * e o desenho ficou errado de todo jeito, porque a seta que já existia continuou em linha reta
+ * passando POR DENTRO da caixa nova. Sobreposição de formas não vê isso: o problema é forma
+ * contra LINHA, e nenhum medidor nosso olhava para linha.
+ *
+ * Amostra o caminho de cada conexão e pergunta se algum ponto cai dentro da caixa do elemento.
+ * Conexão que SAI ou CHEGA nele não conta: essa toca a borda por desenho.
+ */
+window.__linhaAtravessa = (id) => {
+  const caixa = window.__caixa(id);
+  if (!caixa) return null;
+  const ligacoes = window.__bpmnAssist.desenho.ligacoes;
+  const folga = 6;   // a seta pode encostar na borda; atravessar e' outra coisa
+  const dentro = (x, y) => x > caixa.x + folga && x < caixa.x + caixa.w - folga
+    && y > caixa.y + folga && y < caixa.y + caixa.h - folga;
+  const culpadas = [];
+  for (const l of ligacoes) {
+    if (l.de === id || l.para === id) continue;
+    const g = document.querySelector('g.djs-connection[data-element-id="' + l.id + '"]');
+    const path = g && g.querySelector('path');
+    if (!path) continue;
+    const ctm = path.getScreenCTM();
+    const total = path.getTotalLength();
+    if (!ctm || !total) continue;
+    for (let i = 0; i <= 40; i++) {
+      const pt = path.getPointAtLength((total * i) / 40);
+      const x = ctm.a * pt.x + ctm.c * pt.y + ctm.e;
+      const y = ctm.b * pt.x + ctm.d * pt.y + ctm.f;
+      if (dentro(x, y)) { culpadas.push(l.id); break; }
+    }
+  }
+  return culpadas;
+};
 window.__sobrepoe = (id) => {
   const a = window.__caixa(id);
   if (!a) return null;
@@ -1260,6 +1296,60 @@ CENARIOS.push({
       notasQueVazaram: notasDepois.length,
       descartou: descartes.map((e) => e.detail ?? '').slice(0, 2),
     };`,
+  ],
+});
+
+/**
+ * MOVER PARA O MEIO: uma seta de cada lado, nunca duas.
+ *
+ * ⚠ Achado pelo portão T23 ao vivo (2026-11-15), no campo `entradas`: depois de mover *"Pagar a
+ * pizza"* para entre duas tarefas, ela ficou com **duas** entradas vindas do MESMO elemento —
+ * duas setas desenhadas uma sobre a outra, que o aluno vê como uma e o XML conta como duas.
+ *
+ * A causa é um comportamento do próprio bpmn-js: o **DropOnFlowBehavior** parte a conexão
+ * sozinho quando uma forma é solta em cima dela — então o `moveElements` JÁ deixa o elemento
+ * ligado, e o nosso `connect` depois dele era o segundo par. Não se desliga o comportamento do
+ * bpmn-js (ele é o que faz arrastar-para-dentro-do-fluxo funcionar na mão): liga-se **só o que
+ * faltar**.
+ *
+ * Sem cota: o verbo é dirigido pelo caminho do modelo (`ferramenta`), contra o bpmn-js de verdade.
+ */
+CENARIOS.push({
+  nome: 'mover para o meio NAO duplica a seta (DropOnFlowBehavior do bpmn-js)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `${MEDIR_SOBREPOSICAO}
+     const nos = () => window.__bpmnAssist.desenho.nos;
+     const achar = (n) => nos().find((x) => (x.nome ?? '').toLowerCase() === n.toLowerCase());
+     const mover = achar('Pagar a pizza');
+     const de = achar('Escolher a pizza');
+     const para = achar('Pedir a pizza');
+     if (!mover || !de || !para) return { ok: false, erro: 'o diagrama base nao tem as tarefas esperadas' };
+
+     const antes = window.__bpmnAssist.desenho.ligacoes.length;
+     const r = await window.__bpmnAssist.ferramenta('mover', { id: mover.id, entre: [de.id, para.id] });
+
+     const d = window.__bpmnAssist.desenho;
+     const fluxos = d.ligacoes.filter((l) => l.tipo === 'SequenceFlow');
+     const entradas = fluxos.filter((l) => l.para === mover.id);
+     const saidas = fluxos.filter((l) => l.de === mover.id);
+     // Duas setas entre o MESMO par, em qualquer lugar do desenho, e' duplicata.
+     const pares = {};
+     for (const l of fluxos) { const k = l.de + '->' + l.para; pares[k] = (pares[k] ?? 0) + 1; }
+     const duplicados = Object.entries(pares).filter(([, n]) => n > 1).map(([k, n]) => k + ' x' + n);
+     return {
+       ok: entradas.length === 1 && saidas.length === 1 && duplicados.length === 0
+         && entradas[0].de === de.id && saidas[0].para === para.id
+         && (window.__sobrepoe(mover.id) ?? []).length === 0
+         && (window.__linhaAtravessa(mover.id) ?? []).length === 0,
+       entradas: entradas.map((l) => l.de),
+       saidas: saidas.map((l) => l.para),
+       duplicados,
+       ligacoesAntes: antes,
+       ligacoesDepois: d.ligacoes.length,
+       recusou: r?.erro ?? null,
+     };`,
   ],
 });
 
@@ -2545,6 +2635,119 @@ if (chaveViva) {
   // e quem diz qual e a selecao, que chega por dois caminhos (a nota da pagina e o contexto).
   // Ate 2026-11-13 o modelo respondia "como nao consigo ver qual elemento voce selecionou, voce
   // poderia descreve-lo?" com a linha SELECIONADO ja no contexto.
+  /**
+   * T23 — OS DOIS PEDIDOS QUE O DONO FEZ À MÃO, agora com portão.
+   *
+   * Os dois saíram da mesa dele em 2026-11-15, e nenhum tinha prova automática:
+   *
+   * 1. *"tentei alinhar 4, ele pede 2"* — e, quando alinhava dois, *"deveria alinhar também a
+   *    linha que liga os dois"*. Então o portão seleciona **quatro** e mede as duas coisas: os
+   *    centros ficaram na mesma altura, **e** nenhuma seta ficou atravessando caixa nenhuma.
+   * 2. *"a gente pode fazer esse mover elemento que JÁ EXISTE para o meio do fluxo"* — o buraco
+   *    que fazia o modelo criar um GÊMEO em vez de mover (ele só tinha verbo de criar). Aqui o
+   *    portão conta os elementos antes e depois: **mover não cria nada**.
+   *
+   * O modelo é quem escolhe o verbo, como sempre: o aluno fala em português, e o que se mede é o
+   * DESENHO que sobrou — posição na tela, cadeia do fluxo, sobreposição e linha atravessada.
+   */
+  CENARIOS.push({
+    nome: 'AO VIVO: alinhar QUATRO com as linhas, e mover um que JA EXISTE para o meio (T23)',
+    url: ALVO,
+    espera: 3000,
+    passos: [
+      `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       window.__btn('Come\u00e7ar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${ESPERAR_RESPOSTA}
+       ${MEDIR_SOBREPOSICAO}
+       return { ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' };`,
+
+      // 1. QUATRO selecionados, como o aluno seleciona com shift ou com o laço.
+      `const nos = window.__bpmnAssist.desenho.nos;
+       const achar = (n) => nos.find((x) => (x.nome ?? '').toLowerCase() === n.toLowerCase());
+       const alvos = ['Escolher a pizza', 'Pedir a pizza', 'Pagar a pizza', 'Comer a pizza'].map(achar);
+       if (alvos.some((a) => !a)) return { ok: false, erro: 'o diagrama base nao tem as quatro tarefas esperadas' };
+       window.__alvos = alvos.map((a) => a.id);
+       window.__bpmnAssist.selecionarVarios(window.__alvos);
+       await new Promise((r) => setTimeout(r, 1300));   // o debounce da nota da pagina
+
+       const centro = (id) => { const c = window.__caixa(id); return c ? Math.round(c.y + c.h / 2) : null; };
+
+       /**
+        * DESALINHA PRIMEIRO — senão o portão não mede nada.
+        *
+        * ⚠ No diagrama base as quatro tarefas JA estao na mesma altura (os quatro centros em 111).
+        * A primeira versao deste portao passou com desvio ZERO antes e depois - verde sem ter
+        * provado uma linha de alinhamento. Dois dos quatro descem pelo caminho do modelo
+        * (o verbo "mover", sem cota), e so entao o aluno pede o alinhamento.
+        */
+       await window.__bpmnAssist.ferramenta('mover', { id: window.__alvos[1], direcao: 'baixo', passos: 2 });
+       await window.__bpmnAssist.ferramenta('mover', { id: window.__alvos[3], direcao: 'cima', passos: 1 });
+       const antes = window.__alvos.map(centro);
+       const desvioAntes = Math.max(...antes) - Math.min(...antes);
+       if (desvioAntes < 40) return { ok: false, erro: 'nao consegui desalinhar: o portao mediria zero', antes };
+
+       const r = await window.__resposta('alinhe esses quatro elementos que eu selecionei pelo centro, na mesma altura');
+       const depois = window.__alvos.map(centro);
+       const desvio = Math.max(...depois) - Math.min(...depois);
+       const atravessadas = window.__alvos.flatMap((id) => window.__linhaAtravessa(id) ?? []);
+       const sobrepostos = window.__alvos.flatMap((id) => window.__sobrepoe(id) ?? []);
+       return {
+         // Os quatro na mesma altura (3 px de folga de arredondamento), nenhuma seta atravessando
+         // caixa nenhuma, e ninguem por cima de ninguem.
+         ok: desvio <= 3 && atravessadas.length === 0 && sobrepostos.length === 0
+           && !r.startsWith('[FALHA DO SERVICO]'),
+         pediuDois: /dois|duas|pelo menos 2/i.test(r),
+         desvioAntes,
+         centrosAntes: antes,
+         centrosDepois: depois,
+         desvio,
+         linhasAtravessando: atravessadas,
+         sobrepostos,
+         respondeu: r.slice(0, 160),
+       };`,
+
+      // 2. MOVER um que JÁ EXISTE para o meio do fluxo — sem criar gêmeo.
+      `const quantos = () => window.__bpmnAssist.desenho.nos.length;
+       const antes = quantos();
+       const nos = window.__bpmnAssist.desenho.nos;
+       const achar = (n) => nos.find((x) => (x.nome ?? '').toLowerCase() === n.toLowerCase());
+       const mover = achar('Pagar a pizza');
+       const de = achar('Escolher a pizza');
+       const para = achar('Pedir a pizza');
+
+       const r = await window.__resposta('mova a tarefa "Pagar a pizza", que ja existe, para entre "Escolher a pizza" e "Pedir a pizza"');
+
+       const d = window.__bpmnAssist.desenho;
+       const saiDe = (id) => d.ligacoes.filter((l) => l.de === id && l.tipo === 'SequenceFlow');
+       const entraEm = (id) => d.ligacoes.filter((l) => l.para === id && l.tipo === 'SequenceFlow');
+       const noMeio = saiDe(de.id).some((l) => l.para === mover.id) && saiDe(mover.id).some((l) => l.para === para.id);
+       const gemeos = d.nos.filter((n) => (n.nome ?? '').toLowerCase() === 'pagar a pizza');
+       return {
+         ok: noMeio
+           && d.nos.length === antes
+           && gemeos.length === 1
+           && (window.__sobrepoe(mover.id) ?? []).length === 0
+           && (window.__linhaAtravessa(mover.id) ?? []).length === 0
+           && !r.startsWith('[FALHA DO SERVICO]'),
+         entrouNoMeio: noMeio,
+         criouGemeo: gemeos.length > 1,
+         elementosAntes: antes,
+         elementosDepois: d.nos.length,
+         sobrepostos: window.__sobrepoe(mover.id),
+         linhasAtravessando: window.__linhaAtravessa(mover.id),
+         entradas: entraEm(mover.id).map((l) => l.de),
+         respondeu: r.slice(0, 160),
+       };`,
+    ],
+  });
+
   CENARIOS.push({
     nome: 'AO VIVO: o aluno clica e pergunta "e esse aqui?" (portao 5.3)',
     url: ALVO,
