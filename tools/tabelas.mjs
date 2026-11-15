@@ -43,12 +43,21 @@ function lerAvaliacoes() {
 }
 
 function lerSessoes() {
-  const base = 'artifacts/sessoes';
   const sessoes = [];
+  const base = 'artifacts/sessoes';
   for (const nome of maisRecentes(base, (d) => d.isFile() && d.name.endsWith('.json'))) {
     try {
       const s = JSON.parse(readFileSync(`${base}/${nome}`, 'utf8'));
       if (Array.isArray(s.turnos) && s.turnos.length) sessoes.push({ nome, ...s });
+    } catch { /* idem */ }
+  }
+  // As gravacoes em VIDEO tambem sao sessoes — e sao as unicas AO VIVO que guardam os tempos.
+  for (const dir of maisRecentes('artifacts/video', (d) => d.isDirectory())) {
+    const arq = `artifacts/video/${dir}/captura.json`;
+    if (!existsSync(arq)) continue;
+    try {
+      const s = JSON.parse(readFileSync(arq, 'utf8'));
+      if (Array.isArray(s.turnos) && s.turnos.length) sessoes.push({ nome: `video/${dir}`, ...s });
     } catch { /* idem */ }
   }
   return sessoes;

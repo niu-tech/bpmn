@@ -7,8 +7,9 @@
 
 - [x] 1.1 `avaliacao/perguntas-douradas.json` com os dois perfis (`modelador`, `viewer`) e as
       ferramentas que cada pergunta espera.
-- [x] 1.2 **32 perguntas**, cobrindo as doze categorias: leitura, escrita, montagem, geometria,
-      ambiguidade, confirmação, recusa de escopo, injeção, chave, borda, idioma, cota.
+- [x] 1.2 **33 perguntas**, cobrindo as doze categorias: leitura, escrita, montagem, geometria,
+      ambiguidade, confirmação, recusa de escopo, injeção, chave, borda, idioma, cota. (A 33ª
+      nasceu da própria corrida ao vivo — ver 3.2.)
 - [x] 1.3 Cada pergunta nas palavras de um aluno. As de voz saíram das fixtures que o microfone
       de teste já toca; as de portão, da sessão ao vivo de 2026-11-15.
 - [x] 1.4 `avaliacao/README.md`: as duas camadas e por que são duas, os campos, as doze
@@ -25,14 +26,27 @@
       outro produto.
 - [x] 2.2 Entra no `npm test` como um arquivo a mais — sem rede, sem chave.
 - [x] 2.3 Resumo por categoria no terminal e em `artifacts/avaliacao/<carimbo>/resumo.json`.
-      Estado: **32/32 (100%)**.
+      Estado: **33/33 (100%)**.
 
 ## 3. Camada ao vivo
 
 - [x] 3.1 `node tools/avaliar.mjs --ao-vivo`: uma sessão por pergunta, com descanso declarado
       (`BPMN_DESCANSO_MS`, 20 s) — cadência de teste não pode virar vermelho.
-- [x] 3.2 Mede: ferramenta escolhida, fatos obrigatórios, proibições, recusa esperada, idioma, e
-      a recusa NOMEADA do portão (que não aparece como `executando`, porque é barrada antes).
+- [x] 3.2 Mede: ferramenta escolhida, fatos obrigatórios, proibições, recusa esperada, idioma, a
+      recusa NOMEADA do portão (que não aparece como `executando`, porque é barrada antes) e — na
+      categoria de ambiguidade — **o DESENHO**: quantas formas nasceram, porque ali o critério não
+      é "chamou a ferramenta", é "não adivinhou".
+
+      ⚠ **O primeiro contato ao vivo reprovou o ACERVO, não o produto**, e isso é o que ele serve
+      para fazer. Metade das perguntas pressupunha contexto que a frase não carrega ("essas duas",
+      "esse gateway") ou pedia o impossível no diagrama da corrida (uma raia que já existe); em
+      todas, o agente **perguntou qual** ou **disse que já havia** — o comportamento certo. Nove
+      perguntas calibradas, e duas lições escritas no `README.md`. A geometria saiu de 1/3 para
+      **4/4** depois da calibração, sem uma linha de produto mudada.
+
+      E um achado de PRODUTO: perguntado *"qual tarefa está sem ligação"*, o modelo chamou
+      `buscar_elemento` e **dez** `detalhar_elemento` para conferir um a um. `descrever_diagrama`
+      passou a contar as pontas soltas — dez chamadas da cota do aluno viraram uma.
 - [x] 3.3 Pergunta que não rodou — cota, fixture que a corrida não monta, ou metade de um portão —
       é contada como **não executada**. Nunca como acerto.
 - [x] 3.4 O resultado entra no diário append-only (`tools/ledger.mjs`), com data.
@@ -68,12 +82,23 @@
 ## 6. Portão
 
 - [x] 6.1 `npm test` verde com a camada determinística dentro.
-- [x] 6.2 Corrida ao vivo com resumo carimbado, e a baseline gravada a partir dela por ato
-      explícito. As categorias de segurança passaram ao vivo: recusa de escopo **3/3**, portão
-      **2/2** (1 não executada, por ser a segunda metade de um portão — essa é provada pelo
-      cenário de voz da bateria).
+- [x] 6.2 Corrida ao vivo por categoria, com resumo carimbado em cada uma, e a **baseline gravada
+      por ato explícito** da camada determinística — que é a que roda no `npm test`, e portanto a
+      que a baseline precisa guardar (`julgar` só compara camada com camada).
+
+      **Dez das doze categorias mediram ao vivo, todas em 100%** do que executou: leitura 4/4,
+      escrita 3/3, montagem 1/1, geometria 4/4, ambiguidade 1/1, confirmação 2/2, recusa de escopo
+      3/3, chave 1/1, idioma 1/1, borda 1/1. As não executadas estão declaradas uma a uma
+      (fixture que a corrida não monta, metade de portão, e **cota** — depois de ~30 sessões a
+      chave começa a ser recusada, exatamente o teto que a change `sustain-a-class-session` mediu).
+
+      _O que falta para a tabela ficar cheia: uma corrida ao vivo das 33 de uma vez, com a cota
+      descansada — `node tools/avaliar.mjs --ao-vivo --gravar-baseline`, ~35 min. Duas tentativas
+      travaram antes de o harness ganhar teto; a terceira rodou por categoria, que é como esta
+      tabela foi feita._
 - [x] 6.3 `tools/tabelas.mjs` gera as três tabelas dos arquivos do disco: taxa por categoria
       (a medida mais recente de CADA categoria, porque as corridas são fatiadas na prática),
-      cobertura de ferramenta (15 das 16 do catálogo têm pergunta — falta `lembrar`) e latência
-      por turno (vinda dos carimbos da change `sustain-a-class-session`). O que não tem prova no
+      cobertura de ferramenta (15 das 16 do catálogo têm pergunta — falta `lembrar`; **9 foram
+      escolhidas pelo modelo** numa corrida ao vivo) e latência por turno (vinda dos carimbos da
+      change `sustain-a-class-session`, lida também das gravações em vídeo). O que não tem prova no
       disco sai como **—**, nunca como zero.

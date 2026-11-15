@@ -189,6 +189,9 @@ const RECOLHER = `
 const a = window.__bpmnAssist.audioDoModelo;
 return {
   ok: true,
+  // A captura INTEIRA vai junto: e' dela que sai a latência por turno da tabela da dissertação
+  // (os tempos só existem em \`capturar()\`, não na lista de eventos).
+  captura: window.__bpmnAssist.capturar(),
   conversa: window.__bpmnAssist.mensagens.map((m) => ({ papel: m.role, via: m.via ?? null, turno: m.turn ?? null, texto: (m.text ?? '').slice(0, 400), at: m.at })),
   eventos: window.__bpmnAssist.eventos.map((e) => ({ chave: e.key, ms: e.ms, n: e.n, detalhe: e.detail ?? null })),
   // O áudio vai em base64, como veio do servidor: quem remonta é o Node, aqui fora.
@@ -315,6 +318,10 @@ const linhaDoTempo = {
   },
 };
 writeFileSync(resolve(pasta, 'linha-do-tempo.json'), JSON.stringify(linhaDoTempo, null, 2));
+// A captura da sessão, do lado do filme: é o que `tools/tabelas.mjs` lê para a latência AO VIVO.
+if (recolhido.captura) {
+  writeFileSync(resolve(pasta, 'captura.json'), JSON.stringify(recolhido.captura, null, 2));
+}
 
 const html = `<!doctype html>
 <meta charset="utf-8">
