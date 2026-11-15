@@ -133,6 +133,17 @@ async function esperarDevTools(porta, prazoMs = 15000) {
   throw new Error(`o navegador nao abriu a porta de depuracao ${porta} em ${prazoMs}ms`);
 }
 
+/**
+ * Teto de UMA chamada CDP. Generoso de propósito: um `Runtime.evaluate` com `awaitPromise` espera
+ * a conversa inteira de um cenário ao vivo (até ~60 s só de resposta do modelo).
+ *
+ * ⚠ O que ele impede é a espera INFINITA, que já aconteceu: duas corridas concorrentes caem na
+ * mesma porta de depuração (`9335 + pid % 400`), uma derruba a aba da outra, e a promessa da
+ * chamada em voo nunca resolve — o processo fica vivo, com 0,8 s de CPU em 50 minutos, parecendo
+ * que está trabalhando. Medido em 2026-11-15, na corrida ao vivo do acervo dourado.
+ */
+const TETO_DA_CHAMADA_MS = 180000;
+
 /** Cliente CDP minúsculo: um socket, um contador de id, uma tabela de promessas. */
 export function cdp(url) {
   const ws = new WebSocket(url);
@@ -160,11 +171,22 @@ export function cdp(url) {
   return {
     pronto,
     eventos,
-    async envia(method, params = {}) {
+    async envia(method, params = {}, { tetoMs = TETO_DA_CHAMADA_MS } = {}) {
       await pronto;
       const id = proximo++;
       return new Promise((resolve, reject) => {
-        pendentes.set(id, { resolve, reject });
+        const relogio = setTimeout(() => {
+          if (!pendentes.has(id)) return;
+          pendentes.delete(id);
+          // Erro NOMEADO: "a aba sumiu" e "o passo demorou" são coisas diferentes, e quem lê o
+          // relatório precisa saber qual foi.
+          reject(new Error(`CDP sem resposta em ${Math.round(tetoMs / 1000)}s: ${method} (a aba pode ter sido derrubada por outra corrida)`));
+        }, tetoMs);
+        relogio?.unref?.();
+        pendentes.set(id, {
+          resolve: (v) => { clearTimeout(relogio); resolve(v); },
+          reject: (e) => { clearTimeout(relogio); reject(e); },
+        });
         ws.send(JSON.stringify({ id, method, params }));
       });
     },
@@ -306,7 +328,8 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
 
   try {
     await esperarDevTools(porta);
-    const alvos = await (await fetch(`http://127.0.0.1:${porta}/json/list`)).json();
+    // Com teto também: um navegador meio morto aceita a conexão e nunca responde.
+    const alvos = await (await fetch(`http://127.0.0.1:${porta}/json/list`, { signal: AbortSignal.timeout(10000) })).json();
     const pagina = alvos.find((t) => t.type === 'page');
     if (!pagina) throw new Error('o navegador subiu sem nenhuma aba');
 
