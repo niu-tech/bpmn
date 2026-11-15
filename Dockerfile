@@ -10,6 +10,14 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY webpack.config.js ./
 COPY src ./src
+# ⚠ O `npm run build` deixou de ser só webpack: ele termina em `node tools/build-knowledge.mjs`,
+# que lê `knowledge/*.md` e emite `dist/knowledge/index.json` (o acervo citável, change
+# `add-bpmn-norm-knowledge-base`). Sem estes dois COPY a imagem falha com
+# `Cannot find module '/app/tools/build-knowledge.mjs'` — e foi o que derrubou a publicação por
+# três pushes seguidos em 2026-11-15, sem ninguém perceber, porque `npm run build` local passa.
+# Só o arquivo do acervo, não `tools/` inteiro: o resto de tools/ é driver de teste.
+COPY tools/build-knowledge.mjs ./tools/
+COPY knowledge ./knowledge
 # webpack.config.js fixa mode=development (é o que o dev server usa); aqui o CLI sobrescreve p/ bundle minificado
 RUN npm run build -- --mode production
 
