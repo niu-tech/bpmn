@@ -556,8 +556,11 @@ const resultados = aoVivo
   : await rodarDeterministica(perguntas);
 
 for (const r of resultados) {
+  // ⚠ Ao vivo o progresso JÁ foi impresso pergunta a pergunta (relatório bonito no fim não chega
+  // se travar no meio). Reimprimir tudo aqui dobrava o log; o que ainda vale é o DETALHE do que
+  // falhou, logo abaixo.
   const selo = !r.executada ? '  —  ' : (r.ok ? '  OK  ' : 'FALHOU');
-  console.log(`${selo} ${r.id} (${r.categoria})`);
+  if (!aoVivo || !r.ok) console.log(`${selo} ${r.id} (${r.categoria})`);
   if (!r.executada) console.log(`        não executada: ${r.motivo}`);
   else if (!r.ok) {
     for (const c of (r.checagens ?? []).filter((x) => !x.ok)) {
