@@ -43,13 +43,18 @@ export const IDIOMA_PADRAO = 'português do Brasil';
 
 export const SECOES = Object.freeze([
   {
-    // ⚠ A ÂNCORA DE IDIOMA é uma frase própria, e não um adjetivo no meio da identidade. O
-    // diagrama padrão deste site está TODO em inglês ("Select a pizza", "Bake the pizza"), e o
-    // contexto chega cheio desses nomes a cada turno — é empurrão constante para o modelo
-    // responder na língua do dado. Visto ao vivo em 2026-11-13: *"reiterate: there are 9 tasks
-    // in this diagram"* e *"Untuk iniciar o processo…"* (indonésio). O mesmo defeito está
+    // ⚠ A ÂNCORA DE IDIOMA é uma frase própria, e não um adjetivo no meio da identidade. Ela
+    // nasceu porque o diagrama padrão deste site era TODO em inglês ("Select a pizza", "Bake the
+    // pizza") e o contexto chegava cheio desses nomes a cada turno — empurrão constante para o
+    // modelo responder na língua do dado. Visto ao vivo em 2026-11-13: *"reiterate: there are 9
+    // tasks in this diagram"* e *"Untuk iniciar o processo…"* (indonésio). O mesmo defeito está
     // registrado no CopilotSpeaker como deriva de idioma do Gemini Live, e lá o conserto também
     // foi uma âncora explícita, não uma menção de passagem.
+    //
+    // ⚠ O exemplo da pizzaria foi TRADUZIDO em 2026-11-15 (a pedido do dono), e isso NÃO aposenta
+    // a âncora: o diagrama que importa é o do ALUNO, e ele abre o arquivo que quiser — em inglês,
+    // em espanhol, no que for. Quem ler este bloco pensando "agora o exemplo está em português,
+    // a âncora sobra" estaria trazendo a deriva de volta pela porta da frente.
     id: 'identidade',
     titulo: 'Quem você é',
     tier: 'estavel',

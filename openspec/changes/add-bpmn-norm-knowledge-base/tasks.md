@@ -70,7 +70,7 @@
 - [x] 5.2 **Recuperação** — dez perguntas ambíguas escritas **antes** de ver os resultados
       (ex.: "quando usar o losango com X?", "o que separa raia de pool?"). Quantas trazem o verbete
       certo entre os três primeiros. Reprovou ⇒ índice invertido, não servidor (K2, K10)
-- [ ] 5.3 **Latência** — primeira consulta na rede pública, do pedido do modelo ao resultado
+- [x] 5.3 **Latência** — primeira consulta na rede pública, do pedido do modelo ao resultado
       entregue, medida na URL publicada e não no `localhost`
 - [x] 5.4 Os três números entram em `research.md` como medição nossa, com data. Se algum reprovar,
       a forma muda nesta change — o acervo não vira promessa para depois
@@ -107,9 +107,22 @@ vivo**:
 estimativa de 12 a 18 da pesquisa, sem precisar do índice por grupo (K10). 5.2 recuperação: dez
 perguntas de aluno, **9/10** com a busca por substring e **10/10** depois do radical curto — e a
 que falhava ("como simular o tempo de fila") falhava por um motivo ensinável: *tempo* casava a
-tag *temporizador*. **5.3 latência na rede pública fica em aberto porque o site ainda não foi
-publicado** (itens D1–D4 do `open-items.md`): medir no `localhost` seria inventar o número que a
-tarefa pede exatamente para não inventar.
+tag *temporizador*. **5.3 latência na rede pública: MEDIDA em 2026-11-15 à noite**, quando o site voltou a ser
+publicado — o job `pages` estava vermelho **desde o próprio acervo** (o `Dockerfile` não copiava
+`tools/build-knowledge.mjs` nem `knowledge/`, então o CI morria em 15 s e o `pages`, que depende
+dele, nunca rodava; consertado em `54ca734`). Com o site no ar, `tools/medir-acervo.mjs` mediu:
+**6.807 bytes na rede** (gzip, de 21.987 no disco), **12 ms** no caminho real do aluno e **49 ms**
+abrindo conexão nova — cinco amostras de cada, mediana.
+
+⚠ As duas medidas existem porque confundi-las é o jeito fácil de mentir aqui. A primeira versão
+do medidor deu `304 · 15 · 15 · 13 · 13 · 14 · 10 ms` e ia reportar *"mediana 14 ms"*: o `fetch`
+do Node reaproveita a conexão, então as amostras em sequência mediam o SEGUNDO acesso e a única
+amostra honesta do custo de abrir conexão era a primeira. O número que vale para o texto é o de
+**12 ms**, porque quando o aluno faz a primeira pergunta sobre a notação o navegador JÁ abriu o
+site: TCP e TLS estão pagos. Os 49 ms são o teto, para rede ruim ou conexão expirada.
+
+Em qualquer das duas, a resposta do modelo leva **segundos** — a consulta ao acervo não é o que o
+aluno espera.
 
 **6.3** — a marca inventada chegando ao aluno como `[fonte não conferida]` — está provada no
 gerente (`session-manager.mjs`), que é onde a troca acontece, e não numa corrida ao vivo: induzir

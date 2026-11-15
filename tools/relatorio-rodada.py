@@ -139,12 +139,28 @@ story = [
         "<b>A tela base</b> — está na outra conversa, com worktree e branch próprios. Avisei lá "
         "que o estado novo <font face='Courier'>dormindo</font> é estado <b>vivo</b>, para a tela "
         "não desenhá-lo como erro.",
-        "<b>Latência do acervo na rede pública</b> e a <b>publicação</b> (D1–D5) — seus, e você "
-        "estacionou de propósito.",
+        "<b>A publicação definitiva</b> (D1–D5: domínio, DNS, secrets, rollback) — sua, e você "
+        "estacionou de propósito. O endereço provisório voltou a publicar.",
         "<b>Expiração de sessão por idade (<font face='Courier'>go-away</font>, ~10 min)</b> — "
         "nunca vista ao vivo, e agora menos provável de aparecer: a sessão parada dorme antes de "
         "chegar lá. Exige uma aula de verdade, falando.",
     ]),
+
+    Paragraph("O site estava fora do ar desde o acervo — e isso está consertado", H2),
+    Paragraph(
+        "Descoberto no fim da rodada, pela outra conversa: quando o <font face='Courier'>build</font> "
+        "ganhou o passo do acervo, a imagem do servidor parou de ser construída (ela não copiava "
+        "nem o script nem a pasta <font face='Courier'>knowledge/</font>), o teste de integração "
+        "morria em 15 segundos e a publicação, que depende dele, <b>nunca rodava</b>. Três entregas "
+        "seguidas ficaram vermelhas e o que estava no ar era o site das 21:49 — <b>sem o acervo e "
+        "sem nada do que foi feito hoje</b>. Consertado, e as quatro entregas seguintes estão "
+        "verdes: o endereço provisório já serve tudo.", P),
+    Paragraph(
+        "Com o site publicado, a última medição que faltava no acervo deixou de ser palpite: o "
+        "índice pesa <b>6,8 KB na rede</b> (comprimido, de 21,9 KB no disco) e chega em <b>12 ms</b> "
+        "no caminho real do aluno — quando ele pergunta, o navegador já abriu o site, então TCP e "
+        "TLS estão pagos. Abrindo conexão nova, 49 ms. Em qualquer dos dois, a resposta do modelo "
+        "leva <b>segundos</b>: a consulta ao acervo não é o que ele espera.", P),
 
     Spacer(1, 4),
     Paragraph("Como ver funcionando, sem esforço nenhum", H2),

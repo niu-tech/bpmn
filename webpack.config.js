@@ -18,7 +18,21 @@ module.exports = {
   output: {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
-    clean: true
+    /**
+     * Limpa o `dist/` — MENOS o acervo.
+     *
+     * ⚠ `clean: true` apagava `dist/knowledge/index.json`, que não é saída do webpack: quem o
+     * gera é `tools/build-knowledge.mjs`, o segundo passo do `npm run build`. Então qualquer
+     * `npx webpack` solto (um build de depuração, por exemplo) deixava o site servindo um acervo
+     * que não existe — e o sintoma aponta para o lugar errado: a bateria reprova "o acervo
+     * responde pelo caminho do modelo" com `acervo: null`, como se o defeito fosse da busca, e
+     * de carona reprova "candidato clicavel" com a sessão `desligado`. Custou 20 minutos de
+     * caça na outra conversa, em 2026-11-15.
+     *
+     * `keep` é do próprio webpack: o passo do acervo continua sendo o dono daquele arquivo, e
+     * ninguém mais precisa lembrar da ordem dos dois comandos.
+     */
+    clean: { keep: /^knowledge[\\/]/ }
   },
 
   module: {
