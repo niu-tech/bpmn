@@ -92,10 +92,21 @@
       (fixture que a corrida não monta, metade de portão, e **cota** — depois de ~30 sessões a
       chave começa a ser recusada, exatamente o teto que a change `sustain-a-class-session` mediu).
 
-      _O que falta para a tabela ficar cheia: uma corrida ao vivo das 33 de uma vez, com a cota
-      descansada — `node tools/avaliar.mjs --ao-vivo --gravar-baseline`, ~35 min. Duas tentativas
-      travaram antes de o harness ganhar teto; a terceira rodou por categoria, que é como esta
-      tabela foi feita._
+      ⚠ **A “cota” que impedia a corrida inteira era NOSSA, e foi consertada em 2026-11-15 à
+      noite.** As recusas não eram consumo: eram **vaga de sessão**. Cada pergunta terminava com o
+      harness **matando o navegador** (`drive-page.mjs`), processo morto não dispara
+      `beforeunload`, e o quadro de fecho nunca saía — então a corrida disputava a vaga com as
+      próprias sessões abandonadas e levava recusa na ADMISSÃO (que a tela, numa aba sem setup
+      aceito, chamava de “a chave foi recusada”). `drive-page.mjs` passou a chamar
+      `window.__bpmnAssist.encerrar()` — verbo novo, o mesmo `teardown` do botão “Encerrar” — e
+      esperar o fecho sair. **Prova:** as três perguntas recusadas (`montagem-pool`,
+      `montagem-raia`, `ambiguidade-pool`) passaram ao vivo no MESMO descanso de 20 s — montagem
+      **3/3** e ambiguidade **2/2**, sem uma recusa. A tabela subiu com elas, e a cobertura ao
+      vivo foi de 9 para **10** ferramentas escolhidas pelo modelo.
+
+      _As duas categorias que seguem sem medida ao vivo — **injeção** e **cota** — não dependem de
+      cota nenhuma: exigem um diagrama envenenado e um erro de sessão que esta corrida não monta.
+      São provadas pelos cenários da bateria (`tools/battery.mjs`) e pelos testes do recado._
 - [x] 6.3 `tools/tabelas.mjs` gera as três tabelas dos arquivos do disco: taxa por categoria
       (a medida mais recente de CADA categoria, porque as corridas são fatiadas na prática),
       cobertura de ferramenta (15 das 16 do catálogo têm pergunta — falta `lembrar`; **9 foram

@@ -386,6 +386,26 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
       saida.shot = shot;
     }
 
+    /**
+     * FECHA A SESSÃO ANTES DE MATAR O NAVEGADOR — e espera o quadro de fecho sair.
+     *
+     * Sem isto, cada corrida deixava um socket caíndo sem aviso: `filho.kill()` não dispara
+     * `beforeunload`, e o servidor só libera a vaga de sessão depois de notar o fio morto. Uma
+     * bateria de 33 perguntas abria 33 sessões e abandonava as 33 — e as recusas na admissão que
+     * saíam disso foram lidas como cota por um dia inteiro (2026-11-15). Mora aqui, no Único lugar
+     * por onde TODAS as corridas passam, e não em cada cenário.
+     *
+     * ponytail: melhor esforço — página sem o ajudante montado não tem o verbo, e aí não há nada
+     * para fechar.
+     */
+    try {
+      await c.envia('Runtime.evaluate', {
+        expression: '(async () => { try { await window.__bpmnAssist?.encerrar?.(); } catch {} })()',
+        awaitPromise: true,
+      });
+      await new Promise((r) => setTimeout(r, 700));
+    } catch { /* aba já foi: nada a fechar */ }
+
     for (const ev of c.eventos) {
       if (ev.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(ev.params.type)) {
         saida.console.push({ tipo: ev.params.type, texto: ev.params.args.map((a) => a.value ?? a.description ?? a.type).join(' ') });

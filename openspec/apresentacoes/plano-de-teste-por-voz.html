@@ -153,10 +153,15 @@
       <tr><td class="id">D2</td><td>Use uma chave errada de propósito.</td>
           <td>Mensagem clara com o que fazer — e a chave não aparece em lugar nenhum.</td>
           <td class="ja">cenário "a chave não vaza"</td></tr>
-      <tr><td class="id">D3</td><td>Converse até a cota reclamar.</td>
-          <td>A tela diz que é <b>consumo</b> (não "sessões demais"), aponta "Testar conexão", e a
-          conversa continua ali.</td>
+      <tr><td class="id">D3</td><td>Abra o ajudante em <b>duas ou três abas</b> e comece em todas,
+          até uma recusar.</td>
+          <td>A tela diz <b>"o limite de sessões da sua chave foi atingido"</b>, manda fechar as
+          outras abas, aponta "Testar conexão" — e <b>não</b> manda trocar a chave.</td>
           <td class="ja">medição de cota + teste do recado</td></tr>
+      <tr><td class="id">D3b</td><td>Converse por <b>mais de 10 minutos</b> sem parar.</td>
+          <td>Aos ~10 min o servidor derruba a conexão. A conversa volta — e o <b>modelo esquece</b>
+          o que foi dito antes. É o limite que ainda não atacamos (retomada de sessão).</td>
+          <td class="falta">aberto</td></tr>
       <tr><td class="id">D4</td><td>Tire o fone e deixe o som alto perto do microfone.</td>
           <td>Depois de três cortes seguidos ele avisa e passa a fechar o microfone enquanto responde.</td>
           <td class="ja">cenário do laço de eco</td></tr>

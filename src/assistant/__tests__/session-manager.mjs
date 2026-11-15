@@ -1394,22 +1394,23 @@ testAsync('abaixo do teto, a sessao NAO encerra', async () => {
 });
 
 testAsync('o recado de cota diz o que foi MEDIDO, e aponta o verbo que resolve', async () => {
-  // Tarefa 3.4. "ha sessoes demais" era a nossa leitura do codigo 1011, e a medicao mostrou que
-  // estava errada — seis sessoes seguidas e quatro ao mesmo tempo passam. Recado que manda o
-  // aluno fechar abas quando o problema e' consumo faz ele perder tempo com o que nao resolve.
+  // Tarefa 3.4, CORRIGIDA em 2026-11-15 a' noite. A medicao derrubou "ha sessoes demais" como
+  // leitura de CADENCIA (seis seguidas e quatro ao mesmo tempo passam), e dai se concluiu
+  // "consumo do minuto" — que a corrida de 33 perguntas desmentiu: recusa na ADMISSAO alternando
+  // com sucesso no MESMO minuto. E' vaga de sessao. O que se cobra aqui e' o que o aluno pode
+  // FAZER: o rotulo nao manda trocar a chave, e o recado aponta o verbo que diz quando voltou.
   const { session, live } = montarComDiagrama();
   await session.connect('texto');
   live.ultima.pronta();
   live.ultima.falha('quota');
 
   const avisos = session.messages.filter((m) => m.role === 'system').map((m) => m.text).join(' | ');
-  assert.match(avisos, /consumo/i);
+  assert.match(avisos, /sessões ao mesmo tempo/i, 'nomeia o limite que o servidor de fato aplica');
   assert.match(avisos, /Testar conex/i, 'aponta o verbo que diz quando voltou');
-  // ⚠ A frase do recado CITA a leitura errada para negar ("não é por abrir sessões demais"),
-  // então o que se cobra aqui é o RÓTULO do erro — que era onde a leitura errada estava afirmada.
+  assert.ok(!/minuto/.test(avisos), 'nao promete janela de tempo que ninguem mediu');
   const rotulo = avisos.split('|')[0];
-  assert.ok(!/há sessões demais/.test(rotulo), 'o rótulo do erro não afirma mais o que era falso');
-  assert.match(rotulo, /consumo permitido/);
+  assert.match(rotulo, /limite de sessões/);
+  assert.ok(!/chave foi recusada/.test(rotulo), 'nunca manda trocar uma chave que funciona');
   forgetSecrets();
 });
 

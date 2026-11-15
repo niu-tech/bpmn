@@ -223,6 +223,19 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     diagnosticoDoPrompt: (opcoes) => diagnosticoDoPrompt(session.contexto, opcoes),
     pararMicrofone: () => session.stopMic(),
     /**
+     * ENCERRA a sessão como o botão "Encerrar" encerra — mesmo `teardown`, mesmo fecho 1000 no
+     * socket.
+     *
+     * ⚠ Existe por causa de um defeito do HARNESS que passava por cota (medido 2026-11-15): toda
+     * corrida dirigida terminava **matando o navegador** (`drive-page.mjs`), e processo morto não
+     * dispara `beforeunload`/`pagehide` — então o quadro de fecho nunca saía. O servidor segura a
+     * vaga de sessão por um tempo depois de um fio que cai sem avisar; com 20 s de descanso entre
+     * perguntas, a corrida competia com as próprias sessões abandonadas e levava recusa na
+     * ADMISSÃO — que a tela chamava de "a chave foi recusada", porque aquela aba nunca tinha
+     * tido um setup aceito.
+     */
+    encerrar: () => session.stop(),
+    /**
      * Abre o microfone pelo diagnóstico — é o que torna o barge-in provável SEM calibração: com a
      * pergunta injetada e o microfone aberto no instante em que o modelo começa a falar, a frase de
      * corte toca do começo, e os 16 s de silêncio na frente da fixture deixam de ser necessários.

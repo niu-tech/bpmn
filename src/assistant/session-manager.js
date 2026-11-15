@@ -54,10 +54,19 @@ export const ERROR_LABELS = {
   'no-mic': 'nenhum microfone encontrado',
   'insecure-context': 'precisa de https ou localhost',
   unsupported: 'este navegador não tem AudioWorklet',
-  // ⚠ NÃO é "sessões demais": medimos (tools/medir-cota.mjs, 2026-11-15) seis sessões em
-  // sequência sem pausa e quatro ao mesmo tempo, todas aceitas. O que o servidor recusa com
-  // 1011 é CONSUMO no minuto. O rótulo errado mandava o aluno fechar abas à toa.
-  quota: 'a sua chave passou do consumo permitido neste minuto',
+  // ⚠ É ADMISSÃO, e não a aula: o servidor recusa ABRIR, e a sessão que já está aberta segue.
+  //
+  // O que medimos em 2026-11-15 (`tools/medir-cota.mjs`): seis sessões abertas em sequência sem
+  // pausa nenhuma passam, e quatro ao mesmo tempo passam. Então 1011/1008 **não** é cadência e
+  // **não** é a conversa longa — é vaga de sessão: o Google limita quantas Live cabem de uma vez
+  // por projeto, e a vaga de um fio que cai sem o quadro de fecho leva um tempo para voltar. Por
+  // isso a recusa some sozinha em segundos, e por isso o conserto do dia foi no harness (fechar
+  // antes de matar o navegador), não no produto.
+  //
+  // O rótulo não fala em minuto: não sabemos o número, e o Google não publica o das Live. Fala o
+  // que o aluno pode fazer — esperar e começar de novo — e nunca manda trocar a chave, que é
+  // onde isto já nos fez perder um dia.
+  quota: 'o limite de sessões da sua chave foi atingido — espere alguns segundos e comece de novo',
   timeout: 'o servidor não respondeu',
 };
 
@@ -958,26 +967,31 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // Chave recusada tem conserto, e o conserto é do aluno: dizer o que fazer vale mais que
         // repetir o código do erro.
         /**
-         * COTA é o que mais trava a conversa na prática: o plano gratuito do Live tem teto de
-         * sessões por minuto, e o servidor recusa a sessão nova. Não há o que reconectar — então
-         * o que vale é dizer O QUE FAZER. A conversa continua na tela, e o teste de conexão diz
-         * quando a cota voltou.
+         * COTA é o que mais trava a conversa na prática, e o que o servidor recusa é **abrir**:
+         * a sessão que já está de pé não é cortada. Não há o que reconectar — então o que vale
+         * é dizer O QUE FAZER. A conversa continua na tela, e o teste de conexão diz quando a vaga
+         * voltou.
          */
         if (r === 'quota') {
           /**
-           * ⚠ O RECADO DIZ O QUE FOI MEDIDO, e não um chute (tarefa 3.3).
+           * ⚠ O RECADO DIZ O QUE FOI MEDIDO (tarefa 3.3), e foi CORRIGIDO em 2026-11-15 à noite.
            *
-           * "há sessões demais" era a nossa leitura do código 1011 — e a medição de 2026-11-15
-           * (`tools/medir-cota.mjs`) mostrou que ela estava errada: seis sessões em sequência sem
-           * pausa nenhuma e quatro ao mesmo tempo foram todas ACEITAS. O que o servidor recusa é
-           * CONSUMO (o áudio e os tokens do minuto), não a frequência de abrir sessão. Dizer o
-           * contrário faz o aluno fechar abas achando que resolve.
+           * Primeiro mediu-se que não é cadência: seis sessões em sequência sem pausa nenhuma e
+           * quatro ao mesmo tempo passam (`tools/medir-cota.mjs`). Daí concluiu-se "é consumo do
+           * minuto" — e esse pulo estava errado: a corrida de 33 perguntas levava recusa na
+           * ADMISSÃO alternando com sucessos no mesmo minuto, o que consumo não explica. A causa
+           * era VAGA DE SESSÃO: o plano gratuito limita quantas Live cabem de uma vez por projeto,
+           * e a vaga de um fio que morreu sem o quadro de fecho leva um tempo para voltar (o
+           * harness matava o navegador — ver `tools/drive-page.mjs`).
+           *
+           * Por isso fechar aba agora ENTRA no recado: cada aba do ajudante segura uma vaga. O
+           * que continua fora é "volte em X segundos": o número não é publicado e não foi medido.
            */
           note(
-            'O Google recusou pelo consumo da sua chave neste minuto — não é por abrir sessões '
-            + 'demais (medimos: seis seguidas e quatro ao mesmo tempo passam). Espere um pouco, '
-            + 'use "Testar conexão" no menu ⋯ para saber quando voltou, e então recomece. A '
-            + 'conversa continua aqui.',
+            'O Google recusou ABRIR outra sessão — a sua chave chegou ao limite de sessões ao '
+            + 'mesmo tempo. Feche as outras abas do ajudante (cada uma segura uma sessão), espere '
+            + 'alguns segundos, use "Testar conexão" no menu ⋯ para saber quando voltou, e então '
+            + 'recomece. A conversa continua aqui, e a sua chave está boa.',
             'error',
           );
         }

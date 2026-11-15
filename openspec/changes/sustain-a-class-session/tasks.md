@@ -27,15 +27,23 @@
       cada uma (aceita/recusada, código de fechamento, tempo). Três experimentos: sequencial sem
       pausa, com pausa crescente, e concorrentes.
 - [x] 3.2 **Medido e escrito em `open-items.md` (M7/T16):** o limite **não é de cadência**. Seis
-      sessões seguidas sem pausa e quatro simultâneas foram todas aceitas (~0,5–1,1 s cada). O
-      `1011 Resource has been exhausted` veio depois de sessões **com áudio e ferramentas**: é
-      **consumo**. Ordem de grandeza medida ao vivo: um turno de texto com o diagrama no contexto
-      custa 5,7 k–7,6 k tokens, e cresce a cada turno.
-- [x] 3.3 A tela parou de mentir: o rótulo era *"a cota da sua chave acabou ou há sessões demais"*
-      e virou *"a sua chave passou do consumo permitido neste minuto"*, com o recado explicando
-      que fechar abas não resolve e apontando "Testar conexão" para saber **quando** voltou.
-      "Volte em X segundos" ficou de fora porque seria número inventado — o limite não é de tempo
-      entre sessões.
+      sessões seguidas sem pausa e quatro simultâneas foram todas aceitas (~0,5–1,1 s cada).
+      Ordem de grandeza medida ao vivo: um turno de texto com o diagrama no contexto custa
+      5,7 k–7,6 k tokens, e cresce a cada turno.
+
+      ⚠ **CORRIGIDO em 2026-11-15 à noite — a conclusão "é consumo" era um pulo.** Derrubar
+      cadência não prova consumo, e a corrida de 33 perguntas mostrou o contrário: recusa na
+      **admissão** alternando com sucesso no MESMO minuto, o que consumo não explica. É **vaga de
+      sessão** (o plano gratuito limita quantas Live cabem de uma vez por projeto; a vaga de um
+      fio que morre sem o quadro de fecho demora para voltar) — e a causa de ter aparecido aqui
+      era NOSSA: o harness matava o navegador, então nenhuma das 33 sessões era fechada.
+      `drive-page.mjs` passou a fechar a sessão antes de matar o navegador
+      (`window.__bpmnAssist.encerrar()`).
+- [x] 3.3 A tela parou de mentir — duas vezes. O rótulo era *"a cota da sua chave acabou ou há
+      sessões demais"*, virou *"passou do consumo permitido neste minuto"* e, com a correção de
+      3.2, virou **"o limite de sessões da sua chave foi atingido — espere alguns segundos e
+      comece de novo"**. Fechar aba voltou ao recado (cada aba segura uma vaga), e "volte em X
+      segundos" segue fora: o número não é publicado nem foi medido.
 - [x] 3.4 Teste do recado: o rótulo não afirma mais o que era falso, e a frase cita consumo e o
       verbo que resolve.
 
