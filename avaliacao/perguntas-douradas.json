@@ -19,13 +19,15 @@
       "categoria": "leitura",
       "perfil": "modelador",
       "pergunta": "quantas tarefas tem este diagrama?",
-      "ferramentasEsperadas": [
-        "descrever_diagrama"
-      ],
+      "ferramentasEsperadas": [],
       "proibicoes": [
         "preciso olhar o diagrama para contar"
       ],
-      "porque": "o total e a contagem por tipo vêm do diagrama INTEIRO no contexto: pedir para olhar de novo é a prudência da amostra contaminando o que chegou completo (portão F3)"
+      "porque": "o total e a contagem por tipo chegam do diagrama INTEIRO no contexto, e o prompt manda responder com eles sem ressalva (nasceu do portao F3, em que o agente disse \"preciso olhar o diagrama para contar\" com a contagem na mao). Conferir com a ferramenta e' legitimo, exigi-la nao: por isso ferramentasAceitas, e nao esperadas",
+      "ferramentasAceitas": [
+        "descrever_diagrama",
+        "buscar_elemento"
+      ]
     },
     {
       "id": "leitura-busca",

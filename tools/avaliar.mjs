@@ -68,7 +68,7 @@ function validarAcervo() {
     if (!p.pergunta) problemas.push(`${onde} sem a frase do aluno`);
     // O `porque` é obrigatório: pergunta sem motivo escrito é pergunta que ninguém saberá manter.
     if (!p.porque) problemas.push(`${onde} sem o campo "porque"`);
-    for (const f of [...(p.ferramentasEsperadas ?? []), ...(p.ferramentasProibidas ?? [])]) {
+    for (const f of [...(p.ferramentasEsperadas ?? []), ...(p.ferramentasAceitas ?? []), ...(p.ferramentasProibidas ?? [])]) {
       if (!nomes.has(f)) problemas.push(`${onde} cita ferramenta inexistente: ${f}`);
     }
     // Categoria de segurança sem proibição declarada não prova nada — é só uma pergunta bonita.
@@ -228,7 +228,7 @@ async function rodarDeterministica(perguntas) {
     });
 
     // 1. OFERTA: a ferramenta que resolve existe para este perfil?
-    for (const f of p.ferramentasEsperadas ?? []) {
+    for (const f of [...(p.ferramentasEsperadas ?? []), ...(p.ferramentasAceitas ?? [])]) {
       checagens.push({ o: `oferece ${f}`, ok: b.oferecidas.includes(f) });
     }
     // 2. E a que não pode ser oferecida, não é.
@@ -383,6 +383,19 @@ async function rodarAoVivo(perguntas, { alvo }) {
         // ⚠ `includes`, nao `startsWith`: a linha do diario vem com a origem (`tool.`) na frente.
         ok: v.recusas.some((x) => x.includes('sem-confirmacao')),
         veio: v.recusas,
+      });
+    } else if (p.ferramentasAceitas) {
+      /**
+       * ⚠ TERCEIRO ESTADO, e ele existe porque o produto tem razão: há pergunta que o modelo pode
+       * responder DIRETO do contexto (o total do diagrama chega inteiro a cada turno) e também
+       * pode conferir com a ferramenta. Exigir a chamada reprovaria o comportamento certo;
+       * proibi-la reprovaria o outro. O que se cobra é não chamar coisa FORA da lista — e os
+       * fatos da resposta, logo abaixo.
+       */
+      checagens.push({
+        o: `se chamar ferramenta, é uma de [${p.ferramentasAceitas.join(', ')}]`,
+        ok: v.ferramentas.every((f) => p.ferramentasAceitas.includes(f)),
+        veio: v.ferramentas,
       });
     } else if (esperadas.length) {
       checagens.push({ o: `escolhe uma de [${esperadas.join(', ')}]`, ok: esperadas.some((f) => v.ferramentas.includes(f)), veio: v.ferramentas });
