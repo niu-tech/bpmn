@@ -12,9 +12,20 @@ import "./batchsim/batch-sim.css";
 import { bindSimulation } from "./batchsim/simulation-integration.js";
 
 import { mountAssistant } from "./assistant/mount.js";
+import { CHAVE_ESCOLHA, decidirAbertura, tiraPara } from "./primeira-vez/abertura.js";
+import { montarTelaBase, montarTira } from "./primeira-vez/tela.js";
 
 const DEFAULT_DIAGRAM_URL = "pizza-collaboration.bpmn";
 const LOCAL_STORAGE_KEY = "bpmn.autosave.xml";
+
+/**
+ * As frases que a tela base deixa PRONTAS no compositor do ajudante — digitadas, nunca enviadas.
+ *
+ * A primeira é a mesma que o painel já oferece como exemplo clicável: a tela e o painel dizendo a
+ * mesma coisa com as mesmas palavras é o que faz o produto parecer um só.
+ */
+const FRASE_DESCREVER = "Quero modelar o MEU processo — vou te descrever";
+const FRASE_DESCOBRIR = "O que é BPMN?";
 
 /* =====================================================
    Helpers
@@ -519,6 +530,84 @@ function fitAndOffsetCanvas(modeler, offsetX = 120) {
 }
 
 /* =====================================================
+   Primeira vez (change `introduce-bpmn-first-run-workspace`)
+   ===================================================== */
+
+/** Carrega o que a decisão de abertura mandou carregar, e encaixa no viewport. */
+async function abrirDiagrama(modeler, abertura) {
+  if (abertura === "restaurar") {
+    await modeler.importXML(localStorage.getItem(LOCAL_STORAGE_KEY));
+  } else if (abertura === "exemplo") {
+    await modeler.importXML(await fetchDiagram(DEFAULT_DIAGRAM_URL));
+  } else {
+    // `convite` e `branco`: o diagrama NOVO do bpmn-js — um evento de início e nada mais. Vazio
+    // aqui não é "nada": sem import, o `fit-viewport` quebra com escala não-finita e o ajudante
+    // nasce sem registro para ler.
+    await modeler.createDiagram();
+  }
+
+  applyBizagiMarkersToAll(modeler);
+  fitAndOffsetCanvas(modeler);
+}
+
+/**
+ * Recebe quem chegou: o convite (quando ninguém escolheu nada ainda) e a tira que diz o que está
+ * aberto.
+ *
+ * ⚠ Tudo o que esta função faz por conta própria é carregar um diagrama, abrir o painel que já
+ * existe e deixar uma frase digitada. Ela NÃO encadeia perguntas de entrevista nem escolhe
+ * ferramenta: quem conduz a conversa é o modelo, por function calling (constituição §III).
+ */
+function receberQuemChega(modeler, abertura, ajudante) {
+  let convite = null;
+  let tira = null;
+
+  /**
+   * A tira some na PRIMEIRA edição: editar é o que transforma um exemplo em trabalho da própria
+   * pessoa, e continuar chamando de "exemplo" o que ela já mexeu seria falso.
+   *
+   * ⚠ UM listener, registrado aqui e para sempre — não um `once` por tira. A primeira versão usava
+   * `eventBus.once(...)` dentro de `mostrarTira` e a tira **não sumia**: o rename chegava ao
+   * `commandStack.changed` (o autosave guardava o nome novo, medido) e a tira continuava na tela.
+   * Como `mostrarTira` é chamada no fim de um `async` que ninguém espera, a falha não aparecia
+   * nem no console. `on` é o que o autosave já usa ali do lado, e o custo é um `if` por comando.
+   *
+   * Importar diagrama NÃO é comando (medido: depois de carregar o exemplo o autosave seguia
+   * vazio), então trocar de caminho não apaga a própria tira que acabou de nascer.
+   */
+  modeler.get("eventBus").on("commandStack.changed", () => {
+    tira?.remover();
+    tira = null;
+  });
+
+  function mostrarTira(estado) {
+    tira?.remover();
+    tira = null;
+    if (estado) tira = montarTira({ estado, aoClicar: (destino) => escolher(destino) });
+  }
+
+  async function escolher(caminho) {
+    const destino = caminho === "descoberta" ? "exemplo" : caminho;
+    localStorage.setItem(CHAVE_ESCOLHA, destino);
+    await abrirDiagrama(modeler, destino === "exemplo" ? "exemplo" : "branco");
+
+    convite?.fechar();
+    convite = null;
+
+    if (caminho === "tutor" || caminho === "descoberta") {
+      const painel = ajudante()?.widget;
+      painel?.open();
+      painel?.sugerir(caminho === "tutor" ? FRASE_DESCREVER : FRASE_DESCOBRIR);
+    }
+
+    mostrarTira(destino === "exemplo" ? "exemplo" : "branco");
+  }
+
+  if (abertura === "convite") convite = montarTelaBase({ aoEscolher: escolher });
+  else mostrarTira(tiraPara(abertura));
+}
+
+/* =====================================================
    Main
    ===================================================== */
 
@@ -533,30 +622,42 @@ async function run() {
   bindSimulation(modeler);
 
   // ✅ AUTOSAVE a cada modificação (evita perder no refresh)
+  //
+  // ⚠ ESTE LISTENER NÃO DEVOLVE VALOR, e isso não é estilo. No `EventBus` do diagram-js, listener
+  // que devolve qualquer coisa diferente de `undefined` ENCERRA a propagação do evento — e
+  // `async () => {}` devolve SEMPRE uma Promise. Enquanto este era um `async` direto, ele engolia
+  // `commandStack.changed` para todo mundo registrado depois dele: a tira de "Exemplo" da tela
+  // base nunca sumia ao editar, sem um erro sequer no console, e o mesmo teria acontecido com
+  // qualquer listener futuro (medido em 2026-11-15, com o autosave gravando e o listener vizinho
+  // nunca sendo chamado). O `void` mantém o evento vivo para os próximos.
   const eventBus = modeler.get("eventBus");
-  eventBus.on("commandStack.changed", async () => {
-    try {
-      const { xml } = await modeler.saveXML({ format: true });
-      localStorage.setItem(LOCAL_STORAGE_KEY, xml);
-    } catch (e) {
-      console.warn("Autosave falhou:", e);
-    }
+  eventBus.on("commandStack.changed", () => {
+    void (async () => {
+      try {
+        const { xml } = await modeler.saveXML({ format: true });
+        localStorage.setItem(LOCAL_STORAGE_KEY, xml);
+      } catch (e) {
+        console.warn("Autosave falhou:", e);
+      }
+    })();
   });
 
+  /**
+   * O QUE ABRIR — e isto deixou de ser suposição.
+   *
+   * Até 2026-11-15 a regra era "não achei nada salvo ⇒ carregue a pizzaria", e era ela que punha
+   * o trabalho de outra pessoa na frente de quem acabou de chegar. Agora a decisão é de
+   * `primeira-vez/abertura.js` (pura, no `npm test`) e tem quatro saídas, uma delas sendo
+   * "esta pessoa ainda não escolheu nada".
+   */
+  let abertura = "restaurar";
   try {
-    // ✅ 1) tenta abrir do localStorage primeiro
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-
-    if (saved) {
-      await modeler.importXML(saved);
-    } else {
-      // ✅ 2) se não existir backup, abre o default
-      const xml = await fetchDiagram(DEFAULT_DIAGRAM_URL);
-      await modeler.importXML(xml);
-    }
-
-    applyBizagiMarkersToAll(modeler);
-    fitAndOffsetCanvas(modeler);
+    abertura = decidirAbertura({
+      salvo: localStorage.getItem(LOCAL_STORAGE_KEY),
+      escolha: localStorage.getItem(CHAVE_ESCOLHA),
+      atalho: location.hash,
+    });
+    await abrirDiagrama(modeler, abertura);
   } catch (err) {
     console.error("Erro ao abrir BPMN:", err);
   }
@@ -565,10 +666,20 @@ async function run() {
   // Montar antes quebrava o `canvas.zoom("fit-viewport")` com escala nao-finita: medido contra o
   // baseline pre-P2, que nao tem erro nenhum no console. O ajudante e um overlay fixo e nao
   // precisa existir antes do diagrama. Falhar aqui nao pode levar o modelador junto.
+  let ajudante = null;
   try {
-    mountAssistant({ modelador: modeler, diagramaBase: DEFAULT_DIAGRAM_URL });
+    ajudante = mountAssistant({ modelador: modeler, diagramaBase: DEFAULT_DIAGRAM_URL });
   } catch (e) {
     console.warn("Ajudante indisponivel:", e);
+  }
+
+  // A tela base é a ÚLTIMA coisa a montar e falha sozinha (constituição §X): defeito no convite
+  // não pode levar o modelador junto, e o ajudante precisa existir antes para o cartão primário
+  // ter o que abrir.
+  try {
+    receberQuemChega(modeler, abertura, () => ajudante);
+  } catch (e) {
+    console.warn("Tela base indisponivel:", e);
   }
 }
 

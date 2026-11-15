@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estudo · a tela base</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+    --vermelho:#9a2c22; --vermelho-fraco:#fdf0ee;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:900px; margin:0 auto; padding:44px 28px 56px; }
+
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--roxo); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--roxo); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:64ch; }
+
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--roxo-fraco); border-color:#ddd9f7; }
+  .num.ok b { color:var(--roxo); }
+
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+
+  .hoje { background:var(--vermelho-fraco); border:1px solid #f3dcd7; border-radius:13px;
+    padding:16px 19px; font-size:14.5px; color:#4a4b54; }
+  .hoje b { color:var(--vermelho); }
+
+  /* --- os tres conceitos, lado a lado --- */
+  .conceitos { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .c { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:14px;
+    display:flex; flex-direction:column; }
+  .c.escolhido { border-color:var(--roxo); box-shadow:0 0 0 3px var(--roxo-fraco); }
+  .c h3 { margin:11px 0 3px; font-size:15px; font-weight:600; }
+  .c h3 em { font-style:normal; color:var(--fraco); font-weight:600; margin-right:5px; }
+  .c > p { margin:0 0 9px; font-size:13px; color:var(--suave); line-height:1.45; }
+  .selo { align-self:flex-start; font-size:11px; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--roxo); background:var(--roxo-fraco);
+    border-radius:6px; padding:3px 7px; margin-bottom:8px; }
+  .selo.vazio { visibility:hidden; }
+  .tradeoff { margin-top:auto; font-size:12.5px; line-height:1.45; border-top:1px solid #f1f1f5;
+    padding-top:9px; color:var(--fraco); }
+  .tradeoff b { color:var(--ambar); }
+  .custo { font-size:12px; font-weight:600; color:var(--fraco); margin-top:7px; display:block; }
+
+  /* --- o mockup em miniatura: uma tela do produto desenhada em caixas --- */
+  .tela { position:relative; aspect-ratio:4/3; background:#f4f5f8; border:1px solid var(--linha);
+    border-radius:9px; overflow:hidden; font-size:0; }
+  .tela i { position:absolute; display:block; background:#dfe1ea; border-radius:2px; }
+  .barra  { left:5px; top:12%; width:9px; height:52%; background:#e8e9f0; }
+  .rodape { left:5px; bottom:5px; width:40%; height:8%; background:#e8e9f0; }
+  .agua   { right:5px; bottom:5px; width:16%; height:6%; background:#cfd2de; }
+  .painel { right:5px; top:22%; width:31%; height:62%; background:#fff; border:1px solid #d7d9e4;
+    border-radius:5px; }
+  .painel.vivo { border-color:var(--roxo); background:var(--roxo-fraco); }
+  .pizza  { left:17%; top:14%; width:62%; height:46%; background:#e3e9f5;
+    border:1px dashed #b9c4dc; border-radius:4px; }
+  .cartao { position:absolute; background:#fff; border:1px solid #d7d9e4; border-radius:5px; }
+  .foco   { left:16%; top:30%; width:48%; height:22%; background:var(--roxo); border-color:var(--roxo); }
+  .meio   { left:16%; top:55%; width:23%; height:15%; }
+  .meio2  { left:41%; top:55%; width:23%; height:15%; }
+  .titulo { position:absolute; left:16%; top:16%; width:40%; height:7%; background:#c8cbd8; border-radius:2px; }
+  .linhaf { position:absolute; left:16%; top:74%; width:34%; height:4%; background:#dfe1ea; border-radius:2px; }
+  .fita   { position:absolute; left:16%; top:66%; width:62%; height:12%; background:#fff;
+    border:1px solid #d7d9e4; border-radius:5px; }
+  .badge  { position:absolute; left:17%; top:9%; width:15%; height:6%; background:var(--ambar);
+    border-radius:3px; }
+
+  /* --- tabela honesta do que da' para prometer --- */
+  .promessa { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .pr { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:11px 18px; border-bottom:1px solid #f1f1f5; font-size:14px; }
+  .pr:last-child { border-bottom:none; }
+  .pr span { font-size:12.5px; font-weight:600; white-space:nowrap; }
+  .pode span { color:var(--verde); }
+  .meio-termo span { color:var(--ambar); }
+  .nao span { color:var(--vermelho); }
+  .pr p { margin:0; }
+  .pr p i { font-style:normal; display:block; color:var(--fraco); font-size:12.5px; margin-top:2px; }
+
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+
+  .decisao { background:var(--roxo-fraco); border:1px solid #ddd9f7; border-radius:13px;
+    padding:17px 20px; font-size:15px; line-height:1.55; }
+  .decisao b { color:var(--roxo); }
+
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:820px){
+    .numeros,.conceitos,.proximo { grid-template-columns:1fr; }
+    .pr { grid-template-columns:1fr; }
+    .pr span { grid-row:1; }
+  }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Estudo · tela base · 15 nov 2026</div>
+  <h1>A primeira vez de quem chega</h1>
+  <p class="sub">Hoje o site abre uma pizzaria em inglês que ninguém pediu. O estudo olhou oito
+  produtos, destilou três conceitos e recomenda um — com a lista honesta do que essa tela pode
+  prometer antes de F8 e FK fecharem.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>3 caminhos</b><span>exemplo · do zero · descrever o meu</span></div>
+    <div class="num ok"><b>0 chave</b><span>pedida antes de mostrar valor</span></div>
+    <div class="num"><b>44 px</b><span>a marca d'água do bpmn.io fica livre</span></div>
+  </div>
+
+  <section>
+    <h2>O que acontece nos primeiros 5 segundos, hoje</h2>
+    <div class="hoje">
+      O modelador abre, não acha nada salvo e <b>carrega a pizzaria automaticamente</b> — em inglês,
+      com dois pools. A pessoa não sabe se aquilo é dela, se é exemplo, se pode mexer, nem que dá
+      para conversar com o desenho. O painel do ajudante já se apresenta bem; <b>a página não</b>.
+    </div>
+  </section>
+
+  <section>
+    <h2>Três conceitos</h2>
+    <div class="conceitos">
+
+      <div class="c escolhido">
+        <div class="tela">
+          <i class="barra"></i>
+          <span class="titulo"></span>
+          <span class="cartao foco"></span>
+          <span class="cartao meio"></span>
+          <span class="cartao meio2"></span>
+          <span class="linhaf"></span>
+          <i class="painel"></i>
+          <i class="rodape"></i><i class="agua"></i>
+        </div>
+        <span class="selo">recomendado</span>
+        <h3><em>A</em> Boas-vindas no canvas</h3>
+        <p>A pizzaria não carrega sozinha. O espaço do canvas recebe um convite: um cartão grande
+        "descreva o seu processo" e dois menores — "ver exemplo" e "começar do zero". Escolher
+        fecha o convite e abre o estado certo.</p>
+        <div class="tradeoff">Responde às cinco perguntas de uma vez. <b>Custo:</b> precisa de um
+        estado persistido por escolha — canvas vazio não é o mesmo que "ainda não decidiu".
+        <span class="custo">custo médio</span></div>
+      </div>
+
+      <div class="c">
+        <div class="tela">
+          <i class="barra"></i>
+          <span class="pizza"></span>
+          <span class="badge"></span>
+          <span class="fita"></span>
+          <i class="painel"></i>
+          <i class="rodape"></i><i class="agua"></i>
+        </div>
+        <span class="selo vazio">·</span>
+        <h3><em>B</em> Exemplo primeiro, identificado</h3>
+        <p>A pizzaria continua abrindo, mas com um selo "Exemplo" e uma faixa: isto é uma
+        demonstração, explore, mude ou comece o seu. Duas ações na faixa.</p>
+        <div class="tradeoff">O menor diff possível. <b>Custo:</b> a primeira impressão continua
+        sendo uma pizzaria alheia, e a faixa cobre o desenho que ela deveria explicar.
+        <span class="custo">custo baixo</span></div>
+      </div>
+
+      <div class="c">
+        <div class="tela">
+          <i class="barra"></i>
+          <span class="titulo" style="left:9%;width:30%"></span>
+          <span class="cartao foco" style="left:9%;top:28%;width:30%;height:14%"></span>
+          <i class="painel vivo" style="right:5px;top:8%;width:48%;height:84%"></i>
+          <i class="rodape"></i><i class="agua"></i>
+        </div>
+        <span class="selo vazio">·</span>
+        <h3><em>C</em> Tutor em primeiro plano</h3>
+        <p>"Vamos construir o seu processo?" com o ajudante já aberto e puxando conversa: o que
+        inicia, o que vem depois, quem faz.</p>
+        <div class="tradeoff">Põe o diferencial na frente. <b>Custo:</b> come o canvas, empurra o
+        pedido de chave para cedo e não cabe em 375 px ao lado do painel.
+        <span class="custo">custo médio/alto</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>A recomendação</h2>
+    <div class="decisao">
+      <b>A, com o selo de B e o convite de C.</b> A tela base ocupa o canvas <b>só enquanto não há
+      trabalho</b>; quem volta com diagrama salvo nunca a vê. Quem escolhe o exemplo recebe a
+      pizzaria <b>marcada como exemplo</b> (é o que B acerta). O cartão primário é a conversa
+      (é o que C acerta), mas <b>sem abrir o painel por cima do canvas</b> antes de a pessoa pedir.
+      Nenhuma página de marketing separada, nenhum segundo compositor de chat, nenhuma
+      dependência nova.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que esta tela pode prometer hoje — e o que seria mentira</h2>
+    <div class="promessa">
+      <div class="pr pode"><p>Abrir um exemplo e conversar sobre ele<i>F6 fechada: ele lê o diagrama e a simulação</i></p><span>pode</span></div>
+      <div class="pr pode"><p>Começar um diagrama em branco<i>o modelador já faz; só faltava a porta</i></p><span>pode</span></div>
+      <div class="pr pode"><p>Explicar o que é BPMN, com o desenho na frente<i>do conhecimento do modelo, sem citar fonte</i></p><span>pode</span></div>
+      <div class="pr pode"><p>Criar, ligar, mover, renomear e apagar a pedido<i>F7/F7b/F7c fechadas; apagar pergunta antes</i></p><span>pode</span></div>
+      <div class="pr meio-termo"><p>"Conte o seu processo" e ele monta junto<i>três frases já viraram início, tarefas e fim ligados — mas a pedagogia (F8b) está aberta: convidar sim, prometer condução completa não</i></p><span>parcial</span></div>
+      <div class="pr nao"><p>Proposta nomeada que o aluno aceita antes de qualquer traço<i>a mecânica existe; o portão F8 inteiro não passou</i></p><span>depois de F8</span></div>
+      <div class="pr meio-termo"><p>"Resposta fundamentada, com a fonte citada"<i>quando este estudo começou, o acervo de FK tinha 0 de 31 caixas. Ele FECHOU no mesmo dia, numa frente paralela (29 de 31, portão ao vivo passado) — a tela base ainda não diz isso, e passar a dizer é uma linha de texto na próxima rodada</i></p><span>virou possível</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que fica fora deste lote</h2>
+    <div class="proximo">
+      <div class="p"><b>Galeria de modelos</b><span>Miro e Whimsical vivem disso; aqui um exemplo bem identificado basta e não vira catálogo</span></div>
+      <div class="p"><b>O botão "♻️ Novo" da barra</b><span>hoje ele recarrega a pizzaria. Contradiz a tela nova, mas mexer nele é outra frente</span></div>
+      <div class="p"><b>Tour passo a passo</b><span>nenhuma das oito referências obriga tutorial sequencial; o ajudante é o tour</span></div>
+      <div class="p"><b>Tela base no viewer</b><span><code>/viewer.html</code> é só leitura e não tem o que escolher</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>introduce-bpmn-first-run-workspace</code> · referências: bpmn.io · Camunda · Miro · Whimsical · FigJam · Linear · Notion · ChatGPT</span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,191 @@
+/* A tela base — o convite que ocupa o espaço do canvas enquanto ninguém escolheu nada.
+ *
+ * Os cantos já têm dono, e esta tela não disputa nenhum: `.bz-toolbar` do modelador mora em baixo
+ * à esquerda (z-index 99999), `.sim-toolbar` da simulação em cima à direita (9999) e o ajudante
+ * no canto inferior direito (100000). O convite fica ABAIXO dos três — eles continuam clicáveis
+ * por cima dele, e o lançador do ajudante nunca fica preso atrás de um fundo.
+ *
+ * ⚠ O rodapé reservado NÃO é estética: a marca d'água do bpmn.io mora no canto inferior direito
+ * do canvas e a licença exige que ela fique inteira à vista, sem nada por cima. O valor vem de
+ * `assistant/layout.js` (`RESERVA_MINIMA`), escrito aqui como `--pv-rodape` pelo `tela.js` — uma
+ * fonte só, para as duas cópias não divergirem. */
+
+.pv {
+  position: fixed;
+  inset: 0;
+  bottom: var(--pv-rodape, 44px);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 24px;
+  /* OPACO, e isto foi medido: com 4% de transparência o evento de início do diagrama novo e a
+     paleta do bpmn-js apareciam esmaecidos por trás do convite — parecia um desenho pela metade
+     e uma barra de ferramentas quebrada, não uma tela de boas-vindas (print de 2026-11-15) */
+  background: #fbfbfd;
+  font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* mesma paleta do painel (`assistant.css`), que lá é escopada em `.bpmn-assist` */
+  --cor-primaria: #2563eb;
+  --cor-texto: #17263c;
+  --cor-secundaria: #526277;
+  --cor-borda: #dce4ef;
+
+  color: var(--cor-texto);
+  animation: pv-entra 220ms ease-out;
+}
+
+.pv:focus { outline: none; }
+
+@keyframes pv-entra { from { opacity: 0; } to { opacity: 1; } }
+
+.pv__folha { width: 100%; max-width: 660px; }
+
+.pv__marca {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--cor-primaria);
+}
+
+.pv__titulo {
+  margin: 0 0 6px;
+  font-size: 29px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.pv__sub {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--cor-secundaria);
+}
+
+/* ---- os caminhos ---------------------------------------------------------------------------- */
+
+.pv__cartao {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 15px 17px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  min-height: 48px;                    /* alvo de toque */
+}
+
+.pv__cartao b { display: block; font-size: 15.5px; font-weight: 600; margin-bottom: 4px; }
+.pv__cartao span { display: block; font-size: 13px; line-height: 1.5; color: var(--cor-secundaria); }
+.pv__cartao em {
+  display: block;
+  margin-top: 10px;
+  font-style: normal;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cor-primaria);
+}
+
+.pv__cartao:hover { border-color: #9db6e6; }
+
+.pv__cartao--primario {
+  margin-bottom: 12px;
+  border-color: #c7d7f5;
+  background: #f5f8ff;
+}
+.pv__cartao--primario b { font-size: 17px; }
+.pv__cartao--primario:hover { border-color: var(--cor-primaria); }
+
+.pv__dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.pv__descoberta {
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cor-secundaria);
+}
+
+.pv__link {
+  font: inherit;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--cor-primaria);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---- a tira que diz o que está aberto -------------------------------------------------------- */
+
+.pv-tira {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  padding: 6px 12px;
+  border: 1px solid var(--cor-borda, #dce4ef);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(23, 38, 60, 0.08);
+  font: 12.5px/1.3 Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #526277;
+  white-space: nowrap;
+}
+
+.pv-tira__selo {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #8a4b12;
+  background: #fdf4e7;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.pv-tira__link {
+  font: inherit;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---- foco visível, celular e movimento reduzido ---------------------------------------------- */
+
+.pv button:focus-visible,
+.pv-tira button:focus-visible {
+  outline: 3px solid var(--cor-primaria, #2563eb);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  /* ⚠ 76 px no topo, e eles foram medidos: a barra da simulação (`.sim-toolbar`, z-index 9999)
+     fica acima deste convite no empilhamento e, em 375 px, ela ocupa a faixa de 0 a ~66 px — o
+     print de 2026-11-15 mostrou o título "Seu processo começa aqui." coberto por ela. Em tela
+     larga não há disputa: ela mora no canto direito e o convite é uma coluna centrada. */
+  .pv { padding: 76px 14px 18px; align-items: flex-start; }
+  .pv__titulo { font-size: 24px; }
+  .pv__sub { font-size: 14px; margin-bottom: 16px; }
+  .pv__dupla { grid-template-columns: 1fr; }
+  /* o alto da tela estreita é da barra de simulação; a tira desce para não brigar com ela */
+  .pv-tira { top: auto; bottom: calc(var(--pv-rodape, 44px) + 8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv { animation: none; }
+}

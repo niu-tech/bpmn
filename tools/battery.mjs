@@ -419,14 +419,20 @@ const CENARIOS = [
       const empilhados = cartoes.every((c, i) => i === 0 || c.top >= cartoes[i - 1].bottom - 1);
       const rolaNaHorizontal = document.documentElement.scrollWidth > window.innerWidth + 1;
       const alvoPequeno = cartoes.some((c) => c.height < 44);
+      // O TITULO tem de estar visivel: a barra da simulacao fica acima do convite no
+      // empilhamento e, sem folga no topo, ela cobria a primeira linha da tela (print 2026-11-15).
+      const t = tela.querySelector('.pv__titulo').getBoundingClientRect();
+      const noTitulo = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2);
+      const tituloVisivel = !!noTitulo && !!noTitulo.closest('.pv');
       const alavanca = document.querySelector('.bpmn-assist__toggle').getBoundingClientRect();
       // O lancador fica ACIMA do convite no empilhamento de camadas: tem de continuar clicavel.
       const noTopo = document.elementFromPoint(alavanca.left + alavanca.width / 2,
                                                alavanca.top + alavanca.height / 2);
       const alavancaClicavel = !!noTopo && !!noTopo.closest('.bpmn-assist__toggle');
       return {
-        ok: empilhados && !rolaNaHorizontal && !alvoPequeno && alavancaClicavel,
+        ok: empilhados && !rolaNaHorizontal && !alvoPequeno && alavancaClicavel && tituloVisivel,
         cartoes: cartoes.length, empilhados, rolaNaHorizontal, alvoPequeno, alavancaClicavel,
+        tituloVisivel,
       };
     `],
   },

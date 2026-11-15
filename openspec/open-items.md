@@ -660,3 +660,14 @@ O que estava em "Futuro" na change do MVP deixou de ser ideia e virou o próximo
 | F.5 Memória durável entre sessões | **change própria, ainda não escrita** — o harness decidiu que a memória morre com a aba, e persistir exige reescrever o aviso de privacidade e pedir consentimento. Divergência apontada pela pesquisa de 2026-11-12 |
 | F.1 RAG sobre a norma BPMN | **substituido** por base OKF citavel + function calling: change `add-bpmn-norm-knowledge-base` (decisao do dono, 2026-11-12) |
 | F.2 MCP | continua fora: não há servidor nosso para falar MCP |
+
+## 7. A tela base deixou duas pontas (2026-11-15)
+
+Abertas pela change `introduce-bpmn-first-run-workspace`, que trocou o auto-load da pizzaria por um
+convite com três caminhos. Ficaram de fora **de propósito**, e estão aqui para não serem
+descobertas por acaso:
+
+| Ponta | O que acontece hoje | Por que não entrou |
+|---|---|---|
+| O botão **"♻️ Novo"** da barra do modelador | apaga o autosave **sem perguntar** e recarrega a pizzaria — ou seja, "novo" quer dizer "o exemplo de outra pessoa", e agora isso contradiz a tela base | é anterior a esta change e mora na barra do modelador, não na primeira tela. Consertar junto misturaria duas frentes; e o conserto certo (perguntar antes de descartar trabalho) é uma decisão de produto, não um ajuste |
+| O exemplo continua **em inglês** | *Select a pizza*, *Bake the pizza*, *Pizza vendor* | traduzir `pizza-collaboration.bpmn` muda o fixture de ~15 cenários da bateria e das provas ao vivo, que casam por nome de elemento. A tira passou a dizer que aquilo é um exemplo, que era a parte que confundia |
