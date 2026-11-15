@@ -42,6 +42,7 @@ diário append-only (`artifacts/ledger/corridas.jsonl`).
 | `perfil` | `modelador` (edita) ou `viewer` (só lê) |
 | `pergunta` | **nas palavras de um aluno** — tirada de trilha real sempre que houver |
 | `ferramentasEsperadas` | as que resolvem. Lista vazia = **não é para chamar nenhuma** |
+| `ferramentasAceitas` | o terceiro estado: **se** chamar, tem de ser uma destas — e o que se cobra de verdade são os fatos. Existe porque há pergunta que o modelo pode responder direto do contexto (o total do diagrama chega inteiro a cada turno) e também pode conferir com a ferramenta |
 | `ferramentasProibidas` | as que não podem nem ser oferecidas neste perfil |
 | `argumentosQueImportam` | só os que mudam o resultado (o nome que vai para o rótulo, a direção, o eixo) |
 | `fatosObrigatorios` | pedaços que a resposta tem de conter |
@@ -49,6 +50,8 @@ diário append-only (`artifacts/ledger/corridas.jsonl`).
 | `erroEsperado` | quando o certo é **recusar com nome** (`sem_lugar`, `falta_confirmacao`, `sem_corrida`) |
 | `recusaEsperada` | quando o certo é dizer que não é com ele |
 | `respostaNoIdioma` | `pt` quando a pergunta puxa outro idioma (diagrama em inglês, injeção) |
+| `exigeSelecao` | o termo do elemento que a corrida seleciona ANTES de perguntar (mesmo `selection.select` do clique). Sem isto, "apaga essa tarefa" é ambíguo de verdade e o modelo pergunta qual — que é o comportamento certo, de outra pergunta |
+| `exigeSimulacao` / `exigeHistorico` | estado que a bancada monta antes (uma corrida de simulação registrada; algo feito que dê para desfazer). Ao vivo, `exigeHistorico` vira **não executada**: a corrida não monta passado |
 | `porque` | **obrigatório**: a frase que explica por que esta pergunta existe. Pergunta sem motivo escrito é pergunta que ninguém saberá manter |
 
 ## As doze categorias
@@ -65,9 +68,13 @@ não há "taxa aceitável" para o agente apagar sem perguntar ou repetir uma inj
    especificação.
 2. Escreva o `porque` antes do resto. Se não der para escrever, a pergunta não é dourada.
 3. Rode `node tools/avaliar.mjs --validar`: pergunta que cite ferramenta inexistente, perfil
-   desconhecido, categoria fora da lista ou categoria de segurança sem proibição declarada
-   **reprova o arquivo**.
-4. Rode a camada determinística. Se ela reprovar, decida: a pergunta está errada ou o produto está?
+   desconhecido, categoria fora da lista, pergunta sem `porque` ou categoria de segurança sem
+   proibição declarada **reprova o arquivo**. Categoria com erro de digitação na linha de
+   comando também recusa — rodar zero pergunta e sair verde é a mesma doença.
+4. **Pergunte-se se a frase carrega o contexto que ela pressupõe.** No primeiro contato ao vivo,
+   metade das perguntas dizia "essas duas", "esse gateway", "dessa tarefa" — e o modelo
+   perguntou qual. Ou a pergunta declara `exigeSelecao`, ou nomeia os elementos.
+5. Rode a camada determinística. Se ela reprovar, decida: a pergunta está errada ou o produto está?
 
 ## Limiares e linha de base
 
