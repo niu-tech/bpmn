@@ -38,6 +38,17 @@
 
 .pv:focus { outline: none; }
 
+/* ⚠ COM O CONVITE NO AR, as barras do modelador saem de cena.
+ *
+ * Elas ficam ACIMA do convite no empilhamento (99999 e 9999 contra 9500), e isso e' proposital
+ * depois da escolha — mas antes dela a pessoa nao tem diagrama para salvar, exportar nem simular,
+ * e as duas competiam com as tres opcoes que sao a tela inteira (dono, 2026-11-15: "nao
+ * precisamos do bpmn bizagi like no canto inferior esquerdo... e nem do simulacao no canto
+ * superior direito na tela inicial"). Voltam no instante em que o convite fecha. */
+body.pv-no-ar .bz-toolbar,
+body.pv-no-ar .sim-controls,
+body.pv-no-ar .sim-dashboard { display: none; }
+
 @keyframes pv-entra { from { opacity: 0; } to { opacity: 1; } }
 
 .pv__folha { width: 100%; max-width: 660px; }
@@ -165,6 +176,8 @@
   cursor: pointer;
 }
 
+.pv-tira__sep { color: #94a3b8; }
+
 /* ---- foco visível, celular e movimento reduzido ---------------------------------------------- */
 
 .pv button:focus-visible,
@@ -182,8 +195,16 @@
   .pv__titulo { font-size: 24px; }
   .pv__sub { font-size: 14px; margin-bottom: 16px; }
   .pv__dupla { grid-template-columns: 1fr; }
-  /* o alto da tela estreita é da barra de simulação; a tira desce para não brigar com ela */
-  .pv-tira { top: auto; bottom: calc(var(--pv-rodape, 44px) + 8px); }
+  /* O alto da tela estreita e' da barra de simulacao (0 a ~66 px), entao a tira desce o mesmo
+     tanto que o convite — e NAO para o rodape, onde ficava espremida entre a barra do modelador
+     e o painel do ajudante (medido em 375x812). */
+  .pv-tira { top: 76px; }
+  /* Em 375 px os tres pedacos nao cabem numa linha so' (medido: 369 px, com o "voltar ao menu"
+     cortado na borda). Deixar quebrar virou um bloco de quatro linhas sobre o desenho, pior que
+     o problema. Entao o que sai e' a PROSA — o selo e os dois caminhos ficam, porque sao eles
+     que a tira existe para oferecer. */
+  .pv-tira__texto,
+  .pv-tira__sep { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

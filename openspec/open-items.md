@@ -669,5 +669,5 @@ descobertas por acaso:
 
 | Ponta | O que acontece hoje | Por que não entrou |
 |---|---|---|
-| O botão **"♻️ Novo"** da barra do modelador | apaga o autosave **sem perguntar** e recarrega a pizzaria — ou seja, "novo" quer dizer "o exemplo de outra pessoa", e agora isso contradiz a tela base | é anterior a esta change e mora na barra do modelador, não na primeira tela. Consertar junto misturaria duas frentes; e o conserto certo (perguntar antes de descartar trabalho) é uma decisão de produto, não um ajuste |
+| ~~O botão "♻️ Novo" da barra~~ | **fechado em 2026-11-15**, a pedido do dono | virou "♻️ Recomeçar" e leva ao MENU: com trabalho salvo, o primeiro clique pergunta no próprio botão por 5 s e o segundo descarta. Não é `confirm()` nativo — diálogo do navegador trava a página dirigida, e confirmação sem prova viva vale tanto quanto nenhuma. Prova nas tarefas da change, bloco 9 |
 | ~~O exemplo em inglês~~ | **fechado em 2026-11-15**, a pedido do dono | traduzido para pt-BR mantendo os ids (`_6-463` continua `_6-463`); os 56 pontos que casavam por nome foram atualizados junto — bateria e `npm test` verdes. Prova nas tarefas da change `introduce-bpmn-first-run-workspace`, bloco 8 |

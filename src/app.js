@@ -279,6 +279,17 @@ function injectToolbarCssOnce() {
       margin-top: 10px !important;
     }
 
+    /* O "Recomecar" ARMADO: um clique pede confirmacao no proprio botao, o seguinte executa.
+       Nao e' confirm() nativo porque esta e' a unica confirmacao do produto que nenhuma prova
+       automatica consegue atravessar — dialogo nativo trava o navegador dirigido, e uma acao
+       destrutiva sem prova viva vale tanto quanto nenhuma. */
+    .bz-btn.bz-armado {
+      background: #fdf4e7 !important;
+      border-color: #f0c98a !important;
+      color: #8a4b12 !important;
+      font-weight: 700 !important;
+    }
+
     .bz-btn {
       display: inline-flex !important;
       align-items: center !important;
@@ -377,8 +388,8 @@ function createFloatingToolbar() {
         <button id="bz-clear-local" class="bz-btn bz-btn--danger bz-btn--wide" title="Remover backup local">
           🧹 Limpar
         </button>
-        <button id="bz-reset-default" class="bz-btn bz-btn--wide" title="Voltar ao diagrama inicial">
-          ♻️ Novo
+        <button id="bz-reset-default" class="bz-btn bz-btn--wide" title="Voltar ao menu inicial">
+          ♻️ Recomeçar
         </button>
       </div>
 
@@ -394,16 +405,64 @@ function createFloatingToolbar() {
   return root;
 }
 
-async function resetToDefault(modeler) {
+/**
+ * Quem leva de volta ao convite. Preenchido por `receberQuemChega`, que é quem sabe desenhá-lo.
+ *
+ * Existe porque a barra do modelador é montada ANTES da tela base e precisa alcançá-la: o botão
+ * "Recomeçar" é o único caminho de volta depois que a tira some (ou seja, depois da primeira
+ * edição), e sem isto ele teria de recarregar a página para achar o menu.
+ */
+let voltarAoInicio = null;
+
+/**
+ * "♻️ Recomeçar" — era "♻️ Novo", e fazia outra coisa.
+ *
+ * ⚠ O botão antigo APAGAVA o autosave e recarregava a pizzaria, sem perguntar. Ou seja: "novo"
+ * queria dizer "o exemplo de outra pessoa", e um clique sem querer levava junto o trabalho de
+ * quem estava desenhando. Estava em `open-items.md` desde a tela base, e o dono mandou fechar.
+ *
+ * Agora ele volta ao MENU — e só descarta depois de perguntar, porque descartar é o que ele faz.
+ */
+let desarmar = null;
+/** O rótulo do botão antes de ele virar pergunta. Guardado para não existir uma segunda cópia do
+ *  texto no código: renomear o botão no HTML passaria a mentir aqui. */
+let rotuloDoRecomecar = null;
+
+async function recomecar(modeler, botao) {
   try {
+    // Com trabalho salvo, o PRIMEIRO clique só pergunta — no próprio botão, por 5 s. É a
+    // confirmação explícita que a constituição exige (§VII) numa forma que a bateria consegue
+    // dirigir e provar; `confirm()` trava o navegador sem ninguém para clicar nele.
+    const temTrabalho = Boolean(localStorage.getItem(LOCAL_STORAGE_KEY));
+    if (temTrabalho && botao && !desarmar) {
+      rotuloDoRecomecar = botao.textContent;
+      botao.textContent = "⚠️ Descartar e voltar?";
+      botao.classList.add("bz-armado");
+      desarmar = setTimeout(() => {
+        botao.textContent = rotuloDoRecomecar;
+        botao.classList.remove("bz-armado");
+        desarmar = null;
+      }, 5000);
+      return;
+    }
+
+    if (desarmar) {
+      clearTimeout(desarmar);
+      desarmar = null;
+      botao?.classList.remove("bz-armado");
+      if (botao && rotuloDoRecomecar) botao.textContent = rotuloDoRecomecar;
+    }
+
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    const xml = await fetchDiagram(DEFAULT_DIAGRAM_URL);
-    await modeler.importXML(xml);
-    applyBizagiMarkersToAll(modeler);
-    modeler.get("canvas").zoom("fit-viewport");
+    localStorage.removeItem(CHAVE_ESCOLHA);
+    await abrirDiagrama(modeler, "convite");
+
+    // Sem a tela base montada (defeito na montagem dela), o modelador fica com o diagrama novo:
+    // a barra continua servindo, e nada aqui depende do convite para funcionar.
+    voltarAoInicio?.();
   } catch (err) {
-    console.error("Falha ao resetar para default:", err);
-    alert("Falha ao resetar. Veja o console.");
+    console.error("Falha ao recomeçar:", err);
+    alert("Falha ao recomeçar. Veja o console.");
   }
 }
 
@@ -498,7 +557,7 @@ function bindFloatingToolbar(modeler) {
     alert("Backup local removido.");
   });
 
-  btnResetDefault?.addEventListener("click", () => resetToDefault(modeler));
+  btnResetDefault?.addEventListener("click", () => recomecar(modeler, btnResetDefault));
 
   // Keyboard shortcuts
   window.addEventListener("keydown", async (e) => {
@@ -583,7 +642,13 @@ function receberQuemChega(modeler, abertura, ajudante) {
   function mostrarTira(estado) {
     tira?.remover();
     tira = null;
-    if (estado) tira = montarTira({ estado, aoClicar: (destino) => escolher(destino) });
+    if (estado) {
+      tira = montarTira({
+        estado,
+        aoClicar: (destino) => escolher(destino),
+        aoVoltar: voltarAoMenu,
+      });
+    }
   }
 
   async function escolher(caminho) {
@@ -602,6 +667,24 @@ function receberQuemChega(modeler, abertura, ajudante) {
 
     mostrarTira(destino === "exemplo" ? "exemplo" : "branco");
   }
+
+  /**
+   * VOLTAR AO MENU sem descartar nada: o convite e' opaco e cobre o canvas, entao o que estava
+   * aberto continua la' ate' a pessoa escolher de novo. Esquece a escolha anterior porque voltar
+   * ao menu e' justamente dizer "ainda nao decidi" — e um recarregar depois disso tem de trazer
+   * o convite, nao o caminho que ela acabou de abandonar.
+   */
+  function voltarAoMenu() {
+    mostrarTira(null);
+    localStorage.removeItem(CHAVE_ESCOLHA);
+    // O painel se recolhe junto: voltar ao menu e' recomecar a escolha, e ele flutua ACIMA do
+    // convite (100000 contra 9500). Deixa-lo aberto poria a tela da chave por cima das tres
+    // opcoes — exatamente a tela que o convite existe para nao empurrar na cara de ninguem.
+    ajudante()?.widget?.close();
+    if (!convite) convite = montarTelaBase({ aoEscolher: escolher });
+  }
+
+  voltarAoInicio = voltarAoMenu;
 
   if (abertura === "convite") convite = montarTelaBase({ aoEscolher: escolher });
   else mostrarTira(tiraPara(abertura));

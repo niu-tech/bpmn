@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rodada 2 · os botões em volta</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:62ch; }
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--verde-fraco); border-color:#d9e7cd; }
+  .num.ok b { color:var(--verde); }
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+  .feito { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .f { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .f:last-child { border-bottom:none; }
+  .f p { margin:0; font-size:14.5px; }
+  .f p span { display:block; color:var(--fraco); font-size:13px; margin-top:2px; }
+  .prova { font-size:12.5px; color:var(--verde); font-weight:600; white-space:nowrap; }
+  .alerta { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; line-height:1.55; color:#4a4b54; }
+  .alerta b { color:var(--ambar); }
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .f{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Rodada 2 · 15 nov 2026</div>
+  <h1>Os botões em volta</h1>
+  <p class="sub">Seis pedidos seus, depois de ver a tela no ar. O tema comum: a primeira tela tinha
+  o convite certo e a moldura errada — barras que não serviam para nada ainda, e nenhum caminho de
+  volta.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>6 de 6</b><span>cenários da tela base, no navegador</span></div>
+    <div class="num ok"><b>25</b><span>suítes, zero falhas</span></div>
+    <div class="num"><b>2 cliques</b><span>para descartar trabalho, nunca um</span></div>
+  </div>
+
+  <section>
+    <h2>O que mudou</h2>
+    <div class="feito">
+      <div class="f">
+        <p>A barra do modelador e os painéis de simulação <b>somem com o convite no ar</b>
+        <span>antes de escolher não há o que salvar, exportar nem simular. Voltam no instante em que ele fecha — a bateria mede os dois sentidos</span></p>
+        <span class="prova">display: none</span></div>
+      <div class="f">
+        <p><b>"voltar ao menu"</b> na tira do alto
+        <span>reabre o convite, esquece a escolha e recolhe o painel. Não descarta nada: a tira só existe antes da primeira edição</span></p>
+        <span class="prova">sem perda</span></div>
+      <div class="f">
+        <p>"♻️ Novo" virou <b>"♻️ Recomeçar"</b> e parou de apagar sem perguntar
+        <span>era a ponta aberta que eu tinha deixado: ele apagava o seu trabalho e recarregava a pizzaria, em um clique. Agora o primeiro clique pergunta no próprio botão, por 5 s; o segundo descarta</span></p>
+        <span class="prova">2 cliques</span></div>
+      <div class="f">
+        <p>A tela da chave virou <b>dois passos numerados</b>
+        <span>1. pegue a sua chave (com o AI Studio como botão de verdade: "abre numa aba nova — volte aqui com ela copiada"). 2. cole aqui. O consentimento e o aviso de privacidade continuam inteiros</span></p>
+        <span class="prova">e nada dito 3×</span></div>
+      <div class="f">
+        <p>E ela <b>ocupa mais espaço</b> enquanto a chave não entrou
+        <span>520 px em vez de 420, altura pelo conteúdo. Volta ao tamanho de sempre sozinha quando a chave resolve — sem uma linha de JS</span></p>
+        <span class="prova">522 × 506</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Uma decisão que vale explicar</h2>
+    <div class="alerta">
+      O "Recomeçar" <b>não usa a janelinha do navegador</b> (<code>confirm()</code>). Ela seria uma
+      linha de código, mas trava a página quando ninguém está lá para clicar — e esta é a única
+      confirmação destrutiva do produto que nenhuma prova automática conseguiria atravessar.
+      Confirmação que não dá para provar vale tanto quanto nenhuma. O botão pergunta nele mesmo,
+      a bateria clica duas vezes, e o primeiro clique não pode ter apagado nada.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que os prints pegaram desta vez</h2>
+    <div class="proximo">
+      <div class="p"><b>200 px de branco</b><span>o painel esticado deixava um vão entre o aviso e o botão. Altura pelo conteúdo resolveu</span></div>
+      <div class="p"><b>A tira cortada no celular</b><span>em 375 px ela saía com 369 px e o "voltar ao menu" morria na borda. Quebrar virou um bloco de 4 linhas sobre o desenho; o que sai agora é a prosa, não o caminho de volta</span></div>
+      <div class="p"><b>A mesma frase três vezes</b><span>título do passo, rótulo do campo e dica do rodapé diziam "cole a sua chave". Sobrou uma</span></div>
+      <div class="p"><b>Uma crase derrubou o build</b><span>escrevi <code>confirm()</code> entre crases num comentário CSS que mora dentro de um template de JS. O dev server serviu um bundle de 135 KB sem avisar</span></div>
+      <div class="p"><b>Dois vermelhos que não eram do produto</b><span>a bateria acusou o acervo citável sumido. Era eu: rodei <code>webpack</code> sozinho para caçar a crase, e ele limpa o <code>dist/</code> sem regerar o índice do acervo. Um comando, e os dois voltaram ao verde</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>introduce-bpmn-first-run-workspace</code> · bloco 9</span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>

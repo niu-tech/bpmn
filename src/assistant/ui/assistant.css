@@ -391,9 +391,33 @@
 /* Em tela estreita o painel ocupa a largura. Medido em 375x812: a barra do modelador colapsada
  * e uma faixa de 51 px no rodape, e o painel ia por cima dela. Reservar o rodape mantem as duas
  * alcancaveis sem redesenhar a barra do produto — que seria refatorar UI alheia. */
+/* ---- ENQUANTO A CHAVE NAO ENTROU, o painel e' a tela principal ------------------------------
+   Nesse momento ele nao e' um canto de conversa: e' o unico lugar onde ha' algo a fazer, e o
+   canvas atras esta' vazio ou com um exemplo que a pessoa ainda nao pediu. Mais largura reduz a
+   quebra de linha do aviso e deixa os dois passos respirarem (dono, 2026-11-15: "nessa primeira
+   tela deixar o tamanho do chat tomando um pouco mais de espaco, e uma vez concluido e entrado
+   voltamos a esse tamanho normal"). Assim que a chave resolve, `setupBlock` ganha [hidden] e o
+   painel volta sozinho ao tamanho de sempre — sem uma linha de JS, porque quem ja' sabe disso e'
+   o DOM. */
+.bpmn-assist__panel:has(.bpmn-assist__setup:not([hidden])) {
+  width: 520px;
+  /* Altura pelo CONTEUDO, nao fixa. A altura fixa existe para a CONVERSA (painel vazio parecia
+     minimizado); aqui o conteudo e' sempre o mesmo e e' substancial, e esticar deixava uns 200 px
+     de branco entre o aviso e o botao. */
+  height: auto;
+  max-height: min(86vh, 760px);
+}
+
 @media (max-width: 520px) {
   .bpmn-assist { left: 10px; right: 10px; align-items: stretch; }
   .bpmn-assist__panel { width: auto; max-height: 56vh; }
+  /* Em tela estreita nao ha' largura para dar: a altura e' o que falta, e so' enquanto a chave
+     nao entrou (o rodape reservado da barra continua respeitado pelo `.bpmn-assist`). */
+  .bpmn-assist__panel:has(.bpmn-assist__setup:not([hidden])) {
+    width: auto;
+    height: min(74vh, 640px);
+    max-height: 74vh;
+  }
   .bpmn-assist__toggle { align-self: flex-end; }
 }
 
@@ -612,6 +636,51 @@
   cursor: pointer;
 }
 .bpmn-assist__exemplo:hover { border-color: #6366f1; background: #f5f3ff; }
+
+/* ---- os dois passos da chave ---------------------------------------------------------------
+   Numerar foi o que tornou a tela obvia sem explicar: um paragrafo so' contava tres coisas de uma
+   vez, e quem nunca viu uma chave de API nao tinha como saber que precisava SAIR do site e voltar
+   (dono, 2026-11-15). O texto do consentimento e o aviso de privacidade continuam inteiros. */
+.bpmn-assist__passos {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bpmn-assist__passo { display: flex; gap: 10px; align-items: flex-start; }
+.bpmn-assist__passo-n {
+  flex: none;
+  width: 22px; height: 22px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--cor-primaria);
+  font-size: 12.5px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-top: 1px;
+}
+.bpmn-assist__passo-corpo { flex: 1; min-width: 0; }
+.bpmn-assist__passo-corpo b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+.bpmn-assist__passo-corpo p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.5; color: var(--cor-secundaria); }
+.bpmn-assist__passo-corpo .bpmn-assist__field { margin-top: 0; }
+
+/* O "pegue a sua chave" deixa de ser um link no meio do texto e vira o alvo que ele e': sair
+   daqui, fazer uma coisa, voltar. Altura de toque acima do minimo WCAG. */
+.bpmn-assist__botao-externo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid #c7d2fe;
+  border-radius: 9px;
+  background: #f5f3ff;
+  color: #4338ca;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.bpmn-assist__botao-externo:hover { background: #ede9fe; border-color: var(--cor-primaria); }
 
 .bpmn-assist__convite { margin: 0 0 12px; }
 .bpmn-assist__convite-titulo { margin: 0 0 5px; font-size: 14.5px; font-weight: 600; color: var(--cor-texto); }

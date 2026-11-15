@@ -104,3 +104,49 @@ estão, e SHALL falhar sozinho se a tela base não puder ser montada.
 #### Scenario: Defeito na tela base não leva o modelador junto
 - **WHEN** a montagem da tela base lança um erro
 - **THEN** o modelador abre assim mesmo, com um diagrama carregado
+
+### Requirement: O convite tem a tela só para ele
+O sistema SHALL esconder a barra do modelador e os painéis da simulação enquanto a tela base
+estiver visível, e SHALL trazê-los de volta assim que ela fechar.
+
+#### Scenario: Nada compete com as três opções
+- **WHEN** a tela base está visível
+- **THEN** a barra do modelador e os painéis de simulação não aparecem
+
+#### Scenario: Escolher devolve as ferramentas
+- **WHEN** a pessoa escolhe um caminho e a tela base fecha
+- **THEN** a barra do modelador volta a aparecer
+
+### Requirement: Há sempre um caminho de volta ao menu
+O sistema SHALL oferecer um caminho de volta à tela base depois de uma escolha, e SHALL exigir
+confirmação explícita antes de descartar trabalho para voltar.
+
+#### Scenario: Voltar ao menu antes de desenhar não custa nada
+- **WHEN** a pessoa escolheu um caminho, não editou nada e usa "voltar ao menu"
+- **THEN** a tela base reaparece, a escolha anterior é esquecida e o painel do ajudante se recolhe
+
+#### Scenario: Depois de editar, voltar exige confirmação
+- **WHEN** existe trabalho salvo e a pessoa aciona "Recomeçar"
+- **THEN** o primeiro acionamento apenas pergunta, e nada é descartado
+
+#### Scenario: O segundo acionamento é que descarta
+- **WHEN** a pessoa confirma no próprio botão
+- **THEN** o diagrama volta a ser um diagrama novo, o trabalho salvo é apagado e a tela base
+  reaparece
+
+### Requirement: A tela da chave é dois passos, e ocupa mais espaço
+O sistema SHALL apresentar o pedido de chave como passos numerados com o caminho de onde tirá-la,
+e SHALL dar ao painel mais espaço enquanto a chave não estiver resolvida, voltando ao tamanho
+normal depois.
+
+#### Scenario: Dois passos, e o primeiro leva para fora
+- **WHEN** o painel mostra o pedido de chave
+- **THEN** há dois passos numerados, e o primeiro oferece abrir o Google AI Studio
+
+#### Scenario: Nenhuma instrução dita três vezes
+- **WHEN** os passos estão visíveis
+- **THEN** a dica de rodapé não repete o que o passo já diz
+
+#### Scenario: O painel volta ao tamanho normal
+- **WHEN** a chave e o consentimento são resolvidos
+- **THEN** o painel deixa de usar o tamanho ampliado

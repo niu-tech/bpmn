@@ -158,6 +158,34 @@ Funcionaria, e deixaria a armadilha montada para o próximo — qualquer listene
 É um defeito anterior a esta change, e o conserto é de três linhas: fica aqui porque foi ela que o
 revelou, e porque "a tira não some" é o único sintoma que ele produziu em um ano de uso.
 
+### B11. A confirmação destrutiva é no botão, não numa janela do navegador
+
+O "Recomeçar" descarta o diagrama aberto, então pede confirmação (constituição §VII). A forma é um
+**portão de dois cliques no próprio botão**: o primeiro troca o rótulo por "⚠️ Descartar e
+voltar?" durante 5 segundos, o segundo executa, e o tempo esgotado desarma.
+
+Alternativa recusada: `window.confirm()`. É uma linha, é a feature nativa da plataforma, e seria a
+escolha certa em quase qualquer outro lugar deste repositório.
+
+Não aqui, por uma razão específica: **um diálogo nativo trava a página dirigida**. Nenhum dos
+nossos meios de prova — a bateria, o `drive-page`, a trilha ao vivo — consegue atravessá-lo sem
+substituir o `confirm` por um dublê, ou seja, sem deixar de provar exatamente a coisa que importa.
+Esta é a única confirmação destrutiva do produto nessa situação, e confirmação que não se pode
+provar vale tanto quanto nenhuma (constituição §V). O portão de dois cliques é dirigível, e o
+cenário da bateria verifica o que mais importa: **depois do primeiro clique, nada foi descartado**.
+
+### B12. Com o convite no ar, a moldura do modelador sai de cena
+
+A barra do modelador e os painéis da simulação ficam escondidos enquanto a tela base está visível,
+por uma marca no `<body>` que só o CSS lê.
+
+Alternativa recusada: deixá-los, porque "fazem parte do produto".
+
+Antes da escolha não há diagrama para salvar, exportar, restaurar ou simular — os dois painéis
+oferecem ações que ainda não têm objeto, e ocupavam os dois cantos que sobravam ao redor das três
+opções. Voltam no instante em que o convite fecha, e a bateria mede os **dois** sentidos: sem isso,
+"sumiu" e "sumiu para sempre" seriam o mesmo resultado verde.
+
 ## Risks / Trade-offs
 
 - **O convite pode virar obstáculo para quem só quer desenhar.** Mitigado por três cliques

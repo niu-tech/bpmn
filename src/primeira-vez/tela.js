@@ -118,9 +118,20 @@ export function montarTelaBase({ raiz = document.body, aoEscolher = () => {} } =
   });
 
   raiz.append(reservarRodape(tela));
+  // ⚠ A marca no `<body>` é o que tira as barras do modelador de cena enquanto o convite está na
+  // tela (dono, 2026-11-15: *"não precisamos do bpmn bizagi like… e nem do simulação… na tela
+  // inicial"*). Elas vivem acima do convite no empilhamento — e com razão, porque depois da
+  // escolha são elas que o aluno usa. Quem esconde é o CSS; aqui só se diz que o convite está no ar.
+  document.body.classList.add('pv-no-ar');
   tela.focus({ preventScroll: true });
 
-  return { raiz: tela, fechar: () => tela.remove() };
+  return {
+    raiz: tela,
+    fechar: () => {
+      tela.remove();
+      document.body.classList.remove('pv-no-ar');
+    },
+  };
 }
 
 /**
@@ -130,7 +141,12 @@ export function montarTelaBase({ raiz = document.body, aoEscolher = () => {} } =
  * própria (design B6). `branco`: o exemplo continua a um clique, que é a pergunta 4 do estudo.
  * Quem restaurou o próprio trabalho não recebe tira nenhuma.
  */
-export function montarTira({ raiz = document.body, estado, aoClicar = () => {} } = {}) {
+export function montarTira({
+  raiz = document.body,
+  estado,
+  aoClicar = () => {},
+  aoVoltar = () => {},
+} = {}) {
   if (estado !== 'exemplo' && estado !== 'branco') return null;
 
   const acao = el('button', {
@@ -140,12 +156,32 @@ export function montarTira({ raiz = document.body, estado, aoClicar = () => {} }
   });
   acao.addEventListener('click', () => aoClicar(estado === 'exemplo' ? 'branco' : 'exemplo'));
 
+  /**
+   * VOLTAR AO MENU. Pedido do dono (2026-11-15): *"depois de clicar em uma das opções senti falta
+   * de um botão para voltar ao menu novamente"*.
+   *
+   * Mora aqui, e não num canto novo da tela, porque a tira já é a faixa que diz "o que está
+   * aberto" — e ela some na primeira edição, que é exatamente quando voltar ao convite deixaria de
+   * ser gratuito. Depois disso, quem leva de volta é o "Recomeçar" da barra, que pergunta antes.
+   */
+  const voltar = el('button', {
+    type: 'button',
+    className: 'pv-tira__link',
+    textContent: 'voltar ao menu',
+  });
+  voltar.addEventListener('click', () => aoVoltar());
+
+  const sep = () => el('span', { className: 'pv-tira__sep', textContent: '·' });
+
   const tira = el('div', { className: 'pv-tira' }, [
     ...(estado === 'exemplo'
       ? [el('span', { className: 'pv-tira__selo', textContent: 'Exemplo' }),
-        el('span', { textContent: 'pedido de pizza · ' })]
+        el('span', { className: 'pv-tira__texto', textContent: 'pedido de pizza' }),
+        sep()]
       : []),
     acao,
+    sep(),
+    voltar,
   ]);
   tira.dataset.estado = estado;
 

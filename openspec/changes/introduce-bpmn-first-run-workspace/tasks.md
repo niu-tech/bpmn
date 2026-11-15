@@ -107,3 +107,24 @@
 - [x] 8.5 `npm test` 25 suítes e bateria **21 de 21** com o diagrama traduzido; print olhado em
       `artifacts/e2e-shots/tela-base-exemplo.png` — pools Cliente/Pizzaria, raias atendente ·
       pizzaiolo · entregador, e o `cadê` com acento certo na tela
+
+## 9. Os botões em volta (pedido do dono, 2026-11-15, depois de ver no ar)
+
+- [x] 9.1 Com o convite no ar, a barra do modelador e os painéis de simulação saem de cena
+      (`body.pv-no-ar` + CSS). Voltam no instante em que ele fecha — provado nos dois sentidos
+- [x] 9.2 "voltar ao menu" na tira: reabre o convite, esquece a escolha, recolhe o painel e **não
+      descarta nada** (a tira só existe antes da primeira edição, então não há o que perder)
+- [x] 9.3 "♻️ Novo" vira "♻️ Recomeçar" e deixa de apagar sem perguntar: com trabalho salvo, o
+      primeiro clique pergunta **no próprio botão** por 5 s; o segundo descarta e volta ao menu.
+      Fecha a ponta de `open-items.md`
+- [x] 9.4 Não é `confirm()` nativo: diálogo do navegador trava a página dirigida, e ação
+      destrutiva sem prova viva vale tanto quanto nenhuma. O portão de dois cliques é dirigível e
+      está na bateria
+- [x] 9.5 A tela da chave vira **dois passos numerados**, com o AI Studio como botão de verdade
+      ("abre numa aba nova — volte aqui com ela copiada"), e a dica de rodapé para de dizer pela
+      terceira vez o que o passo 2 já diz
+- [x] 9.6 Enquanto a chave não entrou, o painel ocupa mais espaço (520 px, altura pelo conteúdo) e
+      volta sozinho ao tamanho normal quando ela resolve — por `:has(.bpmn-assist__setup:not([hidden])`,
+      sem uma linha de JS
+- [x] 9.7 Bateria: seis cenários da tela base verdes, incluindo os dois novos (voltar ao menu ·
+      Recomeçar com confirmação)

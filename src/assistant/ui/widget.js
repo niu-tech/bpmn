@@ -111,6 +111,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
     id: 'bpmn-assist-key',
   });
   keyInput.setAttribute('spellcheck', 'false');
+  keyInput.setAttribute('aria-label', 'Sua chave do Google AI Studio');
 
   const consent = el('input', { type: 'checkbox', id: 'bpmn-assist-consent' });
   const consentLabel = el('label', { className: 'bpmn-assist__consent', htmlFor: 'bpmn-assist-consent' }, [
@@ -156,25 +157,67 @@ export function createWidget({ session, credentials, onClose } = {}) {
     el('p', {
       className: 'bpmn-assist__convite-sub',
       textContent: 'Converse por voz ou por escrito: ele explica o que está na tela e desenha com '
-        + 'você. Para começar, use a sua própria chave do Google AI Studio — ela é gratuita e '
-        + 'leva um minuto.',
+        + 'você. São dois passos, e o primeiro é gratuito.',
     }),
-    (() => {
-      const a = el('a', { className: 'bpmn-assist__link-externo', textContent: 'pegar a minha chave →' });
-      a.href = 'https://aistudio.google.com/apikey';
-      a.target = '_blank';
-      a.rel = 'noreferrer noopener';
-      return a;
-    })(),
   ]);
+
+  /**
+   * OS DOIS PASSOS.
+   *
+   * ⚠ A versão anterior já abria dizendo o que o produto é antes de pedir a chave — o que
+   * resolveu o "chegar pedindo". O que sobrou foi a forma: um parágrafo contava três coisas de
+   * uma vez (pegue a chave, cole, aceite), o link de onde tirar era texto solto no meio dela, e
+   * quem nunca viu uma chave de API não tinha como saber que precisava SAIR do site e voltar.
+   * Numerar é o que torna isso óbvio sem explicar (dono, 2026-11-15: *"melhorar essa primeira
+   * tela de input de token, para deixar mais amigável ao usuário"*).
+   *
+   * O que NÃO mudou, de propósito: o texto do consentimento e o aviso de privacidade inteiro.
+   * Eles dizem os três fatos que importam (vai para o Google, viaja no endereço, é cobrado de
+   * você) e não são lugar de ganhar simpatia.
+   */
+  function passo(numero, titulo, corpo) {
+    // O número é desenho: a lista já é `<ol>`, e o leitor de tela anuncia "item 1 de 2" sozinho.
+    // Lê-lo duas vezes seria ruído, então a bolinha sai da árvore de acessibilidade.
+    const n = el('span', { className: 'bpmn-assist__passo-n', textContent: String(numero) });
+    n.setAttribute('aria-hidden', 'true');
+    return el('li', { className: 'bpmn-assist__passo' }, [
+      n,
+      el('div', { className: 'bpmn-assist__passo-corpo' }, [
+        el('b', { textContent: titulo }),
+        ...corpo,
+      ]),
+    ]);
+  }
+
+  const linkAiStudio = (() => {
+    const a = el('a', {
+      className: 'bpmn-assist__botao-externo',
+      textContent: 'Abrir o Google AI Studio ↗',
+    });
+    a.href = 'https://aistudio.google.com/apikey';
+    a.target = '_blank';
+    a.rel = 'noreferrer noopener';
+    return a;
+  })();
 
   const setupBlock = el('div', { className: 'bpmn-assist__setup' }, [
     convite,
-    el('label', { className: 'bpmn-assist__field' }, [
-      el('span', { textContent: 'Sua chave do Google AI Studio' }),
-      keyInput,
+    el('ol', { className: 'bpmn-assist__passos' }, [
+      passo(1, 'Pegue a sua chave', [
+        el('p', {
+          textContent: 'Ela é gratuita e leva um minuto. Abre numa aba nova — volte aqui com ela '
+            + 'copiada.',
+        }),
+        linkAiStudio,
+      ]),
+      passo(2, 'Cole a sua chave do Google AI Studio', [
+        // Sem `<span>` visível: o título do passo JÁ é o rótulo, e repeti-lo logo abaixo era a
+        // mesma frase duas vezes em duas linhas. O nome acessível vem do `aria-label`, não do
+        // placeholder — placeholder some ao digitar e nunca foi rótulo.
+        el('label', { className: 'bpmn-assist__field' }, [keyInput]),
+        consentLabel,
+      ]),
     ]),
-    consentLabel,
     privacidade,
   ]);
 
@@ -572,7 +615,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
    * recado vermelho que ficava preso na conversa.
    */
   function dica({ state, reason }) {
-    if (!credentials.hasKey) return 'Cole a sua chave do Google AI Studio e clique em Começar.';
+    // ⚠ VAZIO de propósito: com os dois passos numerados na tela, esta linha dizia pela TERCEIRA
+    // vez a mesma coisa (o título do passo 2, o placeholder do campo e aqui). Repetir instrução
+    // não deixa ninguém mais seguro — só empurra o botão para longe.
+    if (!credentials.hasKey) return '';
     if (!credentials.consented) return 'Marque o aviso sobre a chave para poder começar.';
     if (credentials.lastRejection === 'bad-key') {
       return 'O Google recusou essa chave. Confira em aistudio.google.com e informe de novo em "trocar".';

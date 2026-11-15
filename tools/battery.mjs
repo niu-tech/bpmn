@@ -345,14 +345,20 @@ const CENARIOS = [
       const formas = document.querySelectorAll('#canvas .djs-visual').length;
       const pedeChave = !!tela.querySelector('input[type=password]');
       const painelAberto = !document.querySelector('.bpmn-assist__panel').hidden;
+      // As barras do modelador saem de cena com o convite no ar: antes da escolha nao ha' o que
+      // salvar, exportar nem simular, e elas competiam com as tres opcoes.
+      const mostra = (sel) => { const e = document.querySelector(sel); return e ? getComputedStyle(e).display : 'ausente'; };
+      const barras = [mostra('.bz-toolbar'), mostra('.sim-controls'), mostra('.sim-dashboard')];
+      const barrasEscondidas = barras.every((d) => d === 'none');
       // A licenca do bpmn-js exige a marca d'agua inteira a' vista, sem nada por cima.
       const marca = document.querySelector('.bjs-powered-by');
       const m = marca && marca.getBoundingClientRect();
       const t = tela.getBoundingClientRect();
       const marcaLivre = !!m && m.top >= t.bottom - 1;
       return {
-        ok: caminhos.length === 4 && formas <= 3 && !pedeChave && !painelAberto && marcaLivre,
-        caminhos, formas, pedeChave, painelAberto, marcaLivre,
+        ok: caminhos.length === 4 && formas <= 3 && !pedeChave && !painelAberto && marcaLivre
+          && barrasEscondidas,
+        caminhos, formas, pedeChave, painelAberto, marcaLivre, barras,
       };
     `],
   },
@@ -377,10 +383,13 @@ const CENARIOS = [
       await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar a pizza' });
       await new Promise((r) => setTimeout(r, 300));
       const tiraDepois = !!document.querySelector('.pv-tira');
+      // E as barras VOLTAM: elas so' saem enquanto o convite esta' no ar.
+      const barraDeVolta = getComputedStyle(document.querySelector('.bz-toolbar')).display !== 'none';
 
       return {
         ok: formas > 10 && !!tira && /Exemplo/i.test(tira.textContent) && !convite
-          && escolha === 'exemplo' && !tiraDepois,
+          && escolha === 'exemplo' && !tiraDepois && barraDeVolta,
+        barraDeVolta,
         formas, tira: tira && tira.textContent.trim(), convite: !!convite, escolha,
         tiraSumiuAoEditar: !tiraDepois,
       };
@@ -399,10 +408,78 @@ const CENARIOS = [
       const painel = document.querySelector('.bpmn-assist__panel');
       const campo = painel.querySelector('textarea');
       const enviadas = document.querySelectorAll('.bpmn-assist__log li').length;
+      // Enquanto a chave nao entrou, o painel e' a tela principal e ocupa mais espaco; os dois
+      // passos numerados sao o que tornou essa tela obvia sem explicar.
+      const larg = Math.round(painel.getBoundingClientRect().width);
+      const passos = painel.querySelectorAll('.bpmn-assist__passo').length;
       // Sem chave, o composer nasce desabilitado — a frase fica la', esperando a pessoa.
       return {
-        ok: !painel.hidden && /descrever/i.test(campo.value) && enviadas === 0 && !document.querySelector('.pv'),
-        aberto: !painel.hidden, texto: campo.value, enviadas,
+        ok: !painel.hidden && /descrever/i.test(campo.value) && enviadas === 0
+          && !document.querySelector('.pv') && larg >= 500 && passos === 2,
+        aberto: !painel.hidden, texto: campo.value, enviadas, larguraNoSetup: larg, passos,
+      };
+    `],
+  },
+  {
+    nome: 'tela base: voltar ao menu desfaz a escolha sem descartar nada',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="exemplo"]').click();
+      for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const voltar = [...document.querySelectorAll('.pv-tira__link')].find((b) => b.textContent === 'voltar ao menu');
+      if (!voltar) return { ok: false, erro: 'a tira nao oferece voltar ao menu' };
+      voltar.click();
+      await new Promise((r) => setTimeout(r, 500));
+      return {
+        ok: !!document.querySelector('.pv')
+          && !document.querySelector('.pv-tira')
+          && localStorage.getItem('bpmn.primeira-vez') === null
+          && document.querySelector('.bpmn-assist__panel').hidden
+          && getComputedStyle(document.querySelector('.bz-toolbar')).display === 'none',
+        convite: !!document.querySelector('.pv'),
+        tira: !!document.querySelector('.pv-tira'),
+        escolha: localStorage.getItem('bpmn.primeira-vez'),
+        painelRecolhido: document.querySelector('.bpmn-assist__panel').hidden,
+      };
+    `],
+  },
+  {
+    nome: 'Recomecar pergunta antes de descartar, e so o 2o clique volta ao menu',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="exemplo"]').click();
+      for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      // Uma edicao de verdade: e' isso que faz existir trabalho a descartar.
+      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
+      if (!alvo) return { ok: false, erro: 'nao achei o elemento para editar' };
+      await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar' });
+      await new Promise((r) => setTimeout(r, 400));
+      const tinhaTrabalho = localStorage.getItem('bpmn.autosave.xml') !== null;
+
+      const b = document.querySelector('#bz-reset-default');
+      b.click();
+      await new Promise((r) => setTimeout(r, 200));
+      // PRIMEIRO clique: so' pergunta. Nada pode ter sido descartado ainda.
+      const perguntou = b.textContent.trim();
+      const aindaTemTrabalho = localStorage.getItem('bpmn.autosave.xml') !== null;
+      const aindaNoDiagrama = !document.querySelector('.pv');
+
+      b.click();
+      await new Promise((r) => setTimeout(r, 1200));
+      return {
+        ok: tinhaTrabalho && /descartar/i.test(perguntou) && aindaTemTrabalho && aindaNoDiagrama
+          && !!document.querySelector('.pv')
+          && localStorage.getItem('bpmn.autosave.xml') === null
+          && document.querySelectorAll('#canvas .djs-visual').length <= 3,
+        perguntou, aindaTemTrabalho, aindaNoDiagrama,
+        voltouAoMenu: !!document.querySelector('.pv'),
+        formasDepois: document.querySelectorAll('#canvas .djs-visual').length,
       };
     `],
   },
@@ -453,15 +530,28 @@ const CENARIOS = [
     `],
   },
   {
-    nome: 'primeira tela: acao visivel e dica certa',
+    nome: 'primeira tela: acao visivel e os dois passos da chave',
     url: ALVO,
     passos: [PREPARAR, `
       const comecar = window.__btn('Começar');
       const painel = document.querySelector('.bpmn-assist__panel').getBoundingClientRect();
       const b = comecar.getBoundingClientRect();
       const dentro = b.bottom <= painel.bottom + 1 && b.top >= painel.top;
-      const dica = document.querySelector('.bpmn-assist__hint').textContent;
-      return { ok: !!comecar && dentro && /chave/i.test(dica), dentro, dica, altura: Math.round(painel.height) };
+
+      // ⚠ Este cenario pedia /chave/i NA DICA do rodape. A instrucao MUDOU DE LUGAR: ela agora
+      // esta' nos dois passos numerados, e a dica fica vazia de proposito — dizer a mesma coisa no
+      // passo, no rotulo e no rodape era a terceira repeticao, nao mais seguranca. O que se mede e'
+      // o mesmo fato de antes (a pessoa sabe o que fazer), no lugar onde ele passou a viver.
+      const passos = [...document.querySelectorAll('.bpmn-assist__passo')];
+      const dizChave = passos.some((p) => /chave/i.test(p.textContent));
+      const levaAoAiStudio = !!document.querySelector('.bpmn-assist__botao-externo');
+      const dicaNaoRepete = document.querySelector('.bpmn-assist__hint').hidden;
+
+      return {
+        ok: !!comecar && dentro && passos.length === 2 && dizChave && levaAoAiStudio && dicaNaoRepete,
+        dentro, passos: passos.length, dizChave, levaAoAiStudio, dicaNaoRepete,
+        altura: Math.round(painel.height), largura: Math.round(painel.width),
+      };
     `],
   },
   {
