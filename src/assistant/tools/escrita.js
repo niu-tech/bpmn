@@ -31,6 +31,16 @@ export const ERROS_ESCRITA = Object.freeze({
   DIAGRAMA_MUDOU: 'diagrama_mudou',
   NAO_MUDOU: 'nada_mudou',
   SEM_LUGAR: 'sem_lugar',
+  /**
+   * JÁ EXISTE um elemento igual, no mesmo lugar do pedido.
+   *
+   * ⚠ Nasceu de dois gêmeos entregues ao dono (2026-11-15): *"conferir estoque"* duas vezes e
+   * *"Notify delay"* duas vezes. Nos dois casos o modelo criou, conferiu o desenho, não
+   * reconheceu o próprio trabalho e criou de novo — e o aluno ficou com um elemento a mais,
+   * solto no meio do processo dele. Recusa nomeada é o único jeito de o modelo saber que o que
+   * ele ia fazer já está feito: o resultado diz o id do que existe, para ele seguir dali.
+   */
+  JA_EXISTE: 'ja_existe',
 });
 
 /**
@@ -233,6 +243,33 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       const dentro = !anterior && !ancora && dentroDe ? exigirElemento(dentroDe, 'dentroDe') : null;
 
       const retratoAntes = retrato();
+
+      /**
+       * O GÊMEO: o mesmo tipo, com o mesmo nome, já ligado ao mesmo lugar.
+       *
+       * Só recusa quando as DUAS coisas batem — nome e vizinhança —, porque "duas tarefas
+       * chamadas Revisar" é legítimo num processo grande; o que não é legítimo é a segunda nascer
+       * colada à primeira, no lugar que o aluno pediu uma vez só.
+       */
+      const rotuloPedido = typeof nome === 'string' ? nome.trim() : '';
+      if (rotuloPedido) {
+        const vizinhos = [anterior, seguinte, ancora].filter(Boolean);
+        const gemeo = acesso.elementos().find((e) => {
+          if (!e || e.labelTarget || String(e.type) !== tipoBpmn) return false;
+          if (nomeDe(e) !== rotuloPedido) return false;
+          if (!vizinhos.length) return false;
+          const { entradas, saidas } = acesso.entradasESaidas(e.id);
+          const liga = [...entradas, ...saidas];
+          return vizinhos.some((v) => liga.some((c) => c.source?.id === v.id || c.target?.id === v.id));
+        });
+        if (gemeo) {
+          throw nomeado(
+            ERROS_ESCRITA.JA_EXISTE,
+            `já existe ${tipoCurto(tipoBpmn)} "${rotuloPedido}" [${gemeo.id}] ligado aí — não criei outro; `
+            + 'use este id se quiser movê-lo, renomeá-lo ou ligá-lo',
+          );
+        }
+      }
 
       /**
        * `sem_lugar_para_criar` é o aviso da camada de acesso de que o bpmn-js NÃO guardaria o
@@ -504,15 +541,58 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
      * "moveu": `alignElements` e `moveElements` podem não fazer nada, e silêncio virando sucesso
      * é a mentira mais fácil deste instrumento.
      */
-    async mover({ id, direcao, passos, dentroDe } = {}) {
+    async mover({ id, direcao, passos, dentroDe, entre } = {}) {
       exigirEdicao();
       const retratoAntes = retrato();
       const el = exigirElemento(id);
       const dentro = dentroDe ? exigirElemento(dentroDe, 'dentroDe') : null;
+
+      /**
+       * MOVER PARA O MEIO DE UM FLUXO — com o elemento que JÁ EXISTE.
+       *
+       * ⚠ Sem isto, "põe o conferir estoque entre o início e o select a pizza" só tinha um verbo
+       * capaz de entrar num fluxo: `criar_elemento`. O modelo usava esse, e o aluno ficava com
+       * duas tarefas iguais (dois gêmeos em 2026-11-15). Aqui ele reposiciona o que existe.
+       */
+      const nomesEntre = Array.isArray(entre) ? entre.filter((x) => typeof x === 'string' && x.trim()) : [];
+      if (entre !== undefined && nomesEntre.length !== 2) {
+        throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, 'entre pede exatamente dois ids, na ordem do fluxo');
+      }
+      if (nomesEntre.length === 2) {
+        const anterior = exigirElemento(nomesEntre[0], 'entre[0]');
+        const seguinte = exigirElemento(nomesEntre[1], 'entre[1]');
+        const fluxo = acesso.fluxoEntre(anterior, seguinte);
+        if (!fluxo) {
+          throw nomeado(
+            ERROS_ESCRITA.SEM_LUGAR,
+            `não há fluxo de ${anterior.id} para ${seguinte.id}; ligue os dois antes`,
+          );
+        }
+        let religado;
+        try {
+          religado = acesso.moverParaOMeio({ el, fluxo });
+        } catch (err) {
+          if (!/sem_lugar_para_mover/.test(err?.message ?? '')) throw err;
+          throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `${el.id} não pode entrar neste fluxo`);
+        }
+        const { entradas, saidas } = acesso.entradasESaidas(el.id);
+        const entrou = entradas.some((c) => c.source?.id === anterior.id)
+          && saidas.some((c) => c.target?.id === seguinte.id);
+        if (!entrou) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o elemento não ficou no meio do caminho');
+        return {
+          movido: resumir(el),
+          inseridoEntre: { de: resumir(anterior), para: resumir(seguinte) },
+          religado,
+          tela: tela(el.id, retratoAntes),
+          fatos: fatos(el.id, retratoAntes),
+        };
+      }
+
       if (!dentro && !direcao) {
         throw nomeado(
           ERROS_ESCRITA.TIPO_INVALIDO,
-          `diga para onde: direcao (${DIRECOES_MOVER.join(', ')}) ou dentroDe (id do pool/raia)`,
+          `diga para onde: direcao (${DIRECOES_MOVER.join(', ')}), dentroDe (id do pool/raia) `
+          + 'ou entre (dois ids, para pô-lo no meio do caminho)',
         );
       }
 

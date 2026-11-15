@@ -813,6 +813,26 @@ testAsync('`entre` com um id só é `tipo_invalido`', async () => {
   );
 });
 
+testAsync('o GEMEO vira recusa: criar duas vezes o mesmo no mesmo lugar', async () => {
+  // ⚠ Dois gemeos entregues ao dono em 2026-11-15: "conferir estoque" duas vezes e "Notify
+  // delay" duas vezes. Nos dois o modelo criou, conferiu o desenho, nao reconheceu o proprio
+  // trabalho e criou de novo — e o aluno ficou com um elemento a mais no processo dele.
+  const g = montarGeometria();
+
+  const primeiro = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Notify delay', depoisDe: 'Task_1' });
+  assert.ok(primeiro.criado?.id, 'o primeiro nasce normalmente');
+
+  const segundo = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Notify delay', depoisDe: 'Task_1' })
+    .then(() => null, (err) => err);
+  assert.ok(segundo, 'o segundo vira recusa');
+  assert.equal(segundo.nome, 'ja_existe', 'com o nome do erro, que e o que o modelo le');
+  assert.match(segundo.message, /Notify delay/, 'e o id/nome do que ja existe, para ele seguir dali');
+
+  // E um nome DIFERENTE no mesmo lugar continua passando: a guarda e contra o gemeo, nao contra criar.
+  const outro = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Avisar o cliente', depoisDe: 'Task_1' });
+  assert.ok(outro.criado?.id);
+});
+
 testAsync('criar depois de quem JÁ tem saída ENCADEIA; ramo só quando pedido', async () => {
   // ⚠ Era o contrário, e custou a confiança do dono numa sessão ao vivo (2026-11-15): ele pediu
   // "cria uma tarefa conferir estoque depois do início", a âncora já tinha saída, e a tarefa

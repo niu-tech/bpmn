@@ -279,6 +279,9 @@ export function criarAcessoBpmn(modelador) {
    * Refaz o traçado de TODAS as ligações que tocam estes elementos (e não só as internas).
    * Usado depois de inserir no meio de um fluxo, onde o que atrapalha é a seta de FORA.
    */
+  /** O fluxo DIRETO de a para b, se existir. Lido do próprio elemento, sem busca. */
+  const fluxoEntreDireto = (a, b) => (a?.outgoing ?? []).find((c) => c?.target === b) ?? null;
+
   const endireitarVizinhanca = (els) => {
     if (typeof modeling.layoutConnection !== 'function') return 0;
     const vistas = new Set();
@@ -856,6 +859,57 @@ export function criarAcessoBpmn(modelador) {
       endireitarVizinhanca([de, para, novo]);
       try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o elemento já está lá */ }
       return novo;
+    },
+
+    /**
+     * Leva um elemento que JÁ EXISTE para o meio de um fluxo: A→B vira A→el→B.
+     *
+     * ⚠ É a operação que faltava, e a falta dela saiu cara duas vezes: o dono pediu para pôr
+     * uma tarefa recém-criada entre outras duas e o modelo **criou outra**, porque criar era o
+     * único verbo que sabia entrar num fluxo (os dois gêmeos de 2026-11-15).
+     *
+     * A ordem importa e é esta: fecha o buraco que o elemento deixa (liga o antecessor dele ao
+     * sucessor, quando há um de cada), solta as ligações dele, abre espaço, leva a forma para o
+     * meio e refaz as ligações — tudo pelo `modeling`, que é quem sabe reposicionar waypoints.
+     * São vários comandos: o aluno desfaz com vários `Ctrl+Z`, e é o preço de não ter um verbo
+     * único no bpmn-js para isto.
+     */
+    moverParaOMeio({ el, fluxo }) {
+      if (!el || !fluxo?.source || !fluxo?.target) throw new Error('sem_lugar_para_mover');
+      if (el === fluxo.source || el === fluxo.target) throw new Error('sem_lugar_para_mover');
+      const de = fluxo.source;
+      const para = fluxo.target;
+
+      const entradas = (el.incoming ?? []).filter((c) => String(c.type) === 'bpmn:SequenceFlow');
+      const saidas = (el.outgoing ?? []).filter((c) => String(c.type) === 'bpmn:SequenceFlow');
+      // Fecha o buraco: quem vinha nele passa a ir direto para quem saía dele.
+      const antes = entradas[0]?.source ?? null;
+      const depois = saidas[0]?.target ?? null;
+      for (const c of [...entradas, ...saidas]) {
+        try { modeling.removeConnection(c); } catch { /* já removida */ }
+      }
+      if (antes && depois && antes !== depois && antes !== el && depois !== el) {
+        try { modeling.connect(antes, depois); } catch { /* o bpmn-js recusou: fica sem o atalho */ }
+      }
+
+      // Espaço e posição: o mesmo cálculo de quando o elemento nasce no meio.
+      const caixa = caixaDe(el);
+      const precisa = (caixa?.w ?? 100) + 80;
+      const vao = (para.x ?? 0) - ((de.x ?? 0) + (de.width ?? 0));
+      if (vao < precisa) empurrarParaDireita(para, precisa - vao);
+      const alvoX = Math.round(((de.x ?? 0) + (de.width ?? 0) + (para.x ?? 0)) / 2 - (el.width ?? 100) / 2);
+      const alvoY = Math.round((de.y ?? 0) + (de.height ?? 0) / 2 - (el.height ?? 80) / 2);
+      modeling.moveElements([el], { x: alvoX - (el.x ?? 0), y: alvoY - (el.y ?? 0) }, el.parent);
+
+      // E o religamento, agora que ele está no lugar.
+      const velho = fluxoEntreDireto(de, para);
+      if (velho) {
+        try { modeling.removeConnection(velho); } catch { /* já removida */ }
+      }
+      const entrada = modeling.connect(de, el);
+      const saida = modeling.connect(el, para);
+      endireitarVizinhanca([de, para, el]);
+      return { entrada: entrada?.id ?? null, saida: saida?.id ?? null };
     },
 
     /** Assina eventos do modelador e devolve como desassinar. Quem decide o que fazer é o dono. */

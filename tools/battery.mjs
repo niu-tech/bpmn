@@ -604,11 +604,29 @@ const CENARIOS = [
       const mesmaLinha = !!ca && !!cb && Math.abs((ca.y + ca.h / 2) - (cb.y + cb.h / 2)) <= 3;
       const sobreDepoisDoAlinhar = window.__sobrepoe(novo);
 
+      // 2b. MOVER para o meio: o elemento que JA EXISTE entra no caminho, sem criar outro.
+      // Leva "conferir estoque" (que ja' existe, encadeado depois do inicio) para o meio do par
+      // do print: "Select a pizza" -> "embalar". E' o pedido literal do dono, com o elemento que
+      // ja' esta' no desenho.
+      const antesDoMover = window.__bpmnAssist.desenho.nos.length;
+      const paraMover = idDep;
+      const mov = (paraMover && de && novo)
+        ? await F('mover', { id: paraMover, entre: [de, novo] })
+        : null;
+      const vizinho = novo;
+      const inicio2 = de;
+      const ligDepois = window.__bpmnAssist.desenho.ligacoes;
+      const moveuParaOMeio = !!mov && mov.ok === true
+        && ligDepois.some((l) => l.de === inicio2 && l.para === paraMover)
+        && ligDepois.some((l) => l.de === paraMover && l.para === vizinho);
+      const naoCriouOutro = window.__bpmnAssist.desenho.nos.length === antesDoMover;
+
       return {
         ok: noMeio && encadeou
           && Array.isArray(sobreNovo) && sobreNovo.length === 0
           && Array.isArray(sobreDep) && sobreDep.length === 0
           && !!ali && ali.ok === true && mesmaLinha && setas >= 1
+          && moveuParaOMeio && naoCriouOutro
           && Array.isArray(sobreDepoisDoAlinhar) && sobreDepoisDoAlinhar.length === 0,
         vaoAntes,
         noMeio,
@@ -617,6 +635,8 @@ const CENARIOS = [
         sobreDep,
         mesmaLinha,
         setas,
+        moveuParaOMeio,
+        naoCriouOutro,
         sobreDepoisDoAlinhar,
       };
     `],

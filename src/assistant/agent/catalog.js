@@ -250,6 +250,15 @@ export const FERRAMENTAS = Object.freeze([
         type: 'object',
         properties: {
           id: { type: 'string', description: 'Id do elemento a mover.' },
+          entre: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Dois ids, na ordem do fluxo: leva um elemento que JÁ EXISTE para o meio do caminho '
+              + 'entre eles (A→elemento→B), fechando o buraco que ele deixa. Use isto quando o '
+              + 'aluno pedir para REPOSICIONAR algo que já está no desenho — criar outro no lugar '
+              + 'deixa o processo dele com duas cópias.',
+          },
           dentroDe: {
             type: 'string',
             description: 'Id do pool, raia ou subprocesso de destino. O elemento vai para o meio dessa faixa.',
