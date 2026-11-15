@@ -541,7 +541,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // ⚠ Um convite por vez. Antes da chave, a tela é o convite (o que isto é + como começar);
     // depois dela, as boas-vindas com os exemplos. Os dois juntos repetiam o mesmo discurso em
     // dois títulos e empurravam o campo da chave para fora da dobra.
-    empty.hidden = messages.length > 0 || !resolvido;
+    // ⚠ `credentials.ready`, e não a variável `resolvido` do `render`: esta função é outra, e
+    // usar a de lá derrubou a tela inteira com "resolvido is not defined" (visto no print da aba
+    // do dono em 2026-11-15, antes de ele tocar em nada).
+    empty.hidden = messages.length > 0 || !credentials.ready;
     if (seguir) descerAteOFim();
   }
 
