@@ -34,6 +34,9 @@ module.exports = {
     static: [
       { directory: path.resolve(__dirname, 'src') },
       { directory: path.resolve(__dirname, 'diagrams') },
+      // O ÍNDICE DO ACERVO, gerado por `node tools/build-knowledge.mjs` (K1). Servido em
+      // /knowledge/index.json, que é onde `criarAcervo` procura.
+      { directory: path.resolve(__dirname, 'dist/knowledge'), publicPath: '/knowledge' },
       // Só no dev server: /spike/ serve a página do spike. A imagem Docker não copia nada daqui.
       ...(process.env.BPMN_SPIKE === '1'
         ? [{ directory: path.resolve(__dirname, 'spike'), publicPath: '/spike' }]

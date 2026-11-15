@@ -10,6 +10,7 @@ import './ui/assistant.css';
 import { observarDiagrama } from './agent/diagram.js';
 import { assinaturaDoDiagrama } from './tools/leitura.js';
 import { criarAcessoBpmn } from './tools/bpmn-api.js';
+import { criarAcervo } from './knowledge/acervo.js';
 import { calcularReserva } from './layout.js';
 import { createCredentialStore } from './credential.js';
 import { createAssistantSession } from './session-manager.js';
@@ -96,12 +97,19 @@ export function mountAssistant({
     onChange: () => widget?.render(view()),
   });
 
+  /**
+   * O ACERVO da página (change `add-bpmn-norm-knowledge-base`). Carrega sob demanda: quem nunca
+   * pergunta sobre a notação não baixa os 18 KB do índice (K3).
+   */
+  const acervo = criarAcervo();
+
   const session = createAssistantSession({
     credentials,
     deps: {
       debug,
       pagina,
       acesso,
+      acervo,
       lerDiagrama: () => olho.atual(),
       lerSimulacao: () => simulacao,
     },

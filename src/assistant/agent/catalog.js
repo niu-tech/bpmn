@@ -52,6 +52,40 @@ export const FERRAMENTAS = Object.freeze([
   },
 
   {
+    nome: 'consultar_norma',
+    escreve: false,
+    /**
+     * A única ferramenta que NÃO olha o diagrama: ela lê o acervo de BPMN (change
+     * `add-bpmn-norm-knowledge-base`). Leitura pura, nos dois perfis — explicar notação é
+     * exatamente o que um tutor faz, e o aluno pergunta isso falando tanto quanto escrevendo.
+     */
+    declaracao: {
+      name: 'consultar_norma',
+      description:
+        'Consulta o ACERVO de BPMN deste site — verbetes autorais sobre a notação, com '
+        + 'localizador e chave de citação. Use SEMPRE que a pergunta for sobre o que a notação '
+        + 'é ou como ela funciona (eventos, gateways, pools, regras de ligação, boas práticas, '
+        + 'simulação) — e não sobre o desenho do aluno. Cada resultado traz contentMode: '
+        + 'curated_card_only é material NOSSO, que você cita como "pelo meu material", nunca como '
+        + 'texto da norma da OMG. Ao usar um trecho, escreva a marca [fonte:verbete:trecho] na '
+        + 'resposta: o aplicativo confere essas marcas. Sem acerto, o resultado diz quantos '
+        + 'verbetes o acervo tem — responda "não está no meu acervo de N verbetes", e nunca que a '
+        + 'norma não trata do assunto.',
+      parameters: {
+        type: 'object',
+        properties: {
+          termo: {
+            type: 'string',
+            description: 'O que procurar, nas palavras do aluno (ex.: "gateway exclusivo", "ligar pools").',
+          },
+          max: { type: 'number', description: 'Quantos trechos no máximo (1 a 5; o padrão é 3).' },
+        },
+        required: ['termo'],
+      },
+    },
+  },
+
+  {
     nome: 'descrever_diagrama',
     escreve: false,
     // Leitura pura. Nasceu no GATE 4.3 — é com ela que se mediu que uma sessão de VOZ chama

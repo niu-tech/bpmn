@@ -29,6 +29,8 @@ import { resolverContexto } from './agent/resolve.js';
 import { startCapture, startPlayback, criarDetectorDeFala } from './live/audio.js';
 import { createSession } from './live/session.js';
 import { EventoDeFala, RastreadorDeTurnos } from './live/turn-tracker.js';
+import { criarExecutorDeNorma } from './tools/norma.js';
+import { conferirCitacoes } from './knowledge/citacao.js';
 import { redact } from './live/redact.js';
 import { createDiagnostics } from './diagnostics.js';
 
@@ -217,6 +219,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    */
   let micMudo = false;
   let agenteMudo = false;
+  /**
+   * As chaves de citação que o acervo JÁ SERVIU nesta sessão (K6).
+   *
+   * ⚠ É o conjunto contra o qual a resposta é conferida: marca que nenhuma consulta devolveu
+   * vira "[fonte não conferida]" antes de aparecer. Prompt pede; código impede.
+   */
+  const chavesServidas = new Set();
   /**
    * O relógio que transforma UMA PAUSA DELE em "pensando…".
    *
@@ -1014,6 +1023,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // As que ESCREVEM (F7). A política já as esconde numa página que só lê; a camada fina
         // recusa de novo se a declaração vazar de uma sessão anterior.
         ...criarExecutoresDeEscrita({ acesso: deps.acesso, pedirConfirmacao, portaoAberto }),
+        /**
+         * O ACERVO (change `add-bpmn-norm-knowledge-base`). Cada chave servida entra em
+         * `chavesServidas` — é contra esse conjunto que a resposta é conferida no modo texto (K6).
+         */
+        ...criarExecutorDeNorma({
+          acervo: deps.acervo ?? null,
+          aoServir: (chave) => chavesServidas.add(chave),
+        }),
       },
       // `remover` espera uma pessoa decidir. Dois minutos é tempo de ler e clicar; o relógio do
       // turno fica pausado enquanto isso.
@@ -1218,7 +1235,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // onde um turno respondido só com fala vira bolha. Ignorar aqui também deixava o aluno
         // sem resposta nenhuma — o que é pior que uma resposta feia.
         if (complete && fallback && mode === 'voz') return;
-        const text = fallback ? limparLegenda(cru).trim() : cru;
+        // `let` porque a conferência de citação (K6) reescreve a etiqueta errada logo abaixo.
+        let text = fallback ? limparLegenda(cru).trim() : cru;
         // ⚠ FALLBACK QUE LIMPA ATÉ NÃO SOBRAR NADA TAMBÉM É TURNO VAZIO — e precisa DIZER isso.
         //
         // Este era o buraco do portão F3: no modo texto o modelo às vezes fecha com um turno de
@@ -1233,6 +1251,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           }
           return;
         }
+        /**
+         * A CONFERÊNCIA DE CITAÇÃO (K6), e ela acontece AQUI porque aqui é o nosso código.
+         *
+         * Toda marca `[fonte:verbete:trecho]` é medida contra as chaves que as consultas desta
+         * sessão realmente serviram. A que nenhuma consulta devolveu vira "[fonte não conferida]"
+         * ANTES de aparecer — o texto do modelo continua inteiro, só a etiqueta errada cai.
+         *
+         * ⚠ Só no modo TEXTO. Na voz, o áudio vai do provedor ao alto-falante sem passar por
+         * nós: lá vale a regra do prompt, e a assimetria é declarada, não escondida.
+         */
+        const conferido = conferirCitacoes(text, chavesServidas);
+        if (conferido.trocadas.length) {
+          diag.state('citacao', `${conferido.trocadas.length} marca(s) sem consulta: ${conferido.trocadas.join(', ')}`);
+        }
+        text = conferido.texto;
+
         // ⚠ A bolha é procurada pelo TURNO, não por "qual era o turno atual". Texto atrasado do
         // turno anterior volta para a bolha dele; sem isto, virava bolha nova carimbada com o
         // turno recém-aberto e lida como resposta da pergunta nova (T9).

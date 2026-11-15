@@ -278,12 +278,21 @@ test('a regra do portão manda PERGUNTAR e ESPERAR, nos dois perfis', () => {
   }
 });
 
-test('as duas seções novas não estouram o teto do prompt estável', () => {
-  // ⚠ O teto é do ORÇAMENTO, não do gosto: cada caractere do tier estável viaja no `setup` de
-  // toda sessão e é pago pela cota do aluno. 5 KB é o piso de folga que a medição de contexto
-  // (change `sustain-a-class-session`) assume para o volátil caber.
+test('as seções novas não estouram o teto do prompt estável', () => {
+  /**
+   * ⚠ O teto é do ORÇAMENTO, não do gosto: cada caractere do tier estável viaja no `setup` de
+   * toda sessão e é pago pela cota do aluno.
+   *
+   * Era 5 000 e passou a 5 400 em 2026-11-15, com motivo e preço escritos: a change
+   * `add-bpmn-norm-knowledge-base` acrescentou a seção das DUAS FONTES (acervo × conhecimento
+   * geral), que é o que permite o agente citar e o aluno conferir. As duas seções novas do dia
+   * foram comprimidas antes de mexer no teto — de 763 e 393 para 330 e 200 caracteres —, e o
+   * que sobrou são ~200 caracteres que viajam UMA vez por sessão, no `setup`, e não por turno.
+   * Subir o teto para caber a própria adição é o jeito de um orçamento virar ficção: por isso
+   * a conta está aqui, e não no commit.
+   */
   const estavel = renderizar(resolverContexto({ modo: 'voz' }));
-  assert.ok(estavel.length < 5000, `o prompt estável está com ${estavel.length} caracteres`);
+  assert.ok(estavel.length < 5400, `o prompt estável está com ${estavel.length} caracteres`);
   // E as duas seções são CURTAS: regra que ninguém lê inteira não é regra.
   const porId = new Map(renderizarSecoes(ctxVoz).map((s) => [s.id, s.texto]));
   assert.ok(porId.get('pagina').length < 600, 'a regra da página cabe num parágrafo');

@@ -80,7 +80,7 @@ test('ferramenta restrita a um perfil so aparece nele', () => {
   assert.ok(naVoz.includes('so_na_voz'));
 });
 
-const LEITURA = ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
+const LEITURA = ['lembrar', 'consultar_norma', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
 const ESCRITA = ['criar_elemento', 'criar_pool', 'criar_raia', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'remover'];
 
 test('a PAGINA decide: leitura nas duas, escrita so no modelador (F7)', () => {

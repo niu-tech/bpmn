@@ -127,7 +127,9 @@ test('a politica e default-deny: nome fora do catalogo nao passa', () => {
   assert.equal(permitida('apagar_tudo'), false);
 });
 
-const LEITURA = ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
+// `consultar_norma` entra na ordem do catalogo, logo antes de `descrever_diagrama`: e' a unica
+// leitura que NAO olha o diagrama — ela le' o acervo de BPMN (change add-bpmn-norm-knowledge-base).
+const LEITURA = ['lembrar', 'consultar_norma', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
 // Na ordem do catalogo: criar, os tres de GEOMETRIA (mover/alinhar/trocar_tipo, nascidos da
 // trilha de 2026-11-14), ligar, renomear, remover.
 const ESCRITA = ['criar_elemento', 'criar_pool', 'criar_raia', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'remover'];

@@ -17,6 +17,8 @@
  *   node tools/battery.mjs                         # contra http://127.0.0.1:8126/
  *   node tools/battery.mjs https://niu-tech.github.io/bpmn/
  *   node tools/battery.mjs --ver                   # janela VISÍVEL, para acompanhar
+ *   node tools/battery.mjs --sem-vivo              # só o determinístico: não gasta cota
+ *   node tools/battery.mjs --so "tela base"        # só os cenários cujo nome casa
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -43,7 +45,19 @@ function chaveDoEnv() {
   return null;
 }
 
-const ALVO = process.argv.find((a) => a.startsWith('http')) ?? 'http://127.0.0.1:8126/';
+const ALVO_BASE = process.argv.find((a) => a.startsWith('http')) ?? 'http://127.0.0.1:8126/';
+/**
+ * A bateria abre o EXEMPLO pelo atalho (`#exemplo`), e isso nao e' conveniencia.
+ *
+ * Desde a change `introduce-bpmn-first-run-workspace` a primeira visita recebe a TELA BASE e um
+ * diagrama vazio — e os ~20 cenarios abaixo (voz, ferramentas, geometria, selecao) medem coisas
+ * que exigem um diagrama na tela. Sem o atalho, cada um deles teria de clicar no convite antes de
+ * comecar, e o que eles provam nao tem nada a ver com boas-vindas.
+ *
+ * A tela base tem os cenarios DELA, contra `ALVO_BASE` (sem hash) — e e' assim que o convite e o
+ * atalho ficam os dois provados.
+ */
+const ALVO = new URL('#exemplo', ALVO_BASE).href;
 const VISIVEL = process.argv.includes('--ver');
 const WAV = 'artifacts/voz/gateway.wav';
 const mic = existsSync(WAV) ? WAV : null;
@@ -320,6 +334,103 @@ const CENARIOS = [
     `],
   },
   {
+    nome: 'tela base: a primeira visita recebe o convite, nao a pizzaria',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      const tela = document.querySelector('.pv');
+      if (!tela) return { ok: false, erro: 'a tela base nao apareceu em 10s' };
+      const caminhos = [...tela.querySelectorAll('[data-caminho]')].map((b) => b.dataset.caminho);
+      // O exemplo NAO pode estar carregado: o diagrama novo do bpmn-js tem um evento de inicio.
+      const formas = document.querySelectorAll('#canvas .djs-visual').length;
+      const pedeChave = !!tela.querySelector('input[type=password]');
+      const painelAberto = !document.querySelector('.bpmn-assist__panel').hidden;
+      // A licenca do bpmn-js exige a marca d'agua inteira a' vista, sem nada por cima.
+      const marca = document.querySelector('.bjs-powered-by');
+      const m = marca && marca.getBoundingClientRect();
+      const t = tela.getBoundingClientRect();
+      const marcaLivre = !!m && m.top >= t.bottom - 1;
+      return {
+        ok: caminhos.length === 4 && formas <= 3 && !pedeChave && !painelAberto && marcaLivre,
+        caminhos, formas, pedeChave, painelAberto, marcaLivre,
+      };
+    `],
+  },
+  {
+    nome: 'tela base: ver exemplo carrega o diagrama e diz que e exemplo',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="exemplo"]').click();
+      for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const formas = document.querySelectorAll('#canvas .djs-visual').length;
+      const tira = document.querySelector('.pv-tira');
+      const convite = document.querySelector('.pv');
+      const escolha = localStorage.getItem('bpmn.primeira-vez');
+
+      // A TIRA SOME NA PRIMEIRA EDICAO: editar e' o que transforma um exemplo em trabalho da
+      // propria pessoa, e continuar chamando de "exemplo" o que ela ja' mexeu seria falso.
+      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Bake the pizza') || {}).id;
+      if (!alvo) return { ok: false, erro: 'nao achei o elemento para editar' };
+      await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar a pizza' });
+      await new Promise((r) => setTimeout(r, 300));
+      const tiraDepois = !!document.querySelector('.pv-tira');
+
+      return {
+        ok: formas > 10 && !!tira && /Exemplo/i.test(tira.textContent) && !convite
+          && escolha === 'exemplo' && !tiraDepois,
+        formas, tira: tira && tira.textContent.trim(), convite: !!convite, escolha,
+        tiraSumiuAoEditar: !tiraDepois,
+      };
+    `],
+  },
+  {
+    nome: 'tela base: descrever o processo abre o painel com a frase pronta e NADA enviado',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      for (let i = 0; i < 40 && !document.querySelector('.bpmn-assist__toggle'); i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      document.querySelector('[data-caminho="tutor"]').click();
+      await new Promise((r) => setTimeout(r, 400));
+      const painel = document.querySelector('.bpmn-assist__panel');
+      const campo = painel.querySelector('textarea');
+      const enviadas = document.querySelectorAll('.bpmn-assist__log li').length;
+      // Sem chave, o composer nasce desabilitado — a frase fica la', esperando a pessoa.
+      return {
+        ok: !painel.hidden && /descrever/i.test(campo.value) && enviadas === 0 && !document.querySelector('.pv'),
+        aberto: !painel.hidden, texto: campo.value, enviadas,
+      };
+    `],
+  },
+  {
+    nome: 'tela base em 375x812: os caminhos empilham e nada rola na horizontal',
+    url: ALVO_BASE,
+    janela: [375, 812],
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      const tela = document.querySelector('.pv');
+      if (!tela) return { ok: false, erro: 'a tela base nao apareceu em 10s' };
+      const cartoes = [...tela.querySelectorAll('.pv__cartao')].map((c) => c.getBoundingClientRect());
+      // Empilhados: nenhum divide a mesma faixa horizontal com o seguinte.
+      const empilhados = cartoes.every((c, i) => i === 0 || c.top >= cartoes[i - 1].bottom - 1);
+      const rolaNaHorizontal = document.documentElement.scrollWidth > window.innerWidth + 1;
+      const alvoPequeno = cartoes.some((c) => c.height < 44);
+      const alavanca = document.querySelector('.bpmn-assist__toggle').getBoundingClientRect();
+      // O lancador fica ACIMA do convite no empilhamento de camadas: tem de continuar clicavel.
+      const noTopo = document.elementFromPoint(alavanca.left + alavanca.width / 2,
+                                               alavanca.top + alavanca.height / 2);
+      const alavancaClicavel = !!noTopo && !!noTopo.closest('.bpmn-assist__toggle');
+      return {
+        ok: empilhados && !rolaNaHorizontal && !alvoPequeno && alavancaClicavel,
+        cartoes: cartoes.length, empilhados, rolaNaHorizontal, alvoPequeno, alavancaClicavel,
+      };
+    `],
+  },
+  {
     nome: 'viewer carrega com o ajudante montado',
     url: new URL('viewer.html', ALVO).href,
     passos: [`
@@ -498,6 +609,46 @@ const CENARIOS = [
    * diário). A sessão ao vivo continua provando o que só ela prova: o modelo ESCOLHER a
    * ferramenta. Esta prova o resto — e roda com a cota esgotada.
    */
+  /**
+   * O ACERVO, pelo caminho do MODELO (change `add-bpmn-norm-knowledge-base`).
+   *
+   * Mede o que a sessão ao vivo não precisa gastar cota para medir: o índice é servido, a busca
+   * acha o verbete certo, o limite de evidência viaja com o trecho, e a pergunta fora do acervo
+   * devolve o TAMANHO dele — que é o que separa "não está no meu acervo" de "a notação não
+   * trata disso" (K8).
+   */
+  {
+    nome: 'o acervo responde pelo caminho do modelo, e declara o proprio tamanho',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    passos: [`
+      for (let i = 0; i < 40 && !window.__bpmnAssist; i++) await new Promise((r) => setTimeout(r, 250));
+      if (!window.__bpmnAssist) return { ok: false, erro: 'o ajudante nao montou' };
+      const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
+
+      const achou = await F('consultar_norma', { termo: 'qual a diferenca entre gateway exclusivo e paralelo', max: 2 });
+      const d = achou && achou.resultado;
+      const chaves = d ? d.resultados.map((x) => x.citationKey) : [];
+      const citavel = !!d && d.resultados.every((x) => x.citationKey && x.locator && x.contentMode && x.officialUrl);
+
+      const vazio = await F('consultar_norma', { termo: 'receita de bolo de cenoura com cobertura' });
+      const v = vazio && vazio.resultado;
+      const dizOTamanho = !!v && v.resultados.length === 0 && !!v.acervo && v.acervo.verbetes > 0
+        // Sem regex: dentro de um template literal, \d vira d e o teste passaria a medir outra
+        // coisa (achado desta propria corrida).
+        && String(v.comoProsseguir || '').includes('acervo de ' + v.acervo.verbetes + ' verbetes');
+      const naoAfirmaSobreANorma = !!v && !/norma n[a\u00e3]o trata/i.test(v.comoProsseguir || '');
+
+      return {
+        ok: !!achou && achou.ok === true && chaves.length === 2 && citavel && dizOTamanho && naoAfirmaSobreANorma,
+        chaves,
+        citavel,
+        acervo: d ? d.acervo : null,
+        dizOTamanho,
+        naoAfirmaSobreANorma,
+      };
+    `],
+  },
+
   /**
    * OS BOTÕES DA FAIXA DE VOZ SOBREVIVEM AO RE-RENDER, e a SELEÇÃO MÚLTIPLA chega ao prompt.
    *
@@ -2273,7 +2424,17 @@ if (chaveViva) {
 mkdirSync('artifacts/bateria', { recursive: true });
 
 const soEsses = (() => { const i = process.argv.indexOf('--so'); return i > 0 ? process.argv[i + 1] : null; })();
-const aRodar = soEsses ? CENARIOS.filter((c) => c.nome.toLowerCase().includes(soEsses.toLowerCase())) : CENARIOS;
+/**
+ * `--sem-vivo`: roda tudo MENOS os cenarios que falam com o Google.
+ *
+ * Existe porque provar que uma mudanca de produto nao quebrou os ~20 cenarios deterministicos
+ * nao deveria custar cota de ninguem — e, com `.env` na maquina, a bateria inteira abre sessao
+ * Live de verdade e ainda descansa 25 s entre elas. Com a flag, a regressao e' medida em minutos
+ * e a cota fica para o que so' ela prova.
+ */
+const semVivo = process.argv.includes('--sem-vivo');
+const aRodar = (soEsses ? CENARIOS.filter((c) => c.nome.toLowerCase().includes(soEsses.toLowerCase())) : CENARIOS)
+  .filter((c) => !(semVivo && c.nome.startsWith('AO VIVO')));
 
 const resultados = [];
 /**

@@ -188,6 +188,27 @@ export const SECOES = Object.freeze([
 
   {
     /**
+     * AS DUAS FONTES (decisão K7 da change `add-bpmn-norm-knowledge-base`).
+     *
+     * ⚠ Seção nova no registro de seções, sem tocar uma linha do renderizador — que era
+     * exatamente a prova que a F2 já fazia. Ela existe porque a diferença entre "está no meu
+     * acervo" e "eu sei de cabeça" é a diferença entre o que o aluno pode conferir e o que ele
+     * tem de acreditar — e num trabalho de faculdade isso é a tese inteira.
+     */
+    id: 'fontes',
+    titulo: 'De onde vem o que você diz',
+    tier: 'estavel',
+    render: () => [
+      'Duas fontes, que não se misturam. O ACERVO deste site (consultar_norma): material nosso,',
+      'cite como "pelo meu material" — nunca como texto da norma da OMG — e marque a frase com',
+      '[fonte:verbete:trecho]; o aplicativo confere essas marcas. E o seu conhecimento geral:',
+      'use quando o acervo não cobrir, diga que é geral e não invente marca. Busca sem acerto:',
+      '"não está no meu acervo de N verbetes", nunca "a notação não trata disso".',
+    ].join(' '),
+  },
+
+  {
+    /**
      * O FIO DA CONVERSA.
      *
      * ⚠ Nasceu de um turno ao vivo (dono, 2026-11-15): ele perguntou sobre gateways, depois
@@ -200,11 +221,9 @@ export const SECOES = Object.freeze([
     titulo: 'Quando ele manda continuar',
     tier: 'estavel',
     render: () => [
-      'Pedidos vagos — "continua", "pode seguir", "e aí?", "o que mais?" — retomam o ÚLTIMO',
-      'assunto da conversa, o do turno imediatamente anterior, e não um anterior a ele. Se há algo',
-      'selecionado na tela, é desse elemento que ele está falando. Se dois assuntos couberem na',
-      'frase, pergunte em UMA linha qual dos dois — não escolha por ele, e não volte sozinho a um',
-      'assunto que já tinha sido encerrado.',
+      'Pedido vago ("continua", "e aí?") retoma o ÚLTIMO assunto, o do turno anterior — nunca um',
+      'mais antigo. Havendo seleção na tela, é dela que ele fala. Em dúvida entre dois, pergunte',
+      'qual em UMA linha.',
     ].join(' '),
   },
 

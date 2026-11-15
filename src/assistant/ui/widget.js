@@ -994,6 +994,21 @@ export function createWidget({ session, credentials, onClose } = {}) {
     render,
     open,
     close,
+    /**
+     * Deixa uma pergunta PRONTA no compositor, sem enviar.
+     *
+     * É o que a tela base usa para "descreva o seu processo" e "o que é BPMN?" — em vez de um
+     * segundo campo de conversa na página, que duplicaria o estado do turno. Não envia de
+     * propósito: quem acabou de chegar provavelmente ainda não tem chave, e um erro seria a
+     * primeira resposta que o produto daria.
+     *
+     * Não mexe no foco: quem decide para onde ele vai é o `open()` — com chave, o compositor; sem
+     * chave, o campo da chave. Roubar o foco daqui mandaria quem chegou agora para um campo que
+     * ele ainda não pode usar.
+     */
+    sugerir(texto) {
+      input.value = texto;
+    },
     get isOpen() { return !panel.hidden; },
     /** Para o `destroy()` do mount: relógio de diagnóstico não pode sobreviver ao painel. */
     dispose() { if (relogioDiag) { clearInterval(relogioDiag); relogioDiag = null; } },
