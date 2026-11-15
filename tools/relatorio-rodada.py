@@ -57,91 +57,103 @@ def tabela(linhas, larguras):
 
 
 story = [
-    Paragraph("Ajudante BPMN — rodada autônoma", H1),
-    Paragraph("15 de novembro de 2026 · o que foi feito enquanto você esteve fora, e o que ficou "
-              "em aberto", SUB),
+    Paragraph("Ajudante BPMN — rodada autônoma da noite", H1),
+    Paragraph("15 de novembro de 2026 · a aula deixou de cair junto com a conexão, e três "
+              "defeitos apareceram porque passaram a existir portões que os medem", SUB),
 
     Paragraph("O que mudou de mais importante", H2),
     Paragraph(
-        "O ajudante deixou de saber BPMN só pela memória do modelo. Agora existe um <b>acervo "
-        "citável</b> dentro do site: doze verbetes autorais sobre a notação, cada trecho com "
-        "localizador e chave de citação, que ele consulta por conta própria e cita na resposta — e "
-        "o aplicativo <b>confere</b> a citação antes de ela aparecer. Era a change que estava "
-        "inteira em aberto no board, e é também a peça que você pediu para a tela base: um tutor "
-        "que explica com fonte, e não de cabeça.", P),
+        "A dívida dizia, desde o dia 13: <i>“a sessão tem recuo com teto e código de fechamento "
+        "nomeado, mas nunca foi exercitada cortando a rede de verdade”</i>. Cortar a rede de "
+        "verdade <b>desmentiu a própria dívida</b> — e revelou que a queda que acontece na sua "
+        "aula é outra, vem do servidor, e era a <b>nossa reconexão</b> que a transformava em "
+        "“o limite de sessões da sua chave foi atingido”. Isso está consertado, provado ao vivo "
+        "duas vezes, e é o fim do sintoma que você levou nove vezes na sua última trilha.", P),
 
-    Paragraph("A prova ao vivo, contra o Gemini de verdade", H2),
-    Paragraph("Duas perguntas, numa sessão só, e as duas respostas na íntegra:", P),
-    Paragraph("“o que é um gateway exclusivo, na notação?” → <b>Pelo meu material</b>, o gateway "
-              "exclusivo, representado por um losango vazio ou com um “X”, escolhe apenas um "
-              "caminho para o fluxo seguir, avaliando as condições das setas de saída "
-              "<b>[fonte:gateways:exclusivo]</b>.", CITA),
-    Paragraph("“o que a norma BPMN diz sobre contratos em blockchain?” → <b>Isso não está no meu "
-              "acervo de 12 verbetes.</b> De forma geral, a notação BPMN foca em modelar processos "
-              "de negócio, então a execução de contratos em blockchain é considerada uma "
-              "implementação tecnológica fora do escopo da notação.", CITA),
-    Paragraph(
-        "A segunda é a que mais importa para o trabalho: ele <b>declarou o tamanho do próprio "
-        "acervo</b> em vez de afirmar o que a norma inteira diz, e separou o que é material nosso "
-        "do que é conhecimento geral dele. É a diferença entre o que você pode conferir e o que "
-        "você tem de acreditar.", P),
-
-    Paragraph("Os números do acervo", H2),
+    Paragraph("A medição que contrariou o plano", H2),
     tabela([
-        ["O quê", "Medida", "O que significa"],
-        ["Tamanho", "12 verbetes · 28 trechos · 18,2 KB",
-         "dentro da estimativa da pesquisa, sem precisar dividir o índice por grupo"],
-        ["Recuperação", "10 de 10 perguntas",
-         "9/10 na primeira versão da busca; a que falhava confundia “tempo” com “temporizador”"],
-        ["Carregamento", "sob demanda",
-         "quem nunca pergunta sobre a notação não baixa nada"],
-        ["Latência na rede pública", "em aberto",
-         "o site ainda não foi publicado; medir no localhost seria inventar o número"],
-    ], [3.4 * cm, 4.6 * cm, 8.4 * cm]),
+        ["O que se mediu", "O que aconteceu", "O que isso significa"],
+        ["Rede desligada por fora<br/>(12 s, sessão aberta)",
+         "<font color='%s'><b>nenhum fechamento</b></font>: o navegador diz offline na hora, e o "
+         "WebSocket sobrevive" % AMBAR,
+         "cortar a rede e ver a conversa seguir não prova recuperação — prova que nada caiu"],
+        ["Rede desligada por 50 s,<br/>com pergunta no ar",
+         "o modelo <b>respondeu normalmente</b>",
+         "a emulação do navegador não alcança conexão já estabelecida; a prova tinha de mudar de "
+         "forma"],
+        ["Aluno calado, lendo a resposta",
+         "<font color='%s'><b>o servidor fecha</b></font>: “client inactivity”, aos 74 s e aos "
+         "119 s" % AMBAR,
+         "é esta a queda real da aula — e a que terminava em erro de cota com a chave boa"],
+        ["Depois do conserto",
+         "<font color='%s'><b>dorme, acorda e continua</b></font>" % VERDE,
+         "a sessão dorme sem ocupar vaga, a sua pergunta a reabre, e o modelo lembra da aula"],
+    ], [3.9 * cm, 5.3 * cm, 7.2 * cm]),
 
-    Paragraph("O que impede o acervo de virar promessa", H2),
+    Paragraph("A prova ao vivo, na íntegra", H2),
+    Paragraph("Uma sessão só. Primeiro uma pergunta de aula; depois dois minutos de silêncio, "
+              "como quem está lendo; o servidor fecha; e então:", P),
+    Paragraph("“Repita, com as mesmas palavras, qual foi a MINHA primeira pergunta nesta "
+              "conversa.” → <b>“A sua primeira pergunta foi: ‘Em uma frase: o que é um gateway "
+              "exclusivo?’”</b>", CITA),
+    Paragraph(
+        "O que torna isso uma prova e não uma coincidência: no despertar o aplicativo <b>não "
+        "reenvia nada</b> — nem o histórico, nem o diagrama. Essa frase voltou de dentro da "
+        "sessão do servidor, pela alça de retomada, e o diário registra o segundo setup como "
+        "<font face='Courier'>modo=texto retomando</font>, com <b>zero</b> disputa por vaga e "
+        "<b>nenhum</b> aviso de “a conexão caiu” na tela. Despertar não é queda, e aviso que "
+        "mente é aviso que o aluno aprende a ignorar.", P),
+
+    Paragraph("Os três defeitos que os portões novos acharam", H2),
+    Paragraph("Nenhum dos três aparecia em teste. Os três apareceram no primeiro minuto em que "
+              "passou a existir alguém medindo:", P),
     bullets([
-        "<b>O build é o validador.</b> Trecho literal sem nota de direitos, chave de citação "
-        "duplicada e a marca de fronteira do prompt numa página <b>reprovam a construção</b> — e o "
-        "validador roda no <font face='Courier'>npm test</font>. Aviso em documento não impede "
-        "ninguém de colar três páginas da norma num verbete; o validador impede.",
-        "<b>A citação é conferida pelo código.</b> Marca que nenhuma consulta serviu vira “fonte "
-        "não conferida” antes de a resposta aparecer, e o texto do modelo continua inteiro.",
-        "<b>No modo voz isso não existe</b>, e a tela diz isso na hora da consulta: o áudio vai do "
-        "provedor ao alto-falante sem passar por nós. Prometer igual nos dois modos seria mentira.",
+        "<b>Duas setas onde você vê uma.</b> Mover uma tarefa para o meio do fluxo deixava "
+        "<b>duas</b> ligações entre os mesmos dois elementos — desenhadas uma sobre a outra, "
+        "invisíveis na tela e reais no arquivo (as ligações do desenho iam de 24 para 26). A "
+        "causa é do próprio bpmn-js: ele já religa quando uma forma é solta sobre a seta, e o "
+        "nosso religamento era o segundo. Agora liga-se <b>só o que falta</b>.",
+        "<b>Bloquear o microfone matava o modo texto.</b> Clicar em “Bloquear” no aviso do "
+        "navegador marcava a <b>sessão</b> como erro — e erro desliga a caixa de texto. Quem "
+        "negava o microfone perdia o ajudante inteiro, inclusive a parte que não tem nada a ver "
+        "com microfone. Agora o que falha é a entrada de voz; a conversa escrita continua.",
+        "<b>Um portão que passava sem provar nada.</b> O alinhamento dos quatro elementos dava "
+        "verde porque, no diagrama base, os quatro já nascem na mesma altura. Ele passou a "
+        "<b>desalinhar primeiro</b>: agora vai de 240 px de desvio para zero, e mede também o "
+        "que você fotografou — <b>nenhuma seta atravessando caixa nenhuma</b>.",
     ]),
 
-    Paragraph("Os consertos da sua lista", H2),
-    bullets([
-        "<b>O gêmeo.</b> Pedir duas vezes a mesma tarefa no mesmo lugar agora é recusado com o id "
-        "do que já existe. E nasceu o verbo que faltava: <font face='Courier'>mover … entre</font> "
-        "leva um elemento que <b>já existe</b> para o meio do fluxo, fechando o buraco que ele "
-        "deixa — era a falta disso que fazia o modelo criar outro.",
-        "<b>A sua pausa.</b> O detector de fala do servidor fechava o turno no silêncio curto e "
-        "partia sua frase em dois. Agora tolera 1,2 s — e o servidor aceitou o ajuste (se o campo "
-        "fosse inválido, a voz inteira morreria).",
-        "<b>O fio da conversa.</b> “Pode continuar” retoma o último assunto, não um de dois turnos "
-        "atrás. Conserto de prosa no prompt: nada no código detecta palavra.",
-        "<b>Mais um caso no portão do desenho:</b> um gateway entrando no meio do fluxo, com "
-        "sobreposição zero, como uma tarefa entraria.",
-    ]),
+    Paragraph("Os seus dois pedidos, agora com portão", H2),
+    Paragraph(
+        "<b>“Tentei adicionar 4, ele pede 2”</b> e <b>“esse mover elemento que já existe para o "
+        "meio do fluxo”</b> estavam consertados e sem prova automática. Agora os dois rodam numa "
+        "sessão só, com o modelo escolhendo os verbos a partir do português: ele alinhou os "
+        "quatro sem pedir dois, e moveu a tarefa existente para o meio <b>sem criar gêmeo</b> "
+        "(24 elementos antes, 24 depois) e sem sobrepor ninguém.", P),
 
     Paragraph("O que ficou em aberto", H2),
     bullets([
-        "<b>A tela base</b> — está na outra conversa. Ela já recebeu o retorno do estudo e começou "
-        "a implementar; eu avisei que estamos no mesmo checkout e dividi os arquivos.",
-        "<b>Latência do acervo na rede pública</b> — depende da publicação do site (itens D1–D4).",
-        "<b>Voltar a falar no meio da resposta</b> depois do “só texto”: o áudio daquele trecho foi "
-        "descartado e o protocolo não reenvia. Só a próxima resposta sai falada.",
+        "<b>Queda de rede física</b> (o seu cabo, o seu Wi-Fi) — nenhuma ferramenta do navegador "
+        "a produz. Forçá-la exigiria pôr um servidor nosso no meio do caminho da sessão: costura "
+        "de teste dentro do produto, que não se paga. Fica declarado, e não escondido.",
+        "<b>A tela base</b> — está na outra conversa, com worktree e branch próprios. Avisei lá "
+        "que o estado novo <font face='Courier'>dormindo</font> é estado <b>vivo</b>, para a tela "
+        "não desenhá-lo como erro.",
+        "<b>Latência do acervo na rede pública</b> e a <b>publicação</b> (D1–D5) — seus, e você "
+        "estacionou de propósito.",
+        "<b>Expiração de sessão por idade (<font face='Courier'>go-away</font>, ~10 min)</b> — "
+        "nunca vista ao vivo, e agora menos provável de aparecer: a sessão parada dorme antes de "
+        "chegar lá. Exige uma aula de verdade, falando.",
     ]),
 
     Spacer(1, 4),
-    Paragraph("Como ver funcionando, em três perguntas", H2),
+    Paragraph("Como ver funcionando, sem esforço nenhum", H2),
     Paragraph(
-        "Na janela que já está aberta: <b>“o que é um gateway exclusivo?”</b> (ele consulta e cita), "
-        "<b>“o que a norma diz sobre blockchain?”</b> (ele diz que não está no acervo de 12 "
-        "verbetes) e <b>“põe uma tarefa Conferir estoque entre o início e o Select a pizza”</b> "
-        "usando uma tarefa que já exista — para ver o verbo novo movendo em vez de criar outra.", P),
+        "Abra o ajudante, faça uma pergunta e <b>deixe a tela parada uns dois minutos</b>, como "
+        "se estivesse lendo. O rótulo vai para <b>“em espera”</b> e <b>nada acontece</b> — "
+        "nenhum aviso vermelho, nenhuma sessão nova. Então pergunte qualquer coisa sobre o que "
+        "vocês já estavam falando: ele responde <b>na mesma conversa</b>. Antes, esse mesmo "
+        "silêncio terminava em “o limite de sessões da sua chave foi atingido”.", P),
 ]
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
