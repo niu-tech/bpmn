@@ -43,7 +43,16 @@ para o modelo reler o que já sabe, pago pela cota do aluno.
 Esses dois itens não são enfeite: com "processo ou colaboração" e "quantas faixas", os cinco
 campos de ocasião (`ramo`, `avisoDeRamo`, `virouColaboracao`, `adotou`,
 `criouAFaixaDoQueJaExistia`) somem **com substituto** — o fato continua chegando ao modelo, só que
-pela mesma porta de sempre. Ao contar o que entrou num pool novo, a leitura conta **forma, não
+pela mesma porta de sempre.
+
+⚠ **O que isto esqueceu, e que a implementação teve de resolver:** a leitura tem DOIS leitores, e
+um deles não lê português. A LINHA DA TELA do aluno (`tools/apresentador.js`) lia os mesmos cinco
+campos para dizer "(como ramo paralelo)", "e pôs 2 elementos dentro" e "(e uma faixa para o que já
+estava lá)" — e ficou sem fonte, emagrecendo em silêncio: o aluno via o desenho inteiro pular para
+dentro de um pool e lia só "criei o pool X". `fatosDaTela()` devolve os TRÊS fatos de arranjo em
+forma, do mesmo produtor do texto. Não são os cinco campos de volta: é um campo, com forma
+declarada, e nenhuma ferramenta calcula nada — a próxima surpresa do bpmn-js continua cabendo na
+leitura. Ao contar o que entrou num pool novo, a leitura conta **forma, não
 conexão**: o bpmn-js leva as setas junto, e somá-las daria um número que não bate com o que o
 aluno vê.
 
