@@ -593,6 +593,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
 
   /** A última vista publicada. Os botões de mudo perguntam a ela qual é o estado de agora. */
   let ultimaVista = null;
+  /** O que cada botão de ícone está mostrando AGORA — para não recriar o `<svg>` à toa (ver render). */
+  let ultimoIconeMic = null;
+  let ultimoIconeSom = null;
+  let ultimoIconeMicrofoneGrande = null;
 
   function render(view) {
     ultimaVista = view;
@@ -634,10 +638,23 @@ export function createWidget({ session, credentials, onClose } = {}) {
     if (powerBtn.parentElement !== ondeDeveEstar) ondeDeveEstar.append(powerBtn);
 
     // Os dois mudos dizem o que FAZEM agora, e marcam quando estão ligados.
-    // Os dois mudos: ícone que mostra o ESTADO (riscado = mudo), e o nome no título.
+    /**
+     * ⚠ **O ÍCONE SÓ É REDESENHADO QUANDO MUDA**, e isto não é micro-otimização: era o
+     * defeito.
+     *
+     * Trocar `innerHTML` destrói e recria o `<svg>` de dentro do botão. Durante a resposta
+     * falada o painel republica várias vezes por segundo (um publish por pedaço de áudio), então
+     * o filho do botão era recriado no meio do clique — o `mousedown` caía num nó que já não
+     * existia no `mouseup`, e o navegador **não dispara `click`**. Para o dono, o botão
+     * simplesmente não fazia nada (2026-11-15), e numa página parada funcionava — que é o pior
+     * tipo de bug: só aparece quando o produto está vivo.
+     */
     const micEstaMudo = Boolean(view.micMudo);
     const agenteEstaMudo = Boolean(view.agenteMudo);
-    mudoMicBtn.innerHTML = micEstaMudo ? ICONE_MIC_MUDO : ICONE_MIC_ATIVO;
+    if (ultimoIconeMic !== micEstaMudo) {
+      mudoMicBtn.innerHTML = micEstaMudo ? ICONE_MIC_MUDO : ICONE_MIC_ATIVO;
+      ultimoIconeMic = micEstaMudo;
+    }
     mudoMicBtn.title = micEstaMudo
       ? 'O seu microfone está mudo — clique para voltar a falar'
       : 'Mutar o seu microfone (a conversa continua)';
@@ -645,7 +662,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
     mudoMicBtn.setAttribute('aria-pressed', String(micEstaMudo));
     mudoMicBtn.classList.toggle('bpmn-assist__mudo--ligado', micEstaMudo);
 
-    mudoAgenteBtn.innerHTML = agenteEstaMudo ? ICONE_SOM_MUDO : ICONE_SOM;
+    if (ultimoIconeSom !== agenteEstaMudo) {
+      mudoAgenteBtn.innerHTML = agenteEstaMudo ? ICONE_SOM_MUDO : ICONE_SOM;
+      ultimoIconeSom = agenteEstaMudo;
+    }
     mudoAgenteBtn.title = agenteEstaMudo
       ? 'Ele está respondendo só por escrito — clique para ouvir de novo'
       : 'Só texto: ele responde por escrito, sem falar';
@@ -711,7 +731,11 @@ export function createWidget({ session, credentials, onClose } = {}) {
     const queIcone = micOn ? 'parar' : 'mic';
     if (talkBtn.dataset.icone !== queIcone) {
       talkBtn.dataset.icone = queIcone;
-      talkBtn.innerHTML = micOn ? ICONE_PARAR : ICONE_MIC;
+      // Mesmo cuidado do botão de mudo: recriar o ícone a cada publish mata o clique.
+      if (ultimoIconeMicrofoneGrande !== micOn) {
+        talkBtn.innerHTML = micOn ? ICONE_PARAR : ICONE_MIC;
+        ultimoIconeMicrofoneGrande = micOn;
+      }
     }
     talkBtn.classList.toggle('bpmn-assist__mic--gravando', micOn);
     const oQueFaz = micOn ? 'Parar de ouvir' : 'Falar com o ajudante';

@@ -499,6 +499,61 @@ const CENARIOS = [
    * ferramenta. Esta prova o resto — e roda com a cota esgotada.
    */
   /**
+   * OS BOTÕES DA FAIXA DE VOZ SOBREVIVEM AO RE-RENDER, e a SELEÇÃO MÚLTIPLA chega ao prompt.
+   *
+   * ⚠ Os dois defeitos foram entregues ao dono funcionando "na minha máquina" e mortos na dele
+   * (2026-11-15, duas rodadas seguidas):
+   *
+   *  - o ícone do mudo era recriado (`innerHTML`) a CADA publish, e durante a resposta falada o
+   *    painel publica várias vezes por segundo — o filho do botão sumia entre o `mousedown` e o
+   *    `mouseup`, e o navegador não dispara `click`. Numa página parada funcionava;
+   *  - o prompt só carregava `selection.get()[0]`, então com quatro elementos marcados o agente
+   *    respondia *"só consigo identificar um elemento selecionado"*.
+   */
+  {
+    nome: 'a faixa de voz aguenta re-render, e quatro selecionados chegam ao prompt',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.bpmn-assist__toggle'); i++) await new Promise((r) => setTimeout(r, 250));
+      if (!window.__bpmnAssist) return { ok: false, erro: 'o ajudante nao montou' };
+      document.querySelector('.bpmn-assist__toggle').click();
+      await new Promise((r) => setTimeout(r, 400));
+
+      // 1. O ICONE sobrevive a renders repetidos (o consentimento dispara render no mount).
+      const botao = document.querySelector('.bpmn-assist__mudo');
+      const svgAntes = botao.querySelector('svg');
+      const marca = document.querySelector('#bpmn-assist-consent');
+      for (let i = 0; i < 6; i++) {
+        marca.checked = !marca.checked;
+        marca.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      const mesmoNo = botao.querySelector('svg') === svgAntes;
+
+      // 2. O CLIQUE funciona (o titulo troca: e' o estado do mudo).
+      const tituloAntes = botao.getAttribute('title');
+      botao.click();
+      await new Promise((r) => setTimeout(r, 250));
+      const tituloDepois = botao.getAttribute('title');
+
+      // 3. QUATRO selecionados chegam a' projecao que vira prompt.
+      const nos = window.__bpmnAssist.desenho.nos.filter((n) => n.tipo === 'Task').slice(0, 4).map((n) => n.id);
+      window.__bpmnAssist.selecionarVarios(nos);
+      await new Promise((r) => setTimeout(r, 300));
+      const proj = window.__bpmnAssist.diagrama;
+      const lista = (proj && proj.selecionados) || [];
+
+      return {
+        ok: mesmoNo && tituloAntes !== tituloDepois && lista.length === 4 && nos.length === 4,
+        mesmoNo,
+        cliqueMudouOEstado: tituloAntes !== tituloDepois,
+        selecionados: lista.length,
+        pedidos: nos.length,
+      };
+    `],
+  },
+
+  /**
    * O DESENHO NÃO EMPILHA — o caso que o dono fotografou em 2026-11-15, numa sessão ao vivo.
    *
    * Duas tarefas lado a lado têm ~50 px de vão e uma tarefa tem 100 de largura: o meio do fluxo

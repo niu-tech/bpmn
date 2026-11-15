@@ -25,6 +25,7 @@ export function criarAcessoBpmn(modelador) {
     elementos: () => [],
     porId: () => null,
     selecionado: () => null,
+    selecionados: () => [],
     entradasESaidas: () => ({ entradas: [], saidas: [] }),
     assinar: () => () => {},
     // Escrita no acesso inerte NAO e no-op silencioso: quem chamar recebe o mesmo erro nomeado
@@ -439,6 +440,22 @@ export function criarAcessoBpmn(modelador) {
     },
 
     /**
+     * A seleção INTEIRA, na ordem do bpmn-js.
+     *
+     * ⚠ `selecionado()` devolve só o primeiro, e era a única coisa que o prompt sabia — então o
+     * aluno selecionava quatro tarefas, pedia "alinha essas", e o agente respondia *"só consigo
+     * identificar um elemento selecionado"* (2026-11-15). Ele estava dizendo a verdade sobre o
+     * que recebia; quem via um só éramos nós.
+     */
+    selecionados() {
+      try {
+        return (selection?.get?.() ?? []).filter((e) => e && !e.labelTarget);
+      } catch {
+        return [];
+      }
+    },
+
+    /**
      * SELECIONA um elemento — o MESMO servico que o clique do aluno usa (`selection.select`),
      * e por isso o mesmo evento `selection.changed` sai dele.
      *
@@ -452,6 +469,20 @@ export function criarAcessoBpmn(modelador) {
       if (!el || !selection?.select) return null;
       selection.select(el);
       return { id: el.id, tipo: String(el.type ?? '').replace('bpmn:', '') };
+    },
+
+    /**
+     * Seleciona VÁRIOS de uma vez — o mesmo `selection.select` com uma lista, que é o que o
+     * bpmn-js faz quando o aluno arrasta um laço ou segura Shift.
+     *
+     * Existe para a prova poder reproduzir o caso do dono (quatro marcados, "alinha esses") sem
+     * uma pessoa arrastando o mouse.
+     */
+    selecionarVarios(ids) {
+      const els = (ids ?? []).map((id) => this.porId(id)).filter(Boolean);
+      if (!els.length || !selection?.select) return [];
+      selection.select(els);
+      return els.map((el) => el.id);
     },
 
     /**

@@ -266,7 +266,16 @@ function descreverDiagrama(d) {
   // (medido três vezes em 2026-11-13, contra o diagrama de 47 elementos). Enterrar o fato mais
   // perguntado de todos — "o que é isto?" — debaixo da lista é desenho ruim antes de ser
   // problema de modelo: o que o aluno acabou de clicar é a primeira coisa que importa.
-  if (d.selecionado) {
+  /**
+   * ⚠ A seleção MÚLTIPLA vem ANTES da única, e substitui a frase: quando o aluno tem quatro
+   * elementos marcados e diz "alinha esses", o fato é a LISTA. Dizer "selecionado: o primeiro"
+   * seria escolher um por ele.
+   */
+  if (d.selecionados?.length > 1) {
+    const itens = d.selecionados.map((e) => `${e.tipo} "${e.nome ?? ''}" [${e.id}]`).join(' · ');
+    linhas.push(`SELECIONADOS pelo aluno AGORA (${d.selecionados.length}): ${itens} — é deste conjunto `
+      + 'que ele fala ao dizer "esses"; use os ids desta lista, sem pedir para ele selecionar de novo');
+  } else if (d.selecionado) {
     linhas.push(`SELECIONADO pelo aluno AGORA: ${d.selecionado.tipo} "${d.selecionado.nome ?? ''}" [${d.selecionado.id}] — é deste elemento que ele fala ao dizer "isto"`);
   }
   if (d.processo) linhas.push(`processo: ${d.processo.nome ?? '(sem nome)'} [${d.processo.id ?? '?'}]`);

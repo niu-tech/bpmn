@@ -200,6 +200,8 @@ export function mountAssistant({
      * na frente da tela.
      */
     selecionar: (id) => acesso.selecionar(id),
+    /** Seleciona VÁRIOS, como o laço do mouse ou o Shift do aluno. Diagnóstico. */
+    selecionarVarios: (ids) => acesso.selecionarVarios(ids),
     /**
      * RECARREGA o diagrama base, **sem tocar na sessão Live**.
      *

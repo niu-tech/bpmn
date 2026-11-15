@@ -28,7 +28,7 @@ const TIPOS_DE_RAIA = new Set(['bpmn:Lane', 'bpmn:Participant']);
  *
  * `selecionado` é o elemento que o aluno clicou (`selection.get()[0]`), ou `null`.
  */
-export function projetar(elementos, { selecionado = null, maxAmostra = MAX_AMOSTRA } = {}) {
+export function projetar(elementos, { selecionado = null, selecionados = [], maxAmostra = MAX_AMOSTRA } = {}) {
   const todos = Array.isArray(elementos) ? elementos : [];
 
   // Rótulo externo é o MESMO elemento desenhado duas vezes: contá-lo dobraria toda tarefa que
@@ -59,6 +59,13 @@ export function projetar(elementos, { selecionado = null, maxAmostra = MAX_AMOST
     raias,
     amostra: ordenados.slice(0, maxAmostra).map(resumir),
     selecionado: selecionado && !selecionado.labelTarget ? resumir(selecionado) : null,
+    /**
+     * A seleção MÚLTIPLA. Vazia quando há zero ou um — quem tem um só já está em `selecionado`,
+     * e repetir a mesma coisa em dois campos faria o prompt contar duas vezes o mesmo fato.
+     */
+    selecionados: (selecionados ?? []).length > 1
+      ? selecionados.filter((e) => e && !e.labelTarget).map(resumir)
+      : [],
   };
 }
 
@@ -117,7 +124,10 @@ export function observarDiagrama(acesso, { onMudou = null } = {}) {
     atual() {
       if (!sujo && cache) return cache;
       try {
-        cache = projetar(acesso.elementos(), { selecionado: acesso.selecionado() });
+        cache = projetar(acesso.elementos(), {
+          selecionado: acesso.selecionado(),
+          selecionados: acesso.selecionados?.() ?? [],
+        });
         sujo = false;
       } catch {
         // Registro inconsistente no meio de um import: melhor o contexto anterior (ou nenhum)

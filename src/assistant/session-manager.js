@@ -218,6 +218,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   let micMudo = false;
   let agenteMudo = false;
   /**
+   * O relógio que transforma UMA PAUSA DELE em "pensando…".
+   *
+   * ⚠ Em escuta contínua nada fecha quando o aluno para de falar: o microfone fica aberto, e o
+   * único "fim de fala" que existe é o do servidor — que chega JUNTO com a resposta, ou seja,
+   * quando a espera acabou. Era por isso que a tela ficava idêntica enquanto ele esperava, e o
+   * dono relatou a mesma coisa duas rodadas seguidas (*"quando eu falo para apagar a tarefa, não
+   * tem nenhuma resposta visual"*). A pausa na transcrição é o sinal que temos ANTES disso.
+   */
+  let relogioDeEspera = null;
+  const PAUSA_PARA_ESPERAR_MS = 900;
+  /**
    * O aluno MANDOU ÁUDIO desde a última vez que um turno fechou?
    *
    * ⚠ É a única pista de que existiu uma pergunta quando a queda chega ANTES da transcrição.
@@ -679,9 +690,26 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     return messages.at(-1);
   }
 
-  /** Nota do sistema, sempre redigida: é por aqui que um erro com a URL do socket sairia. */
+  /**
+   * Nota do sistema, sempre redigida: é por aqui que um erro com a URL do socket sairia.
+   *
+   * ⚠ **A MESMA nota não empilha.** Numa conversa longa a conexão cai várias vezes, e cada
+   * queda escrevia outra cópia do mesmo recado — a tela virava uma coluna de "a conexão caiu e
+   * voltou" por cima da conversa (dono, 2026-11-15: *"não precisava ficar a mesma mensagem
+   * aparecendo inúmeras vezes e poluindo a tela"*). Repetir não informa: o que informa é que
+   * aconteceu de novo, e isso cabe num contador.
+   */
   function note(text, kind = 'info', { transitorio = false } = {}) {
-    return push({ role: 'system', kind, text: redact(text), transitorio });
+    const limpo = redact(text);
+    const ultima = messages.at(-1);
+    if (ultima?.role === 'system' && ultima.kind === kind && ultima.baseTexto === limpo) {
+      ultima.vezes = (ultima.vezes ?? 1) + 1;
+      ultima.text = `${limpo} (${ultima.vezes}×)`;
+      ultima.at = Date.now();
+      publish();
+      return ultima;
+    }
+    return push({ role: 'system', kind, text: limpo, baseTexto: limpo, transitorio });
   }
 
   /**
@@ -1003,6 +1031,18 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // Provisório ATUALIZA a mesma bolha; final apenas a fecha — a bolha já está certa.
       onFala: ({ tipo, texto }) => {
         if (turnoDaFala == null) return;
+        /**
+         * FIM DA FALA = começo da espera.
+         *
+         * ⚠ Em escuta contínua o microfone **não fecha** quando o aluno para de falar — então
+         * pendurar a bolha de espera no fechamento do microfone só funcionava no modo
+         * meia-duplex. Era por isso que o dono pedia para apagar e via a tela parada (duas
+         * rodadas seguidas relatando a mesma coisa). Quem sabe que ele terminou é o servidor,
+         * no FINAL da transcrição de entrada — e esse sinal chega aqui.
+         */
+        if (tipo === EventoDeFala.Final && !bolhaDoTurno(turnoDaFala)) {
+          push({ role: 'assistant', text: 'pensando…', rodando: true, turn: turnoDaFala });
+        }
         // Uma vez por TURNO falado: a legenda chega em pedaços, e quem conta é o aluno, não o pedaço.
         if (turnoFaladoContado !== turnoDaFala) {
           turnoFaladoContado = turnoDaFala;
@@ -1220,6 +1260,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           // CRESCE; quem fecha é sinal do servidor, nunca um relógio nosso.
           turnoDaFala = turnoLocal(turno);
           rastreador?.fragmentoDeEntrada(text);
+          // Parou de chegar pedaço = ele parou de falar. A bolha de espera nasce aí, e não
+          // quando a resposta começa (ver `relogioDeEspera`).
+          if (relogioDeEspera) clearTimeout(relogioDeEspera);
+          const turnoDaPausa = turnoDaFala;
+          relogioDeEspera = setTimeout(() => {
+            relogioDeEspera = null;
+            if (turnoDaPausa != null && !bolhaDoTurno(turnoDaPausa)) {
+              push({ role: 'assistant', text: 'pensando…', rodando: true, turn: turnoDaPausa });
+            }
+          }, PAUSA_PARA_ESPERAR_MS);
+          relogioDeEspera?.unref?.();
           return;
         }
         // A primeira saída do modelo é o servidor dizendo que o aluno parou de falar.
@@ -1257,6 +1308,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
       },
       onAudio: async (b64) => {
+        if (relogioDeEspera) { clearTimeout(relogioDeEspera); relogioDeEspera = null; }
         fecharFala('áudio do modelo');
         if (gravacaoDeAudio && gravacaoDeAudio.quadros.length < MAX_QUADROS_GRAVADOS) {
           gravacaoDeAudio.quadros.push({ b64, ms: Date.now() - gravacaoDeAudio.t0 });

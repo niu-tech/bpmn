@@ -1481,6 +1481,26 @@ testAsync('a queda que leva a FALA dele no meio nao passa em branco', async () =
 });
 
 
+testAsync('a PAUSA dele vira "pensando" antes de o modelo responder', async () => {
+  // ⚠ Dono, duas rodadas seguidas: "quando eu falo para apagar a tarefa, nao tem nenhuma
+  // resposta visual". Em escuta continua nada fecha quando ele para de falar — o unico "fim de
+  // fala" era o do servidor, que chega JUNTO com a resposta. A pausa na transcricao e' o sinal
+  // que existe antes disso.
+  const { session, live } = montar();
+  await session.connect('voz');
+  live.ultima.pronta();
+  live.ultima.legenda('apaga essa tarefa', 'input');
+
+  assert.equal(session.messages.filter((m) => m.role === 'assistant').length, 0, 'enquanto fala, nada');
+  await new Promise((r) => setTimeout(r, 1100));
+  const espera = session.messages.filter((m) => m.role === 'assistant').at(-1);
+  assert.ok(espera, 'a pausa dele fez a espera aparecer');
+  assert.equal(espera.rodando, true);
+  assert.match(espera.text, /pensando/i);
+  forgetSecrets();
+});
+
+
 console.log('\n▶ os dois mudos');
 
 testAsync('mutar o microfone NAO encerra a voz, e abrir o microfone DESMUTA', async () => {
