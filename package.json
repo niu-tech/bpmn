@@ -14,7 +14,8 @@
     "bateria": "node tools/battery.mjs",
     "edge": "node tools/abrir-edge.mjs",
     "captura": "node tools/attach-edge.mjs",
-    "voz": "powershell -ExecutionPolicy Bypass -File tools/make-voice-fixtures.ps1"
+    "voz": "powershell -ExecutionPolicy Bypass -File tools/make-voice-fixtures.ps1",
+    "trilha": "node tools/trilha.mjs"
   },
   "keywords": [],
   "author": "",
