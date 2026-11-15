@@ -63,8 +63,10 @@
     <b>Antes de começar</b> &nbsp;·&nbsp; <code>npm run dev</code> → abra
     <code>http://127.0.0.1:8126/</code> &nbsp;·&nbsp; <code>npm run trilha</code> (deixe rodando
     numa segunda janela; <code>Ctrl+C</code> no fim grava a evidência)<br>
-    Na aba: cole a sua chave, marque o aviso, <b>Começar</b>, e clique no <b>microfone</b>.
-    <b>Use fone de ouvido</b> — sem ele o som dele volta pelo seu microfone (e isso é o caso D4).
+    Na aba: <b>Começar</b> e clique no <b>microfone</b> (o navegador vai pedir permissão uma vez).
+    <b>Use fone de ouvido</b> — sem ele o som dele volta pelo seu microfone, e isso é o caso D4.<br>
+    O diagrama que abre é a <b>pizzaria em inglês</b>, com <b>dois pools</b> (<i>Pizza Customer</i>
+    e <i>Pizza vendor</i>) — os nomes abaixo são os que existem lá.
   </div>
 
   <section>
@@ -92,14 +94,21 @@
           <td>Ele fala do elemento <b>certo</b>, citando o nome dele.</td></tr>
       <tr><td class="cx">□</td><td class="fala"><em>Clique em cinco elementos rápido, e então</em> <b>“e esse?”</b></td>
           <td>Ele fala do <b>último</b>, e a conversa não enche de avisos.</td></tr>
-      <tr><td class="cx">□</td><td class="fala"><b>“Cria uma tarefa Conferir estoque depois do início”</b></td>
-          <td>A tarefa aparece no desenho, com o nome escrito, ligada ao início.</td></tr>
-      <tr><td class="cx">□</td><td class="fala"><b>“Põe uma tarefa Embalar entre essas duas”</b></td>
-          <td>Ele <b>parte a seta</b> e entra no meio — não cria um ramo pendurado embaixo.</td></tr>
-      <tr><td class="cx">□</td><td class="fala"><b>“Alinha essas duas na mesma linha”</b></td>
+      <tr><td class="cx">□</td><td class="fala"><b>“Cria uma tarefa Conferir estoque”</b> <em>— sem dizer onde</em></td>
+          <td>Com dois pools ele <b>não adivinha</b>: pergunta em qual, e os nomes aparecem como
+          <b>botões</b> na conversa. Nada é desenhado antes de você escolher.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Clique no botão</em> <b>Pizza vendor</b></td>
+          <td>A tarefa nasce <b>dentro</b> desse pool, com o nome escrito — e ele diz o que fez.
+          A sua escolha aparece na conversa como <i>escolhido no chat</i>.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Põe uma tarefa Embalar entre Bake the pizza e Deliver the pizza”</b></td>
+          <td>Ele <b>parte a seta</b> entre as duas e entra no meio — não cria um ramo pendurado.</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><em>Selecione duas tarefas e diga</em> <b>“alinha essas duas na mesma linha”</b></td>
           <td>Ficam na mesma altura, de verdade, no desenho.</td></tr>
-      <tr><td class="cx">□</td><td class="fala"><b>“Pinta de vermelho a tarefa Assar a pizza”</b></td>
+      <tr><td class="cx">□</td><td class="fala"><b>“Pinta de vermelho a tarefa Bake the pizza”</b></td>
           <td>O elemento muda de cor na tela (e volta ao normal no <code>Ctrl+Z</code>).</td></tr>
+      <tr><td class="cx">□</td><td class="fala"><b>“Me explica esse processo da pizzaria”</b></td>
+          <td>Ele explica <b>em português</b>, mesmo com o diagrama todo em inglês — citando os
+          nomes como estão escritos, sem traduzir o desenho.</td></tr>
       <tr><td class="cx">□</td><td class="fala"><em>Dê</em> <b>Ctrl+Z</b> <em>e pergunte</em> <b>“o que você está vendo agora?”</b></td>
           <td>Ele conta que você desfez, e descreve o diagrama <b>como está</b>.</td></tr>
       <tr><td class="cx">□</td><td class="fala"><b>“Qual tarefa está sem ligação nenhuma?”</b></td>
@@ -117,7 +126,7 @@
           <td>Ele <b>pergunta</b> antes, falando. <b>Nada</b> some do desenho.</td></tr>
       <tr><td class="cx">□</td><td class="fala"><b>“Pode apagar, sim”</b></td>
           <td>Só agora o elemento some, e ele confirma o que apagou.</td></tr>
-      <tr><td class="cx">□</td><td class="fala"><b>“Apaga essa também”</b> <em>(outro elemento) — e</em> <b>não responda</b></td>
+      <tr><td class="cx">□</td><td class="fala"><em>Selecione outra tarefa:</em> <b>“apaga essa também”</b> <em>— e</em> <b>não responda</b></td>
           <td>Ele pergunta <b>de novo</b>. O “sim” de antes não valeu para esta. Nada some.</td></tr>
       <tr><td class="cx">□</td><td class="fala"><b>“Deixa, me explica o que é uma raia”</b> <em>— com o pedido de apagar ainda em aberto</em><span class="novo">novo</span></td>
           <td>Ele responde sobre raia e <b>não apaga nada</b>. Peça para apagar de novo mais tarde: ele <b>pergunta outra vez</b>, nunca executa calado.</td></tr>

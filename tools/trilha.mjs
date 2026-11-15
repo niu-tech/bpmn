@@ -285,6 +285,14 @@ if (deArquivo) {
 }
 
 process.on('SIGINT', encerrar);
+/**
+ * SIGTERM também fecha a corrida com relatório.
+ *
+ * ⚠ Quando a trilha é ligada por quem está do outro lado (um agente, um script), o fim não vem
+ * de um Ctrl+C: vem de um `kill`. Sem isto, a sessão do dono morria sem o arquivo carimbado e
+ * sem o resumo — restava só o `atual.json`, que é o retrato e não a corrida.
+ */
+process.on('SIGTERM', encerrar);
 
 await umaVolta();
 if (umaVez) encerrar();
