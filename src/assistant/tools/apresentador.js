@@ -33,6 +33,8 @@ const COMO_MOSTRAR = {
     const partes = [];
     if (r.total != null) partes.push(plural(r.total, 'elemento', 'elementos'));
     if (r.raias?.length) partes.push(plural(r.raias.length, 'raia', 'raias'));
+    // Ponta solta é o defeito mais comum de aluno: se há, a linha diz quantas.
+    if (r.semLigacao?.length) partes.push(plural(r.semLigacao.length, 'sem ligação', 'sem ligação'));
     if (r.selecionado?.nome) partes.push(`selecionado: ${r.selecionado.nome}`);
     return partes.length ? `olhei o diagrama — ${partes.join(' · ')}` : 'olhei o diagrama';
   },

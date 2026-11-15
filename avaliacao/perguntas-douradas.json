@@ -209,12 +209,11 @@
       "id": "geometria-destacar",
       "categoria": "geometria",
       "perfil": "modelador",
-      "pergunta": "pinta de vermelho a tarefa que está sem ligação",
+      "pergunta": "pinta de vermelho a tarefa Bake the pizza",
       "ferramentasEsperadas": [
-        "destacar",
-        "buscar_elemento"
+        "destacar"
       ],
-      "porque": "destacar é como o agente aponta para o desenho sem falar id em voz alta (H2)"
+      "porque": "destacar e como o agente aponta para o desenho sem falar id em voz alta (H2). A pergunta nomeia o alvo: a versao anterior pedia \"a tarefa que esta sem ligacao\", e o diagrama padrao nao tem nenhuma — o modelo respondia certo (que nao ha) e a pergunta nao media o destacar"
     },
     {
       "id": "ambiguidade-pool",
@@ -391,6 +390,21 @@
         "descrever_diagrama"
       ],
       "porque": "diagrama vazio é um estado normal (o aluno acabou de abrir o site), não um erro"
+    },
+    {
+      "id": "leitura-pontas-soltas",
+      "categoria": "leitura",
+      "perfil": "modelador",
+      "pergunta": "tem alguma tarefa solta, sem ligacao nenhuma, nesse diagrama?",
+      "ferramentasAceitas": [
+        "descrever_diagrama",
+        "buscar_elemento",
+        "detalhar_elemento"
+      ],
+      "proibicoes": [
+        "nao consigo saber"
+      ],
+      "porque": "nasceu da avaliacao ao vivo: o modelo conferia elemento por elemento (dez `detalhar_elemento`) porque `descrever_diagrama` nao contava as pontas soltas. Agora conta — e a resposta honesta quando nao ha nenhuma e dizer que nao ha, nao \"nao consigo saber\""
     }
   ]
 }

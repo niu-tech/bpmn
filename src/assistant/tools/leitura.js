@@ -347,12 +347,40 @@ export function criarExecutoresDeLeitura({ acesso, lerSimulacao = () => null } =
         }
       }
 
+      /**
+       * AS PONTAS SOLTAS, aqui também (achado da avaliação ao vivo, 2026-11-15).
+       *
+       * ⚠ Perguntado *"pinta de vermelho a tarefa que está sem ligação"*, o modelo chamou
+       * `buscar_elemento` e **dez** `detalhar_elemento` para conferir elemento por elemento — e
+       * acertou a resposta. Dez chamadas, pagas pela cota do aluno, para um fato que a gente já
+       * calcula numa linha na leitura da tela que toda escrita devolve. Faltava só estar AQUI,
+       * que é onde ele olha primeiro.
+       *
+       * É o defeito mais comum de aluno e o agente não enxergava sem varredura.
+       */
+      const semLigacao = conteudo
+        .filter((e) => !e.waypoints && !['bpmn:Lane', 'bpmn:Participant'].includes(e.type))
+        .filter((e) => {
+          try {
+            const { entradas, saidas } = acesso.entradasESaidas(e.id);
+            return entradas.length === 0 && saidas.length === 0;
+          } catch {
+            return false;
+          }
+        })
+        .slice(0, MAX_RESULTADOS)
+        .map(resumir);
+
       const sel = acesso.selecionado();
       return {
         processo: raiz ? { id: raiz.id ?? null, nome: nomeDe(raiz) } : null,
         total: conteudo.length,
         contagem,
         raias,
+        // Lista vazia significa "procurei e não há", e não "não olhei": por isso ela vai sempre,
+        // junto do aviso de que a varredura foi completa.
+        semLigacao,
+        varreuODiagramaInteiro: true,
         selecionado: sel && !sel.labelTarget ? resumir(sel) : null,
       };
     },

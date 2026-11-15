@@ -319,4 +319,46 @@ test('o retrato de antes são três números, e é ele que deixa a leitura conta
   assert.match(tela, /as 5 formas que já estavam desenhadas/);
 });
 
+testAsync('descrever_diagrama conta as PONTAS SOLTAS, em vez de deixar o modelo conferir uma a uma', async () => {
+  // Achado da avaliacao ao vivo (2026-11-15): perguntado "qual tarefa esta sem ligacao", o modelo
+  // chamou `buscar_elemento` e DEZ `detalhar_elemento` para conferir elemento por elemento. Dez
+  // chamadas pagas pela cota do aluno para um fato que ja' se calcula numa linha.
+  const solta = { id: 'Task_solta', type: 'bpmn:Task', parent: { id: 'P' }, businessObject: { name: 'Conferir estoque' } };
+  const ligada = { id: 'Task_1', type: 'bpmn:Task', parent: { id: 'P' }, businessObject: { name: 'Assar' } };
+  const raiz = { id: 'P', type: 'bpmn:Process', businessObject: {} };
+  const acesso = {
+    disponivel: true,
+    elementos: () => [raiz, ligada, solta],
+    porId: (id) => [raiz, ligada, solta].find((e) => e.id === id) ?? null,
+    selecionado: () => null,
+    entradasESaidas: (id) => (id === 'Task_1'
+      ? { entradas: [{ id: 'Flow_1' }], saidas: [] }
+      : { entradas: [], saidas: [] }),
+  };
+
+  const r = await criarExecutoresDeLeitura({ acesso }).descrever_diagrama();
+
+  assert.deepEqual(r.semLigacao.map((e) => e.nome), ['Conferir estoque']);
+  // A varredura foi COMPLETA: e' isso que autoriza o modelo a dizer "nao ha" em vez de "nao sei".
+  assert.equal(r.varreuODiagramaInteiro, true);
+});
+
+testAsync('sem nenhuma ponta solta, a lista vem VAZIA — e nao ausente', async () => {
+  // Lista vazia significa "procurei e nao ha"; campo ausente significa "nao olhei". O modelo
+  // precisa poder dizer a primeira coisa.
+  const raiz = { id: 'P', type: 'bpmn:Process', businessObject: {} };
+  const ligada = { id: 'Task_1', type: 'bpmn:Task', parent: raiz, businessObject: { name: 'Assar' } };
+  const acesso = {
+    disponivel: true,
+    elementos: () => [raiz, ligada],
+    porId: () => ligada,
+    selecionado: () => null,
+    entradasESaidas: () => ({ entradas: [{ id: 'f' }], saidas: [{ id: 'g' }] }),
+  };
+
+  const r = await criarExecutoresDeLeitura({ acesso }).descrever_diagrama();
+
+  assert.deepEqual(r.semLigacao, []);
+});
+
 report('leitura');
