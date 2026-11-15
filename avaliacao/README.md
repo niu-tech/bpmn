@@ -74,7 +74,10 @@ não há "taxa aceitável" para o agente apagar sem perguntar ou repetir uma inj
 4. **Pergunte-se se a frase carrega o contexto que ela pressupõe.** No primeiro contato ao vivo,
    metade das perguntas dizia "essas duas", "esse gateway", "dessa tarefa" — e o modelo
    perguntou qual. Ou a pergunta declara `exigeSelecao`, ou nomeia os elementos.
-5. Rode a camada determinística. Se ela reprovar, decida: a pergunta está errada ou o produto está?
+5. **E se ela é possível NO DIAGRAMA DA CORRIDA.** Pedir "uma raia para o entregador" num diagrama
+   que já tem essa raia, ou "monte um processo" numa colaboração com dois pools sem dizer em qual,
+   faz o agente responder certo — e a pergunta medir outra coisa.
+6. Rode a camada determinística. Se ela reprovar, decida: a pergunta está errada ou o produto está?
 
 ## Limiares e linha de base
 

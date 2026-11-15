@@ -128,12 +128,12 @@
       "id": "montagem-tres-frases",
       "categoria": "montagem",
       "perfil": "modelador",
-      "pergunta": "monta um processo: começa com Pedido recebido, depois Preparar o pedido, e termina com Pedido entregue",
+      "pergunta": "monta no pool Pizza vendor: comeca com Pedido recebido, depois Preparar o pedido, e termina com Pedido entregue",
       "ferramentasEsperadas": [
         "criar_elemento"
       ],
       "chamadasMinimas": 3,
-      "porque": "é o caso que o dono usa para mostrar o produto: três frases viram um processo ligado e legível"
+      "porque": "e o caso que o dono usa para mostrar o produto: tres frases viram um processo ligado e legivel. A pergunta NOMEIA o pool porque o diagrama da corrida e uma colaboracao com dois — sem isso o modelo pergunta em qual, que e o comportamento certo (e e outra pergunta deste acervo)"
     },
     {
       "id": "montagem-pool",
@@ -149,11 +149,11 @@
       "id": "montagem-raia",
       "categoria": "montagem",
       "perfil": "modelador",
-      "pergunta": "põe uma raia para o entregador dentro do pool da pizzaria",
+      "pergunta": "poe uma raia para o Financeiro dentro do pool Pizza vendor",
       "ferramentasEsperadas": [
         "criar_raia"
       ],
-      "porque": "a primeira raia de um pool nasce em dupla — e o aluno precisa saber por quê"
+      "porque": "a primeira raia de um pool nasce em dupla — e o aluno precisa saber por que. A raia pedida NAO existe no diagrama da corrida: a versao anterior pedia uma para o entregador, que ja existe, e o modelo respondeu isso (certo) em vez de duplicar"
     },
     {
       "id": "geometria-mover",
@@ -220,23 +220,28 @@
       "categoria": "ambiguidade",
       "perfil": "modelador",
       "pergunta": "cria uma tarefa Receber pagamento",
-      "ferramentasEsperadas": [
-        "criar_elemento"
-      ],
-      "erroEsperado": "sem_lugar",
       "candidatosEsperados": true,
-      "porque": "numa colaboração com dois pools, adivinhar põe o processo do aluno no lugar errado; a recusa devolve os pools e o painel os transforma em botão"
+      "porque": "numa colaboracao com dois pools, adivinhar poe o processo do aluno no lugar errado. O agente pode perguntar antes de tentar, ou tentar e levar a recusa `sem_lugar` com os candidatos (que o painel transforma em botao) — os dois sao certos. O que se mede e o DESENHO: nada nasce sem o aluno escolher",
+      "ferramentasAceitas": [
+        "criar_elemento",
+        "buscar_elemento",
+        "descrever_diagrama"
+      ],
+      "naoDesenha": true
     },
     {
       "id": "ambiguidade-busca",
       "categoria": "ambiguidade",
       "perfil": "modelador",
       "pergunta": "apaga a tarefa de pizza",
-      "ferramentasEsperadas": [
-        "buscar_elemento"
-      ],
       "candidatosEsperados": true,
-      "porque": "o diagrama tem varias tarefas com \"pizza\" no nome: a escolha e do aluno, em um clique. Fica no acervo mesmo sendo dificil de medir ao vivo — o que importa e o agente NAO adivinhar"
+      "porque": "o diagrama tem varias tarefas com \"pizza\" no nome: a escolha e do aluno, em um clique. Fica no acervo mesmo sendo dificil de medir ao vivo — o que importa e o agente NAO adivinhar",
+      "ferramentasAceitas": [
+        "buscar_elemento",
+        "descrever_diagrama",
+        "detalhar_elemento"
+      ],
+      "naoDesenha": true
     },
     {
       "id": "confirmacao-remover",
