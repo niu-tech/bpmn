@@ -233,4 +233,16 @@ test('frame desconhecido nao e engolido em silencio', () => {
   assert.equal(parseServerFrame(null).kind, 'unknown');
 });
 
+test('o setup pede COMPRESSAO de contexto, nos dois perfis', () => {
+  // Change `sustain-a-class-session`, 1.2. Sem isto, a sessao MORRE ao encostar no teto de
+  // contexto — e numa aula isso e' a pior falha possivel: tudo funcionando, e a conversa acaba
+  // porque durou. Com a janela deslizante o servidor descarta o comeco e a sessao segue.
+  const comPrompt = (extra) => buildSetup({ systemInstruction: 'prompt de teste', ...extra });
+  for (const perfil of [{ withDeliveryTool: true }, { withDeliveryTool: false }]) {
+    const s = comPrompt(perfil).setup;
+    assert.deepEqual(s.contextWindowCompression, { slidingWindow: {} },
+      'os dois perfis tem de pedir a mesma compressao');
+  }
+});
+
 report('protocol');

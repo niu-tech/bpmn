@@ -570,4 +570,65 @@ test('a chave aparece na URL do socket (contrato do Live) mas NUNCA no log', () 
   assert.match(all, /key=\*\*\*/);
 });
 
+console.log('\n\u25b6 o que cada turno custou e quanto esperou');
+
+test('os quatro tempos do turno saem de carimbos, nao de estimativa', () => {
+  // Tarefa 4.1/4.3. Cada numero responde uma pergunta diferente de "esta lento":
+  // ouviu = o servidor entendeu a fala; primeira = comecou a responder; audio/janela = a fala
+  // chegou inteira ou aos pedacos; total = a espera de ponta a ponta.
+  const { session, ws, clock } = ready();
+  session.ask('o que e um gateway?');
+
+  clock.avancar(400);
+  ws.emit({ serverContent: { inputTranscription: { text: 'o que e um gateway?' } } });
+  clock.avancar(1100);
+  ws.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'AAAA' } }] } } });
+  clock.avancar(900);
+  ws.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'AAAA' } }] } } });
+  clock.avancar(300);
+  ws.emit({ serverContent: { turnComplete: true } });
+
+  const t = session.turns.at(-1).tempos;
+  assert.equal(t.ouviuMs, 400);
+  assert.equal(t.primeiraMs, 1500, 'a primeira resposta e o primeiro quadro de audio');
+  assert.equal(t.audioMs, 1500);
+  assert.equal(t.janelaDeAudioMs, 900, 'entre o primeiro e o ultimo quadro de audio');
+  assert.equal(t.totalMs, 2700);
+});
+
+test('turno DIGITADO nao finge ter ouvido nada', () => {
+  // No texto o servidor nao transcreve entrada nenhuma: inventar um `ouviu` ali seria numero
+  // bonito e falso. `null` e' a resposta honesta.
+  const { session, ws, clock } = ready();
+  session.ask('e um gateway paralelo?');
+  clock.avancar(700);
+  ws.emit({ toolCall: { functionCalls: [{ id: 'c1', name: DELIVERY_TOOL, args: { texto: 'E um que abre caminhos.' } }] } });
+  clock.avancar(100);
+  ws.emit({ serverContent: { turnComplete: true } });
+
+  const t = session.turns.at(-1).tempos;
+  assert.equal(t.ouviuMs, null);
+  assert.equal(t.primeiraMs, 700, 'no texto, a primeira resposta e a ENTREGA');
+  assert.equal(t.janelaDeAudioMs, null);
+});
+
+test('o uso soma por turno, e o frame de uso NAO e uma resposta', () => {
+  // Tarefa 5.1/5.3. O `usageMetadata` chega como frame proprio; se ele contasse como "o modelo
+  // respondeu", abriria turno e reiniciaria o relogio de silencio — defeito que a PoC do Orbit
+  // pagou e que aqui fica preso por teste.
+  const { session, ws, clock } = ready();
+  const turnosAntes = session.turns.length;
+  ws.emit({ usageMetadata: { promptTokenCount: 10, responseTokenCount: 5, totalTokenCount: 15 } });
+  assert.equal(session.turns.length, turnosAntes, 'frame de uso nao fecha turno nenhum');
+  assert.equal(session.uso.turnos, 0, 'nem conta como turno');
+
+  session.ask('primeira');
+  clock.avancar(100);
+  ws.emit({ toolCall: { functionCalls: [{ id: 'c1', name: DELIVERY_TOOL, args: { texto: 'resposta' } }] } });
+  ws.emit({ usageMetadata: { promptTokenCount: 100, responseTokenCount: 40, totalTokenCount: 140 } });
+  ws.emit({ serverContent: { turnComplete: true } });
+
+  assert.deepEqual(session.uso, { entrada: 100, saida: 40, total: 140, turnos: 1 });
+});
+
 report('session');
