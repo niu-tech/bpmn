@@ -217,6 +217,16 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    */
   let micMudo = false;
   let agenteMudo = false;
+  /**
+   * O aluno MANDOU ÁUDIO desde a última vez que um turno fechou?
+   *
+   * ⚠ É a única pista de que existiu uma pergunta quando a queda chega ANTES da transcrição.
+   * Na sessão do dono (2026-11-15) o turno 8 sumiu inteiro entre dois turnos numerados: ele
+   * falou, o fio morreu antes de o servidor devolver uma sílaba, e a tela não tinha **nada** —
+   * nem bolha, nem aviso. A conversa seguiu como se ele não tivesse falado, e a reconexão ainda
+   * disse "pode continuar", porque não havia pergunta pendente para encontrar.
+   */
+  let falouSemResposta = false;
 
   /** Quantas vezes o aluno falou ou digitou nesta aba. */
   let epocaDoAluno = 0;
@@ -596,6 +606,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * de saída, ou turno fechado. Idempotente: o segundo sinal do mesmo turno não faz nada.
    */
   function fecharFala(motivo) {
+    // A fala chegou ao servidor: deixou de ser uma pergunta perdida no caminho.
+    falouSemResposta = false;
     if (!rastreador?.estaFalando) return;
     rastreador.fecharFala(motivo);
     /**
@@ -1040,6 +1052,21 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         const fio = retomou ? ' Continuamos na mesma conversa.' : '';
         const perdida = perguntaSemResposta();
         if (!perdida) {
+          /**
+           * ⚠ "Pode continuar" era MENTIRA quando a queda pegou a fala dele no meio: não havia
+           * bolha de espera para `perguntaSemResposta` encontrar, porque o servidor nunca
+           * devolveu a transcrição — e a tela ficava igual a uma conversa em que ninguém falou.
+           * O rastro existe no nosso lado: quadros de microfone saíram (`falouSemResposta`).
+           */
+          if (falouSemResposta) {
+            falouSemResposta = false;
+            note(
+              'A conexão caiu enquanto você falava, e o que você disse não chegou. '
+              + 'Pode repetir — voltei na mesma conversa.',
+              'context-reset',
+            );
+            return;
+          }
           note(
             retomou
               ? 'A conexão caiu e voltou — sem perder o fio: continuamos na mesma conversa.'
@@ -1532,7 +1559,11 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
             // Em escuta contínua o quadro SOBE mesmo durante a resposta: é assim que o servidor
             // percebe que o aluno começou a falar e interrompe o modelo.
             if (meiaDuplex && state === 'speaking') { diag.mic('gated'); return; }
-            session?.pushAudio(b64);
+            // Quadro de microfone SAINDO: a partir daqui existe uma pergunta em voo, mesmo que
+            // nada tenha voltado ainda (ver `falouSemResposta`).
+            // `pushAudio` devolve o número do turno quando o quadro SAIU, e `null` quando foi
+            // descartado (sessão ainda não pronta). Só o que saiu conta como pergunta em voo.
+            if (session?.pushAudio(b64) != null) falouSemResposta = true;
           },
           onLevel: (v) => {
             level = v;

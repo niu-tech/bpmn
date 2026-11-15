@@ -44,7 +44,13 @@ function fakeLive() {
       // poder perguntar O QUE o modelo recebeu, e não só se a chamada aconteceu.
       enviarContexto(texto) { s.enviados.push({ tipo: 'contexto', t: texto }); return true; },
       enviarHistorico(turnos) { s.enviados.push({ tipo: 'historico', turnos }); return true; },
-      pushAudio(b) { s.enviados.push({ tipo: 'audio', b }); },
+      /**
+       * Devolve o NÚMERO DO TURNO, como a sessão de verdade — e `null` quando descarta.
+       *
+       * ⚠ O dublê devolvia `undefined`, e isso escondia um contrato que o gerente passou a
+       * usar: quadro que SAIU significa pergunta em voo (a fala que a queda leva no meio).
+       */
+      pushAudio(b) { s.enviados.push({ tipo: 'audio', b }); return s.turnos || 1; },
       endAudio() { s.audioEncerrado = true; },
       close() { s.fechada = true; state = 'idle'; },
       // gatilhos do teste
@@ -1453,6 +1459,27 @@ testAsync('o recado de cota diz o que foi MEDIDO, e aponta o verbo que resolve',
     'a conexao de volta limpa o recado de quando ela caiu');
   forgetSecrets();
 });
+
+testAsync('a queda que leva a FALA dele no meio nao passa em branco', async () => {
+  // ⚠ Sessao do dono, 2026-11-15: o turno 8 sumiu inteiro entre dois turnos numerados. Ele
+  // falou, o fio morreu antes de o servidor devolver uma silaba, e a tela ficou IGUAL a uma
+  // conversa em que ninguem falou — e a reconexao ainda disse "pode continuar". Nao havia bolha
+  // de espera para encontrar, porque nunca chegou transcricao. O rastro e' nosso: o quadro saiu.
+  const { session, live, audio } = montar();
+  await session.connect('voz');
+  live.ultima.pronta();
+  await session.startMic();
+  audio.estado.emitir?.('UXVhZHJvIGRlIGF1ZGlv', 1, 0.3);   // ele falou: um quadro saiu
+
+  live.ultima.pronta();                                    // a queda voltou (setup aceito de novo)
+
+  const aviso = session.messages.filter((m) => m.role === 'system').at(-1).text;
+  assert.match(aviso, /enquanto você falava/i, 'diz o que aconteceu com a fala dele');
+  assert.match(aviso, /repetir/i, 'e o que fazer agora');
+  assert.ok(!/pode continuar/i.test(aviso), 'nunca mais "pode continuar" em cima de uma fala perdida');
+  forgetSecrets();
+});
+
 
 console.log('\n▶ uma sessao Live por vez');
 
