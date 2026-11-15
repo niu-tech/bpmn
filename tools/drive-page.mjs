@@ -120,14 +120,22 @@ function acharNavegador() {
   return achado;
 }
 
-/** Espera o endpoint de depuração responder. Sem isto, a primeira conexão cai em ECONNREFUSED. */
+/**
+ * Espera o endpoint de depuração responder. Sem isto, a primeira conexão cai em ECONNREFUSED.
+ *
+ * ⚠ Cada tentativa tem PRAZO PRÓPRIO, e isso não é zelo: uma porta que ACEITA a conexão e nunca
+ * responde (um Edge zumbi de uma corrida anterior segurando a mesma porta) prende o `await` para
+ * sempre — e o `while (Date.now() < fim)` nem chega a reavaliar a condição. Foi assim que duas
+ * corridas ao vivo do acervo ficaram ~30 e ~50 minutos vivas com menos de 1 s de CPU, parecendo
+ * que estavam trabalhando (2026-11-15).
+ */
 async function esperarDevTools(porta, prazoMs = 15000) {
   const fim = Date.now() + prazoMs;
   while (Date.now() < fim) {
     try {
-      const r = await fetch(`http://127.0.0.1:${porta}/json/version`);
+      const r = await fetch(`http://127.0.0.1:${porta}/json/version`, { signal: AbortSignal.timeout(2000) });
       if (r.ok) return await r.json();
-    } catch { /* ainda subindo */ }
+    } catch { /* ainda subindo, ou porta tomada por um zumbi */ }
     await new Promise((r) => setTimeout(r, 120));
   }
   throw new Error(`o navegador nao abriu a porta de depuracao ${porta} em ${prazoMs}ms`);

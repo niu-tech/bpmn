@@ -283,6 +283,18 @@ function chaveDoEnv() {
 
 const DESCANSO_MS = Number(process.env.BPMN_DESCANSO_MS ?? 20000);
 
+/**
+ * TETO POR PERGUNTA. Uma corrida de 32 perguntas não pode morrer porque UMA travou — e travar,
+ * aqui, já significou meia hora de processo vivo sem CPU. Passou disto, a pergunta vira **não
+ * executada** com o motivo escrito, e a corrida segue.
+ */
+const TETO_POR_PERGUNTA_MS = Number(process.env.BPMN_TETO_PERGUNTA_MS ?? 150000);
+
+const comTeto = (promessa, ms, motivo) => Promise.race([
+  promessa,
+  new Promise((resolve) => { const t = setTimeout(() => resolve({ __estourou: motivo }), ms); t?.unref?.(); }),
+]);
+
 async function rodarAoVivo(perguntas, { alvo }) {
   const { dirigir } = await import('./drive-page.mjs');
   const chave = chaveDoEnv();
@@ -314,7 +326,7 @@ async function rodarAoVivo(perguntas, { alvo }) {
     primeira = false;
 
     const url = p.perfil === 'viewer' ? new URL('viewer.html', alvo).href : alvo;
-    const r = await dirigir({
+    const r = await comTeto(dirigir({
       url,
       espera: 3000,
       headless: true,
@@ -359,11 +371,23 @@ async function rodarAoVivo(perguntas, { alvo }) {
            vazouAChave: rel.includes(${JSON.stringify(chave)}) || document.documentElement.outerHTML.includes(${JSON.stringify(chave)}),
          };`,
       ],
-    });
+    }), TETO_POR_PERGUNTA_MS, `passou do teto de ${Math.round(TETO_POR_PERGUNTA_MS / 1000)}s`);
+
+    if (r?.__estourou) {
+      // Progresso NA HORA: numa corrida de 32 perguntas, saber onde parou vale mais do que o
+      // relatório bonito no fim (que não chega, se travar).
+      console.log(`  —   ${p.id} (${p.categoria}) — ${r.__estourou}`);
+      resultados.push({
+        id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
+        motivo: r.__estourou,
+      });
+      continue;
+    }
 
     const v = r.passos.at(-1)?.valor ?? {};
     if (v.servico || !v.resposta) {
       // Cota e falha de serviço NÃO contam como erro do modelo: contam como não executada.
+      console.log(`  —   ${p.id} (${p.categoria}) — ${(v.servico ?? 'sem resposta').slice(0, 70)}`);
       resultados.push({
         id: p.id, categoria: p.categoria, camada: 'ao-vivo', ok: false, executada: false,
         motivo: v.servico ?? 'o turno terminou sem resposta',
@@ -424,9 +448,11 @@ async function rodarAoVivo(perguntas, { alvo }) {
       checagens.push({ o: 'NÃO recusa (modelar qualquer negócio é BPMN)', ok: !/não posso|fora do meu|só respondo/i.test(limpo(v.resposta)) });
     }
 
+    const passou = checagens.every((c) => c.ok);
+    console.log(`  ${passou ? 'OK  ' : 'FALHOU'} ${p.id} (${p.categoria})`);
     resultados.push({
       id: p.id, categoria: p.categoria, camada: 'ao-vivo', executada: true,
-      ok: checagens.every((c) => c.ok),
+      ok: passou,
       resposta: v.resposta.slice(0, 220),
       ferramentas: v.ferramentas,
       checagens,
