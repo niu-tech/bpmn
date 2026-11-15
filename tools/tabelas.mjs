@@ -51,6 +51,19 @@ function lerSessoes() {
       if (Array.isArray(s.turnos) && s.turnos.length) sessoes.push({ nome, ...s });
     } catch { /* idem */ }
   }
+  /**
+   * As sessões que a CORRIDA DO ACERVO salva (uma por perfil, desde que o lote inteiro passou a
+   * conversar na mesma sessão). São as mais honestas da tabela: um lote de 26 perguntas contra o
+   * Gemini de verdade, com o contexto acumulando como numa aula — que é justamente o regime em
+   * que a latência e o custo importam. Sem isto a tabela mostrava só o dublê (0,1 s / 0,2 s),
+   * número verdadeiro e enganoso ao mesmo tempo.
+   */
+  for (const nome of maisRecentes('artifacts/avaliacao', (d) => d.isFile() && d.name.startsWith('sessao-ao-vivo'))) {
+    try {
+      const s2 = JSON.parse(readFileSync(`artifacts/avaliacao/${nome}`, 'utf8'));
+      if (Array.isArray(s2.turnos) && s2.turnos.length) sessoes.push({ nome: `acervo/${nome.replace(/^sessao-ao-vivo-/, '').replace(/\.json$/, '')}`, ...s2 });
+    } catch { /* idem */ }
+  }
   // As gravacoes em VIDEO tambem sao sessoes — e sao as unicas AO VIVO que guardam os tempos.
   for (const dir of maisRecentes('artifacts/video', (d) => d.isDirectory())) {
     const arq = `artifacts/video/${dir}/captura.json`;

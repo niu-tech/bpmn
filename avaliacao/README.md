@@ -33,6 +33,27 @@ node tools/avaliar.mjs --ao-vivo --gravar-baseline   # ato EXPLÍCITO: fixa a li
 Cada corrida escreve `artifacts/avaliacao/<carimbo>/resumo.json` e, ao vivo, um registro no
 diário append-only (`artifacts/ledger/corridas.jsonl`).
 
+## Uma pergunta isolada DENTRO de uma sessão compartilhada
+
+A camada ao vivo usa **uma sessão para o lote** (uma por perfil), e não uma por pergunta. O
+motivo imediato foi vaga de sessão — 33 sessões numa corrida pediam 33 vagas ao projeto, e a
+recusa que vinha disso foi lida como cota por um dia inteiro. O motivo melhor é que **uma aula é
+uma conversa**: a prova passou a ter a forma do uso.
+
+Só que aí cada pergunta herda o que a anterior deixou, e três coisas precisam ser devolvidas ao
+início — as duas primeiras pelo harness, de propósito e à vista:
+
+| o que herdava | como a pergunta fica isolada |
+|---|---|
+| o **desenho** (uma raia criada antes já existe na seguinte) | `__bpmnAssist.recarregarDiagrama()` volta ao diagrama base da página |
+| o **portão de confirmação** pendente (a recusa de uma pergunta era aberta pela pergunta seguinte) | `__bpmnAssist.limparPortoes()` esquece pendentes |
+| a **conversa** com o modelo | fica, e é o ponto: o contexto acumula como numa aula (e a compressão entra sozinha) |
+
+⚠ **A herança do portão não era só ruído de medição: era um defeito de produto** (item T22 em
+`openspec/open-items.md`), e a sessão por pergunta o escondia. Quando uma prova reprova numa
+sessão compartilhada, a primeira pergunta é *"isto é herança?"* — e a segunda, *"a herança
+também acontece com um aluno de verdade?"*. Da segunda vez a resposta foi sim.
+
 ## Os campos de uma pergunta
 
 | campo | o que faz |

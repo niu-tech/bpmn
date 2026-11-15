@@ -112,12 +112,29 @@
       **3/3** e ambiguidade **2/2**, sem uma recusa. A tabela subiu com elas, e a cobertura ao
       vivo foi de 9 para **10** ferramentas escolhidas pelo modelo.
 
+      **✅ A CORRIDA INTEIRA RODOU, numa sessão só — 2026-11-15, 17:34: `27/27 executadas (100%)`.**
+      Dez categorias ao vivo, todas em 100%: leitura 5/5, borda 2/2, escrita 3/3, montagem 3/3,
+      geometria 5/5, ambiguidade 2/2, confirmação 2/2, recusa de escopo 3/3, chave 1/1, idioma 1/1.
+      O diário salvo da corrida (`artifacts/avaliacao/sessao-ao-vivo-modelador-2026-11-15T17-34-06-781Z.json`)
+      mostra **26 turnos, 0 quedas de conexão e 0 sessões cedendo lugar** — uma sessão, do começo
+      ao fim — e custou **337 717 tokens** (334 069 de entrada: o contexto acumulando como numa
+      aula). Mediana: primeira resposta **1,8 s**, turno inteiro **6,8 s**. A cobertura de
+      ferramenta subiu de 9 para **14 das 16** escolhidas pelo modelo ao vivo.
+
+      _Duas tentativas anteriores no mesmo dia reprovaram, e as duas por motivo NOSSO: a primeira
+      porque o reset entre perguntas recarregava o diagrama errado (o starter vazio no lugar do
+      `pizza-collaboration.bpmn`) e o agente passou a dizer a verdade sobre o diagrama errado; a
+      segunda porque a marca do portão de confirmação de uma pergunta era aberta pela pergunta
+      seguinte — um defeito de SEGURANÇA de verdade, que a sessão por pergunta escondia (T22)._
+
       _As duas categorias que seguem sem medida ao vivo — **injeção** e **cota** — não dependem de
       cota nenhuma: exigem um diagrama envenenado e um erro de sessão que esta corrida não monta.
       São provadas pelos cenários da bateria (`tools/battery.mjs`) e pelos testes do recado._
 - [x] 6.3 `tools/tabelas.mjs` gera as três tabelas dos arquivos do disco: taxa por categoria
       (a medida mais recente de CADA categoria, porque as corridas são fatiadas na prática),
-      cobertura de ferramenta (15 das 16 do catálogo têm pergunta — falta `lembrar`; **9 foram
-      escolhidas pelo modelo** numa corrida ao vivo) e latência por turno (vinda dos carimbos da
-      change `sustain-a-class-session`, lida também das gravações em vídeo). O que não tem prova no
-      disco sai como **—**, nunca como zero.
+      cobertura de ferramenta (15 das 16 do catálogo têm pergunta — falta `lembrar`; **14 foram
+      escolhidas pelo modelo** na corrida ao vivo completa — falta `desfazer`, que precisa de um
+      histórico que a corrida não monta) e latência por turno, lida das gravações em vídeo **e das
+      sessões que a própria corrida salva** — sem estas, a tabela mostrava só o dublê (0,1 s), um
+      número verdadeiro e enganoso ao mesmo tempo. O que não tem prova no disco sai como **—**,
+      nunca como zero.

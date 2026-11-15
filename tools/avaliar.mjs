@@ -448,10 +448,20 @@ async function colherAoVivo(perguntas, { alvo, chave, dirigir }) {
       const alvoArquivo = `artifacts/avaliacao/sessao-ao-vivo-${perfil}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
       mkdirSync('artifacts/avaliacao', { recursive: true });
       writeFileSync(alvoArquivo, JSON.stringify(sessao, null, 2), 'utf8');
-      const setups = (sessao.eventos ?? []).filter((e) => e.key === 'out.setup').length;
-      const retomadas = (sessao.eventos ?? []).filter((e) => e.key === 'ws.resumption').length;
-      console.log(`  ✓ ${lote.length} pergunta(s) em ${setups} setup(s) de sessão`
-        + `${retomadas ? `, ${retomadas} alça(s) de retomada` : ''} — ${alvoArquivo}`);
+      const evs = sessao.eventos ?? [];
+      const conta = (k) => evs.filter((e) => e.key === k).reduce((n, e) => n + (e.n ?? 1), 0);
+      /**
+       * ⚠ O diário é um ANEL: numa corrida longa o `out.setup` do começo já saiu dele, e contar
+       * setups daria "0 sessões" — que soa como defeito e é só o anel. O que prova "uma sessão"
+       * sem depender do anel é o que NÃO aconteceu: nenhuma queda (`ws.close`) e nenhuma sessão
+       * cedendo lugar (`ws.uma-por-vez`), com todos os turnos no MESMO retrato.
+       */
+      const setups = conta('out.setup');
+      console.log(`  ✓ ${lote.length} pergunta(s) · ${(sessao.turnos ?? []).length} turno(s)`
+        + ` · ${conta('ws.close')} queda(s) · ${conta('ws.uma-por-vez')} sessão(ões) cedida(s)`
+        + `${conta('ws.resumption') ? ` · ${conta('ws.resumption')} alça(s) de retomada` : ''}`
+        + (setups ? ` · ${setups} setup(s) no anel` : ' · o aperto de mão já saiu do anel')
+        + ` — ${alvoArquivo}`);
     }
     lote.forEach((p, i) => {
       const passo = r.passos?.[i + 1];
