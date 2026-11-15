@@ -13,9 +13,9 @@ import { ligarAnunciosDaPagina } from '../pagina.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
 /** Dublê do `acesso`: guarda os handlers por evento para o teste disparar o que quiser. */
-function fakeAcesso({ selecionado = null, elementos = [] } = {}) {
+function fakeAcesso({ selecionado = null, selecionados = null, elementos = [] } = {}) {
   const handlers = new Map();
-  const estado = { selecionado, desassinados: 0 };
+  const estado = { selecionado, selecionados, desassinados: 0 };
   return {
     estado,
     disparar(nome) {
@@ -27,6 +27,8 @@ function fakeAcesso({ selecionado = null, elementos = [] } = {}) {
       elementos: () => elementos,
       porId: (id) => elementos.find((e) => e.id === id) ?? null,
       selecionado: () => estado.selecionado,
+      // O verbo novo: a selecao INTEIRA (ver `bpmn-api.selecionados`).
+      selecionados: () => estado.selecionados ?? (estado.selecionado ? [estado.selecionado] : []),
       entradasESaidas: () => ({ entradas: [], saidas: [] }),
       assinar(nomes, fn) {
         for (const n of [].concat(nomes)) handlers.set(n, [...(handlers.get(n) ?? []), fn]);
@@ -164,6 +166,36 @@ testAsync('desmontar desliga os três eventos', async () => {
   const { canal, estado } = montar();
   canal.dispose();
   assert.equal(estado.desassinados, 3, 'seleção, import e Ctrl+Z');
+});
+
+testAsync('a nota conta a SELECAO INTEIRA, e nao apenas o primeiro', async () => {
+  // ⚠ Dono, 2026-11-15, com quatro marcados por Shift e por laco: "ele sempre acha que eu estou
+  // selecionando so' o elemento Hungry for Pizza". A nota da pagina era uma das tres bocas que
+  // diziam "um so'" — e e' a que o modelo le como fato da tela.
+  const quatro = [
+    { id: 'Task_1', type: 'bpmn:Task', businessObject: { name: 'Select a pizza' } },
+    { id: 'Task_2', type: 'bpmn:Task', businessObject: { name: 'Order a pizza' } },
+    { id: 'Task_3', type: 'bpmn:Task', businessObject: { name: 'Pay the pizza' } },
+    { id: 'Task_4', type: 'bpmn:Task', businessObject: { name: 'Eat the pizza' } },
+  ];
+  const { acesso, disparar } = fakeAcesso({ selecionados: quatro, elementos: quatro });
+  const ditas = [];
+  const canal = ligarAnunciosDaPagina({
+    acesso,
+    anunciar: (f) => { ditas.push(f); return true; },
+    ocupado: () => false,
+    esperaDaSelecaoMs: ESPERA,
+  });
+
+  disparar('selection.changed');
+  await new Promise((r) => setTimeout(r, ESPERA * 4));
+
+  assert.equal(ditas.length, 1);
+  assert.match(ditas[0], /4 elementos/, 'diz QUANTOS');
+  assert.match(ditas[0], /Select a pizza/);
+  assert.match(ditas[0], /Eat the pizza/, 'e nomeia todos, nao apenas o primeiro');
+  assert.match(ditas[0], /esses/, 'e ensina como o aluno vai chamar o conjunto');
+  canal.dispose();
 });
 
 report('pagina');
