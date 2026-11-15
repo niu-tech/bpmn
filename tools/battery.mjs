@@ -541,8 +541,11 @@ const CENARIOS = [
       const sobreDep = idDep ? window.__sobrepoe(idDep) : null;
 
       // 3. ALINHAR nao empilha: os dois novos na mesma linha, sem ficar um por cima do outro.
-      const ali = (novo && idDep) ? await F('alinhar', { ids: [novo, idDep], eixo: 'linha' }) : null;
-      const ca = window.__caixa(novo), cb = window.__caixa(idDep);
+      // Alinhar o novo com o VIZINHO dele (mesma faixa e ligados): e' o caso do print, em que a
+      // seta ficou em degrau depois de as duas formas entrarem na mesma linha.
+      const ali = novo ? await F('alinhar', { ids: [de, novo], eixo: 'linha' }) : null;
+      const setas = ali && ali.resultado ? (ali.resultado.setasEndireitadas || 0) : 0;
+      const ca = window.__caixa(de), cb = window.__caixa(novo);
       const mesmaLinha = !!ca && !!cb && Math.abs((ca.y + ca.h / 2) - (cb.y + cb.h / 2)) <= 3;
       const sobreDepoisDoAlinhar = window.__sobrepoe(novo);
 
@@ -550,7 +553,7 @@ const CENARIOS = [
         ok: noMeio && encadeou
           && Array.isArray(sobreNovo) && sobreNovo.length === 0
           && Array.isArray(sobreDep) && sobreDep.length === 0
-          && !!ali && ali.ok === true && mesmaLinha
+          && !!ali && ali.ok === true && mesmaLinha && setas >= 1
           && Array.isArray(sobreDepoisDoAlinhar) && sobreDepoisDoAlinhar.length === 0,
         vaoAntes,
         noMeio,
@@ -558,6 +561,7 @@ const CENARIOS = [
         sobreNovo,
         sobreDep,
         mesmaLinha,
+        setas,
         sobreDepoisDoAlinhar,
       };
     `],

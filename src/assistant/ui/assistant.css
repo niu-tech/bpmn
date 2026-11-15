@@ -620,12 +620,15 @@
 .bpmn-assist__link-externo:hover { text-decoration: underline; }
 
 .bpmn-assist__mudos { display: flex; gap: 6px; flex: 0 0 auto; }
+.bpmn-assist__voz--mudo { background: #fff7ed; }   /* microfone mudo: nem escuta, nem alerta */
 .bpmn-assist__mudo {
-  font: inherit;
-  font-size: 11.5px;
-  line-height: 1.1;
-  padding: 6px 9px;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 9px;
   border: 1px solid var(--cor-borda);
   background: #fff;
   color: var(--cor-texto-suave);

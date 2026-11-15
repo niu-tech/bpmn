@@ -1481,6 +1481,70 @@ testAsync('a queda que leva a FALA dele no meio nao passa em branco', async () =
 });
 
 
+console.log('\n▶ os dois mudos');
+
+testAsync('mutar o microfone NAO encerra a voz, e abrir o microfone DESMUTA', async () => {
+  // ⚠ Relato do dono, 2026-11-15: "quando a gente clica em mutar o meu microfone, ele volta como
+  // se fosse a mesma coisa do botão stop... e quando eu clico para voltar, aparece ainda 'ativar
+  // meu microfone' como se tivesse desativado, só que ele está me ouvindo". Duas verdades sobre a
+  // mesma coisa e' uma a mais: o estado tem de ser UM.
+  const { session, live, audio, vistas } = montar();
+  const agora = () => vistas.at(-1);
+  await session.connect('voz');
+  live.ultima.pronta();
+  await session.startMic();
+  assert.equal(agora().micOn, true);
+
+  await session.mutarMicrofone(true);
+  assert.equal(agora().micMudo, true, 'mudo');
+  assert.equal(agora().micOn, false, 'a captura fecha de verdade');
+  assert.equal(agora().mode, 'voz', 'a conversa por voz CONTINUA: mudo nao e' + "' encerrar");
+  assert.equal(audio.estado.micsFechados, 1);
+
+  // Voltar pelo caminho do microfone (o botão grande), e nao pelo botão de mudo:
+  await session.startMic();
+  assert.equal(agora().micOn, true);
+  assert.equal(agora().micMudo, false, 'abrir o microfone DESMUTA, por qualquer caminho');
+  forgetSecrets();
+});
+
+testAsync('"so texto" cala a voz, e voltar faz o PROXIMO turno falar de novo', async () => {
+  // ⚠ "Quando eu cliquei para voltar ele nao continuou falando": calar chamava `pararDeFalar`,
+  // que tranca o `calado` ate' um turno novo — e no modo voz, com o microfone ja' aberto, nao
+  // havia turno novo que o destravasse. O audio JA' descartado nao volta; a voz, sim.
+  const { session, live, audio } = montar();
+  await session.connect('voz');
+  live.ultima.pronta();
+
+  session.silenciarAgente(true);
+  live.ultima.audio('cXVhZHJv');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(audio.estado.quadrosTocados ?? 0, 0, 'mudo: nao toca');
+
+  session.silenciarAgente(false);
+  live.ultima.audio('cXVhZHJv');
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok((audio.estado.quadrosTocados ?? 0) > 0, 'voltou a falar sem precisar de turno novo');
+  forgetSecrets();
+});
+
+testAsync('a bolha PARA de pulsar quando a resposta falada chega', async () => {
+  // ⚠ "Todas as mensagens estao piscando sempre": o caminho da VOZ escrevia o texto por cima da
+  // bolha de espera e nao limpava `rodando`. No modo voz isso e' a conversa inteira.
+  const { session, live } = montar();
+  await session.connect('voz');
+  live.ultima.pronta();
+  session.ask('o que e um gateway?');
+  const esperando = session.messages.filter((m) => m.role === 'assistant').at(-1);
+  assert.equal(esperando.rodando, true, 'enquanto espera, pulsa');
+
+  live.ultima.legenda('Um gateway e um ponto de decisao.', 'output');
+  assert.equal(session.messages.filter((m) => m.role === 'assistant').at(-1).rodando, false,
+    'chegou resposta: parou de pulsar');
+  forgetSecrets();
+});
+
+
 console.log('\n▶ uma sessao Live por vez');
 
 testAsync('com a conversa aberta, "Testar conexao" NAO abre uma segunda sessao', async () => {

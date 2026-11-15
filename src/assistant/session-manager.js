@@ -756,6 +756,17 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     diag.mic('close', motivo);
     try { await ref.stop(); } catch { /* já parado */ }
     session?.endAudio();
+    /**
+     * A ESPERA COMEÇA QUANDO ELE PARA DE FALAR, e não quando o modelo começa a responder.
+     *
+     * ⚠ A bolha "pensando…" nascia em `fecharFala`, que roda no PRIMEIRO áudio do modelo —
+     * ou seja, exatamente quando a espera acaba. Para quem olha a tela, ela nunca existiu: o
+     * dono pediu para apagar e viu a mesma tela parada até a resposta chegar (2026-11-15, duas
+     * vezes). Aqui é o gesto DELE: o microfone fechou com a fala dentro.
+     */
+    if (falouSemResposta && turnoDaFala != null && !bolhaDoTurno(turnoDaFala)) {
+      push({ role: 'assistant', text: 'pensando…', rodando: true, turn: turnoDaFala });
+    }
     publish();
     return true;
   }
@@ -1232,6 +1243,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         const bolha = bolhaDoTurno(n);
         if (bolha) {
           bolha.text = visivel;
+          /**
+           * ⚠ CHEGOU RESPOSTA: para de pulsar. Este caminho (a legenda da VOZ) escrevia o texto
+           * por cima da bolha de espera e **não limpava** `rodando` — então toda bolha já
+           * respondida continuava piscando para sempre, e no modo voz isso é a conversa inteira
+           * (dono, 2026-11-15: *"todas as mensagens estão piscando sempre"*). O caminho do texto
+           * sempre limpou; o da voz nunca limpou.
+           */
+          bolha.rodando = false;
           publish();
         } else {
           push({ role: 'assistant', text: visivel, fallback: true, turn: n });
@@ -1543,6 +1562,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         await (await ensureSpeaker()).resume();   // o mesmo gesto libera o alto-falante
         turnSeq++;
         voltarAFalar('microfone aberto');
+      /**
+       * ABRIR O MICROFONE É DESMUTAR — por qualquer caminho.
+       *
+       * ⚠ Sem isto o estado mente: o dono mutou, clicou no microfone para voltar a falar, o
+       * microfone ABRIU e o botão continuou dizendo "Ativar meu microfone" (2026-11-15: *"ele
+       * continua me ouvindo, mas aparece como se não estivesse"*). Duas verdades sobre a mesma
+       * coisa é uma a mais.
+       */
+      micMudo = false;
         // Abrir o microfone é começar um turno: o estado da tela tem de chegar antes da fala.
         atualizarContexto();
         diag.mic('open');
@@ -1751,6 +1779,13 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       diag.state('agente', agenteMudo ? 'mudo: só texto' : 'voltou a falar');
       // Calar com uma fala no ar deixaria o resto do turno tocando: corta o que já está na fila.
       if (agenteMudo) pararDeFalar();
+      /**
+       * ⚠ E destravar o `calado` ao voltar — senão o próximo turno também sai mudo e parece
+       * que o botão não funciona (dono, 2026-11-15: *"quando eu cliquei para voltar ele não
+       * continuou falando"*). O áudio JÁ descartado não volta: o que volta é a voz, da próxima
+       * resposta em diante.
+       */
+      else voltarAFalar('o aluno pediu a voz de volta');
       publish();
       return agenteMudo;
     },

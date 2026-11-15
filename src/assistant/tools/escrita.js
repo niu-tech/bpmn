@@ -584,9 +584,31 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       }
       // Um pixel de folga: o bpmn-js arredonda a geometria para a grade.
       if (centros.some((v) => Math.abs(v - centros[0]) > 1)) {
+        /**
+         * ⚠ "Os elementos seguem fora de linha" é verdade e não ensina nada — e a causa mais
+         * comum tem nome: eles estão em RAIAS (ou pools) diferentes, e uma forma não sai da raia
+         * dela só porque alguém pediu alinhamento. O dono tentou quatro de uma vez e levou um
+         * "me dê dois" do agente, que é o que sobra quando o erro não diz o motivo.
+         */
+        const faixas = new Set(els.map((e) => e?.parent?.id ?? '?'));
+        if (faixas.size > 1) {
+          throw nomeado(
+            ERROS_ESCRITA.NAO_MUDOU,
+            `${els.length} elementos em ${faixas.size} faixas diferentes (raia ou pool): alinhe os `
+            + 'que estiverem na MESMA faixa, ou mova um deles antes com a ferramenta mover',
+          );
+        }
         throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'os elementos seguem fora de linha');
       }
-      return { alinhados: els.map(resumir), eixo, em: centros[0], tela: tela(lista[0], retratoAntes) };
+      return {
+        alinhados: els.map(resumir),
+        eixo,
+        em: centros[0],
+        // Quantas setas foram redesenhadas junto: é o que separa "alinhou" de "alinhou e ficou bom".
+        setasEndireitadas: r?.endireitadas ?? 0,
+        separados: r?.separados ?? 0,
+        tela: tela(lista[0], retratoAntes),
+      };
     },
 
     /**

@@ -268,6 +268,28 @@ export function criarAcessoBpmn(modelador) {
     return andaram;
   };
 
+  /**
+   * Refaz o traçado das ligações cujos DOIS lados estão no conjunto. Devolve quantas.
+   *
+   * Só as de dentro do conjunto: refazer a seta que sai para fora moveria o desenho de quem o
+   * aluno não mandou tocar.
+   */
+  const endireitarEntre = (els) => {
+    if (typeof modeling.layoutConnection !== 'function') return 0;
+    const dentro = new Set((els ?? []).map((e) => e?.id).filter(Boolean));
+    const vistas = new Set();
+    let quantas = 0;
+    for (const e of els ?? []) {
+      for (const c of [...(e?.incoming ?? []), ...(e?.outgoing ?? [])]) {
+        if (!c || vistas.has(c.id)) continue;
+        if (!dentro.has(c.source?.id) || !dentro.has(c.target?.id)) continue;
+        vistas.add(c.id);
+        try { modeling.layoutConnection(c); quantas++; } catch { /* roteador recusou: a forma ja' esta' certa */ }
+      }
+    }
+    return quantas;
+  };
+
   const meioDoFluxo = (fluxo) => {
     const p = Array.isArray(fluxo?.waypoints) ? fluxo.waypoints.filter((w) => Number.isFinite(w?.x)) : [];
     if (!p.length) return null;
@@ -668,10 +690,21 @@ export function criarAcessoBpmn(modelador) {
        * coluna), e separá-las ali desfaria o que o aluno pediu.
        */
       const separados = ['middle', 'top', 'bottom'].includes(String(tipo)) ? separarNaLinha(els) : 0;
+      /**
+       * A SETA VAI JUNTO.
+       *
+       * ⚠ Alinhar mexe nas FORMAS; os waypoints da ligação continuam onde estavam, então duas
+       * tarefas na mesma linha ficavam unidas por uma seta em degrau — o desenho dizendo que
+       * estão desalinhadas enquanto elas estão alinhadas (print do dono, 2026-11-15: "ele alinhou
+       * corretamente, só que a linha ficou errada ainda"). `layoutConnection` é o mesmo roteador
+       * do bpmn-js que desenha a seta quando ela nasce.
+       */
+      const endireitadas = endireitarEntre(els);
       return {
         antes,
         depois: els.map((e) => ({ id: e.id, caixa: caixaDe(this.porId(e.id)) })),
         separados,
+        endireitadas,
       };
     },
 

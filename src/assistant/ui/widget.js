@@ -219,6 +219,27 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const ICONE_PARAR = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">'
     + '<rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>';
 
+  /**
+   * ÍCONES DOS DOIS MUDOS. Texto comprido em botão pequeno rouba a faixa inteira (dono,
+   * 2026-11-15: *"poderiam ser botões ao invés de ser explicitamente escrito"*) — o nome
+   * continua no `title` e no `aria-label`, que é onde ele serve.
+   */
+  const ICONE_MIC_MUDO = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">'
+    + '<path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3 3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" fill="currentColor"/>'
+    + '<path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    + '<path d="M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    + '<path d="M4 4l16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICONE_MIC_ATIVO = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">'
+    + '<path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3 3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" fill="currentColor"/>'
+    + '<path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    + '<path d="M12 18v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICONE_SOM = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">'
+    + '<path d="M4 9h3l5-4v14l-5-4H4z" fill="currentColor"/>'
+    + '<path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  const ICONE_SOM_MUDO = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">'
+    + '<path d="M4 9h3l5-4v14l-5-4H4z" fill="currentColor"/>'
+    + '<path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
   const talkBtn = el('button', { className: 'bpmn-assist__mic', type: 'button' });
   talkBtn.innerHTML = ICONE_MIC;
   /**
@@ -371,10 +392,8 @@ export function createWidget({ session, credentials, onClose } = {}) {
    * Não encerram sessão nem trocam de modo: continuar na mesma sessão é o que mantém a
    * conversa e a vaga.
    */
-  const mudoMicBtn = el('button', { className: 'bpmn-assist__mudo', type: 'button', textContent: 'Mutar meu microfone' });
-  mudoMicBtn.title = 'Fecha o seu microfone sem encerrar a conversa';
-  const mudoAgenteBtn = el('button', { className: 'bpmn-assist__mudo', type: 'button', textContent: 'Só texto' });
-  mudoAgenteBtn.title = 'Ele responde por escrito, sem falar';
+  const mudoMicBtn = el('button', { className: 'bpmn-assist__mudo', type: 'button' });
+  const mudoAgenteBtn = el('button', { className: 'bpmn-assist__mudo', type: 'button' });
   const mudos = el('div', { className: 'bpmn-assist__mudos' }, [mudoMicBtn, mudoAgenteBtn]);
   const faixaVoz = el('div', { className: 'bpmn-assist__voz' }, [vozEstado, meter, mudos, pararBtn]);
 
@@ -615,10 +634,26 @@ export function createWidget({ session, credentials, onClose } = {}) {
     if (powerBtn.parentElement !== ondeDeveEstar) ondeDeveEstar.append(powerBtn);
 
     // Os dois mudos dizem o que FAZEM agora, e marcam quando estão ligados.
-    mudoMicBtn.textContent = view.micMudo ? 'Ativar meu microfone' : 'Mutar meu microfone';
-    mudoMicBtn.classList.toggle('bpmn-assist__mudo--ligado', Boolean(view.micMudo));
-    mudoAgenteBtn.textContent = view.agenteMudo ? 'Voltar a ouvir' : 'Só texto';
-    mudoAgenteBtn.classList.toggle('bpmn-assist__mudo--ligado', Boolean(view.agenteMudo));
+    // Os dois mudos: ícone que mostra o ESTADO (riscado = mudo), e o nome no título.
+    const micEstaMudo = Boolean(view.micMudo);
+    const agenteEstaMudo = Boolean(view.agenteMudo);
+    mudoMicBtn.innerHTML = micEstaMudo ? ICONE_MIC_MUDO : ICONE_MIC_ATIVO;
+    mudoMicBtn.title = micEstaMudo
+      ? 'O seu microfone está mudo — clique para voltar a falar'
+      : 'Mutar o seu microfone (a conversa continua)';
+    mudoMicBtn.setAttribute('aria-label', mudoMicBtn.title);
+    mudoMicBtn.setAttribute('aria-pressed', String(micEstaMudo));
+    mudoMicBtn.classList.toggle('bpmn-assist__mudo--ligado', micEstaMudo);
+
+    mudoAgenteBtn.innerHTML = agenteEstaMudo ? ICONE_SOM_MUDO : ICONE_SOM;
+    mudoAgenteBtn.title = agenteEstaMudo
+      ? 'Ele está respondendo só por escrito — clique para ouvir de novo'
+      : 'Só texto: ele responde por escrito, sem falar';
+    mudoAgenteBtn.setAttribute('aria-label', mudoAgenteBtn.title);
+    mudoAgenteBtn.setAttribute('aria-pressed', String(agenteEstaMudo));
+    mudoAgenteBtn.classList.toggle('bpmn-assist__mudo--ligado', agenteEstaMudo);
+
+    faixaVoz.classList.toggle('bpmn-assist__voz--mudo', micEstaMudo);
 
     // Parar de falar só existe enquanto há fala. Fora disso, nem ocupa linha.
     if (calarBtn.parentElement !== acoes) acoes.append(calarBtn);
@@ -631,7 +666,15 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // ⚠ `micOn` e não `canAsk`: durante uma ferramenta `canAsk` é falso, e a faixa inteira
     // desaparecia no meio do turno — justamente quando ela tem de dizer "consultando o diagrama".
     // Rodapé que se esvazia no meio do turno é o que faz o aluno achar que travou.
-    const emVoz = mode === 'voz' && micOn;
+    /**
+     * ⚠ A faixa de voz FICA quando o microfone está mudo.
+     *
+     * Era `mode === 'voz' && micOn`, e mutar zera o `micOn` — então a faixa sumia, o compositor
+     * voltava e a tela ficava idêntica à de quem encerrou a voz (dono, 2026-11-15: *"ele volta
+     * como se fosse a mesma coisa do botão stop"*). Mudo é um estado DENTRO da conversa por voz,
+     * não a saída dela.
+     */
+    const emVoz = mode === 'voz' && (micOn || Boolean(view.micMudo));
     // Pedido de confirmação é a ação do momento: ele toma o rodapé e o resto sai.
     const perguntando = Boolean(confirmacao);
     const perguntaNova = perguntando && confirmaBox.hidden;
@@ -679,16 +722,24 @@ export function createWidget({ session, credentials, onClose } = {}) {
     // A frase de estado, da tabela da pesquisa. Cada estado diz o que está acontecendo AGORA.
     const falandoAgora = state === 'speaking';
     const consultando = state === 'tool';
-    vozEstado.querySelector('.bpmn-assist__voztitulo').textContent = consultando
-      ? 'Consultando o diagrama…'
-      : (falandoAgora ? 'Respondendo' : 'Estou ouvindo');
+    /**
+     * O TÍTULO DIZ O ESTADO REAL, e mudo é um estado.
+     *
+     * ⚠ Com o microfone mudo a faixa continuava dizendo "Estou ouvindo / pode falar
+     * normalmente" — a tela afirmando o contrário do que acabou de acontecer.
+     */
+    vozEstado.querySelector('.bpmn-assist__voztitulo').textContent = view.micMudo
+      ? 'Microfone mudo'
+      : (consultando ? 'Consultando o diagrama…' : (falandoAgora ? 'Respondendo' : 'Ouvindo você'));
     // ⚠ "Pode interromper falando" só quando for VERDADE: em meia-duplex o microfone fecha
     // durante a resposta, e prometer o que não existe é pior que não prometer.
-    vozEstado.querySelector('.bpmn-assist__vozdica').textContent = consultando
-      ? 'já volto com o resultado'
-      : (falandoAgora
-        ? (session.meiaDuplex ? 'microfone pausado durante a resposta' : 'pode interromper falando')
-        : 'pode falar normalmente');
+    vozEstado.querySelector('.bpmn-assist__vozdica').textContent = view.micMudo
+      ? 'ele não está te ouvindo — a conversa continua aberta'
+      : (consultando
+        ? 'já volto com o resultado'
+        : (falandoAgora
+          ? (session.meiaDuplex ? 'microfone pausado durante a resposta' : 'pode falar por cima')
+          : (view.agenteMudo ? 'respondendo só por escrito' : 'pode falar — ou escrever')));
     faixaVoz.classList.toggle('bpmn-assist__voz--falando', falandoAgora || consultando);
     // Em escuta contínua o microfone fica aberto durante a resposta — e dizer isso em texto é o
     // que faz o aluno descobrir que pode interromper. A rede de segurança muda a frase, porque
