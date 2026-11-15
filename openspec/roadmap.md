@@ -298,17 +298,47 @@ como explicar a escolha de representação (por que gateway exclusivo e não par
 corrigir de uma vez, e como apontar um erro sem desfazer o trabalho do aluno. Isso se decide com
 diagrama de aula na frente, não no código.
 
-### FK — Conhecimento citável
+### FK — Conhecimento citável  ✅ 2026-11-15
 Acervo OKF autoral de BPMN servido como arquivo estático · `consultar_norma` escolhida por
 function calling · trecho com localizador e chave de citação · **o aplicativo confere a chave**
 no modo texto · duas fontes declaradas no prompt (acervo × conhecimento geral do modelo).
 
-> **Portão FK** — AO VIVO: *"o que é um gateway exclusivo?"* responde **com a chave de citação**
-> que a ferramenta devolveu; pergunta fora do acervo diz "não está no meu acervo de N verbetes" e
-> **não** "a norma não trata disso"; e uma citação inventada chega ao aluno marcada como não
-> conferida.
+> **Portão FK — PASSOU (2026-11-15).** As duas falas, ao vivo, numa sessão só:
+>
+> *"o que é um gateway exclusivo, na notação?"* → o modelo **escolheu** `consultar_norma` e
+> respondeu *"**Pelo meu material**, o gateway exclusivo, representado por um losango vazio ou com
+> um 'X', escolhe apenas um caminho para o fluxo seguir, avaliando as condições das setas de saída
+> **[fonte:gateways:exclusivo]**"* — com a chave que a ferramenta serviu, e com a atribuição certa
+> de um verbete `curated_card_only` (explicação autoral, não trecho da norma).
+>
+> *"o que a norma BPMN diz sobre contratos em blockchain?"* → *"**Isso não está no meu acervo de
+> 12 verbetes.** De forma geral, a notação BPMN foca em modelar processos de negócio, então a
+> execução de contratos em blockchain é considerada uma implementação tecnológica fora do escopo
+> da notação."* — declarou o **tamanho do próprio acervo** em vez de afirmar o que a norma
+> inteira diz, e separou o que é material nosso do conhecimento geral dele. É a diferença entre o
+> que o leitor pode conferir e o que ele tem de acreditar.
+>
+> **O que o acervo custa, medido** (tarefas 5.1–5.3): 12 verbetes, 28 trechos, **18,2 KB** no
+> disco e **6,8 KB na rede** (gzip); recuperação **10 de 10** nas dez perguntas de aluno escritas
+> antes de ver o resultado — 9/10 com busca por substring, 10/10 depois do radical curto, e a que
+> falhava (*"como simular o tempo de fila"*) falhava por um motivo ensinável: *tempo* casava a tag
+> *temporizador*. Latência no site publicado: **12 ms** no caminho real do aluno (o navegador já
+> abriu o site, TCP e TLS pagos) e **49 ms** abrindo conexão nova, contra uma resposta de modelo
+> que leva **segundos** — consultar o acervo não é o que ele espera.
+>
+> ⚠ **A terceira metade do portão é do nosso lado, e só vale no modo TEXTO.** Chave inventada pelo
+> modelo chega ao aluno como `[fonte não conferida]`, e isso está provado no gerente
+> (`session-manager.mjs`), onde a troca acontece — não numa corrida ao vivo: induzir o modelo a
+> citar chave inexistente gastaria sessão para medir o que o nosso código decide sozinho. **No
+> modo voz a conferência não existe**, porque o áudio vai do provedor ao alto-falante sem passar
+> por nós, e a tela diz isso na hora da consulta. Prometer igual nos dois modos seria mentira.
+>
+> **O build é o validador**, e é ele que impede o acervo de virar promessa: trecho literal sem
+> nota de direitos, chave de citação duplicada e a marca de fronteira do prompt numa página
+> **reprovam a construção** — e o validador roda no `npm test`. Aviso em documento não impede
+> ninguém de colar três páginas da norma num verbete; o validador impede.
 
-Roda depois de F6 — é uma ferramenta de leitura a mais. Não bloqueia F7 nem F8: um tutor sem
+Rodou depois de F6 — é uma ferramenta de leitura a mais. Não bloqueou F7 nem F8: um tutor sem
 citação é um tutor pior, não um tutor impossível.
 
 ## Trilha H — colher a cápsula, antes da F7 (2026-11-13)
