@@ -200,6 +200,30 @@ diagrama. Tudo por `modeling`, para entrar no Ctrl+Z do aluno.
 > deixando a forma desenhada**. Quem decide onde o elemento cabe passou a ser o `rules` do
 > bpmn-js, e a vaga sai do evento `autoPlace` — o mesmo do botão de append do aluno.
 
+#### F7b — Os verbos que a primeira TRILHA de uso pediu  ✅ 2026-11-14
+`mover` (de raia ou relativo) · `alinhar` (mesma linha / mesma coluna) · `trocar_tipo` (preserva
+nome e ligações) · `criar_elemento` com `entre` (insere NO MEIO de uma sequência) · `desfazer` ·
+`destacar`. Nenhum é invenção: saíram do que o aluno pediu na trilha de 2026-11-14 e não existia
+— *"tira o outro ali e põe para a linha de cima"*, *"não tá na mesma linha, era para ser
+contínuo"*, *"esqueci de verificar o pagamento"*. Cada um apoiado no serviço do próprio bpmn-js
+(`moveElements`, `alignElements`, `bpmnReplace`, `DropOnFlowBehavior`, `commandStack`, `setColor`),
+porque reimplementar a regra do BPMN é ter duas versões dela — e a nossa estaria errada primeiro.
+
+> **Portão F7b** — contra o bpmn-js de VERDADE, **sem gastar cota**: `__bpmnAssist.ferramenta()`
+> dirige a ferramenta pelo caminho do modelo (mesma política, mesmo diário) e o portão mede no
+> DESENHO. **Passou** (`node tools/battery.mjs --so geometria`): a tarefa entrou no meio do fluxo
+> `_6-450 → _6-652` e o atalho direto desapareceu; `mover` levou-a para a raia *delivery boy*
+> (`y=+235`, dentro da faixa); `alinhar` pôs os centros em 550 e 550; `trocar_tipo` virou
+> `UserTask` mantendo o nome e as **duas** ligações; `destacar` chegou ao SVG
+> (`rgb(255,205,210)`) e `desfazer` tirou a cor.
+>
+> Dois achados que só o navegador daria: (1) **o tema comia a cor do DI** — `fill: !important`
+> vencia a cor que a ferramenta grava, então o verbo dizia "destaquei" e a tela não mudava, e o
+> mesmo valia para qualquer diagrama importado com cores (consertado em `src/app.js`); (2) a
+> escadinha de que o aluno reclamou **não é defeito de vaga**: o bpmn-js desce o elemento quando
+> a âncora já tem saída, porque ali é um ramo paralelo. A resposta certa era dar o verbo de
+> inserir no meio e DIZER ao modelo que aquilo é um ramo — não achatar o desenho.
+
 ### F8 — Tutor
 Ensina com o diagrama como exemplo · propõe a representação a partir de uma descrição · recomenda
 quando há escolha · monta em passos que o aluno aceita · propõe sem decidir pelo aluno.

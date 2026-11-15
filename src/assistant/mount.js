@@ -158,6 +158,12 @@ export function mountAssistant({ container = document.body, debug = false, pagin
     /** A corrida de simulação que o agente enxerga. Só leitura. */
     get simulacao() { return simulacao; },
     sincronizarContexto: () => session.sincronizarContexto(),
+    /**
+     * Dirige UMA ferramenta pelo caminho do modelo, sem sessão e sem cota — é com isto que o
+     * portão do navegador prova as ferramentas de escrita contra o bpmn-js de verdade.
+     * Ver `session-manager.js::dirigirFerramenta`.
+     */
+    ferramenta: (nome, args) => session.dirigirFerramenta(nome, args),
     definirContexto: (c) => session.definirContexto(c),
     /**
      * PROVA DA CAPTURA — grava o que o microfone produziria e devolve o PCM, SEM abrir sessão.

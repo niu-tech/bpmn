@@ -81,12 +81,13 @@ test('ferramenta restrita a um perfil so aparece nele', () => {
 });
 
 const LEITURA = ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
-const ESCRITA = ['criar_elemento', 'conectar', 'renomear', 'remover'];
+const ESCRITA = ['criar_elemento', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'remover'];
 
 test('a PAGINA decide: leitura nas duas, escrita so no modelador (F7)', () => {
   // Era "todas valem nas duas paginas", com a nota de que este teste mudaria quando a primeira
-  // ferramenta de escrita nascesse. Nasceram quatro — e o que as separa e o campo `escreve`, nao
-  // o nome: a politica nunca olha nome especial, e nunca olha o texto do aluno.
+  // ferramenta de escrita nascesse. Nasceram quatro, e depois mais tres de GEOMETRIA (mover,
+  // alinhar, trocar_tipo) — e o que as separa e o campo `escreve`, nao o nome: a politica nunca
+  // olha nome especial, e nunca olha o texto do aluno.
   assert.deepEqual(ferramentasPermitidas(MODELADOR).map((f) => f.nome), [...LEITURA, ...ESCRITA]);
   assert.deepEqual(ferramentasPermitidas({ perfil: 'voz', pagina: 'modelador' }).map((f) => f.nome), [...LEITURA, ...ESCRITA]);
   // No viewer as quatro nao EXISTEM para o modelo: declarar e depois recusar ensinaria o agente

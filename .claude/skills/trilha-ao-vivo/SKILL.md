@@ -53,6 +53,20 @@ navegador, sem flag nenhuma. Leia de `C:\Users\<usuário>\Downloads\ajudante-bpm
 - **Cota do Live**: o plano gratuito tem teto de sessões por minuto. `erro: cota` não é queda de
   rede e não adianta reconectar — espere e use **Testar conexão** (menu ⋯).
 
+## Provar uma ferramenta SEM gastar cota
+
+A cota do Live é o teto prático (a trilha de 2026-11-14 morreu em `erro: cota` no meio de um
+teste). Para provar o que não depende do modelo escolher a ferramenta, dirija-a direto:
+
+```js
+await window.__bpmnAssist.ferramenta('mover', { id: 'Task_1', dentroDe: 'Lane_2' });
+```
+
+É o caminho do MODELO — mesma política (no viewer recusa igual), mesmo teto, mesmo diário, mesma
+linha na conversa. Não abre sessão. É o que o cenário `--so geometria` da bateria usa para medir
+no desenho (`node tools/battery.mjs --so geometria`). O que sobra para a sessão ao vivo é só o que
+ela prova sozinha: **o modelo escolher** a ferramenta certa a partir da frase do aluno.
+
 ## Depois da trilha
 
 Leia a captura, isole o caso e **escreva o teste** antes de consertar — determinístico quando o

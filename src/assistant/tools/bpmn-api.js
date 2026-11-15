@@ -35,6 +35,15 @@ export function criarAcessoBpmn(modelador) {
     ligar: () => { throw new Error('pagina_somente_leitura'); },
     renomear: () => { throw new Error('pagina_somente_leitura'); },
     remover: () => { throw new Error('pagina_somente_leitura'); },
+    mover: () => { throw new Error('pagina_somente_leitura'); },
+    alinhar: () => { throw new Error('pagina_somente_leitura'); },
+    trocarTipo: () => { throw new Error('pagina_somente_leitura'); },
+    inserirEntre: () => { throw new Error('pagina_somente_leitura'); },
+    desfazer: () => { throw new Error('pagina_somente_leitura'); },
+    destacar: () => { throw new Error('pagina_somente_leitura'); },
+    caixaDe: () => null,
+    fluxoEntre: () => null,
+    corDe: () => ({ fundo: null, borda: null }),
   };
 
   if (!modelador || typeof modelador.get !== 'function') return inerte;
@@ -153,14 +162,70 @@ export function criarAcessoBpmn(modelador) {
     rules = modelador.get('rules');
   } catch { /* sem regras: só a raiz, como antes */ }
 
-  const aceita = (forma, alvo) => {
+  /**
+   * `alignElements` e `bpmnReplace` são do Modeler e não do viewer — pedidos em `try` próprio,
+   * como o resto, para que um modelador montado sem o módulo recuse com nome em vez de derrubar
+   * a escrita toda.
+   *
+   * Os dois são serviços de ALTO nível de propósito: `alignElements.trigger` consulta a regra
+   * `elements.align` e emite UM comando; `bpmnReplace.replaceElement` troca o tipo COPIANDO nome,
+   * propriedades e religando os fluxos — fazer isso na mão seria apagar e recriar, e o aluno
+   * perderia as ligações que ele desenhou.
+   */
+  let alinhador = null;
+  let substituidor = null;
+  let pilha = null;
+  try { alinhador = modelador.get('alignElements'); } catch { /* sem alinhamento: recusa nomeada */ }
+  try { substituidor = modelador.get('bpmnReplace'); } catch { /* sem troca de tipo: idem */ }
+  /**
+   * O `commandStack` é o MESMO que o `Ctrl+Z` do aluno usa — e é por isso que desfazer pela
+   * conversa é seguro: não há uma segunda pilha nossa que possa discordar da dele.
+   */
+  try { pilha = modelador.get('commandStack'); } catch { /* sem pilha: desfazer recusa com nome */ }
+
+  /**
+   * `posicao` entra na pergunta porque a MESMA regra do bpmn-js responde duas coisas: pode cair
+   * DENTRO deste container (`canDrop`) e pode ser inserido NESTE fluxo (`canInsert`). A segunda
+   * olha a posição — é ela que autoriza "uma tarefa entre o início e a primeira tarefa".
+   */
+  const aceita = (forma, alvo, posicao = null) => {
     if (!alvo) return false;
     if (!rules) return !alvo.waypoints && !alvo.labelTarget;
     try {
-      return rules.allowed('shape.create', { shape: forma, target: alvo }) !== false;
+      const ctx = { shape: forma, target: alvo };
+      if (posicao) ctx.position = posicao;
+      return rules.allowed('shape.create', ctx) !== false;
     } catch {
       return false;
     }
+  };
+
+  /** A caixa de um elemento, como o registro a guarda. Leitura pura: é o que prova que moveu. */
+  const caixaDe = (el) => (el && Number.isFinite(el.x) && Number.isFinite(el.y)
+    ? { x: el.x, y: el.y, w: el.width ?? 0, h: el.height ?? 0 }
+    : null);
+
+  /**
+   * Quanto um passo de "mova para a direita" anda: 80 px, que é a MESMA distância horizontal que
+   * o `autoPlace` do bpmn-js usa entre dois elementos ligados. Número arbitrário aqui faria o
+   * elemento movido nunca cair na grade do resto do desenho.
+   */
+  const PASSO_PX = 80;
+  const DIRECOES = Object.freeze({
+    direita: { x: 1, y: 0 },
+    esquerda: { x: -1, y: 0 },
+    cima: { x: 0, y: -1 },
+    baixo: { x: 0, y: 1 },
+  });
+
+  /** O ponto no MEIO de um fluxo, sobre a linha — é onde o elemento inserido entra. */
+  const meioDoFluxo = (fluxo) => {
+    const p = Array.isArray(fluxo?.waypoints) ? fluxo.waypoints.filter((w) => Number.isFinite(w?.x)) : [];
+    if (!p.length) return null;
+    if (p.length % 2 === 1) return { x: p[(p.length - 1) / 2].x, y: p[(p.length - 1) / 2].y };
+    const a = p[p.length / 2 - 1];
+    const b = p[p.length / 2];
+    return { x: Math.round((a.x + b.x) / 2), y: Math.round((a.y + b.y) / 2) };
   };
 
   /** A forma pronta (com largura e altura) que as regras e a vaga precisam para decidir. */
@@ -326,6 +391,164 @@ export function criarAcessoBpmn(modelador) {
 
     remover({ el }) {
       modeling.removeElements([el]);
+    },
+
+    caixaDe(id) {
+      return caixaDe(this.porId(id));
+    },
+
+    /**
+     * O fluxo que vai de um elemento ao outro, se existir. Leitura direta do `outgoing` — a mesma
+     * classe de `entradasESaidas`, sem busca e sem decisão.
+     *
+     * Existe porque o aluno fala em elementos ("entre o pedido e o preparo") e a inserção no meio
+     * de uma sequência precisa do FLUXO. Fazer o modelo adivinhar um id de `Flow_…` seria pedir
+     * que ele inventasse.
+     */
+    fluxoEntre(de, para) {
+      const saidas = Array.isArray(de?.outgoing) ? de.outgoing : [];
+      return saidas.find((f) => f?.target === para) ?? null;
+    },
+
+    /**
+     * Move um elemento — `modeling.moveElements`, UM comando, um `Ctrl+Z`.
+     *
+     * Dois pedidos diferentes, de propósito:
+     *  - `dentro`: "põe na raia de cima". O destino é um container, e o elemento vai para o MEIO
+     *    da faixa dele mantendo o x (a coluna do processo). É assim que ele troca de raia/pool —
+     *    e é o bpmn-js que atualiza o `flowNodeRef` do XML, não nós.
+     *  - `direcao` + `passos`: "um pouco para a direita". Deslocamento relativo, porque o modelo
+     *    NÃO vê coordenadas (a projeção manda id, tipo e nome — design H4) e um pixel absoluto
+     *    vindo dele seria um palpite.
+     *
+     * ⚠ Sem verificação de vaga aqui: mover é o verbo com que o ALUNO arruma o desenho, e
+     * recusar porque "tem alguém perto" tiraria dele a única ferramenta de arrumar. Quem recusa é
+     * a regra do bpmn-js (a mesma do arrasto), e a leitura de volta diz se andou.
+     */
+    mover({ el, dentro = null, direcao = null, passos = 1 }) {
+      const antes = caixaDe(el);
+      if (!antes) throw new Error('sem_geometria');
+
+      let delta;
+      if (dentro) {
+        const faixa = caixaDe(dentro);
+        if (!faixa) throw new Error('sem_geometria');
+        delta = { x: 0, y: Math.round((faixa.y + faixa.h / 2) - (antes.y + antes.h / 2)) };
+        // Trocar de POOL costuma pedir o x também: a coluna do pool de origem pode estar fora da
+        // caixa do destino, e aí o elemento ficaria desenhado do lado de fora da faixa nova.
+        if (antes.x < faixa.x || antes.x + antes.w > faixa.x + faixa.w) {
+          delta.x = Math.round(faixa.x + 60 - antes.x);
+        }
+      } else {
+        const d = DIRECOES[String(direcao ?? '').toLowerCase()];
+        if (!d) throw new Error('direcao_invalida');
+        const n = Math.min(Math.max(Math.round(Number(passos) || 1), 1), 5) * PASSO_PX;
+        delta = { x: d.x * n, y: d.y * n };
+      }
+
+      const alvo = dentro ?? el.parent ?? canvas.getRootElement();
+      const centro = { x: antes.x + antes.w / 2 + delta.x, y: antes.y + antes.h / 2 + delta.y };
+      if (rules) {
+        try {
+          const ok = rules.allowed('elements.move', { shapes: [el], target: alvo, delta, position: centro });
+          if (ok === false) throw new Error('sem_lugar_para_mover');
+        } catch (err) {
+          if (/sem_lugar_para_mover/.test(err?.message ?? '')) throw err;
+          // Regra que estoura não é recusa: segue para o `modeling`, que recusa por conta própria.
+        }
+      }
+
+      modeling.moveElements([el], delta, alvo);
+      try { canvas.scrollToElement(el); } catch { /* sem o verbo: o elemento já está lá */ }
+      return { antes, depois: caixaDe(this.porId(el.id)) };
+    },
+
+    /**
+     * Alinha dois ou mais elementos. `tipo` é o do bpmn-js: `middle` (mesma linha, centros na
+     * mesma altura) ou `center` (mesma coluna).
+     *
+     * ⚠ `trigger` é SILENCIOSO quando a regra `elements.align` recusa ou quando sobra menos de
+     * dois elementos — devolve `undefined` e não muda nada. Por isso quem chama LÊ de volta: sem
+     * isso, "alinhei" seria dito sobre um desenho intacto.
+     */
+    alinhar({ els, tipo }) {
+      if (!alinhador) throw new Error('sem_alinhador');
+      const antes = els.map((e) => ({ id: e.id, caixa: caixaDe(e) }));
+      alinhador.trigger(els, tipo);
+      return {
+        antes,
+        depois: els.map((e) => ({ id: e.id, caixa: caixaDe(this.porId(e.id)) })),
+      };
+    },
+
+    /**
+     * Troca o TIPO de um elemento preservando o que o aluno construiu em volta.
+     *
+     * `bpmnReplace.replaceElement` é o mesmo serviço do menu de troca do bpmn-js: copia nome e
+     * propriedades compatíveis e RELIGA os fluxos. O caminho ingênuo (remover e criar) apagaria
+     * as ligações — e o aluno pediu para mudar um símbolo, não para desmontar o processo.
+     *
+     * ⚠ O elemento novo tem id NOVO. Quem chama precisa devolver esse id ao modelo, senão o
+     * próximo pedido dele fala de um elemento que não existe mais.
+     */
+    trocarTipo({ el, tipo }) {
+      if (!substituidor) throw new Error('sem_substituidor');
+      return substituidor.replaceElement(el, { type: tipo });
+    },
+
+    /**
+     * Insere um elemento NO MEIO de um fluxo: A→B vira A→novo→B.
+     *
+     * Quem faz o religamento é o bpmn-js (`DropOnFlowBehavior`), disparado por criar a forma
+     * tendo o FLUXO como pai — é o mesmo caminho de arrastar uma tarefa da paleta sobre uma seta.
+     * Reconectar na mão seria três comandos (e três `Ctrl+Z`) fazendo o que um já faz.
+     *
+     * ⚠ É o verbo que faltava quando o aluno diz "esqueci de verificar o pagamento": `depoisDe`
+     * num elemento que JÁ tem sucessor cria um RAMO, e o bpmn-js desenha ramo um degrau abaixo —
+     * correto para o BPMN, e não era o que ele pediu.
+     */
+    /**
+     * Desfaz o último comando — o MESMO `Ctrl+Z` do aluno, na mesma pilha.
+     *
+     * `canUndo()` antes é o que separa "desfiz" de "não havia nada": sem ele, `undo()` numa pilha
+     * vazia não faz nada e não avisa, e o agente diria ao aluno que voltou atrás.
+     */
+    desfazer() {
+      if (!pilha || typeof pilha.undo !== 'function') throw new Error('sem_pilha');
+      if (typeof pilha.canUndo === 'function' && !pilha.canUndo()) throw new Error('nada_para_desfazer');
+      pilha.undo();
+      return { aindaDaParaDesfazer: typeof pilha.canUndo === 'function' ? Boolean(pilha.canUndo()) : null };
+    },
+
+    /** Pinta (ou despinta) elementos. `modeling.setColor` grava no DI — desfazível como o resto. */
+    destacar({ els, cores }) {
+      modeling.setColor(els, cores);
+    },
+
+    /**
+     * A cor que está no DI. É `moddle`, então aceita as duas formas de leitura — e nenhuma delas
+     * pode derrubar a ferramenta se a propriedade não existir no descritor.
+     */
+    corDe(id) {
+      const di = this.porId(id)?.di ?? null;
+      const ler = (chave) => {
+        try {
+          const v = typeof di?.get === 'function' ? di.get(chave) : di?.[chave];
+          return typeof v === 'string' ? v : null;
+        } catch {
+          return null;
+        }
+      };
+      return { fundo: ler('background-color'), borda: ler('border-color') };
+    },
+
+    inserirEntre({ fluxo, tipo }) {
+      const forma = formaDe(tipo);
+      const ponto = meioDoFluxo(fluxo);
+      if (!ponto || !aceita(forma, fluxo, ponto)) throw new Error('sem_lugar_para_criar');
+      const novo = modeling.createShape(forma, ponto, fluxo);
+      try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o elemento já está lá */ }
+      return novo;
     },
 
     /** Assina eventos do modelador e devolve como desassinar. Quem decide o que fazer é o dono. */

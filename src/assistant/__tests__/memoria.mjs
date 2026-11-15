@@ -128,7 +128,9 @@ test('a politica e default-deny: nome fora do catalogo nao passa', () => {
 });
 
 const LEITURA = ['lembrar', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
-const ESCRITA = ['criar_elemento', 'conectar', 'renomear', 'remover'];
+// Na ordem do catalogo: criar, os tres de GEOMETRIA (mover/alinhar/trocar_tipo, nascidos da
+// trilha de 2026-11-14), ligar, renomear, remover.
+const ESCRITA = ['criar_elemento', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'remover'];
 
 test('os DOIS perfis declaram as ferramentas; so o texto declara a ENTREGA', () => {
   const nomes = (modo, pagina) => {
@@ -141,7 +143,7 @@ test('os DOIS perfis declaram as ferramentas; so o texto declara a ENTREGA', () 
   assert.deepEqual(nomes('voz', 'modelador'), [...LEITURA, ...ESCRITA]);
 });
 
-test('no viewer, as quatro de ESCRITA nao sao nem declaradas ao modelo (F7)', () => {
+test('no viewer, NENHUMA ferramenta de escrita e declarada ao modelo (F7)', () => {
   const nomes = (modo) => {
     const { setup } = buildSetup(promptDoPerfil(resolverContexto({ modo, pagina: 'viewer' })));
     return setup.tools[0].functionDeclarations.map((f) => f.name);

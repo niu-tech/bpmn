@@ -27,19 +27,53 @@ import assert from 'node:assert/strict';
 import { ERROS_ESCRITA, TIPOS_CRIAVEIS, criarExecutoresDeEscrita } from '../tools/escrita.js';
 import { criarAcessoBpmn } from '../tools/bpmn-api.js';
 import { permitida } from '../agent/policy.js';
+import { FERRAMENTAS } from '../agent/catalog.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
 /* ---------------------------------------------------------------- dublê do modelador
  * Dubla o bpmn-js de verdade, e não a nossa camada: aqui o que está sob teste INCLUI
  * `bpmn-api.js`, porque é ela que decide que só `modeling` escreve. */
 
-function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras = null } = {}) {
+function criarModeladorFalso({
+  semVaga = false,
+  updateLabelMudo = false,
+  regras = null,
+  semAlinhador = false,
+  semSubstituidor = false,
+  semPilha = false,
+} = {}) {
   const raiz = { id: 'Process_1', type: 'bpmn:Process', businessObject: {} };
   const mapa = new Map([[raiz.id, raiz]]);
   const chamadas = [];
   let seq = 0;
 
   const guardar = (el) => { mapa.set(el.id, el); return el; };
+
+  /**
+   * Os waypoints de um fluxo. O bpmn-js os calcula pelo desenho; aqui basta que EXISTAM e caiam
+   * entre as duas pontas — é deles que sai o ponto onde um elemento inserido entra na seta.
+   */
+  const linhaEntre = (de, para) => {
+    const meio = (e) => ({ x: (e?.x ?? 0) + (e?.width ?? 0) / 2, y: (e?.y ?? 0) + (e?.height ?? 0) / 2 });
+    return [meio(de), meio(para)];
+  };
+
+  /**
+   * Uma pilha de comandos de verdade, pequena: cada escrita empilha o seu INVERSO.
+   *
+   * Dublar o `commandStack` como `{ undo(){} }` seria o pior dos mundos — `canUndo` diria sim e
+   * o desenho não voltaria, que é exatamente o defeito que a ferramenta precisa pegar. Com os
+   * inversos, o teste prova o que o aluno vê: desfez, voltou.
+   */
+  const pilha = [];
+  const registrar = (nome, desfazer) => pilha.push({ nome, desfazer });
+  const commandStack = {
+    canUndo: () => pilha.length > 0,
+    undo() {
+      chamadas.push({ fn: 'commandStack.undo' });
+      pilha.pop()?.desfazer();
+    },
+  };
 
   const modeling = {
     appendShape(ancora, atributos, posicao, pai) {
@@ -60,22 +94,104 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras 
         businessObject: {},
         source: ancora,
         target: novo,
+        waypoints: linhaEntre(ancora, novo),
       });
       ancora.outgoing = [...(ancora.outgoing ?? []), flow];
       novo.incoming = [flow];
+      registrar('appendShape', () => {
+        mapa.delete(novo.id);
+        mapa.delete(flow.id);
+        ancora.outgoing = (ancora.outgoing ?? []).filter((f) => f !== flow);
+      });
       return novo;
     },
 
     createShape(atributos, posicao, pai) {
       chamadas.push({ fn: 'createShape', tipo: atributos.type, nome: atributos.name, posicao, pai });
-      return guardar({
+      // Pai que é um FLUXO = inserção no meio. No bpmn-js quem faz isso é o `DropOnFlowBehavior`,
+      // dentro do MESMO comando `shape.create` — então o aluno desfaz tudo com um `Ctrl+Z`.
+      const noFluxo = pai && Array.isArray(pai.waypoints) ? pai : null;
+      const novo = guardar({
         id: `${atributos.type.replace('bpmn:', '')}_${++seq}`,
         type: atributos.type,
-        parent: pai ?? raiz,
+        parent: noFluxo ? (noFluxo.parent ?? raiz) : (pai ?? raiz),
         businessObject: atributos.name ? { name: atributos.name } : {},
         incoming: [],
         outgoing: [],
+        x: Math.round((posicao?.x ?? 0) - 50),
+        y: Math.round((posicao?.y ?? 0) - 40),
+        width: 100,
+        height: 80,
       });
+      if (!noFluxo) {
+        registrar('createShape', () => mapa.delete(novo.id));
+        return novo;
+      }
+
+      const destino = noFluxo.target;
+      const linhaAntes = noFluxo.waypoints;
+      noFluxo.target = novo;
+      noFluxo.waypoints = linhaEntre(noFluxo.source, novo);
+      novo.incoming = [noFluxo];
+      destino.incoming = (destino.incoming ?? []).filter((f) => f !== noFluxo);
+      const segundo = guardar({
+        id: `Flow_${++seq}`,
+        type: noFluxo.type,
+        parent: noFluxo.parent ?? raiz,
+        businessObject: {},
+        source: novo,
+        target: destino,
+        waypoints: linhaEntre(novo, destino),
+      });
+      novo.outgoing = [segundo];
+      destino.incoming.push(segundo);
+      // Inserção é UM comando: desfazer devolve a seta original e tira as duas peças novas.
+      registrar('createShape+insercao', () => {
+        mapa.delete(novo.id);
+        mapa.delete(segundo.id);
+        noFluxo.target = destino;
+        noFluxo.waypoints = linhaAntes;
+        destino.incoming = (destino.incoming ?? []).filter((f) => f !== segundo);
+        destino.incoming.push(noFluxo);
+      });
+      return novo;
+    },
+
+    moveElements(formas, delta, alvo) {
+      chamadas.push({ fn: 'moveElements', ids: formas.map((f) => f.id), delta, alvo: alvo?.id ?? null });
+      const antes = formas.map((f) => ({ f, x: f.x, y: f.y, pai: f.parent }));
+      for (const f of formas) {
+        f.x = (f.x ?? 0) + delta.x;
+        f.y = (f.y ?? 0) + delta.y;
+        if (alvo) f.parent = alvo;
+      }
+      registrar('moveElements', () => {
+        for (const a of antes) { a.f.x = a.x; a.f.y = a.y; a.f.parent = a.pai; }
+      });
+    },
+
+    alignElements(formas, alinhamento) {
+      chamadas.push({ fn: 'alignElements', ids: formas.map((f) => f.id), alinhamento });
+      const antes = formas.map((f) => ({ f, x: f.x, y: f.y }));
+      for (const f of formas) {
+        if (alinhamento.middle !== undefined) f.y = Math.round(alinhamento.middle - (f.height ?? 0) / 2);
+        if (alinhamento.center !== undefined) f.x = Math.round(alinhamento.center - (f.width ?? 0) / 2);
+      }
+      registrar('alignElements', () => {
+        for (const a of antes) { a.f.x = a.x; a.f.y = a.y; }
+      });
+    },
+
+    setColor(formas, cores) {
+      chamadas.push({ fn: 'setColor', ids: formas.map((f) => f.id), cores });
+      const antes = formas.map((f) => ({ f, di: f.di }));
+      for (const f of formas) {
+        f.di = { ...(f.di ?? {}) };
+        // O handler do bpmn-js grava no DI com os nomes do BPMN DI, não com `fill`/`stroke`.
+        if ('fill' in cores) f.di['background-color'] = cores.fill;
+        if ('stroke' in cores) f.di['border-color'] = cores.stroke;
+      }
+      registrar('setColor', () => { for (const a of antes) a.f.di = a.di; });
     },
 
     connect(de, para) {
@@ -88,14 +204,20 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras 
       };
       const mesmoPool = pool(de) === pool(para);
       if (de.type === 'bpmn:EndEvent') return null; // o que as regras proíbem: recusa silenciosa
-      return guardar({
+      const conexao = guardar({
         id: `Conn_${++seq}`,
         type: mesmoPool ? 'bpmn:SequenceFlow' : 'bpmn:MessageFlow',
         parent: raiz,
         businessObject: {},
         source: de,
         target: para,
+        waypoints: linhaEntre(de, para),
       });
+      // O bpmn-js mantém `outgoing`/`incoming` nos dois lados — e é por ali que se acha o fluxo
+      // entre dois elementos (a inserção no meio depende disso).
+      de.outgoing = [...(de.outgoing ?? []), conexao];
+      para.incoming = [...(para.incoming ?? []), conexao];
+      return conexao;
     },
 
     updateLabel(el, nome) {
@@ -103,12 +225,17 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras 
       // `updateLabelMudo` finge o bpmn-js aceitando a chamada e não pondo o nome no desenho —
       // que foi exatamente o que aconteceu ao vivo quando o nome ia junto na criação.
       if (updateLabelMudo) return;
+      const antes = el.businessObject?.name;
       el.businessObject = { ...(el.businessObject ?? {}), name: nome };
+      registrar('updateLabel', () => {
+        el.businessObject = { ...(el.businessObject ?? {}), name: antes };
+      });
     },
 
     removeElements(lista) {
       chamadas.push({ fn: 'removeElements', ids: lista.map((e) => e.id) });
       for (const el of lista) mapa.delete(el.id);
+      registrar('removeElements', () => { for (const el of lista) guardar(el); });
     },
   };
 
@@ -135,6 +262,55 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras 
     },
   };
 
+  /**
+   * O alinhador do bpmn-js, no essencial: ele consulta a regra `elements.align`, EXIGE dois
+   * elementos e emite UM comando. E — o que mais importa para o teste — quando a regra recusa ou
+   * sobra menos de dois, ele **não faz nada e não avisa**. É por isso que a ferramenta lê de
+   * volta: silêncio virando "alinhei" é a mentira mais fácil deste instrumento.
+   */
+  const alignElements = {
+    trigger(formas, tipo) {
+      chamadas.push({ fn: 'alignElements.trigger', ids: formas.map((f) => f.id), tipo });
+      const uteis = formas.filter((f) => !f.waypoints && !f.labelTarget);
+      if (uteis.length < 2) return;
+      const eixo = tipo === 'center' ? 'x' : 'y';
+      const lado = tipo === 'center' ? 'width' : 'height';
+      const centros = uteis.map((f) => (f[eixo] ?? 0) + (f[lado] ?? 0) / 2);
+      const comum = Math.round((Math.min(...centros) + Math.max(...centros)) / 2);
+      modeling.alignElements(uteis, tipo === 'center' ? { center: comum } : { middle: comum });
+    },
+  };
+
+  /**
+   * `bpmnReplace`: troca o tipo COPIANDO o businessObject (o nome vai junto) e RELIGANDO os
+   * fluxos. O id é novo — como no bpmn-js de verdade, e é a parte que a ferramenta tem de
+   * devolver ao modelo.
+   */
+  const bpmnReplace = {
+    replaceElement(el, alvo) {
+      chamadas.push({ fn: 'bpmnReplace.replaceElement', id: el.id, tipo: alvo?.type });
+      const novo = guardar({
+        id: `${String(alvo.type).replace('bpmn:', '')}_${++seq}`,
+        type: alvo.type,
+        parent: el.parent,
+        businessObject: { ...(el.businessObject ?? {}) },
+        incoming: [...(el.incoming ?? [])],
+        outgoing: [...(el.outgoing ?? [])],
+        x: el.x, y: el.y, width: el.width, height: el.height,
+      });
+      for (const f of novo.incoming) f.target = novo;
+      for (const f of novo.outgoing) f.source = novo;
+      mapa.delete(el.id);
+      registrar('replaceElement', () => {
+        mapa.delete(novo.id);
+        guardar(el);
+        for (const f of el.incoming ?? []) f.target = el;
+        for (const f of el.outgoing ?? []) f.source = el;
+      });
+      return novo;
+    },
+  };
+
   const modelador = {
     get(nome) {
       if (nome === 'elementRegistry') {
@@ -145,9 +321,21 @@ function criarModeladorFalso({ semVaga = false, updateLabelMudo = false, regras 
       if (nome === 'modeling') return modeling;
       if (nome === 'canvas') return { getRootElement: () => raiz, scrollToElement() {} };
       if (nome === 'elementFactory' && !semVaga) return elementFactory;
-      // `rules` é a autoridade do bpmn-js sobre ONDE uma forma pode nascer. Ausente (o padrão
-      // destes dublês) = o acesso cai no comportamento antigo, só a raiz.
-      if (nome === 'rules' && regras) return { allowed: (acao, ctx) => acao === 'shape.create' && regras(ctx.shape, ctx.target) };
+      if (nome === 'alignElements' && !semAlinhador) return alignElements;
+      if (nome === 'bpmnReplace' && !semSubstituidor) return bpmnReplace;
+      if (nome === 'commandStack' && !semPilha) return commandStack;
+      // `rules` é a autoridade do bpmn-js sobre ONDE uma forma pode nascer — e também sobre mover
+      // e alinhar. Ausente (o padrão destes dublês) = o acesso cai no comportamento antigo.
+      if (nome === 'rules' && regras) {
+        return {
+          allowed: (acao, ctx) => {
+            if (acao === 'shape.create') return regras(ctx.shape, ctx.target);
+            if (acao === 'elements.move') return regras(ctx.shapes?.[0], ctx.target);
+            if (acao === 'elements.align') return ctx.elements;
+            return true;
+          },
+        };
+      }
       throw new Error(`sem ${nome}`);
     },
   };
@@ -472,8 +660,11 @@ testAsync('as quatro recusam num viewer, mesmo com a declaração vazada de outr
   }
 });
 
-test('a política esconde as quatro de uma página que só lê, e libera no modelador', () => {
-  const nomes = ['criar_elemento', 'conectar', 'renomear', 'remover'];
+test('a política esconde TODA ferramenta de escrita de uma página que só lê', () => {
+  // ⚠ A lista cresce junto com o catálogo: `mover`, `alinhar` e `trocar_tipo` nasceram depois e
+  // precisam do mesmo portão. Ferramenta de escrita nova que não entre aqui passa despercebida
+  // no viewer — e o viewer é a página que o aluno abre para LER o processo de alguém.
+  const nomes = ['criar_elemento', 'conectar', 'renomear', 'remover', 'mover', 'alinhar', 'trocar_tipo'];
   for (const n of nomes) {
     assert.equal(permitida(n, { pagina: 'viewer' }), false, n);
     assert.equal(permitida(n, { pagina: 'modelador' }), true, n);
@@ -631,6 +822,334 @@ testAsync('processo simples: a raiz aceita, e o solto nasce nela sem perguntar n
   assert.equal(falso.chamadas.find((c) => c.fn === 'createShape').pai.id, 'Process_1');
 });
 
+/* ---------------------------------------------------------------- mover, alinhar, trocar tipo
+ *
+ * Os três verbos que faltavam na trilha de 2026-11-14 (T14/T15). O aluno pediu, textualmente,
+ * "tira o outro anterior ali e põe para a linha de cima" e disse do que nasceu: "não tá na mesma
+ * linha e parece que são duas coisas diferentes; era para ser contínuo". O agente só tinha a
+ * metade destrutiva do pedido — removia e não movia.
+ *
+ * O que estes blocos protegem: moveu de verdade (leitura de volta da geometria), alinhou de
+ * verdade (o `trigger` do bpmn-js é SILENCIOSO quando a regra recusa), e trocar o tipo NÃO
+ * desmonta o que o aluno ligou. */
+
+/**
+ * Um processo com geometria e DUAS RAIAS — é o diagrama em que "põe na linha de cima" tem
+ * sentido. Os nós saem em escadinha de propósito: é o desenho de que o aluno reclamou.
+ */
+function processoComGeometria() {
+  const falso = criarModeladorFalso({ regras: () => true });
+  const raia = (id, nome, y) => falso.guardar({
+    id, type: 'bpmn:Lane', parent: falso.raiz, businessObject: { name: nome },
+    x: 100, y, width: 800, height: 200, children: [],
+  });
+  const deCima = raia('Lane_cima', 'Atendimento', 100);
+  const deBaixo = raia('Lane_baixo', 'Cozinha', 300);
+  falso.raiz.children = [deCima, deBaixo];
+
+  const no = (id, type, nome, x, y, width = 100, height = 80) => falso.guardar({
+    id, type, parent: falso.raiz, businessObject: { name: nome },
+    x, y, width, height, incoming: [], outgoing: [],
+  });
+  const inicio = no('StartEvent_1', 'bpmn:StartEvent', 'Pedido', 140, 350, 36, 36);
+  const primeira = no('Task_1', 'bpmn:Task', 'Registrar pedido', 260, 330);
+  const segunda = no('Task_2', 'bpmn:Task', 'Despachar', 420, 390);
+
+  const modeling = falso.modelador.get('modeling');
+  modeling.connect(inicio, primeira);
+  modeling.connect(primeira, segunda);
+  falso.chamadas.length = 0; // o cenário não conta como chamada do agente
+  return { ...falso, inicio, primeira, segunda, deCima, deBaixo };
+}
+
+function montarGeometria(falso = processoComGeometria()) {
+  const acesso = criarAcessoBpmn(falso.modelador);
+  return {
+    ...falso,
+    acesso,
+    exec: criarExecutoresDeEscrita({ acesso, pedirConfirmacao: async () => true }),
+  };
+}
+
+testAsync('mover para outra raia: o elemento vai para o MEIO da faixa e o pai passa a ser ela', async () => {
+  const g = montarGeometria();
+
+  const r = await g.exec.mover({ id: 'Task_2', dentroDe: 'Lane_cima' });
+
+  // A faixa de cima vai de 100 a 300: o centro dela é 200, e o elemento tem 80 de altura.
+  const depois = g.acesso.caixaDe('Task_2');
+  assert.equal(depois.y + depois.h / 2, 200);
+  assert.equal(depois.x, 420, 'a coluna do processo não muda sem motivo');
+  assert.equal(r.andou.y, -230);
+  assert.equal(r.dentroDe.nome, 'Atendimento');
+  // UM comando no commandStack: o `Ctrl+Z` do aluno desfaz o movimento inteiro.
+  const movimentos = g.chamadas.filter((c) => c.fn === 'moveElements');
+  assert.equal(movimentos.length, 1);
+  assert.equal(movimentos[0].alvo, 'Lane_cima');
+});
+
+testAsync('mover relativo anda passos de 80 px — a mesma grade do autoPlace do bpmn-js', async () => {
+  const g = montarGeometria();
+
+  const r = await g.exec.mover({ id: 'Task_2', direcao: 'direita', passos: 2 });
+
+  assert.deepEqual(r.andou, { x: 160, y: 0 });
+  assert.equal(g.acesso.caixaDe('Task_2').x, 580);
+});
+
+testAsync('mover sem dizer para onde é `tipo_invalido` — e nada se mexe', async () => {
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.mover({ id: 'Task_2' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /direita/.test(e.message) && /dentroDe/.test(e.message),
+  );
+  await assert.rejects(
+    () => g.exec.mover({ id: 'Task_2', direcao: 'nordeste' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /nordeste/.test(e.message),
+  );
+  assert.deepEqual(g.chamadas.filter((c) => c.fn === 'moveElements'), []);
+});
+
+testAsync('mover que NÃO move devolve `nada_mudou` — comando aceito não é desenho mudado', async () => {
+  // O caso real: o bpmn-js aceita a chamada e a regra de dentro recusa o destino. Sem a leitura
+  // de volta, o agente narraria "pronto, movi" sobre um desenho intacto.
+  const falso = processoComGeometria();
+  falso.modelador.get('modeling').moveElements = () => {};
+  const g = montarGeometria(falso);
+
+  await assert.rejects(
+    () => g.exec.mover({ id: 'Task_2', direcao: 'cima' }),
+    (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /Task_2/.test(e.message),
+  );
+});
+
+testAsync('alinhar na linha põe os centros na MESMA altura, e diz em qual', async () => {
+  const g = montarGeometria();
+
+  const r = await g.exec.alinhar({ ids: ['Task_1', 'Task_2'], eixo: 'linha' });
+
+  const a = g.acesso.caixaDe('Task_1');
+  const b = g.acesso.caixaDe('Task_2');
+  assert.equal(a.y + a.h / 2, b.y + b.h / 2);
+  assert.equal(r.em, a.y + a.h / 2);
+  assert.equal(r.eixo, 'linha');
+  assert.equal(r.alinhados.length, 2);
+});
+
+testAsync('alinhar o que JÁ está alinhado não é erro — portão que reprova a resposta certa ensina a ignorar portão', async () => {
+  const g = montarGeometria();
+  await g.exec.alinhar({ ids: ['Task_1', 'Task_2'], eixo: 'linha' });
+
+  const r = await g.exec.alinhar({ ids: ['Task_1', 'Task_2'], eixo: 'linha' });
+
+  assert.equal(r.alinhados.length, 2);
+});
+
+testAsync('alinhador SILENCIOSO devolve `nada_mudou` em vez de sucesso', async () => {
+  // `AlignElements.trigger` não faz nada e não avisa quando a regra `elements.align` recusa.
+  const falso = processoComGeometria();
+  falso.modelador.get('alignElements').trigger = () => {};
+  const g = montarGeometria(falso);
+
+  await assert.rejects(
+    () => g.exec.alinhar({ ids: ['Task_1', 'Task_2'], eixo: 'linha' }),
+    (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /fora de linha/.test(e.message),
+  );
+});
+
+testAsync('alinhar pede dois ids e um eixo conhecido', async () => {
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.alinhar({ ids: ['Task_1'], eixo: 'linha' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /dois ids/.test(e.message),
+  );
+  await assert.rejects(
+    () => g.exec.alinhar({ ids: ['Task_1', 'Task_2'], eixo: 'diagonal' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /linha/.test(e.message),
+  );
+});
+
+testAsync('página sem o alinhamento do bpmn-js recusa com nome, não estoura', async () => {
+  const falso = criarModeladorFalso({ regras: () => true, semAlinhador: true });
+  falso.guardar({ id: 'A', type: 'bpmn:Task', parent: falso.raiz, businessObject: {}, x: 0, y: 0, width: 100, height: 80 });
+  falso.guardar({ id: 'B', type: 'bpmn:Task', parent: falso.raiz, businessObject: {}, x: 200, y: 40, width: 100, height: 80 });
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.alinhar({ ids: ['A', 'B'], eixo: 'linha' }),
+    (e) => e.nome === ERROS_ESCRITA.NAO_EDITAVEL,
+  );
+});
+
+testAsync('trocar o tipo preserva o nome e as LIGAÇÕES — e devolve o id novo', async () => {
+  // O caminho ingênuo (remover e criar) levaria embora as duas setas que o aluno desenhou. É por
+  // isso que o verbo existe: ele pediu para mudar um símbolo, não para desmontar o processo.
+  const g = montarGeometria();
+
+  const r = await g.exec.trocar_tipo({ id: 'Task_1', tipo: 'ExclusiveGateway' });
+
+  assert.equal(r.de.tipo, 'Task');
+  assert.equal(r.para.tipo, 'ExclusiveGateway');
+  assert.equal(r.para.nome, 'Registrar pedido');
+  assert.notEqual(r.idNovo, 'Task_1');
+  assert.equal(r.ligacoesPreservadas, 2, 'uma entrada e uma saída seguem no lugar');
+  // O id antigo não existe mais: é esse fato que o modelo precisa receber.
+  assert.equal(g.acesso.porId('Task_1'), null);
+  const { entradas, saidas } = g.acesso.entradasESaidas(r.idNovo);
+  assert.equal(entradas[0].source.id, 'StartEvent_1');
+  assert.equal(saidas[0].target.id, 'Task_2');
+});
+
+testAsync('trocar para o tipo que o elemento JÁ tem é `nada_mudou`, sem tocar no desenho', async () => {
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.trocar_tipo({ id: 'Task_1', tipo: 'Task' }),
+    (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /já é/.test(e.message),
+  );
+  assert.deepEqual(g.chamadas.filter((c) => c.fn === 'bpmnReplace.replaceElement'), []);
+});
+
+/* ---------------------------------------------------------------- inserir no meio */
+
+testAsync('inserir no meio: A -> B vira A -> novo -> B, num comando só', async () => {
+  // O pedido da trilha: "esqueci de verificar o pagamento". Com `depoisDe` nasceria um RAMO.
+  const g = montarGeometria();
+
+  const r = await g.exec.criar_elemento({
+    tipo: 'Task', nome: 'Verificar pagamento', entre: ['Task_1', 'Task_2'],
+  });
+
+  assert.equal(r.inseridoEntre.de.id, 'Task_1');
+  assert.equal(r.inseridoEntre.para.id, 'Task_2');
+  assert.equal(r.criado.nome, 'Verificar pagamento');
+  // O caminho passa pelo novo: é isso que separa "inseriu" de "desenhou ao lado".
+  assert.equal(g.primeira.outgoing[0].target.id, r.criado.id);
+  assert.equal(g.segunda.incoming[0].source.id, r.criado.id);
+  assert.deepEqual(r.religado, { entradas: 1, saidas: 1 });
+  // UM `createShape`: o religamento é do bpmn-js, dentro do mesmo comando (um `Ctrl+Z`).
+  assert.equal(g.chamadas.filter((c) => c.fn === 'createShape').length, 1);
+});
+
+testAsync('`entre` sem fluxo entre os dois é `sem_lugar` com os dois ids — e nada é desenhado', async () => {
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.criar_elemento({ tipo: 'Task', entre: ['StartEvent_1', 'Task_2'] }),
+    (e) => e.nome === ERROS_ESCRITA.SEM_LUGAR && /StartEvent_1/.test(e.message) && /Task_2/.test(e.message),
+  );
+  assert.deepEqual(g.chamadas.filter((c) => c.fn === 'createShape'), []);
+});
+
+testAsync('`entre` com um id só é `tipo_invalido`', async () => {
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.criar_elemento({ tipo: 'Task', entre: ['Task_1'] }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /dois ids/.test(e.message),
+  );
+});
+
+testAsync('criar depois de quem JÁ tem saída avisa que é ramo, e diz qual é o verbo certo', async () => {
+  // O desenho em degrau não é defeito do bpmn-js: ramo paralelo desce mesmo. O defeito era o
+  // agente não saber disso e narrar como se fosse a sequência que o aluno pediu.
+  const g = montarGeometria();
+
+  const ramo = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Avisar cliente', depoisDe: 'Task_1' });
+  assert.equal(ramo.ramo, true);
+  assert.match(ramo.avisoDeRamo, /entre/);
+
+  const emLinha = await g.exec.criar_elemento({ tipo: 'EndEvent', nome: 'Fim', depoisDe: 'Task_2' });
+  assert.equal(emLinha.ramo, false);
+  assert.equal(emLinha.avisoDeRamo, null);
+});
+
+/* ---------------------------------------------------------------- desfazer e destacar */
+
+testAsync('desfazer pela conversa é a MESMA pilha do Ctrl+Z: criar com nome são dois passos', async () => {
+  // A declaração promete isto ao modelo, então o teste cobra: desfazer uma vez tira o NOME,
+  // desfazer de novo tira o elemento. Promessa na descrição sem portão é promessa que apodrece.
+  const g = montarGeometria();
+  const criado = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Verificar pagamento', depoisDe: 'Task_2' });
+
+  const primeiro = await g.exec.desfazer();
+  assert.equal(primeiro.desfeito, true);
+  // Nenhum id mudou — e isso NÃO é erro: desfazer um nome não tira ninguém do diagrama.
+  assert.deepEqual(primeiro.sairamDoDiagrama, []);
+  assert.equal(g.acesso.porId(criado.criado.id).businessObject.name, undefined);
+
+  const segundo = await g.exec.desfazer();
+  assert.ok(segundo.sairamDoDiagrama.includes(criado.criado.id));
+  assert.equal(g.acesso.porId(criado.criado.id), null);
+});
+
+testAsync('desfazer com a pilha vazia é `nada_mudou` — não "pronto, desfiz"', async () => {
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.desfazer(),
+    (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /nada para desfazer/.test(e.message),
+  );
+});
+
+testAsync('página sem histórico de comandos recusa desfazer com nome', async () => {
+  const falso = criarModeladorFalso({ semPilha: true });
+  const exec = criarExecutoresDeEscrita({ acesso: criarAcessoBpmn(falso.modelador), pedirConfirmacao: async () => true });
+
+  await assert.rejects(
+    () => exec.desfazer(),
+    (e) => e.nome === ERROS_ESCRITA.NAO_EDITAVEL,
+  );
+});
+
+testAsync('destacar pinta no DI — e a cor é LIDA de volta de onde o desenho a lê', async () => {
+  const g = montarGeometria();
+
+  const r = await g.exec.destacar({ ids: ['Task_1', 'Task_2'], cor: 'vermelho' });
+
+  assert.equal(r.cor, 'vermelho');
+  assert.equal(r.destacados.length, 2);
+  assert.equal(g.acesso.corDe('Task_1').fundo, '#FFCDD2');
+  assert.equal(g.acesso.corDe('Task_2').borda, '#E53935');
+});
+
+testAsync('destacar com `nenhuma` limpa a cor', async () => {
+  const g = montarGeometria();
+  await g.exec.destacar({ ids: ['Task_1'], cor: 'verde' });
+
+  await g.exec.destacar({ ids: ['Task_1'], cor: 'nenhuma' });
+
+  assert.equal(g.acesso.corDe('Task_1').fundo, null);
+});
+
+testAsync('cor fora da paleta e lista vazia são `tipo_invalido` — e nada é pintado', async () => {
+  // Cor livre vinda do modelo põe cinza sobre cinza, e quem perde a leitura do diagrama é o aluno.
+  const g = montarGeometria();
+
+  await assert.rejects(
+    () => g.exec.destacar({ ids: ['Task_1'], cor: 'ciano' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /vermelho/.test(e.message),
+  );
+  await assert.rejects(
+    () => g.exec.destacar({ ids: [], cor: 'verde' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO,
+  );
+  assert.deepEqual(g.chamadas.filter((c) => c.fn === 'setColor'), []);
+});
+
+testAsync('cor que não pega devolve `nada_mudou`', async () => {
+  const falso = processoComGeometria();
+  falso.modelador.get('modeling').setColor = () => {};
+  const g = montarGeometria(falso);
+
+  await assert.rejects(
+    () => g.exec.destacar({ ids: ['Task_1'], cor: 'azul' }),
+    (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /Task_1/.test(e.message),
+  );
+});
+
 /* ---------------------------------------------------------------- catálogo */
 
 test('os tipos criáveis são uma lista fechada e pequena: o que cabe num processo de aula', () => {
@@ -638,6 +1157,24 @@ test('os tipos criáveis são uma lista fechada e pequena: o que cabe num proces
   // `bpmn:Definitions` e companhia travam o modelador de formas que o aluno não sabe desfazer.
   for (const proibido of ['Definitions', 'Process', 'Collaboration', 'Participant', 'Lane']) {
     assert.ok(!TIPOS_CRIAVEIS.includes(proibido), proibido);
+  }
+});
+
+test('toda ferramenta que ESCREVE tem executor, nome coerente e portão no viewer', () => {
+  // ⚠ Portão ESTRUTURAL, e é o que protege a PRÓXIMA ferramenta: declarar no catálogo sem rotear
+  // um executor vira `ferramenta_nao_roteada` no meio da conversa — que o aluno lê como o
+  // ajudante quebrado. A lista por nome, logo acima, não pega a que nascer amanhã.
+  const falso = criarModeladorFalso();
+  const exec = criarExecutoresDeEscrita({
+    acesso: criarAcessoBpmn(falso.modelador),
+    pedirConfirmacao: async () => true,
+  });
+  const escritoras = FERRAMENTAS.filter((f) => f.escreve);
+  assert.ok(escritoras.length >= 7, `só ${escritoras.length} ferramentas de escrita no catálogo`);
+  for (const f of escritoras) {
+    assert.equal(typeof exec[f.nome], 'function', `${f.nome} declarada e não roteada`);
+    assert.equal(f.declaracao?.name, f.nome, `${f.nome} com nome divergente na declaração`);
+    assert.equal(permitida(f.nome, { pagina: 'viewer' }), false, `${f.nome} aparece no viewer`);
   }
 });
 

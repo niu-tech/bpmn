@@ -907,6 +907,24 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
     },
 
     /**
+     * Executa UMA ferramenta pelo caminho do MODELO — mesma política, mesmo teto, mesmo diário,
+     * mesma linha na conversa — sem abrir sessão e sem gastar cota.
+     *
+     * ⚠ Existe porque provar uma ferramenta de escrita contra o bpmn-js de VERDADE exigia uma
+     * sessão Live, e cota é o teto prático da aula (a trilha de 2026-11-14 terminou em
+     * `erro: cota`, com o dono no meio de um teste). Com isto, o portão do navegador dirige
+     * `mover`, `alinhar`, `trocar_tipo`, `entre`, `desfazer` e `destacar` contra o modelador de
+     * verdade, e para a sessão ao vivo sobra o que só ela prova: o MODELO escolhendo a ferramenta.
+     *
+     * Não é porta de serviço: a política é consultada com o contexto de AGORA, então numa página
+     * que só lê isto recusa igual. O que muda é apenas quem fez a chamada.
+     */
+    async dirigirFerramenta(nome, args = {}) {
+      const [r] = await criarDespachante().despachar([{ id: 'diagnostico', name: nome, args }]);
+      return r?.response ?? null;
+    },
+
+    /**
      * Relatório para COLAR em quem for depurar. Redigido pelo próprio diário — a chave não sai.
      * Também exposto em `window.__bpmnAssist.report()` pelo `mount.js`.
      */

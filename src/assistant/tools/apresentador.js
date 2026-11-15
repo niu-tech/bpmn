@@ -78,7 +78,49 @@ const COMO_MOSTRAR = {
     const nome = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
     const tipo = (r.criado.tipo ?? '').toLowerCase();
     const antes = r.ligadoA ? (r.ligadoA.nome ? QUOTE + r.ligadoA.nome + QUOTE : r.ligadoA.id) : null;
-    return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '');
+    const lado = (x) => (x?.nome ? QUOTE + x.nome + QUOTE : (x?.id ?? '?'));
+    // Inserir no meio é outro desenho: o aluno tem de ver que a seta de antes foi partida.
+    if (r.inseridoEntre) {
+      return 'inseri ' + (tipo ? tipo + ' ' : '') + nome
+        + ' entre ' + lado(r.inseridoEntre.de) + ' e ' + lado(r.inseridoEntre.para);
+    }
+    // ⚠ Ramo: a âncora já tinha saída, então isto NÃO entrou na linha — e o aluno precisa saber,
+    // senão ele olha a tela e acha que o ajudante desenhou torto de graça.
+    const ramo = r.ramo ? ' (como ramo paralelo)' : '';
+    return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '') + ramo;
+  },
+
+  mover: (e, r) => {
+    if (!r || r.ok === false || !r.movido) return 'tentei mover';
+    const nome = r.movido.nome ? QUOTE + r.movido.nome + QUOTE : (r.movido.id ?? e?.id ?? 'o elemento');
+    if (r.dentroDe) {
+      const faixa = r.dentroDe.nome ? QUOTE + r.dentroDe.nome + QUOTE : r.dentroDe.id;
+      return 'movi ' + nome + ' para ' + faixa;
+    }
+    const d = r.andou ?? {};
+    const rumo = Math.abs(d.x ?? 0) >= Math.abs(d.y ?? 0)
+      ? ((d.x ?? 0) >= 0 ? 'para a direita' : 'para a esquerda')
+      : ((d.y ?? 0) >= 0 ? 'para baixo' : 'para cima');
+    return 'movi ' + nome + ' ' + rumo;
+  },
+
+  alinhar: (e, r) => {
+    if (!r || r.ok === false || !r.alinhados) return 'tentei alinhar';
+    const quantos = r.alinhados.length;
+    return 'alinhei ' + plural(quantos, 'elemento', 'elementos')
+      + (r.eixo === 'coluna' ? ' na mesma coluna' : ' na mesma linha');
+  },
+
+  trocar_tipo: (e, r) => {
+    if (!r || r.ok === false || !r.para) return 'tentei trocar o tipo';
+    const nome = r.para.nome ? QUOTE + r.para.nome + QUOTE : r.para.id;
+    const de = (r.de?.tipo ?? '').toLowerCase();
+    const para = (r.para.tipo ?? '').toLowerCase();
+    // As ligações preservadas são a parte que o aluno teme perder ao "mudar o símbolo".
+    const ligacoes = r.ligacoesPreservadas
+      ? ' (' + plural(r.ligacoesPreservadas, 'ligação mantida', 'ligações mantidas') + ')'
+      : '';
+    return 'troquei ' + nome + ': ' + de + ' -> ' + para + ligacoes;
   },
 
   conectar: (e, r) => {
@@ -104,6 +146,26 @@ const COMO_MOSTRAR = {
     return r.removido ? 'removi ' + alvo : 'não removi ' + alvo;
   },
 
+  desfazer: (_e, r) => {
+    if (!r || r.ok === false || !r.desfeito) return 'tentei desfazer';
+    const sairam = r.sairamDoDiagrama?.length ?? 0;
+    const voltaram = r.voltaramAoDiagrama?.length ?? 0;
+    // Desfazer um nome ou um movimento não muda id nenhum: dizer "1 elemento saiu" ali seria
+    // inventar. A linha só fala do que de fato entrou ou saiu.
+    if (!sairam && !voltaram) return 'desfiz a última mudança';
+    const partes = [];
+    if (sairam) partes.push('saiu ' + plural(sairam, 'elemento', 'elementos'));
+    if (voltaram) partes.push('voltou ' + plural(voltaram, 'elemento', 'elementos'));
+    return 'desfiz — ' + partes.join(' · ');
+  },
+
+  destacar: (e, r) => {
+    if (!r || r.ok === false || !r.destacados) return 'tentei destacar';
+    const quantos = plural(r.destacados.length, 'elemento', 'elementos');
+    if (r.cor === 'nenhuma') return 'limpei a cor de ' + quantos;
+    return 'destaquei ' + quantos + ' em ' + r.cor;
+  },
+
   lembrar: (e, r) => (r?.guardado
     ? `anotei${e?.categoria ? ` (${e.categoria})` : ''}`
     : 'tentei anotar'),
@@ -119,6 +181,11 @@ export function linhaDeInicio(nome) {
     criar_elemento: 'criando no diagrama…',
     conectar: 'ligando os elementos…',
     renomear: 'renomeando…',
+    mover: 'movendo no desenho…',
+    alinhar: 'alinhando…',
+    trocar_tipo: 'trocando o tipo…',
+    desfazer: 'desfazendo…',
+    destacar: 'destacando no diagrama…',
     // ⚠ "removendo…" mentiria: nesse instante ainda se espera o aluno confirmar.
     remover: 'esperando você confirmar a remoção…',
     lembrar: 'anotando…',

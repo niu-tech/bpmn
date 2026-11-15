@@ -14,7 +14,7 @@
 // ponytail: um array e duas funções. Sem registry, sem decorator, sem plugin.
 
 import { CATEGORIAS } from './memory.js';
-import { TIPOS_CRIAVEIS } from '../tools/escrita.js';
+import { CORES_DESTAQUE, DIRECOES_MOVER, EIXOS_ALINHAR, TIPOS_CRIAVEIS } from '../tools/escrita.js';
 
 export const FERRAMENTAS = Object.freeze([
   {
@@ -138,7 +138,10 @@ export const FERRAMENTAS = Object.freeze([
         + 'o que o aluno quer quando diz "uma tarefa depois do início". Sem depoisDe o elemento '
         + 'nasce solto, e aí ele precisa de um lugar: num diagrama com mais de um pool a '
         + 'ferramenta recusa com sem_lugar e devolve os nomes — pergunte ao aluno em qual e '
-        + 'repita com dentroDe. O resultado diz o id criado e se a ligação foi feita.',
+        + 'repita com dentroDe. Para pôr o elemento NO MEIO de uma sequência que já existe, use '
+        + 'entre com os dois ids: depoisDe num elemento que já tem sucessor cria um RAMO '
+        + 'paralelo, desenhado abaixo da linha, e o resultado avisa isso em avisoDeRamo. '
+        + 'O resultado diz o id criado e se a ligação foi feita.',
       parameters: {
         type: 'object',
         properties: {
@@ -159,8 +162,112 @@ export const FERRAMENTAS = Object.freeze([
               + 'sentido sem depoisDe. Use quando a ferramenta pedir, ou quando o aluno disser '
               + 'onde quer.',
           },
+          entre: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Dois ids, na ordem do fluxo: o elemento novo entra NO MEIO da ligação que vai do '
+              + 'primeiro para o segundo, e o diagrama fica anterior -> novo -> seguinte. Use '
+              + 'quando o aluno disser que esqueceu um passo no meio do processo. Se não houver '
+              + 'fluxo entre os dois, o erro é sem_lugar.',
+          },
         },
         required: ['tipo'],
+      },
+    },
+  },
+
+  {
+    nome: 'mover',
+    escreve: true,
+    // ⚠ Sem pixel na declaração de propósito: o modelo não recebe coordenada nenhuma no contexto
+    // (a projeção manda id, tipo e nome), então pedir x/y a ele seria pedir palpite. As duas
+    // formas que ele PODE saber são "para onde" (direção) e "para dentro de quê" (container).
+    declaracao: {
+      name: 'mover',
+      description:
+        'Muda um elemento de lugar no desenho. Use dentroDe com o id de um pool ou raia para '
+        + 'mudar o elemento de faixa ("põe na raia do caixa", "joga para a linha de cima" quando '
+        + 'a linha é uma raia). Use direcao com passos para um ajuste relativo ("um pouco para a '
+        + 'direita"). O resultado diz quanto ele andou; se não saiu do lugar, o erro é '
+        + 'nada_mudou. Para deixar vários elementos na mesma linha, prefira alinhar.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Id do elemento a mover.' },
+          dentroDe: {
+            type: 'string',
+            description: 'Id do pool, raia ou subprocesso de destino. O elemento vai para o meio dessa faixa.',
+          },
+          direcao: {
+            type: 'string',
+            enum: [...DIRECOES_MOVER],
+            description: 'Para onde mover, quando o pedido é um ajuste relativo.',
+          },
+          passos: {
+            type: 'integer',
+            description: 'Quantos passos de 80 px, de 1 a 5. O padrão é 1.',
+          },
+        },
+        required: ['id'],
+      },
+    },
+  },
+
+  {
+    nome: 'alinhar',
+    escreve: true,
+    declaracao: {
+      name: 'alinhar',
+      description:
+        'Deixa dois ou mais elementos na mesma linha (eixo linha) ou na mesma coluna (eixo '
+        + 'coluna). É o que o aluno pede quando a sequência saiu em escadinha e ele diz que "não '
+        + 'está na mesma linha" ou que "parecem coisas diferentes". Passe os ids na ordem que '
+        + 'quiser: a altura comum é calculada pelo bpmn-js. Se eles continuarem fora de linha, o '
+        + 'erro é nada_mudou.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Dois ids ou mais.',
+          },
+          eixo: {
+            type: 'string',
+            enum: [...EIXOS_ALINHAR],
+            description: 'linha = mesma altura (um ao lado do outro); coluna = mesma vertical.',
+          },
+        },
+        required: ['ids', 'eixo'],
+      },
+    },
+  },
+
+  {
+    nome: 'trocar_tipo',
+    escreve: true,
+    // ⚠ Existe para NÃO apagar e recriar: o caminho ingênuo levava embora as ligações que o
+    // aluno desenhou. Aqui o bpmn-js copia o nome e religa os fluxos.
+    declaracao: {
+      name: 'trocar_tipo',
+      description:
+        'Troca o tipo de um elemento que já existe, mantendo o nome e as ligações. Use quando o '
+        + 'aluno disser que um elemento é outra coisa ("isso aí é uma decisão", "essa tarefa é '
+        + 'do usuário", "esse evento é de mensagem"). ATENÇÃO: o elemento ganha um id NOVO, que '
+        + 'vem em idNovo — use esse id nos próximos pedidos. Se já for daquele tipo, o erro é '
+        + 'nada_mudou.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Id do elemento de hoje.' },
+          tipo: {
+            type: 'string',
+            enum: [...TIPOS_CRIAVEIS],
+            description: 'O tipo BPMN novo, sem o prefixo bpmn:.',
+          },
+        },
+        required: ['id', 'tipo'],
       },
     },
   },
@@ -190,13 +297,62 @@ export const FERRAMENTAS = Object.freeze([
   },
 
   {
+    nome: 'desfazer',
+    escreve: true,
+    // ⚠ A pilha é UMA — a mesma do Ctrl+Z do aluno. A declaração diz isso para o modelo não
+    // prometer que desfaz "só o que ele fez": o último comando pode ter sido do aluno.
+    declaracao: {
+      name: 'desfazer',
+      description:
+        'Desfaz a última mudança no diagrama, como o Ctrl+Z do aluno — e é a MESMA pilha, então '
+        + 'o que volta atrás pode ser uma ação dele. Use quando ele disser que não gostou do que '
+        + 'acabou de sair ("desfaz isso", "volta"). O resultado diz quais elementos saíram e '
+        + 'quais voltaram; conte isso em vez de só dizer que desfez. Sem nada para desfazer, o '
+        + 'erro é nada_mudou. Uma criação com nome são dois comandos: desfazer uma vez tira o '
+        + 'nome, desfazer de novo tira o elemento.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+
+  {
+    nome: 'destacar',
+    escreve: true,
+    declaracao: {
+      name: 'destacar',
+      description:
+        'Pinta elementos do diagrama para o aluno achar na tela o que você está explicando: o '
+        + 'gargalo da simulação, os passos de um caminho, o que ele pediu para revisar. A cor é '
+        + 'de uma lista fechada; nenhuma limpa a cor. Prefira destacar a descrever a posição com '
+        + 'palavras quando o diagrama é grande.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ids: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Um id ou mais.',
+          },
+          cor: {
+            type: 'string',
+            enum: [...CORES_DESTAQUE],
+            description: 'A cor do destaque, ou nenhuma para limpar.',
+          },
+        },
+        required: ['ids', 'cor'],
+      },
+    },
+  },
+
+  {
     nome: 'renomear',
     escreve: true,
     declaracao: {
       name: 'renomear',
       description:
-        'Troca o rótulo de um elemento do diagrama. O resultado traz o nome de antes e o de '
-        + 'agora. Id que não existe devolve elemento_nao_encontrado.',
+        'Troca o rótulo de um elemento do diagrama. Serve para FLUXO também: o rótulo da seta '
+        + 'que sai de um gateway é a condição do caminho ("se aprovado", "se faltar item") — '
+        + 'quando o aluno descrever a condição de um ramo, nomeie a seta. O resultado traz o '
+        + 'nome de antes e o de agora. Id que não existe devolve elemento_nao_encontrado.',
       parameters: {
         type: 'object',
         properties: {

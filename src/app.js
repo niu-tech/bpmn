@@ -120,6 +120,31 @@ const KNOWN_MARKERS = [
 ];
 
 /**
+ * Elemento com COR PRÓPRIA não recebe a marca do tema.
+ *
+ * ⚠ O tema pinta toda tarefa com `fill: #EAF2FF !important`, e `!important` vence a cor que o
+ * BPMN DI declara. Consequências medidas em 2026-11-14, com o modelador aberto: (1) diagrama
+ * importado COM cores chegava achatado, e (2) o `destacar` do ajudante — que grava no DI pelo
+ * mesmo caminho do menu de cor do bpmn-js — ficava invisível: o rect saía com
+ * `style="fill: rgb(255,205,210)"` e computado `rgb(234,242,255)`. A ferramenta dizia
+ * "destaquei em vermelho" e a tela não mudava, que é a pior espécie de defeito aqui.
+ *
+ * Cor própria é escolha de quem desenhou; o tema é o padrão de quem NÃO escolheu.
+ */
+function temCorPropria(el) {
+  const di = el && el.di;
+  if (!di) return false;
+  const ler = (chave) => {
+    try {
+      return typeof di.get === "function" ? di.get(chave) : di[chave];
+    } catch {
+      return null;
+    }
+  };
+  return Boolean(ler("background-color") || ler("border-color"));
+}
+
+/**
  * Apply marker with retry (avoids losing markers on replace)
  */
 function setBizagiMarker(modeler, el, attempt = 0) {
@@ -137,7 +162,9 @@ function setBizagiMarker(modeler, el, attempt = 0) {
 
   for (const m of KNOWN_MARKERS) canvas.removeMarker(el.id, m);
 
-  const m = markerFor(el);
+  // Pintar e despintar passam por aqui: `setColor` emite `elements.changed`, então a marca do
+  // tema sai quando a cor entra e volta quando ela sai (inclusive no desfazer).
+  const m = temCorPropria(el) ? null : markerFor(el);
   if (m) canvas.addMarker(el.id, m);
 }
 

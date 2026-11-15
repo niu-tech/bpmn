@@ -438,6 +438,118 @@ const CENARIOS = [
       return { ok: achou.length === 0, vazouEm: achou, itensDeStorage: localStorage.length + sessionStorage.length };
     `],
   },
+
+  /**
+   * As ferramentas de GEOMETRIA contra o bpmn-js de VERDADE — sem socket, sem chave, sem cota.
+   *
+   * Por que existe: `mover`, `alinhar`, `trocar_tipo`, inserir no meio, `desfazer` e `destacar`
+   * nasceram apoiados em serviços do bpmn-js (`alignElements`, `bpmnReplace`, `DropOnFlowBehavior`,
+   * `commandStack`, `setColor`). O dublê dos testes determinísticos prova a NOSSA parte; o que
+   * ele não pode provar é que o serviço existe, se chama assim e faz isto — e foi justamente aí
+   * que a vaga do elemento novo nos custou um print errado (portão 4.5, 2026-11-14).
+   *
+   * Dirige pelo `__bpmnAssist.ferramenta`, que é o caminho do MODELO (mesma política, mesmo
+   * diário). A sessão ao vivo continua provando o que só ela prova: o modelo ESCOLHER a
+   * ferramenta. Esta prova o resto — e roda com a cota esgotada.
+   */
+  {
+    nome: 'geometria contra o bpmn-js de verdade: inserir no meio, mover de raia e alinhar (T14/T15)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    passos: [`
+      for (let i = 0; i < 40 && !window.__bpmnAssist; i++) await new Promise((r) => setTimeout(r, 250));
+      if (!window.__bpmnAssist) return { ok: false, erro: 'o ajudante nao montou' };
+      ${MEDIR_SOBREPOSICAO}
+      const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
+      const pool = window.__conteinerChamado('Pizza vendor');
+      if (!pool) return { ok: false, erro: 'nao achei o pool do vendedor' };
+
+      // Um fluxo entre dois nos DENTRO do pool do vendedor: e la' que inserir no meio tem sentido.
+      const antes = window.__bpmnAssist.desenho;
+      const alvo = antes.ligacoes.find((l) => l.tipo === 'SequenceFlow' && l.de && l.para
+        && window.__dentroDe(l.de, pool) === true && window.__dentroDe(l.para, pool) === true);
+      if (!alvo) return { ok: false, erro: 'nao achei fluxo dentro do pool do vendedor' };
+
+      const ins = await F('criar_elemento', { tipo: 'Task', nome: 'Verificar pagamento', entre: [alvo.de, alvo.para] });
+      const novo = ins && ins.resultado && ins.resultado.criado ? ins.resultado.criado.id : null;
+      window.__novo = novo;
+      const depois = window.__bpmnAssist.desenho;
+      // O caminho passa PELO novo, e a seta direta de antes nao existe mais: e isso que separa
+      // "inseriu no meio" de "desenhou ao lado".
+      const entra = depois.ligacoes.filter((l) => l.para === novo).map((l) => l.de);
+      const sai = depois.ligacoes.filter((l) => l.de === novo).map((l) => l.para);
+      const atalhoSobrou = depois.ligacoes.some((l) => l.de === alvo.de && l.para === alvo.para);
+      const noMeio = !!novo && entra.includes(alvo.de) && sai.includes(alvo.para) && !atalhoSobrou;
+
+      // Mover de raia: e o pedido literal da trilha ("poe para a linha de cima").
+      const raia = window.__conteinerChamado('delivery boy');
+      const mov = raia ? await F('mover', { id: novo, dentroDe: raia }) : null;
+      const naRaia = raia ? window.__dentroDe(novo, raia) : null;
+
+      // Alinhar com o anterior: o conserto da escadinha, medido NA TELA.
+      const ali = await F('alinhar', { ids: [alvo.de, novo], eixo: 'linha' });
+      const a = window.__caixa(alvo.de);
+      const b = window.__caixa(novo);
+      const mesmaLinha = !!a && !!b && Math.abs((a.y + a.h / 2) - (b.y + b.h / 2)) <= 2;
+
+      // E nada nasceu por cima de ninguem.
+      const sobre = window.__sobrepoe(novo);
+
+      return {
+        ok: noMeio && mov && mov.ok === true && naRaia === true
+          && ali && ali.ok === true && mesmaLinha && Array.isArray(sobre) && sobre.length === 0,
+        inseriuNoMeio: noMeio,
+        fluxoPartido: alvo.de + ' -> ' + alvo.para,
+        entra, sai, atalhoSobrou,
+        moveu: mov ? mov.ok : null,
+        andou: mov && mov.resultado ? mov.resultado.andou : null,
+        naRaiaDeDestino: naRaia,
+        alinhou: ali ? ali.ok : null,
+        mesmaLinha,
+        caixas: { anterior: a, novo: b },
+        sobrepoe: sobre,
+      };
+    `, `
+      ${MEDIR_SOBREPOSICAO}
+      const F = (n, a) => window.__bpmnAssist.ferramenta(n, a);
+      const id = window.__novo;
+      if (!id) return { ok: false, erro: 'o passo anterior nao criou nada' };
+
+      // Trocar o tipo preservando nome e ligacoes — o id MUDA, e e isso que o modelo recebe.
+      const t = await F('trocar_tipo', { id, tipo: 'UserTask' });
+      const idNovo = t && t.resultado ? t.resultado.idNovo : null;
+      const d = window.__bpmnAssist.desenho;
+      const achado = d.nos.find((n) => n.id === idNovo) || {};
+      const ligacoes = d.ligacoes.filter((l) => l.de === idNovo || l.para === idNovo).length;
+
+      // Destacar: a cor tem de chegar ao SVG, que e onde o aluno olha.
+      const corDoDesenho = () => {
+        const n = document.querySelector('g.djs-shape[data-element-id="' + idNovo + '"] .djs-visual rect');
+        if (!n) return null;
+        const atributo = n.getAttribute('fill');
+        return String(atributo || getComputedStyle(n).fill || '').toLowerCase();
+      };
+      const dest = await F('destacar', { ids: [idNovo], cor: 'vermelho' });
+      const pintado = corDoDesenho();
+      const vermelho = (c) => /ffcdd2/.test(c || '') || /255,\\s*205,\\s*210/.test(c || '');
+
+      // Desfazer tira a cor: a pilha e a MESMA do Ctrl+Z do aluno.
+      const und = await F('desfazer', {});
+      const depoisDoUndo = corDoDesenho();
+
+      return {
+        ok: achado.tipo === 'UserTask' && achado.nome === 'Verificar pagamento' && ligacoes === 2
+          && dest && dest.ok === true && vermelho(pintado)
+          && und && und.ok === true && !vermelho(depoisDoUndo),
+        trocou: achado.tipo,
+        nomeManteve: achado.nome,
+        idNovo,
+        ligacoesPreservadas: ligacoes,
+        pintou: pintado,
+        depoisDoDesfazer: depoisDoUndo,
+        desfez: und ? und.ok : null,
+      };
+    `],
+  },
 ];
 
 // ---------------------------------------------------------------- ao vivo (opcional)
