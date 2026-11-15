@@ -279,6 +279,18 @@ bater no teto da sessão, e a latência precisa ser medida) e `prove-it-with-a-g
 categoria e linha de base, de onde saem as tabelas da dissertação). Planejamento e origem:
 `openspec/apresentacoes/plano-pos-orbit.html`.
 
+**Estado em 2026-11-15:** as quatro fechadas, com as caixas marcadas e a prova no disco.
+
+| Change | O que ficou provado |
+|---|---|
+| `close-the-loop-with-the-canvas` | a leitura da tela em toda escrita (200–250 caracteres por turno, teto 760), o canal `(da página)` com fila de um, e ambiguidade virando botão. AO VIVO: o aluno clica e pergunta *"e esse aqui?"* — o agente responde sobre o elemento certo |
+| `spoken-confirmation-gates` | o portão de ORDEM, provado AO VIVO por voz: 9,8 s recusou · 11 s perguntou falando · 22,9 s apagou, depois do "pode apagar". Gravado em vídeo com trilha sonora |
+| `sustain-a-class-session` | compressão de contexto no setup, teto de 25 min, a cota MEDIDA (não é cadência — é consumo), latência por turno (2,7 / 2,2 / 1,3 s ao vivo) e custo (5,7 k → 7,6 k tokens) |
+| `prove-it-with-a-golden-set` | 32 perguntas em 12 categorias, camada determinística 32/32 dentro do `npm test`, camada ao vivo com descanso e "não executada" honesta, e as três tabelas geradas dos arquivos |
+
+O que **não** fechou e segue sendo de gente: a voz do dono (plano executivo em
+`openspec/plano-de-teste-por-voz.md`) e a pedagogia do F8b, logo abaixo.
+
 #### F8b — A pedagogia, que continua em aberto
 
 O que a mecânica **não** resolve, e segue sendo o conteúdo da fase: quando propor e quando calar,

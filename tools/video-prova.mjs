@@ -48,8 +48,36 @@ if (!CHAVE) {
   process.exit(2);
 }
 
+/**
+ * O MARCADOR DE CLIQUE HUMANO (tarefa 5.3).
+ *
+ * ⚠ Num filme de agente trabalhando, a banca não tem como saber quem fez o quê: o elemento se
+ * move, a cor muda, a tarefa some — e tudo parece obra do agente. Quando a PESSOA age (clica num
+ * elemento, escolhe um candidato, aperta o microfone), um selo aparece por dois segundos nos
+ * quadros. É um rótulo honesto, não enfeite: sem ele, o vídeo pode dar ao agente o crédito de
+ * uma ação humana.
+ */
+const MARCADOR = `
+window.__marcarHumano = (texto) => {
+  let selo = document.getElementById('__humano');
+  if (!selo) {
+    selo = document.createElement('div');
+    selo.id = '__humano';
+    selo.style.cssText = 'position:fixed;z-index:2147483647;left:16px;top:16px;background:#1d4ed8;'
+      + 'color:#fff;font:600 14px/1.3 system-ui,sans-serif;padding:8px 14px;border-radius:999px;'
+      + 'box-shadow:0 6px 20px rgba(29,78,216,.45);transition:opacity .2s;pointer-events:none';
+    document.body.append(selo);
+  }
+  selo.textContent = '\u261d o aluno: ' + texto;
+  selo.style.opacity = '1';
+  clearTimeout(window.__seloRelogio);
+  window.__seloRelogio = setTimeout(() => { selo.style.opacity = '0'; }, 2000);
+  return true;
+};
+`;
+
 /** Abre o painel, informa a chave e conecta. Igual ao que o aluno faz. */
-const CONECTAR = `
+const CONECTAR = MARCADOR + `
 window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
 document.querySelector('.bpmn-assist__toggle').click();
 document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(CHAVE)};
@@ -96,13 +124,16 @@ const CENARIOS = {
     passos: [
       CONECTAR,
       `${ESPERAR}
+       window.__marcarHumano('digita o pedido');
        const r1 = await window.__resposta('Monte para mim, no pool do cliente: um evento de início chamado Fome, depois uma tarefa Escolher a pizza, e ligue os dois.');
        await new Promise((r) => setTimeout(r, 1500));
        return { ok: true, pediu: 'montar', respondeu: r1.slice(0, 200) };`,
-      `const r2 = await window.__resposta('Agora põe uma tarefa Conferir o endereço entre a Escolher a pizza e o que vem depois dela.');
+      `window.__marcarHumano('pede para inserir no meio');
+       const r2 = await window.__resposta('Agora põe uma tarefa Conferir o endereço entre a Escolher a pizza e o que vem depois dela.');
        await new Promise((r) => setTimeout(r, 1500));
        return { ok: true, pediu: 'inserir no meio', respondeu: r2.slice(0, 200) };`,
-      `const r3 = await window.__resposta('Deixa essas duas tarefas novas na mesma linha, por favor.');
+      `window.__marcarHumano('pede para alinhar');
+       const r3 = await window.__resposta('Deixa essas duas tarefas novas na mesma linha, por favor.');
        await new Promise((r) => setTimeout(r, 2000));
        const linhas = [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim());
        return { ok: true, pediu: 'alinhar', respondeu: r3.slice(0, 200), ferramentas: linhas.slice(-6) };`,
@@ -122,8 +153,10 @@ const CENARIOS = {
        const alvo = window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && /bake/i.test(n.nome ?? ''))
          ?? window.__bpmnAssist.desenho.nos.find((n) => n.tipo === 'Task' && n.nome);
        window.__alvo = alvo;
+       window.__marcarHumano('clica em "' + alvo.nome + '" no desenho');
        window.__bpmnAssist.selecionar(alvo.id);
        await new Promise((r) => setTimeout(r, 1500));
+       window.__marcarHumano('aperta o microfone e fala');
        document.querySelector('.bpmn-assist__mic').click();
        for (let i = 0; i < 60 && !window.__bpmnAssist.estado.micOn; i++) await new Promise((r) => setTimeout(r, 500));
        return { ok: window.__bpmnAssist.estado.micOn === true, selecionou: alvo.nome };`,

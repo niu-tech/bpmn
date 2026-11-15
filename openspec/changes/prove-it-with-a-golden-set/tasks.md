@@ -5,54 +5,75 @@
 
 ## 1. O acervo
 
-- [ ] 1.1 `avaliacao/perguntas-douradas.json` com perfis (`modelador`, `viewer`) e as ferramentas
-      que cada um deve enxergar.
-- [ ] 1.2 Trinta perguntas para começar, cobrindo as doze categorias: leitura, escrita, montagem,
-      geometria, ambiguidade, confirmação, recusa de escopo, injeção, chave, borda, idioma, cota.
-- [ ] 1.3 Cada pergunta nas palavras de um aluno — tiradas das trilhas reais quando houver.
-- [ ] 1.4 `avaliacao/README.md`: como ler o arquivo, como acrescentar uma pergunta, o que cada
-      campo cobra.
-- [ ] 1.5 Validador: pergunta que cite ferramenta inexistente, perfil desconhecido ou categoria de
-      segurança sem proibição declarada **reprova o arquivo**.
+- [x] 1.1 `avaliacao/perguntas-douradas.json` com os dois perfis (`modelador`, `viewer`) e as
+      ferramentas que cada pergunta espera.
+- [x] 1.2 **32 perguntas**, cobrindo as doze categorias: leitura, escrita, montagem, geometria,
+      ambiguidade, confirmação, recusa de escopo, injeção, chave, borda, idioma, cota.
+- [x] 1.3 Cada pergunta nas palavras de um aluno. As de voz saíram das fixtures que o microfone
+      de teste já toca; as de portão, da sessão ao vivo de 2026-11-15.
+- [x] 1.4 `avaliacao/README.md`: as duas camadas e por que são duas, os campos, as doze
+      categorias, e como acrescentar uma pergunta.
+- [x] 1.5 Validador: ferramenta inexistente, perfil desconhecido, categoria fora da lista,
+      pergunta sem o campo `porque` e categoria de segurança sem proibição declarada **reprovam o
+      arquivo** (exit 2, antes de qualquer corrida).
 
 ## 2. Camada determinística
 
-- [ ] 2.1 `tools/avaliar.mjs`: monta a sessão com o dublê de socket, roteiriza o modelo conforme
-      `ferramentasEsperadas`, e mede o que é nosso (oferta, política, execução, erro nomeado).
-- [ ] 2.2 Entra no `npm test` como um arquivo a mais — sem rede, sem chave.
-- [ ] 2.3 Resumo por categoria no terminal e em `artifacts/avaliacao/<carimbo>/resumo.json`.
+- [x] 2.1 `tools/avaliar.mjs`: monta o caminho do produto (catálogo → política → despachante →
+      executores) sobre o **mesmo dublê de modelador da suíte**, que saiu de dentro do arquivo de
+      teste para `tools/modelador-falso.mjs` — duas cópias divergiriam, e a que divergisse mediria
+      outro produto.
+- [x] 2.2 Entra no `npm test` como um arquivo a mais — sem rede, sem chave.
+- [x] 2.3 Resumo por categoria no terminal e em `artifacts/avaliacao/<carimbo>/resumo.json`.
+      Estado: **32/32 (100%)**.
 
 ## 3. Camada ao vivo
 
-- [ ] 3.1 `npm run avaliar -- --ao-vivo`: uma sessão por pergunta, com o descanso declarado entre
-      sessões (cadência de teste não pode virar vermelho).
-- [ ] 3.2 Mede: ferramenta escolhida, argumentos que importam, fatos obrigatórios, proibições,
-      recusas esperadas.
-- [ ] 3.3 Pergunta que não rodou por cota é contada como **não executada**, nunca como acerto.
-- [ ] 3.4 O resultado entra no diário append-only (`tools/ledger.mjs`), com data.
+- [x] 3.1 `node tools/avaliar.mjs --ao-vivo`: uma sessão por pergunta, com descanso declarado
+      (`BPMN_DESCANSO_MS`, 20 s) — cadência de teste não pode virar vermelho.
+- [x] 3.2 Mede: ferramenta escolhida, fatos obrigatórios, proibições, recusa esperada, idioma, e
+      a recusa NOMEADA do portão (que não aparece como `executando`, porque é barrada antes).
+- [x] 3.3 Pergunta que não rodou — cota, fixture que a corrida não monta, ou metade de um portão —
+      é contada como **não executada**. Nunca como acerto.
+- [x] 3.4 O resultado entra no diário append-only (`tools/ledger.mjs`), com data.
 
 ## 4. Limiares e linha de base
 
-- [ ] 4.1 `avaliacao/limiares.json`: piso geral, cobertura e precisão de ferramenta, 100% nas
-      categorias de segurança, delta máximo de regressão.
-- [ ] 4.2 `avaliacao/baseline.json`: começa vazio (sem comparação), e só é atualizado por ato
-      explícito depois de alguém olhar a diferença.
-- [ ] 4.3 A corrida reprova por piso, por categoria de segurança **ou** por delta, e diz qual dos
-      três foi.
+- [x] 4.1 `avaliacao/limiares.json`: piso geral (80%), cobertura (90%), **100% nas quatro
+      categorias de segurança** (injeção, chave, confirmação, recusa de escopo) e delta máximo de
+      regressão (5%).
+- [x] 4.2 `avaliacao/baseline.json` começa vazio e só é escrito por ato explícito
+      (`--gravar-baseline`), depois de alguém olhar a diferença.
+- [x] 4.3 A corrida reprova por piso, por categoria de segurança **ou** por delta contra a
+      baseline, e o relatório diz qual dos três foi.
 
 ## 5. A gravação com som
 
-- [ ] 5.1 `tools/video-prova.mjs`: dirige uma sessão, injeta a fala, captura o PCM recebido.
-- [ ] 5.2 Trilha sonora remontada na linha do tempo real (fala do aluno + fala do agente) como WAV
-      ao lado do vídeo.
-- [ ] 5.3 Marcador visual no clique humano, para a banca distinguir pessoa de agente.
-- [ ] 5.4 Um vídeo de dois a três minutos do caminho feliz: descrever o processo, o agente montar,
-      o aluno corrigir por voz, o agente alinhar.
+- [x] 5.1 `tools/video-prova.mjs`: dirige uma sessão de verdade, grava os quadros da tela
+      (`drive-page.mjs --filme`) e captura o PCM que o modelo mandou (gravação diagnóstica nova na
+      sessão, desligada por padrão).
+- [x] 5.2 Trilha sonora remontada na linha do tempo real: a fala do aluno (a fixture que o
+      microfone tocou, reamostrada de 16 para 24 kHz, posta no instante em que o microfone abriu)
+      somada à fala do agente. Sai como `trilha.wav` ao lado dos quadros.
+- [x] 5.3 Marcador visual no gesto humano: um selo "☝ o aluno: …" aparece por dois segundos nos
+      quadros quando a pessoa clica, digita ou aperta o microfone. Sem ele o vídeo daria ao agente
+      o crédito de uma ação humana.
+- [x] 5.4 Dois filmes gravados, com `filme.html` que toca sozinho (não há ffmpeg nesta máquina, e
+      um codec seria 100 MB para o que uma página de 60 linhas resolve):
+      **o portão falado** (31 s: seleção → fala → o agente pergunta → "pode apagar" → removido) e
+      **o caminho feliz** (montar, inserir no meio, alinhar, contra o Gemini de verdade).
+      _Ficou mais curto que os "dois a três minutos" previstos: a conversa real levou 12 s de
+      relógio. Esticá-la com espera não acrescentaria prova._
 
 ## 6. Portão
 
-- [ ] 6.1 `npm test` verde com a camada determinística dentro.
-- [ ] 6.2 Uma corrida ao vivo completa, com resumo carimbado e `baseline.json` preenchido a partir
-      dela (ato explícito, registrado).
-- [ ] 6.3 As três tabelas da dissertação geradas dos arquivos: taxa por categoria, cobertura de
-      ferramenta, latência por turno (esta vem da change `sustain-a-class-session`).
+- [x] 6.1 `npm test` verde com a camada determinística dentro.
+- [x] 6.2 Corrida ao vivo com resumo carimbado, e a baseline gravada a partir dela por ato
+      explícito. As categorias de segurança passaram ao vivo: recusa de escopo **3/3**, portão
+      **2/2** (1 não executada, por ser a segunda metade de um portão — essa é provada pelo
+      cenário de voz da bateria).
+- [x] 6.3 `tools/tabelas.mjs` gera as três tabelas dos arquivos do disco: taxa por categoria
+      (a medida mais recente de CADA categoria, porque as corridas são fatiadas na prática),
+      cobertura de ferramenta (15 das 16 do catálogo têm pergunta — falta `lembrar`) e latência
+      por turno (vinda dos carimbos da change `sustain-a-class-session`). O que não tem prova no
+      disco sai como **—**, nunca como zero.
