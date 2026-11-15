@@ -127,11 +127,16 @@ A regra de escrita: cada frase da tela aponta para um portão fechado.
 | "antes de apagar, ele pergunta" | `spoken-confirmation-gates` |
 | "o que ele desenhar você desfaz com Ctrl+Z" | constituição §VII |
 | "conte o seu processo e ele vai montando com você" | metade do portão F8 (três frases → início, tarefas e fim ligados) |
+| "ele explica … e diz de onde tirou" | **FK**, fechada em 2026-11-15 na frente paralela: acervo de 12 verbetes, `consultar_norma` declarada nos dois perfis e portão AO VIVO passado |
 
-E o que a tela **não** diz, por não estar provado: que ele propõe antes de aplicar (F8 inteiro) e
-que a explicação vem com fonte citada (FK, 0 de 31 caixas). Prometer na primeira tela o que o
-agente ainda não faz é a forma mais barata de estragar a primeira impressão — e está escrito assim
-no handoff do dono.
+E o que a tela **não** diz, por não estar provado: que ele **propõe antes de aplicar** (portão F8
+inteiro, aberto). Prometer na primeira tela o que o agente ainda não faz é a forma mais barata de
+estragar a primeira impressão — e está escrito assim no handoff do dono.
+
+A linha da fonte é o caso que mostra a regra funcionando nos dois sentidos. Quando esta change
+começou, a FK tinha **0 de 31** caixas e a tela calava sobre citação. A FK fechou no mesmo dia, numa
+frente paralela, e a linha entrou — com um **guard** em `__tests__/abertura.mjs` que reprova se
+`consultar_norma` sair do catálogo. A promessa não pode sobreviver ao que a sustenta.
 
 ### B10. O autosave engolia `commandStack.changed` — corrigido na raiz, não contornado
 

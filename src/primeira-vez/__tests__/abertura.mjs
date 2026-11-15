@@ -16,6 +16,7 @@ import {
   escolhaValida,
   tiraPara,
 } from '../abertura.js';
+import { declarada } from '../../assistant/agent/catalog.js';
 import { report, test } from '../../../tools/test-harness.mjs';
 
 const PIZZA = '<?xml version="1.0"?><definitions/>';
@@ -93,6 +94,15 @@ test('a tira diz o que esta aberto, e so quando ha o que dizer', () => {
   assert.equal(tiraPara('branco'), 'branco');     // "ver um exemplo" continua a um clique
   assert.equal(tiraPara('restaurar'), null);      // o trabalho e' dela: nao ha' o que explicar
   assert.equal(tiraPara('convite'), null);        // a tira so' aparece depois da escolha
+});
+
+test('a tela so promete "diz de onde tirou" porque a ferramenta existe', () => {
+  // A linha de descoberta da tela base promete que o tutor cita a fonte. Isso so' e' verdade
+  // porque a FK fechou e `consultar_norma` esta' declarada ao modelo (change
+  // `add-bpmn-norm-knowledge-base`). Se a ferramenta sair do catalogo, esta promessa vira mentira
+  // na PRIMEIRA tela do produto — e e' aqui que isso reprova, com o nome do arquivo a corrigir.
+  assert.equal(declarada('consultar_norma'), true,
+    'a tela base promete fonte: ou a ferramenta volta ao catalogo, ou o texto de tela.js muda');
 });
 
 report('primeira-vez');

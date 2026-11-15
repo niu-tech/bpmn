@@ -97,7 +97,12 @@ export function montarTelaBase({ raiz = document.body, aoEscolher = () => {} } =
     el('p', { className: 'pv__descoberta' }, [
       el('span', { textContent: 'Não sabe o que é BPMN? ' }),
       descobrir,
-      el('span', { textContent: ', com o exemplo na frente.' }),
+      // ⚠ "diz de onde tirou" só entrou nesta linha porque a FK FECHOU (change
+      // `add-bpmn-norm-knowledge-base`, 2026-11-15): existe um acervo de verbetes e a ferramenta
+      // `consultar_norma` declarada ao modelo, e a resposta volta com a chave de citação. Enquanto
+      // isso não existia, a tela não dizia — e o guard em `__tests__/abertura.mjs` reprova se a
+      // ferramenta sumir do catálogo, para a promessa não sobreviver ao que a sustenta.
+      el('span', { textContent: ' — ele explica com o exemplo na frente e diz de onde tirou.' }),
     ]),
   ]);
 

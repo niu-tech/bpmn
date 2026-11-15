@@ -73,7 +73,9 @@ As duas últimas linhas são a razão de o texto da tela ser curto. Ver B9.
 > VIVO**), deixando 29 de 31 — abertas só a latência na URL pública (5.3) e o cenário de citação
 > inventada (6.3).
 >
-> **Consequência para a tela base:** ela **pode** passar a dizer que a explicação vem com a fonte, e
-> **não diz** nesta rodada. Duas razões: a frase da primeira tela é sobre decidir por onde começar,
-> não sobre o mecanismo da resposta; e a prova ao vivo é daquela frente, não desta. É uma linha de
-> texto para a próxima rodada, com o portão FK relido antes.
+> **Consequência para a tela base, aplicada ainda nesta rodada:** a linha de descoberta passou a
+> dizer que o tutor *"explica com o exemplo na frente e diz de onde tirou"*. Não entrou pela palavra
+> da outra frente: entrou porque `consultar_norma` está declarada no catálogo (conferido) e porque o
+> cenário dela passou na bateria que rodei aqui (*"o acervo responde pelo caminho do modelo, e
+> declara o próprio tamanho"*, 21 de 21). E entrou **com guard**: `__tests__/abertura.mjs` reprova
+> se a ferramenta sumir do catálogo, nomeando o texto de `tela.js` a corrigir.

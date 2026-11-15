@@ -25,6 +25,11 @@
       `prefers-reduced-motion`, e o rodapé reservado com `RESERVA_MINIMA` de `assistant/layout.js`
       (B7)
 - [x] 2.4 Em 375 px os três caminhos empilham e nada rola na horizontal
+- [x] 2.6 **A FK fechou no meio desta change** (frente paralela, 2026-11-15): a linha de descoberta
+      passou a dizer "ele explica com o exemplo na frente e **diz de onde tirou**", depois de
+      conferir `declarada('consultar_norma')` no catálogo e de ver o cenário do acervo passar na
+      bateria daqui. Com guard em `__tests__/abertura.mjs`: se a ferramenta sair do catálogo, o
+      teste reprova nomeando o texto de `tela.js`
 - [x] 2.5 Montar dentro de `try/catch`: defeito aqui não pode levar o modelador junto
       (constituição §X)
 
