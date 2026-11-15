@@ -69,8 +69,8 @@
   conversa inteira passou a ser medida, gravada e provável.</p>
 
   <div class="numeros">
-    <div class="num ok"><b>629</b><span>asserções verdes, 0 falhas</span></div>
-    <div class="num ok"><b>32/32</b><span>acervo dourado, camada determinística</span></div>
+    <div class="num ok"><b>631</b><span>asserções verdes, 0 falhas</span></div>
+    <div class="num ok"><b>33/33</b><span>acervo dourado, camada determinística</span></div>
     <div class="num az"><b>9,8 s → 22,9 s</b><span>perguntou · você respondeu · apagou</span></div>
     <div class="num az"><b>2 vídeos</b><span>com trilha sonora, da sessão real</span></div>
   </div>
@@ -161,21 +161,36 @@
       <span class="ganho">dois filmes gravados: o portão falado e o caminho feliz (montar, inserir no meio, alinhar)</span>
     </div>
     <div class="bloco">
-      <h3>Acervo dourado: 32 perguntas, 12 categorias</h3>
+      <h3>Acervo dourado: 33 perguntas, 12 categorias</h3>
       <p>Cada pergunta nas palavras de um aluno, com o que ela cobra. Duas camadas de propósito:
       a <b>determinística</b> mede o que é nosso (a ferramenta é oferecida? a política deixa? o
       erro é nomeado?) e entra no <code>npm test</code>; a <b>ao vivo</b> mede o que é do modelo.
       Pergunta que não rodou é contada como <b>não executada</b> — nunca como acerto.</p>
-      <span class="ganho">determinística 32/32 · segurança exige 100% e reprova a corrida</span>
+      <span class="ganho">determinística 33/33 · ao vivo: dez das doze categorias mediram, todas em 100% do que executou</span>
     </div>
     <div class="bloco">
-      <h3>Dois defeitos que a própria prova encontrou</h3>
+      <h3>O acervo reprovou a si mesmo — e achou um ganho de cota</h3>
+      <p>No primeiro contato ao vivo, <b>metade das perguntas pressupunha contexto que a frase não
+      carrega</b> ("essas duas", "esse gateway") ou pedia o impossível no diagrama da corrida (uma
+      raia que já existe). Em todas, o agente perguntou qual ou disse que já havia — o
+      comportamento certo. Nove perguntas calibradas; a geometria saiu de 1/3 para <b>4/4</b> sem
+      uma linha de produto mudada.</p>
+      <p>E um achado de produto: perguntado <i>"qual tarefa está sem ligação"</i>, o modelo chamou
+      dez ferramentas para conferir elemento por elemento. <code>descrever_diagrama</code> passou a
+      contar as pontas soltas — <b>dez chamadas da cota do aluno viraram uma</b>.</p>
+    </div>
+
+    <div class="bloco">
+      <h3>Três defeitos que a própria prova encontrou</h3>
       <p><b>A bateria clicava num botão que não existe.</b> Desde o redesenho da interface não há
       mais "Voz" — seis cenários chamavam <code>.click()</code> em <code>undefined</code>, e os de
       voz ao vivo reprovavam por harness, não por produto.</p>
       <p><b>O microfone abria antes da sessão estar pronta.</b> Trocar para voz abre outra sessão
       Live; a captura começava antes, e a sua primeira frase inteira ficava numa fila, despejada
       depois em rajada — o servidor não transcrevia nada, com o painel dizendo "ouvindo".</p>
+      <p><b>Espera infinita parecendo trabalho.</b> Duas corridas ao vivo ficaram 30 e 50 minutos
+      vivas com menos de 1 s de CPU: um <code>fetch</code> sem prazo, numa porta tomada por um
+      navegador zumbi de outra corrida. Agora toda chamada tem teto, e cada pergunta tem o seu.</p>
     </div>
   </section>
 
