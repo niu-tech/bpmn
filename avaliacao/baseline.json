@@ -1,0 +1,7 @@
+{
+  "sobre": "A linha de base: a corrida contra a qual as próximas são comparadas. Vazia de propósito — só é preenchida por ato explícito (`node tools/avaliar.mjs --ao-vivo --gravar-baseline`) depois de alguém olhar a diferença. Baseline que se atualiza sozinha mede o último erro, não o produto.",
+  "corrida": null,
+  "quando": null,
+  "porCategoria": {},
+  "porPergunta": {}
+}

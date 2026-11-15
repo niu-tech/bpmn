@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Plano de teste por voz · ajudante BPMN</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --verde:#3f6b2e; --verde-fraco:#eef5e7;
+    --ambar:#8a4b12; --ambar-fraco:#fdf4e7; --vinho:#8f2c22; --vinho-fraco:#fcefed;
+    --azul:#2a4f7c; --azul-fraco:#eef3fa;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:15px/1.58 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:900px; margin:0 auto; padding:40px 28px 48px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--verde); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--verde); border-radius:2px; }
+  h1 { font-size:30px; line-height:1.14; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:16.5px; color:var(--suave); margin:0 0 26px; max-width:70ch; }
+  h2 { font-size:12.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 12px; }
+  section { margin-bottom:30px; page-break-inside:avoid; }
+  p { max-width:72ch; }
+  .passo { background:var(--papel); border:1px solid var(--linha); border-radius:12px;
+    padding:14px 16px; margin-bottom:16px; }
+  .passo code { font-family:Consolas,monospace; font-size:13px; background:#f4f4f8;
+    padding:2px 6px; border-radius:5px; }
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:12px; overflow:hidden; font-size:13.5px; }
+  th { text-align:left; font-size:11px; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:10px 13px; border-bottom:1px solid var(--linha); }
+  td { padding:10px 13px; border-bottom:1px solid #f1f1f5; vertical-align:top; color:#3f4049; }
+  tr:last-child td { border-bottom:none; }
+  td b { color:var(--tinta); font-weight:600; }
+  .id { font-family:Consolas,monospace; font-weight:600; color:var(--azul); white-space:nowrap; }
+  .ja { color:var(--verde); font-size:12.5px; }
+  .so-voce { background:var(--ambar-fraco); border-left:3px solid var(--ambar);
+    border-radius:0 10px 10px 0; padding:11px 15px; margin-top:11px; font-size:13.5px; color:#5d4320; }
+  .so-voce b { color:var(--ambar); }
+  .cita { border-left:3px solid var(--verde); padding:2px 0 2px 16px; margin:0 0 22px;
+    font-size:16px; color:var(--suave); max-width:68ch; }
+  .nota { background:var(--azul-fraco); border:1px solid #cfdcec; border-radius:12px;
+    padding:14px 16px; font-size:13.5px; color:#2e3d50; }
+  .nota b { color:var(--azul); }
+  ol.limites { max-width:72ch; padding-left:20px; }
+  ol.limites li { margin-bottom:9px; }
+  footer { margin-top:34px; padding-top:16px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); }
+  @media print { body { background:#fff; } .env { padding:0 0 10px; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <span class="marca">Plano executivo</span>
+  <h1>O que você vai provar com a própria voz</h1>
+  <p class="sub">Quase tudo já é provado sozinho — a suíte roda sem navegador, a bateria dirige o
+  bpmn-js de verdade sem gastar cota, e os cenários ao vivo falam com o Gemini usando um WAV
+  pt-BR como microfone. O que <b>nenhum</b> deles alcança é a cadeia física: o seu microfone, a
+  sua voz, o eco da sala, o alto-falante — e a sensação de estar conversando com alguém.</p>
+
+  <section>
+    <h2>Antes de começar</h2>
+    <div class="passo">
+      <p style="margin:0 0 8px"><b>1.</b> Suba o site e a gravação da sessão, em dois terminais:</p>
+      <p style="margin:0 0 4px"><code>npm run dev</code> &nbsp;→&nbsp; abre em <code>http://127.0.0.1:8126/</code></p>
+      <p style="margin:0"><code>npm run trilha</code> &nbsp;→&nbsp; grava tudo; <code>Ctrl+C</code> no fim imprime o resumo</p>
+    </div>
+    <div class="passo">
+      <p style="margin:0 0 8px"><b>2.</b> Na aba: cole a sua chave do Google AI Studio, marque o
+      aviso, clique em <b>Começar</b> e então no <b>microfone</b>.</p>
+      <p style="margin:0; color:var(--suave)">Fone de ouvido ajuda. Sem ele, o som do ajudante
+      volta pelo seu microfone e ele se interrompe sozinho — o produto detecta isso e avisa, e
+      <b>esse aviso é um dos casos a conferir</b> (D4).</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Bloco A · a conversa básica por voz</h2>
+    <table>
+      <tr><th style="width:42px">#</th><th>Você faz</th><th>Tem de acontecer</th><th style="width:150px">Já provado por máquina</th></tr>
+      <tr><td class="id">A1</td><td>"Qual a diferença entre gateway exclusivo e paralelo?"</td>
+          <td>Ele responde <b>falando</b>, em português, em uma ou duas frases. A sua pergunta vira
+          <b>uma</b> bolha que cresce — não uma por pedaço.</td>
+          <td class="ja">cenário de voz ao vivo (WAV sintético)</td></tr>
+      <tr><td class="id">A2</td><td>Fale por cima enquanto ele responde: "espera, chega".</td>
+          <td>Ele <b>para na hora</b>.</td><td class="ja">cenário de barge-in ao vivo</td></tr>
+      <tr><td class="id">A3</td><td>Clique em <b>Parar de falar</b> no meio de uma resposta.</td>
+          <td>Silêncio imediato, e o resto do turno não volta sozinho.</td>
+          <td class="ja">teste determinístico</td></tr>
+      <tr><td class="id">A4</td><td>Pergunte algo fora de BPMN ("receita de bolo").</td>
+          <td>Recusa em uma frase, sem sermão, e volta ao assunto.</td>
+          <td class="ja">acervo dourado ao vivo: 3/3</td></tr>
+    </table>
+    <div class="so-voce"><b>Só você pode dizer:</b> a voz soa natural? O tempo até ele começar a
+    falar incomoda? Dá para interromper sem gritar?</div>
+  </section>
+
+  <section>
+    <h2>Bloco B · o diagrama na frente dele</h2>
+    <table>
+      <tr><th style="width:42px">#</th><th>Você faz</th><th>Tem de acontecer</th><th style="width:150px">Já provado por máquina</th></tr>
+      <tr><td class="id">B1</td><td>Clique numa tarefa e pergunte <b>"e esse aqui?"</b>, sem dizer o nome.</td>
+          <td>Ele fala do elemento certo, citando o nome.</td>
+          <td class="ja">ao vivo: <i>"Essa é a tarefa Bake the pizza…"</i></td></tr>
+      <tr><td class="id">B2</td><td>Clique em cinco elementos seguidos, rápido, e então pergunte.</td>
+          <td>Ele fala do <b>último</b>, e a conversa não enche de avisos.</td>
+          <td class="ja">debounce + fila da página</td></tr>
+      <tr><td class="id">B3</td><td>"Cria uma tarefa Conferir estoque depois do início."</td>
+          <td>O elemento aparece, com o nome escrito nele.</td>
+          <td class="ja">vídeo do caminho feliz</td></tr>
+      <tr><td class="id">B4</td><td>"Põe uma tarefa Embalar entre essas duas."</td>
+          <td>Ele parte a seta e entra no meio — não cria um ramo embaixo.</td>
+          <td class="ja">vídeo do caminho feliz</td></tr>
+      <tr><td class="id">B5</td><td>"Deixa essas duas na mesma linha."</td>
+          <td>Elas ficam na mesma altura.</td><td class="ja">vídeo do caminho feliz</td></tr>
+      <tr><td class="id">B6</td><td>Importe outro <code>.bpmn</code> no meio da conversa e pergunte "o que mudou?".</td>
+          <td>Ele fala do diagrama <b>novo</b>.</td><td class="ja">só em teste</td></tr>
+    </table>
+    <div class="so-voce"><b>Só você pode dizer:</b> o que ele desenha fica legível? Você entregaria
+    esse diagrama na faculdade?</div>
+  </section>
+
+  <section>
+    <h2>Bloco C · o portão — ele não mexe no que você não pediu</h2>
+    <table>
+      <tr><th style="width:42px">#</th><th>Você faz</th><th>Tem de acontecer</th><th style="width:150px">Já provado por máquina</th></tr>
+      <tr><td class="id">C1</td><td>Clique numa tarefa e diga "apaga essa tarefa".</td>
+          <td>Ele <b>pergunta</b> antes. Nada some.</td>
+          <td class="ja">ao vivo, por voz: recusa aos 9,8 s</td></tr>
+      <tr><td class="id">C2</td><td>Responda "pode apagar".</td>
+          <td>Só então o elemento some, e ele confirma.</td>
+          <td class="ja">ao vivo: removido aos 22,9 s</td></tr>
+      <tr><td class="id">C3</td><td>Peça para apagar outra coisa logo depois, e <b>não responda</b>.</td>
+          <td>Ele pergunta de novo: o "sim" de antes não vale para esta.</td>
+          <td class="ja">portão consumido (teste + bateria)</td></tr>
+      <tr><td class="id">C4</td><td>Diga "apaga" e, antes de responder, mude de assunto.</td>
+          <td>Nada é apagado, e a conversa segue.</td><td class="ja">teste de ordem</td></tr>
+    </table>
+    <div class="so-voce"><b>Só você pode dizer:</b> a pergunta dele é curta o bastante para você
+    responder falando? Em algum momento você achou que ele já tinha apagado?</div>
+  </section>
+
+  <section>
+    <h2>Bloco D · quando dá errado</h2>
+    <table>
+      <tr><th style="width:42px">#</th><th>Você faz</th><th>Tem de acontecer</th><th style="width:150px">Já provado por máquina</th></tr>
+      <tr><td class="id">D1</td><td>Desligue o Wi-Fi por uns segundos no meio de uma resposta.</td>
+          <td>Ele volta sozinho e <b>avisa</b>; se era pergunta digitada, refaz.</td>
+          <td class="ja">teste de reconexão</td></tr>
+      <tr><td class="id">D2</td><td>Use uma chave errada de propósito.</td>
+          <td>Mensagem clara com o que fazer — e a chave não aparece em lugar nenhum.</td>
+          <td class="ja">cenário "a chave não vaza"</td></tr>
+      <tr><td class="id">D3</td><td>Converse até a cota reclamar.</td>
+          <td>A tela diz que é <b>consumo</b> (não "sessões demais"), aponta "Testar conexão", e a
+          conversa continua ali.</td>
+          <td class="ja">medição de cota + teste do recado</td></tr>
+      <tr><td class="id">D4</td><td>Tire o fone e deixe o som alto perto do microfone.</td>
+          <td>Depois de três cortes seguidos ele avisa e passa a fechar o microfone enquanto responde.</td>
+          <td class="ja">cenário do laço de eco</td></tr>
+      <tr><td class="id">D5</td><td>Deixe a aba aberta e vá almoçar.</td>
+          <td>Em 25 minutos ele encerra sozinho, <b>diz por quê</b> e a conversa continua na tela.</td>
+          <td class="ja">teste do teto de sessão</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>O que a máquina não consegue provar — e por isso está aqui</h2>
+    <ol class="limites">
+      <li><b>A cadeia física do som.</b> O microfone falso do Chromium toca um arquivo; o seu toca
+      a sala. Eco, ruído, distância e ganho mudam o que o servidor ouve.</li>
+      <li><b>A voz pt-BR de verdade.</b> As fixtures são SAPI (Microsoft Maria): sotaque uniforme,
+      ritmo constante, zero hesitação. Você fala com "ãhn", corta palavra no meio e muda de ideia
+      na frase.</li>
+      <li><b>O tempo como experiência.</b> A trilha mede segundos; só você sabe se três segundos
+      pareceram naturais ou pareceram travamento.</li>
+      <li><b>A leitura do desenho.</b> O teste confere ids e coordenadas; você confere se o
+      diagrama ficou bom o suficiente para entregar.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>O que me mandar depois</h2>
+    <div class="nota">
+      <p style="margin:0 0 8px">Ao dar <code>Ctrl+C</code> na trilha, ela salva
+      <code>artifacts/sessoes/trilha-&lt;carimbo&gt;.json</code> e imprime três linhas que valem
+      por um relatório:</p>
+      <p style="margin:0 0 4px">· <b>página:</b> N nota(s) entregue(s), M descartada(s)</p>
+      <p style="margin:0 0 4px">· <b>portão:</b> N confirmação(ões), você levou X s em média</p>
+      <p style="margin:0 0 8px">· <b>turnos:</b> mediana de "ouviu", "primeira resposta" e "turno inteiro" · <b>custo</b> em tokens</p>
+      <p style="margin:0">Me mande o JSON (ou só essas linhas) e dá para reconstruir a sessão
+      inteira sem você descrever nada. Para reler sozinho:
+      <code>npm run trilha -- --de &lt;arquivo&gt;</code>.</p>
+    </div>
+  </section>
+
+  <footer>
+    Documento vivo: <code>openspec/plano-de-teste-por-voz.md</code> · gerado em 15/11/2026 ·
+    ajudante BPMN (TCC)
+  </footer>
+</div>
+</body>
+</html>
