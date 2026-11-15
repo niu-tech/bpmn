@@ -65,7 +65,7 @@
     <div class="num ok"><b>4</b><span>caminhos na primeira tela</span></div>
     <div class="num ok"><b>21/21</b><span>bateria, no navegador</span></div>
     <div class="num ok"><b>25</b><span>suítes, zero falhas</span></div>
-    <div class="num"><b>0</b><span>chave pedida antes de mostrar valor</span></div>
+    <div class="num"><b>3</b><span>defeitos de publicação no caminho</span></div>
   </div>
 
   <section>
@@ -128,12 +128,34 @@
   </section>
 
   <section>
+    <h2>Subir era o pedido — e o caminho até o ar estava quebrado</h2>
+    <div class="alerta">
+      Ao publicar, descobri que <b>a publicação estava morta havia três pushes</b>, e nada no nosso
+      lado acusava: o site no ar era o de 21:49, sem o acervo citável e sem a tela base. Três
+      defeitos em fila, todos invisíveis para quem só roda os testes:
+      <br><br>
+      <b>1. A imagem não buildava.</b> O <code>npm run build</code> passou a terminar em
+      <code>node tools/build-knowledge.mjs</code>, e o Dockerfile não copia <code>tools/</code>:
+      <code>Cannot find module</code>, CI vermelho em 15 s. Como o job que publica depende do que
+      builda, o site congelou.
+      <br><br>
+      <b>2. O site subiu em modo desenvolvimento.</b> <code>npm run build -- --mode production</code>
+      prega a flag no <b>fim</b> da cadeia de comandos — ela caía no script do acervo, que a ignora,
+      e o webpack seguia em modo dev. O arquivo publicado tinha <b>3,8 MB e 555 <code>eval()</code></b>
+      em vez de 1,0 MB minificado, na primeira visita de cada aluno, pela rede dele.
+      <br><br>
+      <b>3. Nada reprovava.</b> CI verde, imagem verde, smoke test verde, site funcionando. O único
+      sinal era o tamanho — agora é um portão: o pipeline reprova bundle com devtool
+      <code>eval</code> ou acima de 2 MB.
+    </div>
+  </section>
+
+  <section>
     <h2>A decisão é sua</h2>
     <div class="decisao">
       <b>Foi implementado o conceito A</b> (o recomendado), com o selo de B e o convite de C. O
       estudo com os três está do lado, e trocar é barato: o texto e os cartões vivem num arquivo só.
-      <b>Nada foi publicado</b> — está commitado aqui, e o site continua como estava até você mandar
-      subir.
+      <b>Está no ar</b>, conferido no arquivo que o site serve — não no visto verde do pipeline.
     </div>
   </section>
 
