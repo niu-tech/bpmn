@@ -100,20 +100,36 @@ pergunta), nunca o XML inteiro despejado. A cota é do aluno: desperdício é cu
 O modelador, o viewer e a simulação em lote continuam funcionando exatamente como hoje. O ajudante
 falha **sozinho** (`try/catch` na montagem) — defeito no agente nunca leva o produto junto.
 
-## XI. Quem commita num checkout compartilhado passa o caminho
+## XI. Quem commita num checkout compartilhado escolhe entre caminho e índice
 
 Duas sessões trabalham neste mesmo diretório ao mesmo tempo, e o índice do git é **um só**.
 `git add -A` e `git commit` sem caminho varrem o que a outra sessão deixou staged: o trabalho
 dela entra num commit cujo texto fala de outra coisa. Aconteceu duas vezes em 2026-11-15 — a
 segunda levou uma feature de interface inteira para dentro de um commit chamado `docs(pdf)`.
 
-Então: **stage por caminho** (`git add -- <arquivos meus>`) e **commit por caminho**
-(`git commit -- <arquivos meus>`), que ignora o resto do índice. Antes de commitar, `git status`
-e conferir que não há nada de terceiro staged.
+Então: **stage por caminho** (`git add -- <arquivos meus>`) e, antes de commitar, `git status`
+para conferir que não há nada de terceiro staged.
+
+⚠ **E aí vem a parte que esta regra dizia errado até 2026-11-16.** Estava escrito que
+`git commit -- <arquivos meus>` *"ignora o resto do índice"*. Ignora — e pega a **ÁRVORE**
+naqueles caminhos, não o que você estagiou neles. A diferença não aparece quando o arquivo é
+só seu, e morde exatamente quando não é: a outra sessão mexeu no MESMO arquivo, você estagiou
+só os seus trechos com `git apply --cached`, e o commit levou os dela junto assim mesmo
+(medido: 88 inserções onde o índice tinha 34). Então:
+
+- **arquivo inteiramente seu** → `git commit -F <msg> -- <arquivos meus>`. O caminho diz o que
+  entra, e nada do índice alheio vai junto;
+- **arquivo que a outra sessão também está editando** → estagie os seus trechos e commite
+  **pelo ÍNDICE**: `git commit -F <msg>`, **sem** pathspec. É a única forma de o commit conter
+  os seus hunks e só eles.
+
+Pegou no `--stat` depois de commitar e antes de empurrar? `git reset --mixed HEAD~1` desfaz o
+commit **sem encostar na árvore** — os arquivos do outro voltam intactos — e aí se refaz pelo
+índice. Conferir o `--stat` antes do push é o que transforma essa topada em nota de rodapé.
 
 ⚠ A ordem das opções não é livre: **tudo o que vem depois do `--` é pathspec**. Então
 `git commit -- <arquivos> -F -` falha com *"pathspec '-F' did not match any file(s)"*; o certo é
-`git commit -F - -- <arquivos>`. As duas sessões tropearçaram nisso no mesmo dia, e a topada
+`git commit -F - -- <arquivos>`. As duas sessões tropeçaram nisso no mesmo dia, e a topada
 é pior do que parece: ela acontece **depois** de a pessoa ter feito a coisa certa, e convida a
 desistir da regra.
 
