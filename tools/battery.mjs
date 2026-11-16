@@ -503,6 +503,16 @@ const CENARIOS = [
       }
       const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
       if (!alvo) return { ok: false, erro: 'nao achei o elemento para editar' };
+
+      // ⚠ A BARRA PRECISA TER NASCIDO ANTES DE MORRER. "barraMorreu" sozinha e' VERDADEIRA POR
+      // VAZIO: se a orientacao nunca aparecesse, a negacao do querySelector seria true e a
+      // clausula aprovaria o mundo em que ela nem existe — que e' o oposto do que ela afirma.
+      // (Sem crase: comentario dentro de template literal. Quarta vez na semana que eu esqueco,
+      // uma delas DEPOIS de escrever este mesmo aviso tres commits atras.)
+      // A outra sessao achou a mesma classe no portao dela (uma negacao de "some" aprovando lista
+      // vazia, 2026-11-16); fui procurar no meu e estava aqui.
+      const barraNasceu = !!document.querySelector('.pv-barra');
+
       await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar' });
       await new Promise((r) => setTimeout(r, 500));
 
@@ -520,11 +530,11 @@ const CENARIOS = [
       const continuar = convite && convite.querySelector('.pv__continuar');
 
       return {
-        ok: barraMorreu && clicavel && !!convite && trabalhoIntacto && !!continuar
+        ok: barraNasceu && barraMorreu && clicavel && !!convite && trabalhoIntacto && !!continuar
           && localStorage.getItem('bpmn.primeira-vez') === null
           && document.querySelector('.bpmn-assist__panel').hidden
           && getComputedStyle(ancora).display === 'none',
-        barraMorreu, ancoraClicavel: clicavel, convite: !!convite, trabalhoIntacto,
+        barraNasceu, barraMorreu, ancoraClicavel: clicavel, convite: !!convite, trabalhoIntacto,
         ofereceContinuar: !!continuar,
         ancoraSaiDeCenaNoConvite: getComputedStyle(ancora).display === 'none',
       };
