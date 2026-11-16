@@ -439,7 +439,10 @@ const CENARIOS = [
       const semBuraco = !/undefined|\\[object/.test(prosa);
 
       return {
-        ok: caminhos.length === 4 && formas <= 3 && !pedeChave && !painelAberto && marcaLivre
+        // "formas <= 3" diz "a pizzaria NAO esta' carregada" -- e um canvas que nao desenhou
+        // nada tem 0 formas e satisfaz a comparacao. O diagrama novo do bpmn-js traz o evento de
+        // inicio, entao o piso e' 1: sem ele, o cenario estaria aprovando uma tela vazia.
+        ok: caminhos.length === 4 && formas >= 1 && formas <= 3 && !pedeChave && !painelAberto && marcaLivre
           && barrasEscondidas
           && quantasVezesONome === 1 && dizOQueEle && semNomeVelho && semBuraco,
         caminhos, formas, pedeChave, painelAberto, marcaLivre, barras,
@@ -638,7 +641,7 @@ const CENARIOS = [
 
       return {
         ok: /substitui/i.test(perguntou) && naoTrocouAinda && convitePermanece
-          && formasDepois <= 3 && !document.querySelector('.pv'),
+          && formasDepois >= 1 && formasDepois <= 3 && !document.querySelector('.pv'),
         perguntou: perguntou.trim(), naoTrocouAinda, convitePermanece, formasAntes, formasDepois,
       };
     `],
@@ -667,7 +670,14 @@ const CENARIOS = [
       const ta = comp.querySelector('textarea');
       await new Promise((r) => setTimeout(r, 120));
 
-      const cabe = ta.scrollHeight <= ta.clientHeight + 1;
+      // ⚠ A CAIXA PRECISA TER ALTURA PARA A MEDIDA QUERER DIZER ALGUMA COISA. Sem chave o
+      // compositor nasce escondido (por isso o passo acima o descobre na mao) -- e escondido ele
+      // da' clientHeight 0 e scrollHeight 0, com 0 <= 1 aprovando. Medido na pagina, sem quebrar
+      // nada, no estado natural dele: {"clientH":0,"scrollH":0,"cabeANTIGA":true,"cabeNOVA":false}.
+      // Ou seja: se o descobrir parar de funcionar (classe renomeada), esta clausula passa a
+      // aprovar sempre, medindo uma caixa que nao esta' na tela. Nao e' negacao -- e' afirmacao
+      // cujo zero cai do lado que satisfaz, que e' a forma que a outra sessao generalizou hoje.
+      const cabe = ta.clientHeight > 0 && ta.scrollHeight <= ta.clientHeight + 1;
       const semGrito = ta.value === ta.value.replace('MEU', 'meu');
       // A MESMA frase no painel: a tela e o painel dizendo a mesma coisa com as mesmas palavras e'
       // o que faz o produto parecer um so' — e as duas copias vem da mesma constante.
