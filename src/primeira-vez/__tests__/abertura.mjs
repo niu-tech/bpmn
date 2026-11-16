@@ -116,6 +116,14 @@ test('toda frase semeada cabe em UMA linha do compositor', () => {
     assert.ok(frase.length <= LIMITE_COMPOSITOR,
       `FRASES.${chave} tem ${frase.length} caracteres e o compositor corta em ${LIMITE_COMPOSITOR}: "${frase}"`);
   }
+
+  // ⚠ E O TETO PRECISA RECUSAR ALGUMA COISA. Um limite alto demais aprova tudo e fica verde para
+  // sempre — guarda que nunca viu o vermelho nao e' guarda. A frase fixada aqui nao e' inventada:
+  // e' a que estava no ar ate' 2026-11-16, com 47 caracteres, medida em `scrollHeight` 52 contra
+  // os 40 da caixa. Se alguem afrouxar `LIMITE_COMPOSITOR` ate' ela caber, isto reprova.
+  const AQUELA_QUE_CHEGAVA_CORTADA = 'Quero modelar o MEU processo — vou te descrever';
+  assert.ok(AQUELA_QUE_CHEGAVA_CORTADA.length > LIMITE_COMPOSITOR,
+    `o teto de ${LIMITE_COMPOSITOR} passou a aprovar a frase de 47 caracteres que o dono viu cortada`);
 });
 
 test('o nome do agente e de papel: sem "IA" dentro, e com o escopo do produto', () => {
