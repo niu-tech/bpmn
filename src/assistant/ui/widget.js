@@ -36,6 +36,7 @@
 // é entrada não confiável, e a tela é do aluno.
 
 import { STATE_LABELS, describeError } from '../session-manager.js';
+import { FRASES, NOME } from '../identidade.js';
 
 const el = (tag, props = {}, children = []) => {
   const node = Object.assign(document.createElement(tag), props);
@@ -61,7 +62,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   }, [
     dot,
     el('span', { className: 'bpmn-assist__toggletxt' }, [
-      el('strong', { textContent: 'Ajudante BPMN' }),
+      el('strong', { textContent: NOME }),
       el('small', { textContent: 'tire dúvidas sobre o seu diagrama' }),
     ]),
   ]);
@@ -81,7 +82,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const statusTxt = el('span', { className: 'bpmn-assist__statustxt', textContent: 'desligado' });
   const statusChip = el('span', { className: 'bpmn-assist__status' }, [statusDot, statusTxt]);
   const closeBtn = el('button', { className: 'bpmn-assist__icon', type: 'button', textContent: '✕' });
-  closeBtn.setAttribute('aria-label', 'Fechar o ajudante');
+  closeBtn.setAttribute('aria-label', `Fechar o ${NOME}`);
 
   /**
    * O menu `⋯` — e ele existe para TIRAR coisa do caminho principal.
@@ -97,7 +98,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   menu.hidden = true;
 
   const head = el('div', { className: 'bpmn-assist__head' }, [
-    el('h2', { id: 'bpmn-assist-title', textContent: 'Ajudante BPMN' }),
+    el('h2', { id: 'bpmn-assist-title', textContent: NOME }),
     statusChip,
     menuBtn,
     closeBtn,
@@ -332,7 +333,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   const EXEMPLOS = [
     'O que esse processo faz?',
     'Crie uma tarefa "Conferir estoque" depois do início',
-    'Quero modelar o MEU processo — vou te descrever',
+    FRASES.descrever,
     'Qual a diferença entre gateway exclusivo e paralelo?',
   ];
   const exemplos = el('div', { className: 'bpmn-assist__exemplos' },
@@ -362,7 +363,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
   ]);
   const log = el('ul', { className: 'bpmn-assist__log' });
   log.setAttribute('aria-live', 'polite');
-  log.setAttribute('aria-label', 'Conversa com o ajudante');
+  log.setAttribute('aria-label', `Conversa com o ${NOME}`);
 
   // ------------------------------------------------------------------ diagnóstico
   // Existe porque depurar conversa por descrição não funciona: o dono precisa COLAR o que

@@ -17,6 +17,7 @@ import {
   barraPara,
 } from '../abertura.js';
 import { declarada } from '../../assistant/agent/catalog.js';
+import { FRASES, LIMITE_COMPOSITOR, NOME, O_QUE_E } from '../../assistant/identidade.js';
 import { report, test } from '../../../tools/test-harness.mjs';
 
 const PIZZA = '<?xml version="1.0"?><definitions/>';
@@ -103,6 +104,34 @@ test('a tela so promete "diz de onde tirou" porque a ferramenta existe', () => {
   // na PRIMEIRA tela do produto — e e' aqui que isso reprova, com o nome do arquivo a corrigir.
   assert.equal(declarada('consultar_norma'), true,
     'a tela base promete fonte: ou a ferramenta volta ao catalogo, ou o texto de tela.js muda');
+});
+
+test('toda frase semeada cabe em UMA linha do compositor', () => {
+  // ⚠ ESTE TESTE EXISTE POR UM DEFEITO QUE O DONO VIU NA TELA (2026-11-16): a frase que a tela
+  // escrevia no lugar dele tinha 47 caracteres e o compositor tem UMA linha — ela chegava cortada.
+  // O limite nao e' preferencia de redacao: foi MEDIDO na pagina (caixa de 317 px, `clientHeight`
+  // 40, `scrollHeight` 52 com a frase antiga). Frase nova que passe do teto reprova AQUI, com o
+  // nome dela, em vez de aparecer cortada na frente de quem usa.
+  for (const [chave, frase] of Object.entries(FRASES)) {
+    assert.ok(frase.length <= LIMITE_COMPOSITOR,
+      `FRASES.${chave} tem ${frase.length} caracteres e o compositor corta em ${LIMITE_COMPOSITOR}: "${frase}"`);
+  }
+});
+
+test('o nome do agente e de papel: sem "IA" dentro, e com o escopo do produto', () => {
+  // A capacidade e' dita na frase ao lado, nao empurrada para dentro do nome (design N1, e a
+  // orientacao de design system em research.md §2). Se alguem trocar o nome por "Assistente de
+  // IA", isto reprova — e e' de proposito: nome e' papel, capacidade e' descricao.
+  assert.ok(/BPMN/.test(NOME), 'o nome escopa o agente ao produto');
+  // Palavra por palavra, e nao busca de substring: "Guia BPMN" tem "ia" dentro e seria um nome
+  // legitimo — o que se recusa aqui e' a PALAVRA "IA", nao duas letras no meio de outra.
+  const palavras = NOME.split(/[^\p{L}]+/u).filter(Boolean);
+  assert.ok(!palavras.some((p) => /^(ia|ias|ai)$/i.test(p)),
+    `"${NOME}" nao deveria carregar "IA" no nome`);
+  // E a frase ao lado carrega a CAPACIDADE, que e' a outra metade do pedido do dono: que ali tem
+  // um agente de IA, e que ele ENSINA. O escopo (BPMN) nao se repete aqui — ja' esta' no nome.
+  assert.ok(/IA/.test(O_QUE_E), `"${O_QUE_E}" precisa dizer que e' um agente de IA`);
+  assert.ok(/ensin/i.test(O_QUE_E), `"${O_QUE_E}" precisa dizer que ele ensina`);
 });
 
 report('primeira-vez');

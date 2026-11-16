@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rodada 4 · o nome e a saída</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--roxo); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--roxo); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:62ch; }
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--roxo-fraco); border-color:#ddd9f7; }
+  .num.ok b { color:var(--roxo); }
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+  .feito { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .f { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .f:last-child { border-bottom:none; }
+  .f p { margin:0; font-size:14.5px; }
+  .f p span { display:block; color:var(--fraco); font-size:13px; margin-top:2px; }
+  .prova { font-size:12.5px; color:var(--verde); font-weight:600; white-space:nowrap; }
+  .fonte { font-size:12px; color:var(--roxo); font-weight:600; white-space:nowrap; }
+  .alerta { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; line-height:1.55; color:#4a4b54; }
+  .alerta b { color:var(--ambar); }
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+  table { width:100%; border-collapse:collapse; background:var(--papel);
+    border:1px solid var(--linha); border-radius:13px; overflow:hidden; font-size:13.5px; }
+  th { text-align:left; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--fraco); font-weight:600; padding:10px 14px; border-bottom:1px solid var(--linha); }
+  td { padding:10px 14px; border-bottom:1px solid #f4f4f8; }
+  tr:last-child td { border-bottom:none; }
+  td.n { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .nao { color:#b04a2f; font-weight:600; }
+  .sim { color:var(--verde); font-weight:600; }
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .f{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Rodada 4 · 16 nov 2026</div>
+  <h1>O agente ganhou um nome. E a tela ganhou uma saída.</h1>
+  <p class="sub">Quatro coisas que você viu. Três eram de texto e de forma — a quarta era um
+  defeito que a rodada anterior criou, e é a mais séria das quatro.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>1 nome</b><span>onde havia três, numa fonte só</span></div>
+    <div class="num ok"><b>47 → 31</b><span>caracteres: a frase parou de chegar cortada</span></div>
+    <div class="num ok"><b>5 cenários</b><span>novos na bateria, 34 de 34 passando</span></div>
+  </div>
+
+  <section>
+    <h2>O defeito: escolher uma trilha era porta de mão única</h2>
+    <div class="alerta">
+      Você disse: <b>"não temos mais nenhuma forma de voltar à tela inicial depois de fechar o
+      balão"</b>. Estava certo, e a causa era nossa: a barra do tutor <b>morre na primeira
+      edição</b> — de propósito, porque o que foi editado não é mais exemplo — e ela carregava o
+      único "voltar ao menu" da tela. O que sobrava era o "♻️ Recomeçar" <b>dentro da barra do
+      modelador, que nasce recolhida</b>, e que é destrutivo. Agora existe a <b>âncora</b>:
+      permanente, nas três trilhas, que não morre com nada e não descarta nada.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que mudou na tela</h2>
+    <div class="feito">
+      <div class="f">
+        <p><b>Um nome: o <code>Tutor BPMN</code></b>
+        <span>a tela dizia "tutor" 3×, o painel dizia "Ajudante BPMN", o código diz "ajudante" — três nomes para uma coisa. Repetir não era ênfase: era a tela tentando dizer <i>o que aquilo é</i> sem ter um nome para dizer. Agora é um só, numa constante só, e a frase ao lado diz o que ele é: um agente de IA que ensina a notação</span></p>
+        <span class="prova">1 fonte</span></div>
+      <div class="f">
+        <p>A âncora <b>⌂ Início</b>, sempre lá
+        <span>sobrevive à edição, ao fechamento do balão e à troca de trilha. Leva ao início sem descartar; some sozinha quando a tela base está no ar, porque você não precisa de um botão para ir onde já está</span></p>
+        <span class="prova">por CSS</span></div>
+      <div class="f">
+        <p>A tela base <b>deixou de ser armadilha nos dois sentidos</b>
+        <span>com trabalho aberto, ela oferece "↩ Continuar o que eu estava fazendo" e fecha no Esc. Sem isso, a âncora trocaria uma porta trancada por outra: você veria as três opções e nenhuma forma de voltar ao seu desenho</span></p>
+        <span class="prova">57 → 57 formas</span></div>
+      <div class="f">
+        <p>Trocar de trilha com desenho vivo <b>pergunta antes</b>
+        <span>a constituição §VII é literal: substituir o diagrama é ação destrutiva e exige confirmação. A âncora criou o caminho que leva alguém com trabalho até esses botões, então eles passaram a perguntar — no próprio cartão, dois cliques</span></p>
+        <span class="prova">§VII</span></div>
+      <div class="f">
+        <p>A orientação <b>devolveu a navegação</b>
+        <span>"voltar ao menu · ver um exemplo" saiu do balão: estava errado duas vezes — duplicava o caminho de volta e o punha no elemento que morre primeiro. Ela fica com o que faz melhor, a sugestão</span></p>
+        <span class="prova">N6</span></div>
+      <div class="f">
+        <p>Uma tela, <b>uma ação principal</b>
+        <span>mini-diagrama em SVG inline (o único visual honesto aqui é o próprio objeto do produto), primário com peso de ação, dois caminhos visivelmente mais leves. Zero arquivo novo, zero dependência</span></p>
+        <span class="prova">8 linhas</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>A frase: medida, não opinada</h2>
+    <table>
+      <tr><th>Frase</th><th class="n">Caracteres</th><th class="n">Altura renderizada</th><th>Cabe?</th></tr>
+      <tr><td>Quero modelar o MEU processo — vou te descrever</td><td class="n">47</td><td class="n">52 px</td><td class="nao">não — cortada</td></tr>
+      <tr><td>Vou te descrever o meu processo</td><td class="n">31</td><td class="n">40 px</td><td class="sim">sim</td></tr>
+    </table>
+    <p class="sub" style="margin:13px 0 0;font-size:14px;">O compositor é uma linha por desenho:
+    caixa de <b>317 px</b>, altura útil de <b>40 px</b>. O teto virou <b>teste</b> — frase nova
+    acima de 33 caracteres reprova no <code>npm test</code>, com o nome dela, em vez de aparecer
+    cortada na sua frente. E o <code>MEU</code> em maiúscula saiu: ênfase gritada estava
+    justamente na frase que você manda como se fosse sua.</p>
+  </section>
+
+  <section>
+    <h2>Onde a âncora mora (e por que não foi escolha de gosto)</h2>
+    <table>
+      <tr><th>Quem já ocupa</th><th class="n">1280×860</th><th class="n">375×812</th></tr>
+      <tr><td>paleta do bpmn-js</td><td class="n">y60–717 · x20–68</td><td class="n">y60–717 · x20–68</td></tr>
+      <tr><td>interruptor "Token Simulation"</td><td class="n">y20–50 · x20–168</td><td class="n">y20–50 · x20–168</td></tr>
+      <tr><td>painel da simulação</td><td class="n">y14–65 · x934–1266</td><td class="n">y14–65 · x29–361</td></tr>
+      <tr><td>barra do modelador</td><td class="n">y795–846 · x14–346</td><td class="n">y747–798 · x14–346</td></tr>
+      <tr><td>alavanca do tutor</td><td class="n">y760–816 · x1042–1266</td><td class="n">y681–737 · x141–365</td></tr>
+      <tr><td><b>a âncora</b></td><td class="n"><b>y14 · x180</b> (medida do interruptor)</td><td class="n"><b>y76 · x76</b> (só o ícone)</td></tr>
+    </table>
+    <p class="sub" style="margin:13px 0 0;font-size:14px;">A primeira versão nasceu
+    <b>em cima do "Token Simulation"</b> — a tabela de cantos que eu tinha medido não o incluía, e
+    nenhum teste reclamou. <b>Quem pegou foi o print.</b> Agora ela <b>mede</b> o interruptor em
+    vez de somar um número à mão, e a bateria confere os dois tamanhos.</p>
+  </section>
+
+  <section>
+    <h2>As duas ideias que a pesquisa sustentou</h2>
+    <div class="feito">
+      <div class="f">
+        <p><b>Nome de papel, "IA" fora do nome</b>
+        <span>a orientação de design system é manter "AI" fora do nome da feature e usar o papel; a capacidade vai na descrição, que é exatamente onde você pediu clareza. Recusado nome próprio humano: promete um personagem que o produto não sustenta, e a banca vê uma ferramenta de ensino</span></p>
+        <span class="fonte">Genesys · Addepar</span></div>
+      <div class="f">
+        <p><b>Sempre dá para voltar, e o controle mora na moldura</b>
+        <span>a diretriz de acessibilidade cognitiva do W3C pede permitir o retorno sempre, e lista o desenho que dificulta a volta como antipadrão. O levantamento de 2026 diz a mesma coisa em uma linha: nunca prenda a pessoa num fluxo sem saída clara</span></p>
+        <span class="fonte">W3C WAI</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que não dá para resolver com pesquisa</h2>
+    <div class="proximo">
+      <div class="p"><b>Se <code>Tutor BPMN</code> é o melhor nome</b><span>nome se valida com gente. O que a pesquisa sustenta é a forma (papel, sem "IA", escopado) e a fonte única — a palavra é sua, e troca-se numa linha</span></div>
+      <div class="p"><b>Se a âncora é notada no primeiro minuto</b><span>ela é permanente, rotulada e está na moldura, que é o que a diretriz pede. O resto é teste com aluno, e não há telemetria</span></div>
+      <div class="p"><b>O ícone sozinho no celular</b><span>em 375 px a faixa do alto é da simulação inteira: só o ícone cabe no bolso livre. Tem rótulo por tooltip e por leitor de tela, mas é menos legível que em tela larga</span></div>
+      <div class="p"><b>Uma tabela de cantos não substitui um print</b><span>a âncora nasceu em cima do interruptor da simulação porque eu medi os elementos que me lembrei de medir. O print vê o que a consulta não perguntou</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>name-the-tutor-and-anchor-the-exit</code> · decisões N1–N7 · pesquisa em <code>research.md</code></span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>

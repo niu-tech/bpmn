@@ -13,19 +13,16 @@ import { bindSimulation } from "./batchsim/simulation-integration.js";
 
 import { mountAssistant } from "./assistant/mount.js";
 import { CHAVE_ESCOLHA, barraPara, decidirAbertura } from "./primeira-vez/abertura.js";
-import { montarBarra, montarTelaBase } from "./primeira-vez/tela.js";
+import { montarAncora, montarBarra, montarTelaBase } from "./primeira-vez/tela.js";
+import { FRASES } from "./assistant/identidade.js";
 
 const DEFAULT_DIAGRAM_URL = "pizza-collaboration.bpmn";
 const LOCAL_STORAGE_KEY = "bpmn.autosave.xml";
 
-/**
- * As frases que a tela base deixa PRONTAS no compositor do ajudante — digitadas, nunca enviadas.
- *
- * A primeira é a mesma que o painel já oferece como exemplo clicável: a tela e o painel dizendo a
- * mesma coisa com as mesmas palavras é o que faz o produto parecer um só.
- */
-const FRASE_DESCREVER = "Quero modelar o MEU processo — vou te descrever";
-const FRASE_DESCOBRIR = "O que é BPMN?";
+/* As frases que a tela base deixa PRONTAS no compositor vivem em `assistant/identidade.js`, com o
+ * nome do agente e o limite medido de uma linha do compositor — a frase antiga tinha 47 caracteres
+ * e chegava CORTADA (dono, 2026-11-16). O painel oferece a mesma frase, da mesma constante: a tela
+ * e o painel dizendo a mesma coisa com as mesmas palavras é o que faz o produto parecer um só. */
 
 /* =====================================================
    Helpers
@@ -646,8 +643,6 @@ function receberQuemChega(modeler, abertura, ajudante) {
 
     barra = montarBarra({
       estado,
-      aoClicar: (destino) => escolher(destino),
-      aoVoltar: voltarAoMenu,
       /**
        * O caminho mais curto entre "não sei o que perguntar" e uma resposta: a barra abre o
        * painel com a pergunta JÁ DIGITADA, e quem manda continua sendo o aluno. É o padrão de
@@ -673,7 +668,7 @@ function receberQuemChega(modeler, abertura, ajudante) {
     if (caminho === "tutor" || caminho === "descoberta") {
       const painel = ajudante()?.widget;
       painel?.open();
-      painel?.sugerir(caminho === "tutor" ? FRASE_DESCREVER : FRASE_DESCOBRIR);
+      painel?.sugerir(caminho === "tutor" ? FRASES.descrever : FRASES.descobrir);
     }
 
     mostrarBarra(destino === "exemplo" ? "exemplo" : "branco");
@@ -692,7 +687,26 @@ function receberQuemChega(modeler, abertura, ajudante) {
     // convite (100000 contra 9500). Deixa-lo aberto poria a tela da chave por cima das tres
     // opcoes — exatamente a tela que o convite existe para nao empurrar na cara de ninguem.
     ajudante()?.widget?.close();
-    if (!convite) convite = montarTelaBase({ aoEscolher: escolher });
+    if (!convite) convite = abrirConvite();
+  }
+
+  /**
+   * O convite, sabendo se ha' trabalho a perder.
+   *
+   * ⚠ `temTrabalho` e' lido NA HORA, nao na montagem do modelador: a ancora traz a pessoa de volta
+   * aqui depois de ela ter desenhado, e e' esse estado — nao o do boot — que decide se a tela
+   * oferece "continuar" (N4) e se trocar de trilha pergunta antes (constituicao §VII, N5).
+   */
+  function abrirConvite() {
+    return montarTelaBase({
+      aoEscolher: escolher,
+      temTrabalho: Boolean(localStorage.getItem(LOCAL_STORAGE_KEY)),
+      /** Sair do convite sem escolher nada: o que estava aberto continua aberto, intacto. */
+      aoContinuar: () => {
+        convite?.fechar();
+        convite = null;
+      },
+    });
   }
 
   /**
@@ -710,7 +724,13 @@ function receberQuemChega(modeler, abertura, ajudante) {
 
   voltarAoInicio = voltarAoMenu;
 
-  if (abertura === "convite") convite = montarTelaBase({ aoEscolher: escolher });
+  // A ANCORA, montada UMA vez e para sempre: nao escuta o `commandStack`, nao tem ciclo de vida e
+  // nao morre com a orientacao. E' isso que faz dela um caminho de volta (N3) — o defeito que o
+  // dono relatou era justamente o caminho de volta morar na barra, que morre na primeira edicao.
+  // Com o convite no ar ela sai de cena por CSS, nao por codigo daqui.
+  montarAncora({ aoVoltar: voltarAoMenu });
+
+  if (abertura === "convite") convite = abrirConvite();
   else mostrarBarra(barraPara(abertura));
 }
 

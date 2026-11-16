@@ -460,7 +460,12 @@ const CENARIOS = [
     `],
   },
   {
-    nome: 'tela base: voltar ao menu desfaz a escolha sem descartar nada',
+    // AVISO: ESTE CENARIO E' O DEFEITO QUE O DONO RELATOU EM 2026-11-16, virado prova: "indo para
+    // criar seu proprio diagrama, nao temos mais nenhuma forma de voltar a' tela inicial depois de
+    // fechar o balao". A barra MORRE na primeira edicao (de proposito), e ate' aqui ela carregava
+    // o unico "voltar ao menu" da tela. Entao o cenario EDITA primeiro, e so' depois procura o
+    // caminho de volta — procurar antes de editar seria testar o caso que nunca falhou.
+    nome: 'a ancora leva ao inicio DEPOIS de editar, e o caminho de volta nao morre',
     url: ALVO_BASE,
     passos: [`
       for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
@@ -468,20 +473,143 @@ const CENARIOS = [
       for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
         await new Promise((r) => setTimeout(r, 250));
       }
-      const voltar = [...document.querySelectorAll('.pv-barra__link')].find((b) => b.textContent === 'voltar ao menu');
-      if (!voltar) return { ok: false, erro: 'a barra nao oferece voltar ao menu' };
-      voltar.click();
+      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
+      if (!alvo) return { ok: false, erro: 'nao achei o elemento para editar' };
+      await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar' });
       await new Promise((r) => setTimeout(r, 500));
+
+      const barraMorreu = !document.querySelector('.pv-barra');
+      const ancora = document.querySelector('.pv-ancora');
+      if (!ancora) return { ok: false, erro: 'a ancora sumiu com a barra — o defeito voltou' };
+      const c = ancora.getBoundingClientRect();
+      const noPonto = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
+      const clicavel = !!noPonto && !!noPonto.closest('.pv-ancora');
+
+      ancora.click();
+      await new Promise((r) => setTimeout(r, 600));
+      const convite = document.querySelector('.pv');
+      const trabalhoIntacto = localStorage.getItem('bpmn.autosave.xml') !== null;
+      const continuar = convite && convite.querySelector('.pv__continuar');
+
       return {
-        ok: !!document.querySelector('.pv')
-          && !document.querySelector('.pv-barra')
+        ok: barraMorreu && clicavel && !!convite && trabalhoIntacto && !!continuar
           && localStorage.getItem('bpmn.primeira-vez') === null
           && document.querySelector('.bpmn-assist__panel').hidden
-          && getComputedStyle(document.querySelector('.bz-toolbar')).display === 'none',
-        convite: !!document.querySelector('.pv'),
-        barra: !!document.querySelector('.pv-barra'),
-        escolha: localStorage.getItem('bpmn.primeira-vez'),
-        painelRecolhido: document.querySelector('.bpmn-assist__panel').hidden,
+          && getComputedStyle(ancora).display === 'none',
+        barraMorreu, ancoraClicavel: clicavel, convite: !!convite, trabalhoIntacto,
+        ofereceContinuar: !!continuar,
+        ancoraSaiDeCenaNoConvite: getComputedStyle(ancora).display === 'none',
+      };
+    `],
+  },
+  {
+    // A outra metade do mesmo defeito: a ancora torna o convite alcancavel COM trabalho vivo, o
+    // que antes nao acontecia. Sem saida, ela trocaria uma porta trancada por outra (design N4).
+    nome: 'o convite com trabalho aberto tem saida: continuar e Esc, sem perder o desenho',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="exemplo"]').click();
+      for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
+      await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar' });
+      await new Promise((r) => setTimeout(r, 500));
+      const formasAntes = document.querySelectorAll('#canvas .djs-visual').length;
+
+      document.querySelector('.pv-ancora').click();
+      await new Promise((r) => setTimeout(r, 500));
+      document.querySelector('.pv__continuar').click();
+      await new Promise((r) => setTimeout(r, 400));
+      const fechouPeloBotao = !document.querySelector('.pv');
+
+      document.querySelector('.pv-ancora').click();
+      await new Promise((r) => setTimeout(r, 500));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await new Promise((r) => setTimeout(r, 400));
+      const fechouPeloEsc = !document.querySelector('.pv');
+      const formasDepois = document.querySelectorAll('#canvas .djs-visual').length;
+
+      return {
+        ok: fechouPeloBotao && fechouPeloEsc && formasDepois === formasAntes
+          && localStorage.getItem('bpmn.autosave.xml') !== null,
+        fechouPeloBotao, fechouPeloEsc, formasAntes, formasDepois,
+      };
+    `],
+  },
+  {
+    // Constituicao VII: "substituir o diagrama" e' acao destrutiva e exige confirmacao explicita.
+    // A ancora criou o caminho que leva alguem com trabalho vivo ate' estes cartoes — entao eles
+    // passam a perguntar. A pergunta mora no CARTAO, nao num confirm(): confirmacao que a prova
+    // nao atravessa vale tanto quanto nenhuma.
+    nome: 'trocar de trilha com trabalho vivo pergunta antes de substituir o diagrama',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="exemplo"]').click();
+      for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const alvo = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
+      await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar' });
+      await new Promise((r) => setTimeout(r, 500));
+      const formasAntes = document.querySelectorAll('#canvas .djs-visual').length;
+
+      document.querySelector('.pv-ancora').click();
+      await new Promise((r) => setTimeout(r, 500));
+      const cartao = document.querySelector('.pv [data-caminho="branco"]');
+      cartao.click();
+      await new Promise((r) => setTimeout(r, 300));
+      const perguntou = cartao.querySelector('.pv__acao').textContent;
+      const naoTrocouAinda = document.querySelectorAll('#canvas .djs-visual').length === formasAntes;
+      const convitePermanece = !!document.querySelector('.pv');
+
+      cartao.click();
+      await new Promise((r) => setTimeout(r, 1200));
+      const formasDepois = document.querySelectorAll('#canvas .djs-visual').length;
+
+      return {
+        ok: /substitui/i.test(perguntou) && naoTrocouAinda && convitePermanece
+          && formasDepois <= 3 && !document.querySelector('.pv'),
+        perguntou: perguntou.trim(), naoTrocouAinda, convitePermanece, formasAntes, formasDepois,
+      };
+    `],
+  },
+  {
+    // AVISO: O DONO VIU ISTO NA TELA — "o texto aparece mal colocado pois tem 2 linhas, e quebra
+    // um pouco na visualizacao do chat que vai ser enviado". O compositor tem UMA linha (42 px,
+    // rows=1, resize:none) e a frase antiga tinha 47 caracteres. Aqui se mede a caixa de verdade.
+    //
+    // O cenario DESCOBRE o compositor na mao porque a bateria nao tem chave: sem chave o painel
+    // mostra o pedido de chave e o compositor nasce escondido. O que se mede e' o layout real dele
+    // (largura, altura, scrollHeight) — nada aqui finge que existe sessao.
+    nome: 'a frase que a tela semeia cabe em UMA linha do compositor',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="branco"]').click();
+      await new Promise((r) => setTimeout(r, 1200));
+      document.querySelector('.pv-barra__acao').click();
+      await new Promise((r) => setTimeout(r, 500));
+
+      const setup = document.querySelector('.bpmn-assist__setup');
+      if (setup) setup.hidden = true;
+      const comp = document.querySelector('.bpmn-assist__composer');
+      if (comp) comp.hidden = false;
+      const ta = comp.querySelector('textarea');
+      await new Promise((r) => setTimeout(r, 120));
+
+      const cabe = ta.scrollHeight <= ta.clientHeight + 1;
+      const semGrito = ta.value === ta.value.replace('MEU', 'meu');
+      // A MESMA frase no painel: a tela e o painel dizendo a mesma coisa com as mesmas palavras e'
+      // o que faz o produto parecer um so' — e as duas copias vem da mesma constante.
+      const chips = [...document.querySelectorAll('.bpmn-assist__exemplo')].map((b) => b.textContent);
+      return {
+        ok: cabe && semGrito && ta.value.length > 0 && chips.includes(ta.value),
+        frase: ta.value, chars: ta.value.length,
+        caixa: Math.round(ta.getBoundingClientRect().width) + 'x' + ta.clientHeight,
+        scrollH: ta.scrollHeight, cabe, semGrito, mesmaFraseNoPainel: chips.includes(ta.value),
       };
     `],
   },
@@ -562,7 +690,7 @@ const CENARIOS = [
     `],
   },
   {
-    nome: 'a barra do tutor em 375x812 fica ACIMA da alavanca, sem cobrir nada',
+    nome: 'em 375x812 a barra fica ACIMA da alavanca e a ancora nao cobre paleta nem simulacao',
     url: ALVO_BASE,
     janela: [375, 812],
     passos: [`
@@ -578,20 +706,27 @@ const CENARIOS = [
       const b = barra.getBoundingClientRect();
       const a = alavanca.getBoundingClientRect();
 
-      // O defeito que isto existe para pegar: com offset FIXO, a linha "voltar ao menu" ficava
-      // EMBAIXO da alavanca em 375 px (110 px medidos contra 131 px reais). Nenhum teste
-      // reclamava — foi um print. Se a reserva do rodape do painel mudar, aqui reprova.
-      const voltar = [...barra.querySelectorAll('.pv-barra__link')].find((x) => x.textContent === 'voltar ao menu');
-      const v = voltar && voltar.getBoundingClientRect();
-      const noPonto = v && document.elementFromPoint(v.left + v.width / 2, v.top + v.height / 2);
-      const voltarClicavel = !!noPonto && !!noPonto.closest('.pv-barra');
+      // A ANCORA EM TELA ESTREITA. Aqui a faixa do alto nao esta' livre: a simulacao ocupa
+      // y14-65 de x29 a x361 e a paleta desce de y60 em x20-68 — foi um print que pegou a ancora
+      // nascida em cima do interruptor "Token Simulation", e nenhum teste reclamou. Entao a prova
+      // nao e' "ela existe": e' que o PONTO DELA responde por ela, e que ela nao cruza as duas.
+      const ancora = document.querySelector('.pv-ancora');
+      if (!ancora) return { ok: false, erro: 'a ancora sumiu — nao ha caminho de volta' };
+      const an = ancora.getBoundingClientRect();
+      const noPonto = document.elementFromPoint(an.left + an.width / 2, an.top + an.height / 2);
+      const ancoraClicavel = !!noPonto && !!noPonto.closest('.pv-ancora');
+      const cruza = (x, y) => !(an.left >= y.right || an.right <= y.left || an.top >= y.bottom || an.bottom <= y.top);
+      const paleta = document.querySelector('.djs-palette').getBoundingClientRect();
+      const sim = document.querySelector('.bts-toggle-mode').getBoundingClientRect();
+      const limpa = !cruza(an, paleta) && !cruza(an, sim);
 
       return {
-        ok: b.bottom <= a.top + 1 && b.top >= 0 && voltarClicavel
+        ok: b.bottom <= a.top + 1 && b.top >= 0 && ancoraClicavel && limpa
           && document.documentElement.scrollWidth <= window.innerWidth + 1,
         folga: Math.round(a.top - b.bottom),
         barraCabe: b.top >= 0,
-        voltarClicavel,
+        ancora: Math.round(an.top) + ',' + Math.round(an.left),
+        ancoraClicavel, limpa,
         rolaNaHorizontal: document.documentElement.scrollWidth > window.innerWidth + 1,
       };
     `],

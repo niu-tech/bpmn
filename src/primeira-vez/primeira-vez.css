@@ -53,8 +53,24 @@ body.pv-no-ar .sim-dashboard { display: none; }
 
 .pv__folha { width: 100%; max-width: 660px; }
 
+/* O selo: o mini-diagrama e o nome do produto na mesma linha. UM visual, e ele e' o proprio objeto
+   do produto — "isto desenha processos" sem uma palavra (N7). */
+.pv__selo { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+
+.pv__mini {
+  flex: none;
+  width: 84px;
+  height: 17px;
+  fill: none;
+  stroke: var(--cor-primaria);
+  stroke-width: 2;
+  opacity: 0.85;
+}
+.pv__mini rect { fill: #eaf1ff; }
+.pv__mini--fim { stroke-width: 3; }
+
 .pv__marca {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.11em;
@@ -63,7 +79,7 @@ body.pv-no-ar .sim-dashboard { display: none; }
 }
 
 .pv__titulo {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 29px;
   line-height: 1.15;
   letter-spacing: -0.02em;
@@ -75,7 +91,28 @@ body.pv-no-ar .sim-dashboard { display: none; }
   font-size: 15px;
   line-height: 1.5;
   color: var(--cor-secundaria);
+  max-width: 64ch;
 }
+
+/* ⤴ A SAIDA, e so' quando ha' trabalho aberto: quem chegou aqui pela ancora provavelmente so'
+   queria olhar as opcoes. Sem ela, a ancora trocaria uma porta trancada por outra (N4). */
+.pv__continuar {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 14px;
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+.pv__continuar:hover { border-color: #94a3b8; background: #f8fafc; }
 
 /* ---- os caminhos ---------------------------------------------------------------------------- */
 
@@ -95,24 +132,45 @@ body.pv-no-ar .sim-dashboard { display: none; }
 
 .pv__cartao b { display: block; font-size: 15.5px; font-weight: 600; margin-bottom: 4px; }
 .pv__cartao span { display: block; font-size: 13px; line-height: 1.5; color: var(--cor-secundaria); }
-.pv__cartao em {
+.pv__acao {
   display: block;
   margin-top: 10px;
   font-style: normal;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--cor-primaria);
 }
 
 .pv__cartao:hover { border-color: #9db6e6; }
 
+/* HIERARQUIA DE VERDADE (N7): a pesquisa pede uma acao principal com a alternativa quieta ao lado.
+   Antes os tres cartoes tinham quase o mesmo peso, e o primario se distinguia por um fundo de 4%
+   de diferenca. Agora o primario e' um botao de acao e os dois caminhos ficam visivelmente mais
+   leves — sem deixar de ser legiveis, que e' a outra metade do conselho. */
 .pv__cartao--primario {
   margin-bottom: 12px;
-  border-color: #c7d7f5;
-  background: #f5f8ff;
+  padding: 18px 20px;
+  border-color: #bcd0f3;
+  background: linear-gradient(180deg, #f7faff, #eef4ff);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.09);
 }
-.pv__cartao--primario b { font-size: 17px; }
+.pv__cartao--primario b { font-size: 18px; }
+.pv__cartao--primario span { color: #4a5a70; }
+.pv__cartao--primario .pv__acao { font-size: 14px; }
 .pv__cartao--primario:hover { border-color: var(--cor-primaria); }
+
+.pv__cartao--secundario { background: #fdfdff; }
+.pv__cartao--secundario b { font-size: 14.5px; }
+.pv__cartao--secundario .pv__acao { color: #64748b; font-weight: 600; }
+.pv__cartao--secundario:hover .pv__acao { color: var(--cor-primaria); }
+
+/* ARMADO: o cartao com a pergunta de substituicao no ar (constituicao §VII, N5). A cor e' a do
+   aviso e nao a do erro: nada deu errado — o produto esta' perguntando. */
+.pv__cartao--armado {
+  border-color: #e2b268;
+  background: #fffaf0;
+}
+.pv__cartao--armado .pv__acao { color: #92610f; }
 
 .pv__dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
@@ -132,6 +190,52 @@ body.pv-no-ar .sim-dashboard { display: none; }
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ---- a ancora: o caminho de volta, permanente ------------------------------------------------
+   ⚠ ONDE ELA MORA FOI MEDIDO, NAO ESCOLHIDO POR GOSTO. Os quatro cantos ja' tem dono, e isto foi
+   lido da pagina nos dois tamanhos (design N3):
+
+                        | 1280x860              | 375x812
+     paleta do bpmn-js  | y60-717  x20-68       | y60-717  x20-68
+     barra do modelador | y795-846 x14-346      | y747-798 x14-346
+     simulacao          | y14-65   x934-1266    | y14-65   x29-361  <- a faixa INTEIRA do alto
+     alavanca do agente | y760-816 x1042-1266   | y681-737 x141-365
+
+   Em tela larga o alto a' esquerda esta' livre, e e' onde todo aplicativo poe a marca e o caminho
+   para casa. Em 375 px a simulacao ocupa o alto inteiro, entao a ancora encolhe para o icone e
+   desce para o bolso livre entre a paleta e a simulacao (ver a media query). A bateria mede os
+   dois tamanhos: mexer na simulacao ou na paleta reprova um cenario, em vez de deixar o botao
+   embaixo de outra coisa. */
+.pv-ancora {
+  position: fixed;
+  top: 14px;
+  /* MEDIDO do interruptor da simulacao (`tela.js`), que mora em y20-50 x20-168 e nao aparecia na
+     tabela de cantos acima — quem o encontrou foi o print. O valor do `var` e' so' a reserva de
+     quando a simulacao nao esta' na pagina. */
+  left: var(--pv-ancora-left, 14px);
+  z-index: 9800;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 14px 8px 11px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(23, 38, 60, 0.12);
+  font: 13px/1 Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+.pv-ancora:hover { border-color: #94a3b8; color: #17263c; }
+.pv-ancora:focus-visible { outline: 3px solid var(--cor-primaria, #2563eb); outline-offset: 2px; }
+.pv-ancora__icone { font-size: 15px; line-height: 1; opacity: 0.75; }
+
+/* Com a tela base no ar a ancora sai: voce nao precisa de um botao para ir onde ja' esta' — e
+   fazer isso por CSS e' o que evita um segundo estado em JS para divergir do primeiro. */
+body.pv-no-ar .pv-ancora { display: none; }
 
 /* ---- a barra do tutor ------------------------------------------------------------------------
    Encostada na alavanca do ajudante, no canto de baixo a' direita: a ajuda mora ao lado de quem
@@ -190,16 +294,9 @@ body.pv-no-ar .sim-dashboard { display: none; }
 }
 .pv-barra__acao:hover { border-color: #2563eb; background: #eef4ff; }
 
-.pv-barra__rodape { margin: 10px 0 0; font-size: 12.5px; color: #94a3b8; }
-.pv-barra__link {
-  font: inherit;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #2563eb;
-  text-decoration: underline;
-  cursor: pointer;
-}
+/* ⚠ Nao existe mais rodape de navegacao aqui (`.pv-barra__rodape`/`__link`/`__sep` sairam com o
+   CSS que os pintava). Caminho de volta na barra estava errado duas vezes: duplicava a ancora e
+   morava no elemento que morre primeiro — a barra some na primeira edicao (N6). */
 .pv-barra__fechar {
   position: absolute;
   top: 6px; right: 6px;
@@ -231,6 +328,18 @@ body:has(.bpmn-assist__panel:not([hidden])) .pv-barra { display: none; }
   .pv__titulo { font-size: 24px; }
   .pv__sub { font-size: 14px; margin-bottom: 16px; }
   .pv__dupla { grid-template-columns: 1fr; }
+
+  /* ⚠ AQUI A ANCORA NAO PODE FICAR NO ALTO A' ESQUERDA: em 375 px a barra da simulacao ocupa a
+     faixa y14-65 de x29 a x361 — o alto INTEIRO (medido). O bolso livre e' o retangulo entre a
+     paleta (que acaba em x68) e a simulacao (que acaba em y65), e so' o icone cabe nele. */
+  .pv-ancora {
+    top: 76px;
+    left: 76px;
+    padding: 9px 11px;
+    min-width: 40px;
+    justify-content: center;
+  }
+  .pv-ancora__txt { display: none; }
   /* O alto da tela estreita e' da barra de simulacao (0 a ~66 px), entao a tira desce o mesmo
      tanto que o convite — e NAO para o rodape, onde ficava espremida entre a barra do modelador
      e o painel do ajudante (medido em 375x812). */
