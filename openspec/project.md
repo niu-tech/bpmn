@@ -141,3 +141,36 @@ Duas regras irmãs, da mesma convivência: **o script de teste e o arquivo que e
 MESMO commit**, e **quem commita por índice privado (`GIT_INDEX_FILE`) ressincroniza o índice
 compartilhado logo depois** — senão os blobs velhos que sobram no índice revertem o commit do
 outro sem conflito nenhum.
+
+## XII. Passo de prova não leva barra invertida
+
+Todo passo da bateria (e do `drive-page`) é um **template literal**: o JS resolve os escapes DELE
+antes de o texto chegar à página. \s vira `s`, \d vira `d`, \. vira ponto-qualquer-coisa — e uma
+**crase** fecha o literal no meio do passo.
+
+O caso da crase dá `SyntaxError` e se conserta em um minuto. O outro é que importa: **não dá erro
+em lugar nenhum**. A regex continua válida, só passa a casar com outra coisa — quase sempre com
+nada. E portão que não casa com nada **não reprova**: fica verde medindo o vazio, que é o pior
+estado possível de uma prova, porque ensina a confiar nela.
+
+Três vezes numa semana, nas duas sessões: a classe de dígito no número de replicações da
+simulação (lida como zero), a classe de espaço no texto do acervo, e a crase num comentário
+dentro do passo. Nenhuma foi por desconhecer a armadilha — as duas sessões já a conheciam.
+
+As duas saídas, as duas em uso no repositório:
+
+- **não usar regex**: `split`, `includes`, `startsWith`. É o que o portão do acervo faz desde que
+  isso o pegou, e quase sempre é mais legível do que a regex que substituiu;
+- **dobrar a barra** no fonte (`\\[object` aqui chega como `\[object` na página).
+
+E não escreva crase dentro de um passo — nem em comentário.
+
+⚠ **Por que não há uma guarda mecânica para isto**, e a tentativa está registrada: em tempo de
+execução a informação já se perdeu (a barra foi consumida ao carregar o arquivo), então a guarda
+teria de ler o próprio fonte e distinguir o que está dentro de um template literal — e o
+separador é a mesma crase que aparece em comentário e em markdown no arquivo inteiro. Um
+analisador de verdade seria mais código (e mais falso positivo) do que o defeito que ele pega, e
+guarda que grita à toa ensina a ignorar guarda. Se um dia valer a pena, o caminho certo não é
+analisar: é escrever os passos com `String.raw`, que **não** processa escape nenhum — aí a
+armadilha deixa de existir (e as barras dobradas de hoje passam a ser dobradas de verdade, que é
+o que torna a migração uma frente, e não um sed).
