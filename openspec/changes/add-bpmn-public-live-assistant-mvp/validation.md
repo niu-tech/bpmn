@@ -337,3 +337,19 @@ Resolvido: detecta qual existe e falha nomeado se nenhum estiver.
 
 Inalterado desde o P2, e agora é o **último impedimento técnico** antes de publicar:
 seção *Teste manual* acima. São 2 minutos com `npm run dev`.
+
+## Nota de encerramento (2026-11-16) — o que o tempo invalidou aqui
+
+As medições acima ficam como estão: medição não muda porque o código andou. O que mudou
+é a leitura de duas seções, e deixar isso implícito seria o documento mentindo por
+omissão (dívida T4 do `open-items.md`):
+
+- **"Teste manual — continua sendo do dono" não é mais o último impedimento técnico.**
+  O site está publicado (<https://niu-tech.github.io/bpmn/>) e o roteiro daquela seção
+  foi automatizado: hoje ele é a bateria de tela (`tools/battery.mjs`), 29 cenários sem
+  cota que abrem o navegador de verdade, dirigem a página e julgam o DOM — e desde
+  2026-11-16 eles rodam **no CI**, contra a imagem que vai ao ar. O roteiro humano
+  continua válido como roteiro humano, e nada mais depende dele.
+- **"O botão de deploy não existiria" foi resolvido.** O workflow está na branch default
+  (`main`), então o `workflow_dispatch` é oferecido. O que continua aberto é o ambiente
+  `production` e os secrets — itens D1–D5, do dono, e estacionados por ele.

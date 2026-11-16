@@ -10,7 +10,8 @@ context: |
   `src/assistant/**` (Gemini Live, BYOK — a chave é do visitante e morre com a aba).
 
   Build: webpack 5. Testes determinísticos: scripts `.mjs` rodados por `node` direto, sem
-  runner (`npm test`, 300 asserções, sem rede e sem credencial). Testes de tela: bateria
+  runner (`npm test`, 683 asserções — 560 síncronas + 123 assíncronas —, sem rede e sem
+  credencial). Testes de tela: bateria
   autônoma em `tools/battery.mjs` (abre o navegador por CDP, dirige, verifica); os cenários
   AO VIVO contra o Gemini só entram quando há `.env` com `GEMINI_API_KEY`.
 

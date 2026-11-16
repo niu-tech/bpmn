@@ -7,7 +7,7 @@
 > Atualize esta página na mesma change que fechar um item. Item fechado sai daqui e vira linha de
 > `tasks.md` com a prova.
 
-## 0. O que está pendente HOJE — tudo numa tabela só (2026-11-15)
+## 0. O que está pendente HOJE — tudo numa tabela só (2026-11-16)
 
 > Esta página cresceu por rodada, e quem chega agora não quer ler onze seções para descobrir o que
 > falta. **Esta tabela é a lista completa do que está aberto**; o resto do arquivo é o registro de
@@ -29,15 +29,70 @@
 | **M5** | Expiração de sessão por idade (`go-away`, ~10 min) vista ao vivo | **declarado** | o quadro é reconhecido e registrado no diário; e desde que a sessão parada passou a **dormir**, ela nem chega a envelhecer |
 | **6.3** | Ao vivo: induzir o modelo a citar uma chave inexistente | **declarado** | provado no gerente, que é onde a troca por `[fonte não conferida]` acontece. Ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
 | **—** | Queda de **rede física** (cabo, Wi-Fi do aluno) | **declarado** | nenhuma ferramenta do navegador a produz (medido: `offline` do CDP não derruba socket aberto). A queda que acontece de verdade — a do servidor — **está** provada ao vivo |
-| **2.4** | Medir o teto do `clientContent` | **meu** | a ferramenta existe (`tools/medir-contexto.mjs`) e nunca foi corrida; o contexto de hoje cabe com folga |
-| **T3** | Cenário do **viewer** na bateria além de carregar | **meu** | a simulação em lote com o painel aberto só foi verificada à mão |
-| **T5** | Rodar a bateria no CI | **meu — decisão de custo** | ela roda aqui a cada rodada; no CI custaria minutos e uma chave |
-| **T12** | Criar com nome gasta dois `Ctrl+Z` | **meu** | a forma e o rótulo entram como comandos separados; desfaz, só que em dois |
 | **T13** | A sobreposição medida ignora **rótulo** | **meu** | como o próprio bpmn-js, o medidor só compara formas |
-| **T18** | *"Arruma o desenho"* — layout automático de verdade | **meu — frente nova** | `alinhar` resolve dois ou três elementos, que é o pedido real do aluno hoje |
-| **E1 / E2** | Desfazer em bloco · sugestão proativa ao abrir um diagrama com problema | **meu — frentes novas** | são capacidades a mais, não conserto de nada |
-| **T1 / T2 / T4** | Pontas de documento: caixa duplicada no MVP, `config.yaml` velho, roteiro manual já automatizado | **meu — higiene** | não afetam o produto nem a prova |
+| **T18** | *"Arruma o desenho"* — layout automático de verdade | **meu — frente nova** | `alinhar` resolve dois ou três elementos, que é o pedido real do aluno hoje. E o bpmn-js **não tem** layout automático: escrever um é grafo em camadas, raias e rótulos — uma frente, não uma ponta. Fica escrito aqui para não parecer esquecimento |
+| **E2** | Sugestão proativa ao abrir um diagrama com problema | **meu — frente nova** | é capacidade a mais, não conserto de nada; e o limite pedagógico dela é o F8b, que está com o orientador |
+| **—** | Os portões de **microfone** não rodam no CI: a fala gravada vem do SAPI do Windows (`npm run voz`) e o git não guarda `.wav` | **declarado** | o cenário que precisa de fala gravada e não a tem fica **fora**, dito em voz alta, em vez de passar medindo o tom sintético do Chromium. Aqui ele roda a cada rodada |
 | **5.1 / 5.2** (trilhas) | Partidas por histórico de quem volta · medir se a orientação da primeira visita funcionou | **declarado — fica fora** | a primeira depende de memória entre visitas, que foi decidida em contrário; a segunda exigiria telemetria, e não vai haver. Ficam escritas para ninguém as "descobrir" como esquecimento |
+
+### 0b. A rodada das pontas minhas (2026-11-16)
+
+Cinco itens «meus» saíram da tabela acima. O que cada um era, e o que a prova diz:
+
+**2.4 — o teto do `clientContent`, medido.** `tools/medir-contexto.mjs` nunca tinha corrido.
+Correu: quadros de 4, 16, 64, 128, 256 e **512 KB** foram todos ACEITOS, com a sessão
+respondendo depois de cada um (o de 512 KB em 2 ms). O degrau de 1 MB fechou o socket — e aqui
+está o ponto: fechou com `1011 You exceeded your current quota`, que é **cota, não tamanho**.
+Então o número honesto é *"não achei teto até 512 KB"*, e não *"o teto é 1 MB"*. Para
+comparar: o nosso quadro tem teto **por construção** de ~2,1 KB (as duas únicas seções voláteis,
+`diagrama` e `memoria`, têm teto de 1400 e 700 caracteres em `agent/sections.js`). O servidor
+aceitou **mais de 240 vezes** o maior quadro que o produto consegue mandar. Registro:
+`artifacts/medida-clientcontent.json`.
+
+**T12 — era "dois `Ctrl+Z`" e a medição disse SETE.** A dívida estava otimista, e o portão novo
+mediu contra o bpmn-js de verdade: criar um gateway chamado *"Pagou?"* no meio de um fluxo
+custava **7** desfazeres. O aluno que dizia *"desfaz isso"* via o agente desfazer um roteamento
+de seta e anunciar que havia voltado atrás. Duas causas: o nome vinha num comando à parte
+(agora entra no **businessObject da forma**, antes de ela entrar — e aí o `LabelBehavior` do
+bpmn-js cria o rótulo externo de evento/gateway dentro do MESMO comando) e, a que pesava, os 4 a
+6 `layoutConnection` que endireitam a vizinhança rodavam **de fora**, cada um virando um
+`Ctrl+Z`. Passaram a rodar dentro do `shape.create`, que é o mecanismo dos próprios
+comportamentos do bpmn-js (comando aninhado herda o id da ação; `undo()` reverte o grupo).
+Medido depois: **1**.
+
+**E1 — desfazer em bloco, fechado por outro caminho.** A ideia era guardar a marca da pilha no
+início da época do turno. Não foi preciso: `criar_elemento` devolve `comandos` **contado** no
+`commandStack.changed` do próprio bpmn-js, e `desfazer` aceita `quantos` (1 a 10) devolvendo
+quantos voltaram DE FATO. Pedir 9 numa pilha de 1 não é erro, e dizer "desfiz 9" seria assinar
+o que não aconteceu. O teto de 10 existe porque a pilha é a **mesma** do aluno: lote maior
+apagaria trabalho que o agente não viu.
+
+**T3 — o viewer deixou de ser provado só "carrega".** O portão novo roda a **simulação em lote**
+com o painel aberto, usando o cenário do produto (`simulations/pizza-collaboration.sim.json`, 30
+replicações) — e não um cfg inventado no teste, que mediria o motor contra números que o aluno
+nunca usa. Quatro fatos: a corrida conclui e marca o desenho (18 elementos com marca de
+heatmap), o canal `(da página)` avisa o modelo — o agente **comenta** a corrida, nunca a dispara
+—, `resumir_simulacao` responde o MESMO número que a barra mostra, e escrever segue recusado
+(`ferramenta_nao_permitida`).
+
+**T5 — a bateria sem cota roda no CI**, contra a imagem que vai ao ar (29 cenários). Não precisa
+de chave: o socket do Google é dublado. `--no-sandbox` porque o Ubuntu 24.04 do runner restringe
+o sandbox do Chrome — sem a bandeira o navegador morre antes de abrir a porta, e o sintoma
+parece falta de Chrome. Print de prova guardado só quando reprova. O que isto pega e nada mais
+pegava: página que o build não copiou, CSS que some, botão que troca de nome, geometria que o
+bpmn-js desenha diferente depois de um upgrade.
+
+**T1 / T2 / T4 — higiene feita.** T1 e T2 já estavam consertados no arquivo e continuavam
+listados como abertos (a linha `4.10` do MVP já diz que duplica a `2.13`; o `config.yaml` já fala
+de `main`); T4 ganhou a nota de encerramento no `validation.md` do MVP. Item fechado que fica na
+lista é pior que item esquecido: faz a lista inteira perder a credibilidade.
+
+**E um número nosso que estava pela metade.** O `npm test` imprime *"N passed"* por suíte e,
+à parte, *"+N assíncronos"*. Os relatórios citavam **560**, que é a soma só das linhas
+síncronas — as **123** assíncronas (onde vivem as 66 provas das ferramentas de escrita) ficavam
+fora da conta. É o mesmo buraco da dívida T10, uma camada acima: lá elas ficavam fora do
+**veredito**, aqui ficavam fora do **número**. O total honesto é **683** (560 síncronas + 123
+assíncronas), e é esse que os PDFs passam a dizer.
 
 ## 1. Portões do dono (publicação na VPS)
 
@@ -601,13 +656,13 @@ sobre modelagem e boas práticas em BPMN 2.0…"*), que não tem vocabulário ne
 
 | # | Item | Onde | Nota |
 |---|---|---|---|
-| T1 | `4.10` duplica `2.13` em `tasks.md` | change do MVP | a mesma prova fecha as duas; a linha ficou dizendo "pendente" depois de fechada |
-| T2 | `config.yaml` do OpenSpec estava desatualizado | `openspec/config.yaml` | falava de branch `ImproveSimulation` e de remotes que não existem mais |
-| T3 | Sem cenário para o **viewer** na bateria além de carregar | `tools/battery.mjs` | a simulação em lote com o painel aberto só foi verificada à mão, no P2 |
-| T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | o roteiro continua válido para humano, mas a bateria cobre o essencial |
-| T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | o runner tem Chrome; falta decidir se o custo de minutos compensa |
+| T1 | `4.10` duplica `2.13` em `tasks.md` | change do MVP | **fechado (2026-11-16)** — as duas linhas estão `[x]` e a `4.10` diz, nela mesma, que duplica a `2.13` |
+| T2 | `config.yaml` do OpenSpec estava desatualizado | `openspec/config.yaml` | **fechado (2026-11-16)** — fala de `main`, do endereço publicado e do número certo de asserções |
+| T3 | Sem cenário para o **viewer** na bateria além de carregar | `tools/battery.mjs` | **fechado (2026-11-16)** — portão `viewer: simulacao em lote com o painel aberto`: a corrida do cenário do produto (30 replicações), o heatmap no desenho, o canal da página avisando o modelo, `resumir_simulacao` com o MESMO número da barra, e escrita recusada. Sem cota |
+| T4 | `validation.md` do MVP cita roteiro manual já automatizado | change do MVP | **fechado (2026-11-16)** — nota de encerramento no fim do arquivo: as medições do P1/P2 ficam como estão (são medições), e o que virou mentira é nomeado: o site está publicado e a bateria cobre o roteiro |
+| T5 | A bateria não roda no CI | `.github/workflows/pipeline.yml` | **fechado (2026-11-16)** — passo `Screen battery (no quota)`: 29 cenários contra a IMAGEM que vai ao ar, sem chave (o socket é dublado). `--no-sandbox` pelo AppArmor do Ubuntu 24.04 do runner; print guardado só na reprovação. Os portões de microfone ficam fora, nomeados: a fala gravada é do SAPI do Windows |
 | T10 | O harness de teste não sabia reprovar teste assíncrono | `tools/test-harness.mjs` (corrigido 2026-11-14) | `report()` roda na última linha do arquivo e as promessas de `testAsync` resolvem **depois**: o ✖ aparecia no console e o processo saía **0** — e `npm test` encadeia os arquivos com `&&`. As 30 provas das ferramentas de escrita são assíncronas: estavam fora da conta impressa **e** fora do veredito. Gancho de saída, provado com um arquivo que reprova de propósito (exit 1) |
-| E1 | Desfazer em bloco: *"desfaça tudo o que você acabou de fazer"* | frente nova | hoje o aluno desfaz comando a comando (e criar com nome são dois). O agente sabe o que criou no turno; o verbo de UM passo existe desde 2026-11-15 (`desfazer`, sobre o `commandStack`); falta o que AGRUPA. A decisão que faltava — o que conta como "o que você acabou de fazer" — ganhou resposta natural com a **época de turno** da change `spoken-confirmation-gates`: é tudo o que o agente fez desde a última fala do aluno. Com isso E1 deixa de ser frente de pesquisa e vira tarefa: guardar a marca da pilha no início da época e desfazer até ela |
+| E1 | Desfazer em bloco: *"desfaça tudo o que você acabou de fazer"* | **fechado (2026-11-16)** | não pela marca de época que eu havia planejado: `desfazer` aceita `quantos` (1 a 10) e a escrita devolve `comandos`, contado no `commandStack.changed` do próprio bpmn-js. O resultado diz quantos voltaram DE FATO — pedir 9 numa pilha de 1 não é erro, e anunciar 9 seria assinar o que não aconteceu. O teto de 10 protege o trabalho do ALUNO, que está na mesma pilha |
 | E2 | Sugestão proativa ao abrir um diagrama com problema | frente nova | o agente já enxerga o diagrama (F3) e já sabe ler regra do bpmn-js. **destravado em 2026-11-15, por mecânica.** O "nunca mexer sem pedir" deixou de depender da boa vontade do modelo: o portão por fala (`spoken-confirmation-gates`) recusa a ação até o aluno responder, e o canal `(da página)` (`close-the-loop-with-the-canvas`) deixa o agente saber que o aluno selecionou, importou ou desfez algo **sem** que isso vire fala dele. O que sobra é o limite pedagógico — quando apontar e quando calar —, que é o F8b do roadmap |
 | T14 | **Falta o verbo MOVER** | `src/assistant/tools/escrita.js` | **fechado (2026-11-14)** — o pedido era *"agora tira o outro anterior ali, e põe para a linha de cima, você consegue?"*, e o agente só tinha a metade destrutiva. Agora `mover` aceita `dentroDe` (vai para o MEIO da faixa de um pool/raia, mudando de raia de verdade) ou `direcao`+`passos` (ajuste relativo de 80 px, a mesma grade do `autoPlace`) — nunca pixel absoluto, porque o modelo não recebe coordenada nenhuma. Prova viva contra o bpmn-js: a tarefa inserida andou `y=+235` e caiu DENTRO da raia *delivery boy* (`naRaiaDeDestino: true`), um só comando no `commandStack` |
 | T15 | **O elemento novo não nasce ALINHADO com o anterior** | `src/assistant/tools/bpmn-api.js` | **fechado por outro caminho, com a causa nomeada (2026-11-14)** — a queixa era *"não tá na mesma linha e parece que são duas coisas diferentes; era para ser contínuo"*. A causa não é defeito de vaga: o `findFreePosition` do bpmn-js empurra o novo elemento PARA BAIXO quando a âncora já tem saída, porque ali é um RAMO paralelo — e desenhar ramo um degrau abaixo é o certo em BPMN. Forçar o centro da âncora acharia o desenho e esconderia a bifurcação. Então: (1) `criar_elemento` ganhou `entre: [anterior, seguinte]`, que insere NO MEIO da sequência (A→novo→B, religado pelo `DropOnFlowBehavior`, um só `Ctrl+Z`) — é o que o aluno queria; (2) quando a âncora já tem saída, o resultado volta `ramo: true` + `avisoDeRamo` dizendo que o verbo certo é `entre`, para o agente oferecer em vez de narrar errado; (3) `alinhar` conserta o que já está torto. Prova viva: atalho A→B desapareceu, centros em 550 e 550 na tela |
@@ -620,7 +675,7 @@ sobre modelagem e boas práticas em BPMN 2.0…"*), que não tem vocabulário ne
 | T20 | **A conexão morre aos ~10 min, e a aula perdia a memória do modelo** | **fechado (2026-11-15)** | a documentação do Live diz que a *sessão* vira ilimitada com `contextWindowCompression` (que nós ligamos) mas a **conexão** tem vida de ~10 min: o servidor manda `goAway` e fecha ([ai.google.dev/gemini-api/docs/live-api/session-management](https://ai.google.dev/gemini-api/docs/live-api/session-management)). O defeito era de um detalhe só: o servidor **só manda `sessionResumptionUpdate` se o setup pedir**, o nosso não pedia, e `session.js` guardava uma alça que nunca chegava (`resumptionHandle` com o comentário *"não usada ainda"*). Então cada reconexão abria sessão NOVA e o modelo esquecia a aula — umas quatro vezes em 50 min. Agora `buildSetup` manda `sessionResumption: {}` para pedir as alças e `{ handle }` para **retomar**, e quem reabre com alça avisa `retomou: true`: o gerente deixa de reenviar o histórico (reenviá-lo duplicaria a conversa dentro do contexto do modelo, pago em tokens) e manda só o quadro da TELA, que é o que pode ter mudado. A tela também parou de dizer a coisa errada: *"Continuamos na mesma conversa"*. Provas: `spike/__tests__/protocol.mjs` (o setup pede e retoma), `spike/__tests__/session.mjs` (o setup da volta carrega a alça; `onSetupComplete` distingue reconexão de retomada) e `src/assistant/__tests__/session-manager.mjs` (retomada não reenvia histórico; queda sem alça reenvia). **A queda de 10 min ao vivo é o item D3b do plano de voz** — é do dono, porque exige uma aula de verdade |
 | T21 | **UMA sessão Live por vez — invariante, e não boa intenção** | **fechado (2026-11-15)** | dono: *"não precisamos ficar criando múltiplas sessões, só usamos uma por vez, precisamos corrigir isso"*. Três fontes de sessão extra, todas fechadas: (1) **a sonda "Testar conexão"** abria um socket próprio *"sem tocar na sessão em curso"* — mas o que ela tomava era uma **vaga de sessão** do projeto; com a conversa aberta ela agora responde pela própria sessão, sem abrir nada; (2) **o transporte** passou a ter registro de "uma por vez": quem abre faz a anterior **ceder o lugar** com fecho limpo (1000, que é o que libera a vaga) e quem cedeu **não volta** nem pelo recuo de reconexão; (3) **a corrida ao vivo do acervo** abria uma sessão POR PERGUNTA — 33 vagas pedidas numa corrida — e passou a usar **uma por perfil** (duas no total), com o diagrama voltando ao estado base entre perguntas (`__bpmnAssist.recarregarDiagrama()`). É também mais fiel: um aluno tem uma aula, uma conversa. Desligar o invariante é opt-out explícito (`umaPorVez: false`), e existe só para o arquivo que testa o transporte em isolamento. **Prova ao vivo** (diário salvo da corrida de geometria): `out.setup = 1` para cinco perguntas, e `ws.resumption = 1` aos 572 ms — a alça que antes nunca chegava |
 | T16 | **Cota do Live é o teto prático da aula** | **medido (2026-11-15)** | o número que faltava está no M7: o limite é de **sessões ao mesmo tempo por projeto** (não de cadência e não do consumo do minuto — ver a correção no M7), e o Google não publica o número das Live, então "volte em X segundos" seria inventado — o que a tela diz agora é o que foi medido, e o verbo "Testar conexão" responde **quando** voltou. O que a change `sustain-a-class-session` acrescentou do lado do produto: `contextWindowCompression` (a sessão longa para de morrer ao encostar no teto de contexto), **teto de 25 min** por sessão (a aba esquecida deixa de gastar a cota do aluno) e o **custo por turno** no relatório e na trilha |
-| T12 | Criar com nome são dois `Ctrl+Z` | `src/assistant/tools/escrita.js` | a forma e o rótulo entram como comandos separados, porque `name` na criação fica no atributo da forma e nunca chega ao desenho. Juntar num comando só é possível (montar o `businessObject` pelo `bpmnFactory`), mas pula o `ensureCompatDiRef` do bpmn-js — não vale o risco sem incômodo medido na aula |
+| T12 | Criar com nome gastava **sete** `Ctrl+Z` | `src/assistant/tools/bpmn-api.js` | **fechado (2026-11-16)**, e a dívida estava otimista: o portão novo mediu **7**, não dois. ⚠ A objecção escrita aqui era que juntar num comando só exigiria montar o `businessObject` pelo `bpmnFactory`, pulando o `ensureCompatDiRef` do bpmn-js. Ela nunca precisou ser paga: `elementFactory.createShape({ type })` **já** monta o businessObject pelo caminho oficial — basta escrever o `name` nele **antes** de a forma entrar no desenho, e aí o `LabelBehavior` cria o rótulo externo de evento/gateway dentro do MESMO comando. O que de fato custava os outros 4 a 6 desfazeres era outra coisa, que nenhuma das duas análises tinha visto: os `layoutConnection` que endireitam as setas da vizinhança rodavam **de fora** do comando. Rodando dentro (`juntoDoComando`), o total medido é **1** |
 | T13 | A sobreposição medida ignora RÓTULO | `tools/battery.mjs` | como o próprio bpmn-js, o medidor só compara formas. Na montagem guiada uma tarefa nova encostou no rótulo *"receipt"* de um fluxo de mensagem: legível, mas feio. Medir rótulo é outra régua — e o bpmn-js também não a aplica no botão de append |
 | T8 | O veredito da bateria olhava só o ÚLTIMO passo | `tools/battery.mjs` (corrigido 2026-11-13) | cenário de três passos podia reprovar no segundo e ser reportado OK. Achado ao escrever o portão F3, e a reprovação escondida era real — ver §3b. Agora todo passo que devolve veredito conta |
 

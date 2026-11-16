@@ -120,23 +120,25 @@ story = [
         "afirmações sem lastro:", P),
     tabela([
         ["Camada de prova", "Tamanho", "O que ela garante"],
-        ["Testes determinísticos", "<b>25 suítes · 560 asserções</b>",
+        ["Testes determinísticos", "<b>25 suítes · 683 asserções</b>",
          "o núcleo — prompt, despacho, ferramentas, memória, proteções, protocolo, áudio. Roda "
          "sem rede, sem credencial e em segundos"],
-        ["Portões no navegador", "<b>46 cenários</b><br/>29 sem credencial · 17 ao vivo",
+        ["Portões no navegador", "<b>48 cenários</b><br/>31 sem credencial · 17 ao vivo",
          "o sistema real: o bpmn-js de verdade desenhando, e o modelo de verdade respondendo"],
         ["Conjunto de perguntas", "<b>35 perguntas · 13 categorias</b>",
          "taxa de acerto por categoria, que é o que vira tabela no texto"],
-        ["Instrumentos de medição", "<b>31 ferramentas</b>",
+        ["Instrumentos de medição", "<b>33 ferramentas</b>",
          "latência por turno, custo em tokens, limite de sessões, tamanho do contexto, qualidade "
          "do microfone, corte de rede. Cada número citado tem o comando que o produziu"],
     ], [3.6 * cm, 4.0 * cm, 8.8 * cm]),
     Paragraph(
         "Três vezes um desses portões <b>reprovou o sistema e estava certo</b> — e duas vezes um "
         "portão passou <b>sem provar nada</b> e teve de ser reescrito (media uma diferença que o "
-        "exemplo já tinha por acaso). Esses dois tipos de episódio, registrados, são parte do que "
-        "o trabalho tem a dizer sobre método: a diferença entre um teste que protege e um teste "
-        "que apenas tranquiliza.", P),
+        "exemplo já tinha por acaso). E uma vez a medição contradisse a <b>anotação de quem "
+        "escreveu o sistema</b>: estava registrado que uma operação custava dois "
+        "<font face='Courier'>Ctrl+Z</font>, e o portão mediu <b>sete</b>. Esses episódios, "
+        "registrados, são o que o trabalho tem a dizer sobre método: a diferença entre um teste "
+        "que protege, um teste que apenas tranquiliza, e uma anotação que ninguém mediu.", P),
 
     Paragraph("Uma decisão de interface tomada por pesquisa, não por gosto", H2),
     Paragraph(

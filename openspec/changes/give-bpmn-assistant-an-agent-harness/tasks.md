@@ -38,14 +38,17 @@
       houve reconstrução ele diz o que foi levado; quando não houve — microfone aberto e nenhuma
       fala transcrita — o aviso antigo continua valendo, palavra por palavra. Os dois caminhos
       têm teste
-- [ ] 2.4 **Medir o teto do `clientContent`**: ferramenta pronta (`tools/medir-contexto.mjs`:
-      degraus de 4 KB a 1 MB, pergunta de prova depois de cada quadro, relatorio em
-      `artifacts/medida-clientcontent.json`). Nao rodada ainda — a chave passou a hora inteira
-      servindo o portao F3, e medir teto com a cota sob pressao mede a cota, nao o teto. O
-      numero vai para `design.md` quando a medicao rodar — sem ele o semeador segue uma aposta
-
-## 3. Contexto do diagrama
-
+- [x] 2.4 **Medir o teto do `clientContent` — FEITA** (2026-11-16): a ferramenta
+      (`tools/medir-contexto.mjs`) correu contra o servidor real. Quadros de **4, 16, 64, 128,
+      256 e 512 KB** foram todos ACEITOS — a sessão respondeu depois de cada um, o de 512 KB em
+      **2 ms**. O degrau de 1 MB fechou o socket, e o motivo importa: `1011 You exceeded your
+      current quota`, ou seja **cota, não tamanho**. Então o resultado honesto é *"não há teto
+      até 512 KB"*, e nunca *"o teto é 1 MB"*: ler recusa de cota como limite de payload seria
+      inventar um número. Para comparar com o que o produto manda: o quadro tem teto **por
+      construção** de ~2,1 KB (as duas únicas seções voláteis, `diagrama` e `memoria`, com teto
+      de 1400 e 700 caracteres em `agent/sections.js`). O servidor aceitou **mais de 240×** o
+      maior quadro possível — a amostra de 25 elementos não está perto de limite nenhum.
+      Registro: `artifacts/medida-clientcontent.json`
 - [x] 3.1 `src/assistant/agent/diagram.js` — projeção a partir do `elementRegistry`: processo,
       contagem por tipo, raias/pools, amostra com teto, selecionado. Duas decisões que o teste
       protege: **rótulo externo não é um elemento a mais** (é o mesmo desenhado duas vezes —

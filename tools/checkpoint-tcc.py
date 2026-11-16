@@ -66,7 +66,7 @@ def tabela(linhas, larguras):
 
 story = [
     Paragraph("Ajudante BPMN — checkpoint para avaliação", H1),
-    Paragraph("15 de novembro de 2026 · o que o produto faz hoje, o que está provado, o que "
+    Paragraph("16 de novembro de 2026 · o que o produto faz hoje, o que está provado, o que "
               "ficou pendente — e o que vem a seguir, depois das suas decisões desta noite", SUB),
 
     # ---------------------------------------------------------------- 1. o produto hoje
@@ -122,11 +122,11 @@ story = [
     tabela([
         ["Camada", "Tamanho", "O que ela garante"],
         ["<font face='Courier'>npm test</font> (determinística)",
-         "<b>25 suítes · 560 asserções</b>",
+         "<b>25 suítes · 683 asserções</b><br/>560 síncronas · 123 assíncronas",
          "o núcleo: prompt, despacho, ferramentas, memória, guardrails, protocolo, áudio. Roda "
          "sem rede, sem chave e sem cota"],
         ["Portões no navegador",
-         "<b>46 cenários</b><br/>29 sem cota · 17 ao vivo",
+         "<b>48 cenários</b><br/>31 sem cota · 17 ao vivo",
          "o produto contra o bpmn-js de verdade, e contra o Gemini de verdade. É onde os defeitos "
          "de desenho e de sessão aparecem"],
         ["Conjunto dourado",
@@ -141,10 +141,12 @@ story = [
         "⚠ O que isso <b>não</b> é: cobertura de linha. É cobertura de <b>afirmação</b> — cada "
         "coisa que o texto vai dizer tem um comando que a reproduz. Três vezes nesta semana um "
         "portão reprovou o produto e estava certo; duas vezes passou sem provar nada e foi "
-        "reescrito. Essa é a parte do método que vale contar na banca.", NOTA),
+        "reescrito. E uma vez a medição <b>contradisse a minha própria anotação</b>: eu havia "
+        "escrito que criar um elemento com nome custava dois <font face='Courier'>Ctrl+Z</font>, o portão mediu <b>sete</b>. "
+        "Essa é a parte do método que vale contar na banca.", NOTA),
 
     # ---------------------------------------------------------------- 4. a rodada de hoje
-    Paragraph("4. O que esta rodada acrescentou (15 de novembro)", H2),
+    Paragraph("4. O que esta rodada acrescentou (15 e 16 de novembro)", H2),
     Paragraph(
         "Foram <b>74 entregas</b> no dia, em duas frentes paralelas. O detalhe está no "
         "<i>Relatório da rodada autônoma</i>; aqui vai o que mudou de estado:", P),
@@ -177,6 +179,19 @@ story = [
         "sessão sem microfone, a escala de espaçamento ficou uniforme, e dois portões novos medem "
         "o consentimento não pré-marcado e a marca d’água do bpmn.io livre — esta última é "
         "exigência da licença, não zelo estético.",
+        "<b>“Desfaz isso” passou a desfazer de verdade — e o número que eu tinha anotado estava "
+        "errado.</b> Minha própria lista dizia que criar um elemento com nome custava dois "
+        "<font face='Courier'>Ctrl+Z</font>. O portão novo mediu <b>sete</b>: o nome era um "
+        "comando, e o endireitamento das setas em volta era outros cinco ou seis. Você dizia "
+        "“desfaz” e o agente desfazia o traçado de uma linha, anunciando que havia voltado atrás. "
+        "Agora é <b>um</b> — e, quando for mais de um (abrir espaço para a forma é comando "
+        "legítimo), a ferramenta devolve o número <b>contado</b>, não estimado, e desfaz o lote.",
+        "<b>A prova de tela entrou no CI</b>: 29 cenários rodam a cada envio, no servidor do "
+        "GitHub, contra a imagem que vai ao ar — e sem credencial nenhuma. Pega o que nada mais "
+        "pegava: página que o build não copiou, botão que trocou de nome, geometria que o "
+        "bpmn-js desenha diferente depois de uma atualização. E o <b>viewer</b> deixou de ser "
+        "provado só “carrega”: agora um portão roda a <b>simulação em lote</b> com o painel "
+        "aberto e cobra que o assistente saiba comentar o resultado sem poder editar nada.",
     ]),
 
     # ---------------------------------------------------------------- 5. pendencias
@@ -208,10 +223,17 @@ story = [
          "a primeira depende de memória entre visitas, que você decidiu não ter; a segunda "
          "exigiria telemetria, e não vai haver",
          "<b>declaradas</b> — escritas para ninguém as descobrir como esquecimento"],
-        ["<b>Pontas minhas, sem pressa</b>: o viewer na bateria, a bateria no CI, desfazer em "
-         "bloco, layout automático de verdade, o teto do contexto",
-         "nenhuma conserta nada — são capacidades a mais ou higiene",
+        ["<b>Pontas minhas, o que sobrou</b>: um layout automático de verdade (“arruma o "
+         "desenho”), sugestão proativa ao abrir um diagrama com problema, e o medidor de "
+         "sobreposição que ignora rótulo",
+         "nenhuma conserta nada — são frentes novas ou higiene. As outras cinco saíram nesta "
+         "rodada, com prova",
          "minhas, quando valer a pena"],
+        ["<b>Os portões de microfone não rodam no servidor do GitHub</b>: a fala gravada é "
+         "gerada pela voz do Windows e não entra no repositório",
+         "o cenário que precisa dela fica <b>de fora</b>, dito em voz alta, em vez de passar "
+         "medindo o tom sintético do navegador. Aqui ele roda a cada rodada",
+         "<b>declarada</b>"],
     ], [5.2 * cm, 6.4 * cm, 4.4 * cm]),
 
     # ---------------------------------------------------------------- 6. proximos passos
@@ -235,9 +257,12 @@ story = [
         "ensaio do rollback. Hoje o endereço provisório publica a cada entrega e serve tudo, "
         "então isto é melhoria, não conserto.", P),
     Paragraph(
-        "<b>4. As pontas minhas</b>, sem pressa e sem bloquear nada: o viewer na bateria, a "
-        "bateria no CI, desfazer em bloco, um layout automático de verdade (“arruma o "
-        "desenho”), e medir o teto do contexto com a ferramenta que já existe.", P),
+        "<b>4. As pontas minhas — cinco saíram enquanto você estava fora.</b> Ficaram, sem pressa e "
+        "sem bloquear nada: um <b>layout automático de verdade</b> (“arruma o desenho”), que é uma "
+        "frente própria — o bpmn-js não tem layout automático, e escrever um é grafo em camadas, "
+        "raias e rótulos —, a <b>sugestão proativa</b> ao abrir um diagrama com problema (que "
+        "depende do mesmo limite pedagógico que você levou ao orientador) e o medidor de "
+        "sobreposição que ignora rótulo, como o próprio bpmn-js ignora.", P),
 
     Spacer(1, 6),
     Paragraph("Onde o trabalho está, em uma frase", H2),

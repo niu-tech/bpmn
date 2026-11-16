@@ -13,7 +13,7 @@ ideia).
 
 | Change | Caixas abertas | O que são |
 |---|---|---|
-| `give-bpmn-assistant-an-agent-harness` | 10 | as seções de ensino do tutor (8.1–8.5, o portão F8) e a bateria da fase; a **pedagogia foi estacionada pelo dono** para elaborar com o orientador (ver `roadmap.md` §F8b). Também o teto do `clientContent`, que tem ferramenta pronta e nunca foi corrido |
+| `give-bpmn-assistant-an-agent-harness` | 9 | as seções de ensino do tutor (8.1–8.5, o portão F8) e a bateria da fase; a **pedagogia foi estacionada pelo dono** para elaborar com o orientador (ver `roadmap.md` §F8b). O teto do `clientContent` saiu da lista em 2026-11-16: medido, sem teto até 512 KB |
 | `add-bpmn-public-live-assistant-mvp` | 6 | publicação definitiva (domínio, ambiente `production`, o gate do dono), MCP e memória durável — as duas últimas **estacionadas por ele**, de propósito |
 | `add-bpmn-norm-knowledge-base` | 1 | a 6.3 **ao vivo**: induzir o modelo a citar chave inexistente. Está provada no gerente, que é onde a troca por `[fonte não conferida]` acontece; ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
 | `harvest-proven-voice-foundations` | 1 | declarar no texto do TCC a licença do `bpmn-js` e a marca d'água (K-G) — é de banca, não de software |
