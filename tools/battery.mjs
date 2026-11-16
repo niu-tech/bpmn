@@ -795,9 +795,21 @@ const CENARIOS = [
       const levaAoAiStudio = !!document.querySelector('.bpmn-assist__botao-externo');
       const dicaNaoRepete = document.querySelector('.bpmn-assist__hint').hidden;
 
+      // ⚠ UM NOME SO', E NENHUM PASSO PAGO (dono, 2026-11-16). Dois defeitos da MESMA tela:
+      // ela chamava o agente de "ajudante" — o quinto lugar onde a coisa tinha outro nome,
+      // sobra da convergencia de N1 — e dizia "sao dois passos, e o primeiro e' gratuito", que
+      // lido como esta' promete um segundo passo que se paga. Nao existe passo pago, aqui nem
+      // depois. O que se cobra: o painel diz o nome, nao diz o antigo, e nao separa os passos
+      // entre gratuito e o resto.
+      const texto = document.querySelector('.bpmn-assist__panel').textContent;
+      const umNomeSo = /Tutor BPMN/.test(texto) && !/ajudante/i.test(texto);
+      const semPassoPago = !/primeiro (e|é) gratuit/i.test(texto);
+
       return {
-        ok: !!comecar && dentro && passos.length === 2 && dizChave && levaAoAiStudio && dicaNaoRepete,
+        ok: !!comecar && dentro && passos.length === 2 && dizChave && levaAoAiStudio
+          && dicaNaoRepete && umNomeSo && semPassoPago,
         dentro, passos: passos.length, dizChave, levaAoAiStudio, dicaNaoRepete,
+        umNomeSo, semPassoPago,
         altura: Math.round(painel.height), largura: Math.round(painel.width),
       };
     `],

@@ -154,11 +154,18 @@ export function createWidget({ session, credentials, onClose } = {}) {
    * link de onde tirar. O aviso de privacidade continua inteiro, logo abaixo, onde ele já estava.
    */
   const convite = el('div', { className: 'bpmn-assist__convite' }, [
-    el('p', { className: 'bpmn-assist__convite-titulo', textContent: 'Um ajudante que vê o seu diagrama.' }),
+    // ⚠ O TÍTULO NÃO REPETE O NOME: o cabeçalho do painel, dois centímetros acima, já diz
+    // `Tutor BPMN`. Esta linha dizia "Um ajudante que vê o seu diagrama" — o quinto lugar onde a
+    // mesma coisa tinha outro nome, e o que sobrou da convergência de N1.
+    el('p', { className: 'bpmn-assist__convite-titulo', textContent: 'Ele enxerga o diagrama que está aberto.' }),
     el('p', {
       className: 'bpmn-assist__convite-sub',
+      // ⚠ "São dois passos, e o primeiro é gratuito" SAIU (dono, 2026-11-16): lido como está,
+      // ele diz que existe um segundo passo que se paga — e não existe passo pago nenhum, aqui
+      // nem depois. A intenção era dizer "começar não custa nada"; dizer qual é cada passo faz
+      // isso melhor e sem deixar a dúvida para trás.
       textContent: 'Converse por voz ou por escrito: ele explica o que está na tela e desenha com '
-        + 'você. São dois passos, e o primeiro é gratuito.',
+        + 'você. São dois passos: pegar uma chave gratuita e colar aqui.',
     }),
   ]);
 
@@ -206,8 +213,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
     el('ol', { className: 'bpmn-assist__passos' }, [
       passo(1, 'Pegue a sua chave', [
         el('p', {
-          textContent: 'Ela é gratuita e leva um minuto. Abre numa aba nova — volte aqui com ela '
-            + 'copiada.',
+          // "Gratuita" agora é dito uma vez só, no convite logo acima. Repetir aqui era a mesma
+          // palavra duas vezes em duas linhas — o defeito que os dois passos existem para evitar.
+          textContent: 'Leva um minuto. Abre numa aba nova — volte aqui com ela copiada.',
         }),
         linkAiStudio,
       ]),
@@ -718,7 +726,10 @@ export function createWidget({ session, credentials, onClose } = {}) {
     statusDot.setAttribute('data-state', state);
 
     if (statusChip.textContent !== lastAnnounced) {
-      liveRegion.textContent = `Ajudante ${statusChip.textContent}.`;
+      // O nome por extenso, e não "Ajudante": esta linha é o que o leitor de tela ANUNCIA a cada
+      // troca de estado — era o sexto lugar onde a coisa tinha outro nome, e o único que só
+      // aparece para quem não vê o cabeçalho.
+      liveRegion.textContent = `${NOME} ${statusChip.textContent}.`;
       lastAnnounced = statusChip.textContent;
     }
 
@@ -838,7 +849,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
       }
     }
     talkBtn.classList.toggle('bpmn-assist__mic--gravando', micOn);
-    const oQueFaz = micOn ? 'Parar de ouvir' : 'Falar com o ajudante';
+    const oQueFaz = micOn ? 'Parar de ouvir' : `Falar com o ${NOME}`;
     talkBtn.setAttribute('aria-label', oQueFaz);
     talkBtn.title = oQueFaz;
     talkBtn.setAttribute('aria-pressed', String(micOn));
@@ -873,9 +884,11 @@ export function createWidget({ session, credentials, onClose } = {}) {
     } else if (micOn) {
       micLabel.textContent = 'ouvindo — é só falar';
     } else if (state === 'speaking') {
-      micLabel.textContent = session.meiaDuplex ? 'respondendo (microfone fechado)' : 'o ajudante está respondendo…';
+      // "ele", e não o nome: o bloco inteiro já fala assim ("ele não está te ouvindo"), e repetir
+      // a marca em cada linha de estado seria ruído — o nome vive no cabeçalho e no botão de voz.
+      micLabel.textContent = session.meiaDuplex ? 'respondendo (microfone fechado)' : 'ele está respondendo…';
     } else {
-      micLabel.textContent = 'clique para o ajudante ouvir';
+      micLabel.textContent = 'clique para falar com ele';
     }
     renderMeter(level, micOn);
 
