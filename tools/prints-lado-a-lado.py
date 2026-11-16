@@ -31,7 +31,10 @@ PARES = [
         "nome": "voz-aberta",
         "titulo": "Com a voz aberta — onde ele não lê, só olha",
         "antes": RAIZ / "artifacts" / "ui-2-gravando.png",
-        "depois": BATERIA / "a-faixa-de-voz-aguenta-re-render-e-quatro-selecionados-chegam-ao-prompt.png",
+        # ⚠ O "depois" tem de mostrar a VOZ ABERTA. O primeiro candidato (o cenário da faixa de
+        # voz) tira o print no fim da corrida, com o painel já de volta na tela da chave: o par
+        # ficava comparando duas telas diferentes e não dizia nada sobre o estado de voz.
+        "depois": BATERIA / "voz-escuta-continua-com-fala-real-no-microfone.png",
         "mudou": "escuta deixou de ser vermelha · compositor e voz são exclusivos · os dois mudos "
                  "viraram ícones · o selo não diz “ouvindo” sem microfone",
     },
