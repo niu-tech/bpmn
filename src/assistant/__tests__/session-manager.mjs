@@ -552,7 +552,8 @@ await (async () => {
     assert.ok(/fonte n[\u00e3a]o conferida/.test(bolha.text), bolha.text);
     assert.ok(!/fonte:gateways/.test(bolha.text), 'a marca inventada continuou na tela');
     // E o aviso, porque o AUDIO ja foi falado: a tela nao pode consertar o que foi dito, diz.
-    assert.deepEqual(bolha.citacaoSuspeita, ['gateways:exclusivo']);
+    assert.deepEqual(bolha.citacaoSuspeita, ['gateways:exclusivo'],
+      'a tela nao avisou que a fala citou fonte que nenhuma consulta devolveu');
     forgetSecrets();
   });
 
@@ -568,7 +569,8 @@ await (async () => {
 
     const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
     assert.ok(/fonte n[\u00e3a]o conferida/.test(bolha.text), bolha.text);
-    assert.deepEqual(bolha.citacaoSuspeita, ['gateways:paralelo']);
+    assert.deepEqual(bolha.citacaoSuspeita, ['gateways:paralelo'],
+      'marca partida entre dois pedacos escapou da conferencia');
     forgetSecrets();
   });
 
@@ -605,11 +607,15 @@ await (async () => {
     const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
     assert.ok(/\[fonte:gateways:exclusivo\]/.test(bolha.text), bolha.text);
     assert.equal(bolha.citacaoSuspeita, undefined, 'marca servida nao e suspeita');
-    assert.equal(bolha.fontes?.length, 1);
-    assert.equal(bolha.fontes[0].titulo, 'Gateways');
-    assert.equal(bolha.fontes[0].localizador, '\u00a710.5');
+    // ⚠ A mensagem aqui nao e' zelo: esta linha ja' reprovou com "undefined !== 1" e eu
+    // precisei ADICIONAR PRINT no teste para descobrir que o turno da legenda nao era o da
+    // consulta. O vermelho tem de dizer o que quebrou, nao so' que quebrou.
+    assert.equal(bolha.fontes?.length, 1, 'a resposta falada nao carregou a fonte servida');
+    assert.equal(bolha.fontes[0].titulo, 'Gateways', 'o titulo do verbete nao chegou a bolha');
+    assert.equal(bolha.fontes[0].localizador, '\u00a710.5', 'o localizador do acervo nao chegou a bolha');
     // Material NOSSO: nao pode ser lido como texto da norma da OMG.
-    assert.equal(bolha.fontes[0].nosso, true);
+    assert.equal(bolha.fontes[0].nosso, true,
+      'material NOSSO perdeu a marca, e viraria texto da norma da OMG na tela');
 
     // E a LINHA da ferramenta diz o que foi lido — nao "usei consultar_norma".
     const linha = session.messages.filter((m) => m.role === 'tool').at(-1);
@@ -652,7 +658,8 @@ await (async () => {
 
     const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
     assert.equal(bolha.fontes?.length, 1, 'a fonte nao chegou a resposta');
-    assert.equal(bolha.fontes[0].localizador, '\u00a710.4');
+    assert.equal(bolha.fontes[0].localizador, '\u00a710.4',
+      'a fonte chegou, mas sem o localizador que o aluno confere');
     forgetSecrets();
   });
 
@@ -677,7 +684,7 @@ await (async () => {
     ]);
     live.ultima.texto('O inicio dispara o processo.', { complete: true });
     const comFonte = session.messages.filter((m) => m.role === 'assistant').at(-1);
-    assert.equal(comFonte.fontes?.length, 1);
+    assert.equal(comFonte.fontes?.length, 1, 'a primeira resposta nao recebeu a fonte consultada');
 
     // Pergunta nova, SEM consulta nenhuma: a bolha nao pode carregar a fonte da anterior.
     session.ask('e um gateway?');

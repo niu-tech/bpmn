@@ -18,6 +18,13 @@
 > casos a regra estava **certa dentro do caso medido** e errada um passo fora — o erro não foi
 > medir pouco, foi batizar pelo sintoma. Nome pela forma envelhece com o primeiro caso novo;
 > nome pelo mecanismo cobre os casos que ainda não aconteceram.
+>
+> ⚠ E o nome pelo mecanismo **não sai na primeira vez**, por um motivo que vale saber: na hora
+> de escrever, o mecanismo ainda é abstração e o sintoma é a coisa que acabou de doer. Daí a
+> regra prática: **batize na SEGUNDA vez que o princípio for usado**, quando existe um segundo
+> caso para o nome ter de cobrir — e, até lá, aceite que o título é provisório. O §XI foi
+> batizado pela forma **duas vezes seguidas**, inclusive na renomeação que deveria ter
+> consertado isso.
 
 ## I. Especificação antes de implementação
 

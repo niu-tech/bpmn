@@ -255,11 +255,12 @@ test('fontesDoResultado traz titulo, localizador e a marca de material NOSSO', (
       }],
     },
   });
-  assert.equal(fontes.length, 1);
-  assert.equal(fontes[0].titulo, 'Eventos');
-  assert.equal(fontes[0].localizador, '\u00a710.4');
-  assert.equal(fontes[0].nosso, true);
-  assert.equal(fontes[0].link, 'https://www.omg.org/spec/BPMN/2.0.2/');
+  assert.equal(fontes.length, 1, 'a consulta serviu um trecho e a proveniencia saiu vazia');
+  assert.equal(fontes[0].titulo, 'Eventos', 'o titulo do verbete nao sobreviveu a forma');
+  assert.equal(fontes[0].localizador, '\u00a710.4', 'o localizador nao sobreviveu a forma');
+  assert.equal(fontes[0].nosso, true, 'a marca de material NOSSO se perdeu no caminho');
+  assert.equal(fontes[0].link, 'https://www.omg.org/spec/BPMN/2.0.2/',
+    'o link oficial, por onde o aluno confere por fora, nao passou');
 });
 
 test('link que nao e http some: dado do indice nao escolhe esquema de URL', () => {
@@ -267,7 +268,7 @@ test('link que nao e http some: dado do indice nao escolhe esquema de URL', () =
     ok: true,
     resultado: { resultados: [{ citationKey: 'x:y', title: 'X', officialUrl: 'javascript:alert(1)' }] },
   });
-  assert.equal(fontes[0].link, null);
+  assert.equal(fontes[0].link, null, 'link que nao e http passou: dado do indice escolhendo esquema de URL');
 });
 
 test('ferramenta sem fonte citavel devolve lista vazia, e recusa nao inventa fonte', () => {
