@@ -11,6 +11,14 @@
 > **Caminho atual:** `openspec/roadmap.md` (fases F1-F8, cada uma com portao de medicao).
 > **Pendencias honestas:** `openspec/open-items.md`.
 
+> ⚠ **Como um princípio daqui se chama: pelo MECANISMO, nunca pela forma do exemplo que o
+> gerou.** Dois nasceram errados no mesmo dia (2026-11-16) e foram alargados em menos de 24 h
+> pela outra sessão: *"passe o caminho"* (forma) era na verdade *"pathspec lê a árvore"*
+> (mecanismo), e *"negação anda em par"* (forma) era *"o vazio satisfaz a cláusula"*. Nos dois
+> casos a regra estava **certa dentro do caso medido** e errada um passo fora — o erro não foi
+> medir pouco, foi batizar pelo sintoma. Nome pela forma envelhece com o primeiro caso novo;
+> nome pelo mecanismo cobre os casos que ainda não aconteceram.
+
 ## I. Especificação antes de implementação
 
 Toda mudança estrutural nasce em `openspec/changes/<nome>/` com **proposal** (por quê),
@@ -100,7 +108,7 @@ pergunta), nunca o XML inteiro despejado. A cota é do aluno: desperdício é cu
 O modelador, o viewer e a simulação em lote continuam funcionando exatamente como hoje. O ajudante
 falha **sozinho** (`try/catch` na montagem) — defeito no agente nunca leva o produto junto.
 
-## XI. Quem commita num checkout compartilhado escolhe entre caminho e índice
+## XI. Commit por caminho lê a ÁRVORE; commit por índice lê o que você estagiou
 
 Duas sessões trabalham neste mesmo diretório ao mesmo tempo, e o índice do git é **um só**.
 `git add -A` e `git commit` sem caminho varrem o que a outra sessão deixou staged: o trabalho
@@ -242,6 +250,14 @@ nenhuma. Consertar no instrumento vale mais que lembrar em dezesseis lugares: a 
 quem escreve o próximo portão não entra na conta.
 
 E o teste da regra é mecânico, não é leitura: **faça o objeto não existir** (a lista vazia, o
-elemento que nunca nasce, a ferramenta que nunca roda) e veja se a negação ainda passa. Se passar,
-ela nunca provou nada — e revisão humana não pega isto, porque ler uma negação dá a sensação de
-segurança que o código não tem.
+elemento que nunca nasce, a forma que some da tela) e veja se a cláusula ainda passa. Se passar,
+ela nunca provou nada — e revisão humana não pega isto, porque ler uma cláusula dessas dá a
+sensação de segurança que o código não tem.
+
+⚠ **E, nas quatro, o relatório já tinha dito.** `caixa: "0x0"`, `fontesNaTela: []`,
+`ofereceContinuar: false`, `formas: 0` — todos eram campos impressos há semanas, ao lado de um
+`ok: true`. Nenhuma das quatro precisava de instrumento novo para ser vista: precisava de
+alguém lendo a **linha inteira**, inclusive os campos que não estavam sob suspeita. Daí a
+segunda metade da regra, que é de leitura e não de escrita: **o relatório de um portão se lê
+todo, e um campo zerado ao lado de um verde é uma pergunta** — não um detalhe de formatação.
+Portão que imprime pouco esconde isso de graça: imprima o número, não só o veredito.
