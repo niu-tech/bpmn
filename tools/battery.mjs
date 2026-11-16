@@ -756,7 +756,13 @@ const CENARIOS = [
       const cruza = (x, y) => !(an.left >= y.right || an.right <= y.left || an.top >= y.bottom || an.bottom <= y.top);
       const paleta = document.querySelector('.djs-palette').getBoundingClientRect();
       const sim = document.querySelector('.bts-toggle-mode').getBoundingClientRect();
-      const limpa = !cruza(an, paleta) && !cruza(an, sim);
+      // ⚠ OS DOIS ALVOS PRECISAM EXISTIR NA TELA. "nao cruza" e' negacao, e o teste mecanico do
+      // principio XIII (faca o objeto sumir e veja se a negacao ainda passa) reprova a versao
+      // antiga: com a paleta em display:none a caixa dela vira 0x0 em 0,0, nada cruza coisa
+      // nenhuma, e a clausula aprovava um mundo SEM paleta — exatamente o contrario de "a ancora
+      // nao cobre a paleta". Querer que elas existam e' o par que falta, e aqui o par e' tamanho.
+      const alvosExistem = paleta.width > 0 && paleta.height > 0 && sim.width > 0 && sim.height > 0;
+      const limpa = alvosExistem && !cruza(an, paleta) && !cruza(an, sim);
 
       return {
         ok: b.bottom <= a.top + 1 && b.top >= 0 && ancoraClicavel && limpa
@@ -764,7 +770,7 @@ const CENARIOS = [
         folga: Math.round(a.top - b.bottom),
         barraCabe: b.top >= 0,
         ancora: Math.round(an.top) + ',' + Math.round(an.left),
-        ancoraClicavel, limpa,
+        ancoraClicavel, limpa, alvosExistem,
         rolaNaHorizontal: document.documentElement.scrollWidth > window.innerWidth + 1,
       };
     `],
