@@ -561,13 +561,18 @@ const CENARIOS = [
       const trabalhoIntacto = localStorage.getItem('bpmn.autosave.xml') !== null;
       const continuar = convite && convite.querySelector('.pv__continuar');
 
+      // ⚠ TODA CLAUSULA DO VEREDITO TEM NOME NO RELATORIO. Estas duas ultimas estavam so' dentro
+      // do veredito: quando uma delas caisse, a saida seria ok:false com todos os campos true e
+      // ninguem saberia qual. E' a segunda metade do principio XIII -- o relatorio dizer o
+      // numero, nao so' o veredito -- aplicada ao que faltava aqui.
+      const escolhaEsquecida = localStorage.getItem('bpmn.primeira-vez') === null;
+      const painelRecolhido = document.querySelector('.bpmn-assist__panel').hidden;
       return {
         ok: barraNasceu && barraMorreu && clicavel && !!convite && trabalhoIntacto && !!continuar
-          && localStorage.getItem('bpmn.primeira-vez') === null
-          && document.querySelector('.bpmn-assist__panel').hidden
+          && escolhaEsquecida && painelRecolhido
           && getComputedStyle(ancora).display === 'none',
         barraNasceu, barraMorreu, ancoraClicavel: clicavel, convite: !!convite, trabalhoIntacto,
-        ofereceContinuar: !!continuar,
+        ofereceContinuar: !!continuar, escolhaEsquecida, painelRecolhido,
         ancoraSaiDeCenaNoConvite: getComputedStyle(ancora).display === 'none',
       };
     `],
@@ -601,10 +606,10 @@ const CENARIOS = [
       const fechouPeloEsc = !document.querySelector('.pv');
       const formasDepois = document.querySelectorAll('#canvas .djs-visual').length;
 
+      const desenhoPreservado = localStorage.getItem('bpmn.autosave.xml') !== null;
       return {
-        ok: fechouPeloBotao && fechouPeloEsc && formasDepois === formasAntes
-          && localStorage.getItem('bpmn.autosave.xml') !== null,
-        fechouPeloBotao, fechouPeloEsc, formasAntes, formasDepois,
+        ok: fechouPeloBotao && fechouPeloEsc && formasDepois === formasAntes && desenhoPreservado,
+        fechouPeloBotao, fechouPeloEsc, formasAntes, formasDepois, desenhoPreservado,
       };
     `],
   },
@@ -638,11 +643,13 @@ const CENARIOS = [
       cartao.click();
       await new Promise((r) => setTimeout(r, 1200));
       const formasDepois = document.querySelectorAll('#canvas .djs-visual').length;
+      const conviteFechou = !document.querySelector('.pv');
 
       return {
         ok: /substitui/i.test(perguntou) && naoTrocouAinda && convitePermanece
-          && formasDepois >= 1 && formasDepois <= 3 && !document.querySelector('.pv'),
-        perguntou: perguntou.trim(), naoTrocouAinda, convitePermanece, formasAntes, formasDepois,
+          && formasDepois >= 1 && formasDepois <= 3 && conviteFechou,
+        perguntou: perguntou.trim(), naoTrocouAinda, convitePermanece, conviteFechou,
+        formasAntes, formasDepois,
       };
     `],
   },
