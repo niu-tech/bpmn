@@ -485,6 +485,14 @@ const CENARIOS = [
     // fechar o balao". A barra MORRE na primeira edicao (de proposito), e ate' aqui ela carregava
     // o unico "voltar ao menu" da tela. Entao o cenario EDITA primeiro, e so' depois procura o
     // caminho de volta — procurar antes de editar seria testar o caso que nunca falhou.
+    //
+    // VERMELHOS JA' MEDIDOS NESTE CENARIO (2026-11-16), porque `ok` aqui e' uma conjuncao de seis
+    // e clausula que nunca pode ser falsa e' enfeite escondido dentro de um `&&`:
+    //   - sem `montarAncora()`           -> cai (era o defeito original);
+    //   - `voltarAoMenu` apagando o autosave -> `trabalhoIntacto:false` E `ofereceContinuar:false`.
+    // A segunda e' a promessa de NAO perder desenho, que e' a mais cara de falhar em silencio.
+    // ⚠ As duas caem JUNTAS (sem trabalho salvo nao ha' o que continuar), entao `ofereceContinuar`
+    // ainda nao tem vermelho proprio: quem for quebrar isso de novo, quebre `temTrabalho` sozinho.
     nome: 'a ancora leva ao inicio DEPOIS de editar, e o caminho de volta nao morre',
     url: ALVO_BASE,
     passos: [`
