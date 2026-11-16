@@ -318,7 +318,9 @@ window.__conteinerChamado = (texto) => [...document.querySelectorAll('g.djs-shap
  */
 window.__linhaAtravessa = (id) => {
   const caixa = window.__caixa(id);
-  if (!caixa) return null;
+  // Mesma armadilha do medidor de sobreposicao: caixa de area zero nunca e' atravessada.
+  const vazio = window.__semCaixa(id, caixa);
+  if (vazio) return [vazio];
   const ligacoes = window.__bpmnAssist.desenho.ligacoes;
   const folga = 6;   // a seta pode encostar na borda; atravessar e' outra coisa
   const dentro = (x, y) => x > caixa.x + folga && x < caixa.x + caixa.w - folga
@@ -341,9 +343,26 @@ window.__linhaAtravessa = (id) => {
   }
   return culpadas;
 };
+// POR QUE a resposta de geometria pode ser VAZIO DISFARCADO DE COORDENADA (principio XIII).
+//
+// Elemento escondido continua NO DOM, e getBoundingClientRect devolve 0x0 em 0,0 sem
+// reclamar. Uma caixa de area zero nao sobrepoe ninguem e nao e' atravessada por nada —
+// entao "nao sobrepoe" e "nao e' atravessada" ficam VERDADEIRAS num mundo em que o
+// elemento sumiu da tela. Era o caso da clausula de geometria da outra sessao, medida com a
+// paleta em display:none: caixa 0x0, nada cruza nada, e o portao aprovava a ausencia.
+//
+// Aqui o par do XIII nao e' antes/depois nem objeto: e' TAMANHO. E em vez de pedir a cada
+// chamador que se lembre disso (sao dezesseis), a resposta vira um marcador NOMEADO e
+// NAO-VAZIO, que reprova em toda comparacao de tamanho zero ja' existente, dizendo por que.
+window.__semCaixa = (id, caixa) => {
+  if (!caixa) return 'SEM-ELEMENTO:' + id;          // nem no DOM esta'
+  if (!caixa.w || !caixa.h) return 'SEM-CAIXA:' + id; // no DOM, fora da tela
+  return null;
+};
 window.__sobrepoe = (id) => {
   const a = window.__caixa(id);
-  if (!a) return null;
+  const vazio = window.__semCaixa(id, a);
+  if (vazio) return [vazio];
   const folga = 4;
   const contem = (p, q) => p.x <= q.x && p.y <= q.y && p.x + p.w >= q.x + q.w && p.y + p.h >= q.y + q.h;
   return [...document.querySelectorAll('g.djs-shape[data-element-id]')]

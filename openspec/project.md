@@ -190,7 +190,7 @@ isso toda asserção negativa de um portão passa de graça no mundo em que o ob
 existiu — e esse mundo é exatamente o que a gente mais precisa pegar, porque é o que acontece
 quando uma entrega inteira some.
 
-Duas, achadas no mesmo dia (2026-11-16), uma em cada sessão, e nenhuma por leitura: as duas só
+Três, achadas no mesmo dia (2026-11-16), nas duas sessões, e nenhuma por leitura: as três só
 apareceram quando alguém quebrou o produto e olhou o relatório:
 
 - **verdadeira por lista vazia.** `!fontes.some((f) => f.includes(chave))` — *"a chave crua não
@@ -200,10 +200,18 @@ apareceram quando alguém quebrou o produto e olhou o relatório:
 - **verdadeira porque nunca nasceu.** `!document.querySelector('.pv-barra')` — *"a orientação sumiu
   depois da primeira edição"* — é também verdadeira se a orientação **nunca apareceu**. Medido:
   com a barra devolvendo `null` sempre, o cenário inteiro ficava verde enquanto a entrega da
-  rodada anterior não existia mais.
+  rodada anterior não existia mais;
+- **verdadeira porque a caixa tem área zero.** Em portão de GEOMETRIA o objeto pode existir no
+  DOM e **não existir na tela**: elemento escondido continua respondendo a `querySelector`, e
+  `getBoundingClientRect` devolve **0×0 em 0,0 sem reclamar**. Caixa de área zero não sobrepõe
+  ninguém e não é atravessada por nada — então *"não sobrepõe"* e *"nenhuma seta a atravessa"*
+  ficam verdadeiras no mundo em que o elemento sumiu. É vazio disfarçado de coordenada, e foi
+  medido nas duas sessões no mesmo dia: a paleta em `display:none` aprovando *"a âncora não
+  cobre a paleta"*, e, aqui, *"Assar a pizza"* de 93×78 virando 0×0 — `antigaAprovaria: true`,
+  `novaAprovaria: false`.
 
-São a mesma doença em tempos diferentes: a primeira ignora o **objeto**, a segunda ignora o
-**antes**. Então:
+São a mesma doença em tempos e dimensões diferentes: a primeira ignora o **objeto**, a segunda
+ignora o **antes**, a terceira ignora o **tamanho**. Então:
 
 **Toda negação num portão anda em par com a afirmação do que ela nega.** As duas formas do par,
 as duas em uso aqui:
@@ -212,6 +220,13 @@ as duas em uso aqui:
   basta a marca errada ter sumido, a troca tem de estar lá;
 - **antes e depois**: `rotuloApareceu` medido ANTES do desfazer, `!rotuloSobrou` depois. Sem a
   primeira metade, *"o rótulo não sobrou"* aprovaria um rótulo que nunca foi criado.
+
+⚠ E quando o par não cabe na cláusula, ele cabe no **medidor**. As respostas de geometria
+(`__sobrepoe`, `__linhaAtravessa`) deixaram de devolver lista vazia para um elemento sem área:
+devolvem um marcador nomeado e **não-vazio** (`SEM-CAIXA:<id>`, `SEM-ELEMENTO:<id>`), que
+reprova em toda comparação de tamanho zero que já existia — dezesseis delas, sem tocar em
+nenhuma. Consertar no instrumento vale mais que lembrar em dezesseis lugares: a memória de
+quem escreve o próximo portão não entra na conta.
 
 E o teste da regra é mecânico, não é leitura: **faça o objeto não existir** (a lista vazia, o
 elemento que nunca nasce, a ferramenta que nunca roda) e veja se a negação ainda passa. Se passar,
