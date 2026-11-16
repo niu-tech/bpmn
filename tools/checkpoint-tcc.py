@@ -126,7 +126,7 @@ story = [
          "o núcleo: prompt, despacho, ferramentas, memória, guardrails, protocolo, áudio. Roda "
          "sem rede, sem chave e sem cota"],
         ["Portões no navegador",
-         "<b>45 cenários</b><br/>28 sem cota · 17 ao vivo",
+         "<b>46 cenários</b><br/>29 sem cota · 17 ao vivo",
          "o produto contra o bpmn-js de verdade, e contra o Gemini de verdade. É onde os defeitos "
          "de desenho e de sessão aparecem"],
         ["Conjunto dourado",

@@ -111,6 +111,12 @@ Então: **stage por caminho** (`git add -- <arquivos meus>`) e **commit por cami
 (`git commit -- <arquivos meus>`), que ignora o resto do índice. Antes de commitar, `git status`
 e conferir que não há nada de terceiro staged.
 
+⚠ A ordem das opções não é livre: **tudo o que vem depois do `--` é pathspec**. Então
+`git commit -- <arquivos> -F -` falha com *"pathspec '-F' did not match any file(s)"*; o certo é
+`git commit -F - -- <arquivos>`. As duas sessões tropearçaram nisso no mesmo dia, e a topada
+é pior do que parece: ela acontece **depois** de a pessoa ter feito a coisa certa, e convida a
+desistir da regra.
+
 Nada se perde quando isso falha — o que se perde é a **mensagem**, e aqui ela não é detalhe: é a
 evidência de método que o texto do TCC cita. Commit cuja mensagem não descreve o diff é um
 registro que mente para quem vier ler.

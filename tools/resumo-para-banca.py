@@ -123,7 +123,7 @@ story = [
         ["Testes determinísticos", "<b>25 suítes · 560 asserções</b>",
          "o núcleo — prompt, despacho, ferramentas, memória, proteções, protocolo, áudio. Roda "
          "sem rede, sem credencial e em segundos"],
-        ["Portões no navegador", "<b>45 cenários</b><br/>28 sem credencial · 17 ao vivo",
+        ["Portões no navegador", "<b>46 cenários</b><br/>29 sem credencial · 17 ao vivo",
          "o sistema real: o bpmn-js de verdade desenhando, e o modelo de verdade respondendo"],
         ["Conjunto de perguntas", "<b>35 perguntas · 13 categorias</b>",
          "taxa de acerto por categoria, que é o que vira tabela no texto"],
@@ -151,8 +151,10 @@ story = [
     Paragraph(
         "O desenho saiu daí: uma barra discreta encostada no botão, com <b>uma</b> sugestão por "
         "vez, que muda conforme o elemento selecionado. As duas ideias recusadas ficaram "
-        "<b>registradas com o motivo</b>, e não apagadas — porque a decisão final é de quem "
-        "orienta o trabalho, e recusa sem argumento escrito é só teimosia de quem implementa.", P),
+        "<b>registradas com o motivo</b>, e não apagadas — escritas no documento de desenho "
+        "justamente para que possam ser <b>revertidas com o contra-argumento na mão</b>. É a "
+        "diferença entre recusar por teimosia e recusar com prova: a decisão final continua de "
+        "quem orienta o trabalho, e ela volta a estar disponível a qualquer momento.", P),
 
     Paragraph("O que dá para demonstrar ao vivo, em poucos minutos", H2),
     bullets([
