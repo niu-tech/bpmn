@@ -58,7 +58,7 @@ def tabela(linhas, larguras):
 
 
 story = [
-    Paragraph("Um ajudante de BPMN dentro do modelador", H1),
+    Paragraph("Tutor BPMN — um agente de ensino dentro do modelador", H1),
     Paragraph("Do ponto em que o projeto estava — um modelador com simulação em lote — até um "
               "assistente que conversa por voz e por escrito, lê o diagrama aberto, desenha nele "
               "e cita a fonte do que ensina", SUB),
@@ -104,7 +104,7 @@ story = [
          "aplicativo <b>confere a citação</b> antes de ela aparecer na tela"],
         ["<b>Orienta quem chega</b>",
          "entra pela primeira vez e sabe o que pedir, sem ler manual",
-         "uma barra encostada no botão do assistente diz o que dá para fazer naquela trilha e "
+         "uma barra encostada no botão do tutor diz o que dá para fazer naquela trilha e "
          "oferece <b>uma</b> sugestão clicável — que acompanha o elemento selecionado no desenho"],
         ["<b>Diz o que não sabe</b>",
          "pergunta algo fora do acervo",
@@ -120,10 +120,10 @@ story = [
         "afirmações sem lastro:", P),
     tabela([
         ["Camada de prova", "Tamanho", "O que ela garante"],
-        ["Testes determinísticos", "<b>25 suítes · 683 asserções</b>",
+        ["Testes determinísticos", "<b>32 suítes · 685 asserções</b>",
          "o núcleo — prompt, despacho, ferramentas, memória, proteções, protocolo, áudio. Roda "
          "sem rede, sem credencial e em segundos"],
-        ["Portões no navegador", "<b>48 cenários</b><br/>31 sem credencial · 17 ao vivo",
+        ["Portões no navegador", "<b>51 cenários</b><br/>34 sem credencial · 17 ao vivo",
          "o sistema real: o bpmn-js de verdade desenhando, e o modelo de verdade respondendo"],
         ["Conjunto de perguntas", "<b>35 perguntas · 13 categorias</b>",
          "taxa de acerto por categoria, que é o que vira tabela no texto"],
@@ -194,7 +194,7 @@ story = [
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
                         topMargin=1.8 * cm, bottomMargin=1.6 * cm,
-                        title="Um ajudante de BPMN dentro do modelador",
-                        author="Ajudante BPMN (TCC)")
+                        title="Tutor BPMN — um agente de ensino dentro do modelador",
+                        author="Tutor BPMN (TCC)")
 doc.build(story)
 print(f"PDF: {OUT}")

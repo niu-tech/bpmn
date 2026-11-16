@@ -19,6 +19,8 @@ ideia).
 | `harvest-proven-voice-foundations` | 1 | declarar no texto do TCC a licença do `bpmn-js` e a marca d'água (K-G) — é de banca, não de software |
 | `guide-the-first-run-trails` | 2 | o que fica **fora** dela, de propósito: partidas por histórico de quem volta (depende de memória entre visitas, decidida em contrário) e medir se a orientação funcionou (não há telemetria) |
 
+> A orientação da primeira visita teve uma segunda metade, e ela está **arquivada**: `name-the-tutor-and-anchor-the-exit` (2026-11-16) nomeou o agente e consertou o caminho de volta. Quem for ler a trilha inteira lê as duas.
+
 ## Arquivadas — tudo feito, e a prova está dentro
 
 | Change | O que ela deixou |
@@ -30,3 +32,4 @@ ideia).
 | `prove-it-with-a-golden-set` | o conjunto dourado, a camada determinística dentro do `npm test` e as tabelas geradas dos arquivos |
 | `introduce-bpmn-first-run-workspace` | a primeira tela: a pessoa escolhe o caminho antes de ver a pizzaria, e sempre há volta |
 | `refine-assistant-panel-ui` | o redesenho do painel sem derrubar a prova: uma ação por estado, a cor certa para cada um, a escala de espaçamento, e a marca d'água do bpmn.io medida contra o painel |
+| `name-the-tutor-and-anchor-the-exit` | o agente passou a ter **um** nome (`Tutor BPMN`, fonte única em `src/assistant/identidade.js`) e a tela inicial ganhou uma **saída que persiste**: a barra morria na primeira edição e carregava o único caminho de volta |

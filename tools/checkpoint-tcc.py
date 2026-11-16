@@ -65,7 +65,7 @@ def tabela(linhas, larguras):
 
 
 story = [
-    Paragraph("Ajudante BPMN — checkpoint para avaliação", H1),
+    Paragraph("Tutor BPMN — checkpoint para avaliação", H1),
     Paragraph("16 de novembro de 2026 · o que o produto faz hoje, o que está provado, o que "
               "ficou pendente — e o que vem a seguir, depois das suas decisões desta noite", SUB),
 
@@ -73,8 +73,8 @@ story = [
     Paragraph("1. O que o produto faz hoje", H2),
     Paragraph(
         "O aluno abre o site, informa <b>a própria chave</b> do Google AI Studio e conversa — "
-        "falando ou escrevendo — com um ajudante que está <b>dentro</b> do modelador BPMN. Esse "
-        "ajudante lê o diagrama aberto, responde sobre os elementos que o aluno clica, "
+        "falando ou escrevendo — com o <b>Tutor BPMN</b>, que fica <b>dentro</b> do modelador. Ele "
+        "lê o diagrama aberto, responde sobre os elementos que o aluno clica, "
         "<b>escreve</b> no desenho (cria, liga, renomeia, insere no meio do fluxo, move, alinha, "
         "cria pool e raia), <b>pergunta antes</b> de apagar, consulta um acervo autoral de BPMN e "
         "<b>cita a fonte</b> — e o aplicativo confere a citação antes de ela aparecer na tela.", P),
@@ -115,6 +115,9 @@ story = [
         ["Orientação da primeira visita", "barra encostada na alavanca: o que dá para fazer naquela "
          "trilha, uma sugestão clicável, e ela segue o que você clica no desenho",
          "<font color='%s'><b>no ar</b></font> 15/11" % VERDE],
+        ["Nome único e saída permanente", "o agente passou a se chamar <b>Tutor BPMN</b> em "
+         "toda superfície, e a volta à tela inicial deixou de morrer na primeira edição",
+         "<font color='%s'><b>no ar</b></font> 16/11" % VERDE],
     ], [4.0 * cm, 7.6 * cm, 4.4 * cm]),
 
     # ---------------------------------------------------------------- 3. as provas
@@ -122,11 +125,11 @@ story = [
     tabela([
         ["Camada", "Tamanho", "O que ela garante"],
         ["<font face='Courier'>npm test</font> (determinística)",
-         "<b>25 suítes · 683 asserções</b><br/>560 síncronas · 123 assíncronas",
+         "<b>32 suítes · 685 asserções</b><br/>562 síncronas · 123 assíncronas",
          "o núcleo: prompt, despacho, ferramentas, memória, guardrails, protocolo, áudio. Roda "
          "sem rede, sem chave e sem cota"],
         ["Portões no navegador",
-         "<b>48 cenários</b><br/>31 sem cota · 17 ao vivo",
+         "<b>51 cenários</b><br/>34 sem cota · 17 ao vivo",
          "o produto contra o bpmn-js de verdade, e contra o Gemini de verdade. É onde os defeitos "
          "de desenho e de sessão aparecem"],
         ["Conjunto dourado",
@@ -186,12 +189,21 @@ story = [
         "“desfaz” e o agente desfazia o traçado de uma linha, anunciando que havia voltado atrás. "
         "Agora é <b>um</b> — e, quando for mais de um (abrir espaço para a forma é comando "
         "legítimo), a ferramenta devolve o número <b>contado</b>, não estimado, e desfaz o lote.",
-        "<b>A prova de tela entrou no CI</b>: 29 cenários rodam a cada envio, no servidor do "
+        "<b>A prova de tela entrou no CI</b>: 32 cenários rodam a cada envio, no servidor do "
         "GitHub, contra a imagem que vai ao ar — e sem credencial nenhuma. Pega o que nada mais "
         "pegava: página que o build não copiou, botão que trocou de nome, geometria que o "
         "bpmn-js desenha diferente depois de uma atualização. E o <b>viewer</b> deixou de ser "
         "provado só “carrega”: agora um portão roda a <b>simulação em lote</b> com o painel "
-        "aberto e cobra que o assistente saiba comentar o resultado sem poder editar nada.",
+        "aberto e cobra que o tutor saiba comentar o resultado sem poder editar nada.",
+        "<b>Os quatro pontos que você apontou na tela inicial foram atendidos — e dois eram "
+        "defeito nosso.</b> A frase que o produto escrevia no seu lugar tinha 47 caracteres numa "
+        "caixa de uma linha: <b>chegava cortada</b>, e agora o teto (33) é teste. O “tutor” "
+        "repetido três vezes não era redação: a mesma coisa tinha <b>três nomes</b> (na tela, no "
+        "painel e no código) — agora é <b>Tutor BPMN</b>, de uma fonte só, com a capacidade dita "
+        "uma vez ao lado. E o mais sério: <b>depois de fechar o balão não havia mais como voltar "
+        "à tela inicial</b> — a barra morria na primeira edição e carregava o único caminho de "
+        "volta. Entrou uma âncora permanente; e porque ela torna o menu alcançável <b>com "
+        "trabalho vivo</b>, trocar de trilha passou a perguntar antes.",
     ]),
 
     # ---------------------------------------------------------------- 5. pendencias
@@ -267,7 +279,7 @@ story = [
     Spacer(1, 6),
     Paragraph("Onde o trabalho está, em uma frase", H2),
     Paragraph(
-        "Num estado <b>estável e mostrável</b>: o ajudante ensina, desenha, cita a fonte, pergunta "
+        "Num estado <b>estável e mostrável</b>: o tutor ensina, desenha, cita a fonte, pergunta "
         "antes de apagar, não cai no meio da aula e tem como provar cada uma dessas afirmações "
         "com um comando. O que falta não é engenharia — é a parte acadêmica, que é de quem "
         "orienta, e foi exatamente para lá que você mandou. Enquanto ela acontece, nada aqui "
@@ -276,7 +288,7 @@ story = [
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
                         topMargin=1.8 * cm, bottomMargin=1.6 * cm,
-                        title="Ajudante BPMN — checkpoint para avaliação",
-                        author="Ajudante BPMN (TCC)")
+                        title="Tutor BPMN — checkpoint para avaliação",
+                        author="Tutor BPMN (TCC)")
 doc.build(story)
 print(f"PDF: {OUT}")
