@@ -1,0 +1,20 @@
+ATENCAO, LEITOR: a mensagem deste commit NAO descreve tudo o que ele contem.
+
+Alem dos dois geradores de PDF que o titulo anuncia, este commit carrega a rodada inteira da
+BARRA DO TUTOR, feita pela outra sessao que trabalhava no mesmo checkout:
+
+  - src/primeira-vez/tela.js  -- a barra encostada na alavanca, no lugar da tira que pousava
+    sobre o desenho; diz o que da' para fazer naquela trilha, oferece UMA sugestao clicavel e
+    leva de volta ao menu. A sugestao segue a selecao do canvas: clicou em "Assar a pizza", a
+    barra passa a falar dela e abre o painel com a pergunta digitada -- sem enviar. So' o NOME
+    atravessa: a barra nao chama ferramenta e nao decide nada (SIII).
+  - src/app.js, src/primeira-vez/{abertura.js,primeira-vez.css,__tests__/abertura.mjs}
+  - openspec/changes/guide-the-first-run-trails/** -- change nova, com a pesquisa de UI/UX
+  - openspec/apresentacoes/tela-base-rodada-3.html
+
+Causa: indice do git compartilhado por duas sessoes. O `git commit` sem caminho leva o que a
+outra deixou staged. Nada se perdeu; o que se perdeu foi a mensagem. A regra que evita isso virou
+o principio XI do openspec/project.md.
+
+Nota adicionada depois, de proposito: reescrever historia ja' empurrada custaria mais do que a
+correcao vale.
