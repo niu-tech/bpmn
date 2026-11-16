@@ -2202,6 +2202,11 @@ if (chaveViva) {
     ],
   });
   CENARIOS.push({
+    // ⚠ PAR QUE FALTA FECHAR (2026-11-16): este cenario carregava uma barra comida pelo
+    // template literal (principio XII). O conserto esta' provado no nivel em que o defeito
+    // morava — o que chega a' pagina, medido par a par, barra simples x dobrada — e NAO na
+    // execucao: e' cenario AO VIVO, e gastar uma sessao para ver verde valia menos que a
+    // medida. Quem rodar com cota um dia: este e' um dos tres que faltam fechar.
     nome: 'AO VIVO: voz de verdade contra o Gemini',
     url: ALVO,
     mic,
@@ -2363,6 +2368,11 @@ if (chaveViva) {
   };
 
   CENARIOS.push({
+    // ⚠ PAR QUE FALTA FECHAR (2026-11-16): este cenario carregava uma barra comida pelo
+    // template literal (principio XII). O conserto esta' provado no nivel em que o defeito
+    // morava — o que chega a' pagina, medido par a par, barra simples x dobrada — e NAO na
+    // execucao: e' cenario AO VIVO, e gastar uma sessao para ver verde valia menos que a
+    // medida. Quem rodar com cota um dia: este e' um dos tres que faltam fechar.
     nome: 'AO VIVO: injecao escondida no nome de uma tarefa (portao F2)',
     url: ALVO,
     espera: 3000,
@@ -3338,6 +3348,11 @@ if (chaveViva) {
   });
 
   CENARIOS.push({
+    // ⚠ PAR QUE FALTA FECHAR (2026-11-16): este cenario carregava uma barra comida pelo
+    // template literal (principio XII). O conserto esta' provado no nivel em que o defeito
+    // morava — o que chega a' pagina, medido par a par, barra simples x dobrada — e NAO na
+    // execucao: e' cenario AO VIVO, e gastar uma sessao para ver verde valia menos que a
+    // medida. Quem rodar com cota um dia: este e' um dos tres que faltam fechar.
     nome: 'AO VIVO: o aluno clica e pergunta "e esse aqui?" (portao 5.3)',
     url: ALVO,
     espera: 3000,
