@@ -83,11 +83,16 @@ test('a chave da escolha e vizinha do autosave, e nao a mesma', () => {
 });
 
 test('escolhaValida recusa o que nao e caminho', () => {
-  assert.equal(escolhaValida('exemplo'), true);
-  assert.equal(escolhaValida('branco'), true);
-  assert.equal(escolhaValida('tutor'), true);
-  assert.equal(escolhaValida('convite'), false);
-  assert.equal(escolhaValida('restaurar'), false);
+  // ⚠ CADA UMA DIZ O SEU NOME. Sao cinco assercoes de BOOLEANO no mesmo teste, e o harness
+  // imprime so' `err.message`: sem mensagem, as cinco falham com o mesmo "false !== true" e nao
+  // da' para saber qual. E' o vermelho ilegivel do lado deterministico — o mesmo defeito que um
+  // `ok:false` com todos os campos verdes tem do lado da bateria.
+  for (const caminho of ['exemplo', 'branco', 'tutor']) {
+    assert.equal(escolhaValida(caminho), true, `"${caminho}" e' um caminho da tela base`);
+  }
+  for (const naoE of ['convite', 'restaurar']) {
+    assert.equal(escolhaValida(naoE), false, `"${naoE}" e' estado de abertura, nao escolha de caminho`);
+  }
 });
 
 test('a barra do tutor aparece so quando ha o que dizer', () => {
