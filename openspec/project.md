@@ -157,6 +157,14 @@ Três vezes numa semana, nas duas sessões: a classe de dígito no número de re
 simulação (lida como zero), a classe de espaço no texto do acervo, e a crase num comentário
 dentro do passo. Nenhuma foi por desconhecer a armadilha — as duas sessões já a conheciam.
 
+⚠ **A auditoria que esta regra provocou achou TRÊS vivas no mesmo arquivo**, no dia em que ela
+foi escrita — todas em portões ao vivo, todas verdes há semanas: um campo de relatório que
+reportava `n/d` desde sempre; um `split` que partia o nome do elemento **na letra s** em vez
+de no espaço (*"assar a pizza"* virava `["a", "ar a pizza"]`); e, a pior, a classe de espaço
+no portão de **injeção**, que deixava de pegar uma resposta começando com espaço antes de
+OWNED — exatamente o caso que aquela alternativa existe para pegar. Nenhuma delas reprovou
+nada, nunca: é a assinatura do defeito.
+
 As duas saídas, as duas em uso no repositório:
 
 - **não usar regex**: `split`, `includes`, `startsWith`. É o que o portão do acervo faz desde que
