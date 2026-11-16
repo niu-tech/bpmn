@@ -15,6 +15,9 @@ import { join } from 'node:path';
 import { buscar, criarAcervo } from '../knowledge/acervo.js';
 import { conferirCitacoes, NAO_CONFERIDA } from '../knowledge/citacao.js';
 import { criarExecutorDeNorma, ERRO_ACERVO } from '../tools/norma.js';
+import {
+  avisoDeCitacaoNaVoz, fontesDoResultado, linhaDeFim,
+} from '../tools/apresentador.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 
 const INDICE = {
@@ -190,3 +193,92 @@ test('a MARCA DE FRONTEIRA do prompt em qualquer pagina reprova (K9)', () => {
 });
 
 report('acervo');
+
+console.log('\n\u25b6 a linha da tela: o que a consulta LEU, e de onde');
+
+/**
+ * ⚠ ESTAS DUAS LINHAS NUNCA APARECERAM. O corpo do apresentador do acervo estava colado DENTRO
+ * de `descrever_diagrama`, referenciando um `nome` que nao existe naquele escopo: o
+ * `ReferenceError` caia na rede de seguranca de `linhaDeFim` e as DUAS ferramentas viravam
+ * "usei <nome>" — a do acervo perdia os trechos lidos, a do diagrama perdia a contagem.
+ * Descoberto em 2026-11-16, quando o dono perguntou se a voz usa o acervo.
+ */
+test('a linha do acervo diz TITULO e LOCALIZADOR, nao a chave crua', () => {
+  const r = {
+    termo: 'gateway exclusivo',
+    resultados: [
+      { citationKey: 'gateways:exclusivo', title: 'Gateways', locator: '\u00a710.5', contentMode: 'curated_card_only' },
+      { citationKey: 'gateways:paralelo', title: 'Gateways', locator: '\u00a710.6', contentMode: 'curated_card_only' },
+    ],
+    acervo: { verbetes: 12 },
+  };
+  const linha = linhaDeFim('consultar_norma', { termo: 'gateway exclusivo' }, { ok: true, resultado: r });
+  assert.ok(/2 trechos/.test(linha), linha);
+  // O LOCALIZADOR e o ponteiro humano; o titulo e a frase inteira do verbete, e os dois
+  // juntos repetiam a mesma palavra numa linha de 90 caracteres.
+  assert.ok(/\u00a710\.5/.test(linha), linha);
+  assert.ok(/\u00a710\.6/.test(linha), linha);
+  // A chave e prova para nos e ruido para quem le: nao vai na linha.
+  assert.ok(!/gateways:exclusivo/.test(linha), linha);
+});
+
+test('busca sem acerto diz o TAMANHO do acervo, nunca "a notacao nao trata disso"', () => {
+  const linha = linhaDeFim('consultar_norma', { termo: 'xyz' }, {
+    ok: true,
+    resultado: { termo: 'xyz', resultados: [], acervo: { verbetes: 12 } },
+  });
+  assert.ok(/12 verbetes/.test(linha), linha);
+  assert.ok(!/nota[\u00e7c][\u00e3a]o n[\u00e3a]o trata/i.test(linha), linha);
+});
+
+test('a linha do DIAGRAMA voltou a contar (o ReferenceError a tinha matado)', () => {
+  const linha = linhaDeFim('descrever_diagrama', {}, {
+    ok: true,
+    resultado: { total: 9, raias: [{}, {}], semLigacao: [] },
+  });
+  assert.ok(/9 elementos/.test(linha), linha);
+  assert.ok(!/usei descrever_diagrama/.test(linha), linha);
+});
+
+console.log('\n\u25b6 a proveniencia em forma: o que a tela mostra para o aluno conferir');
+
+test('fontesDoResultado traz titulo, localizador e a marca de material NOSSO', () => {
+  const fontes = fontesDoResultado('consultar_norma', {
+    ok: true,
+    resultado: {
+      resultados: [{
+        citationKey: 'eventos:inicio',
+        title: 'Eventos',
+        locator: '\u00a710.4',
+        contentMode: 'curated_card_only',
+        officialUrl: 'https://www.omg.org/spec/BPMN/2.0.2/',
+      }],
+    },
+  });
+  assert.equal(fontes.length, 1);
+  assert.equal(fontes[0].titulo, 'Eventos');
+  assert.equal(fontes[0].localizador, '\u00a710.4');
+  assert.equal(fontes[0].nosso, true);
+  assert.equal(fontes[0].link, 'https://www.omg.org/spec/BPMN/2.0.2/');
+});
+
+test('link que nao e http some: dado do indice nao escolhe esquema de URL', () => {
+  const fontes = fontesDoResultado('consultar_norma', {
+    ok: true,
+    resultado: { resultados: [{ citationKey: 'x:y', title: 'X', officialUrl: 'javascript:alert(1)' }] },
+  });
+  assert.equal(fontes[0].link, null);
+});
+
+test('ferramenta sem fonte citavel devolve lista vazia, e recusa nao inventa fonte', () => {
+  assert.deepEqual(fontesDoResultado('descrever_diagrama', { ok: true, resultado: { total: 3 } }), []);
+  assert.deepEqual(fontesDoResultado('consultar_norma', { ok: false, erro: 'acervo_indisponivel' }), []);
+});
+
+test('o aviso da voz mede o que a voz NAO alcanca: o audio, nao a conferencia', () => {
+  const naVoz = avisoDeCitacaoNaVoz('consultar_norma', 'voz');
+  assert.ok(/\u00e1udio/.test(naVoz), naVoz);
+  // A frase antiga dizia que na voz a citacao NAO e conferida. Virou falso em 2026-11-16.
+  assert.ok(!/n[\u00e3a]o [\u00e9e] conferida/.test(naVoz), naVoz);
+  assert.equal(avisoDeCitacaoNaVoz('consultar_norma', 'texto'), '');
+});

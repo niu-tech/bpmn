@@ -73,10 +73,29 @@ passa por `entregar_resposta`, que é nosso código: toda marca `[fonte:*]` é c
 conjunto, e uma chave nunca servida é substituída por `[fonte não conferida]` antes de a resposta
 aparecer. Não reescrevemos o texto do modelo — só a etiqueta que ele usou errado.
 
-**No modo voz isso não existe.** O áudio vai do provedor ao alto-falante sem passar por nós. Lá o
-que há é a regra do prompt e o fato de o trecho real estar no resultado da ferramenta. A assimetria
-é do desenho do transporte, não da nossa preguiça — e vai declarada na interface e nas limitações
-do TCC, em vez de prometida como se fosse igual nos dois modos.
+**No modo voz há duas metades, e só uma era limite de transporte** (correção de 2026-11-16).
+
+Esta seção dizia *"no modo voz isso não existe"*. Errado pela metade, e a metade errada era um
+defeito nosso escondido atrás de um limite real:
+
+- o **áudio** mesmo não passa por nós, e não dá para reescrever o que já foi dito. Este limite
+  continua, e vai declarado na linha da consulta (*"o áudio já foi falado; confira a fonte
+  aqui"*) e nas limitações do TCC;
+- a **legenda** passa: ela é o nosso texto, no nosso painel. E aparecia CRUA — marca inventada
+  exibida como se tivesse sido conferida, que é pior que não conferir. Agora ela passa pelo
+  mesmo `conferirCitacoes`, e a troca por `[fonte não conferida]` vem com um aviso na bolha,
+  porque o áudio já foi e corrigir em silêncio deixaria a palavra falada valer mais que o
+  nosso registro.
+
+E a proveniência na voz **não depende do modelo escrever marca nenhuma**: ele fala, e ler "abre
+colchete fonte dois pontos" em voz alta seria pior que não citar (por isso a marca entrou na
+seção *o que não se diz em voz alta*). O que a tela mostra é o que a consulta SERVIU, com o
+localizador do acervo — registro nosso, não palavra dele.
+
+⚠ O recorte dessa proveniência é **conversacional, não aritmético**: "o que foi consultado desde
+que o aluno falou". A primeira versão indexava por turno e passava na bancada; o portão do
+navegador mostrou que na voz o turno da resposta falada nem sempre é o da pergunta (o servidor
+fecha o turno da fala e abre outro para o áudio), então a tabela por turno nunca casava na tela.
 
 ## K7 — Duas fontes declaradas, como seção do registro de F2
 

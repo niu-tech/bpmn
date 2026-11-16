@@ -20,7 +20,8 @@ import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { portaoDaFerramenta } from './agent/catalog.js';
 import {
-  avisoDeCitacaoNaVoz, candidatosDoResultado, linhaDeFim, linhaDeInicio, mostraveisDoResultado,
+  avisoDeCitacaoNaVoz, candidatosDoResultado, fontesDoResultado, linhaDeFim, linhaDeInicio,
+  mostraveisDoResultado,
 } from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
@@ -230,6 +231,28 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * vira "[fonte não conferida]" antes de aparecer. Prompt pede; código impede.
    */
   const chavesServidas = new Set();
+  /**
+   * AS FONTES SERVIDAS DESDE QUE O ALUNO FALOU — e é isto que torna a citação conferivel na VOZ.
+   *
+   * ⚠ No texto dá para conferir a marca `[fonte:*]` que o modelo escreve. Na voz ele não
+   * escreve: ele fala, e dizer "abre colchete fonte dois pontos gateways" em voz alta seria
+   * pior que não citar. Então a proveniência na voz não sai do que ele diz — sai do que NÓS
+   * servimos, que é registro nosso, e a tela a mostra com o localizador do acervo ("Gateways
+   * › exclusivo (XOR)"), nunca a chave crua.
+   *
+   * ⚠ NÃO indexada por turno, e o portão do navegador é quem mostrou por quê: na voz o turno
+   * da RESPOSTA falada nem sempre é o da pergunta (o servidor fecha o turno da fala e abre
+   * outro para o áudio), então uma tabela por turno casava na bancada e falhava na tela. O
+   * recorte certo é conversacional, não aritmético: **o que foi consultado desde que o aluno
+   * falou** é exatamente a proveniência da resposta que ele está ouvindo.
+   */
+  let fontesDaVez = [];
+  /** Nova fala (ou nova pergunta digitada): a proveniência da anterior morre com ela. */
+  const zerarFontes = () => { fontesDaVez = []; };
+  const guardarFontes = (fontes) => {
+    const vistas = new Set(fontesDaVez.map((f) => f.chave));
+    fontesDaVez = [...fontesDaVez, ...fontes.filter((f) => !vistas.has(f.chave))];
+  };
   /**
    * O relógio que transforma UMA PAUSA DELE em "pensando…".
    *
@@ -1018,6 +1041,22 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
            */
           const mostraveis = mostraveisDoResultado(nome, resultado);
           if (mostraveis.length) atividade.mostraveis = mostraveis;
+          /**
+           * E A PROVENIÊNCIA: o que a consulta SERVIU, na bolha dela e guardado no turno.
+           *
+           * Na bolha porque é ali que o aluno está olhando quando a consulta termina; no turno
+           * porque a resposta chega depois, e na voz ela é o único lugar onde a citação pode ser
+           * conferida — o áudio já foi.
+           */
+          /**
+           * ⚠ A proveniência vai na RESPOSTA, não aqui. A linha desta consulta já diz o
+           * localizador no texto ("li 1 trecho do acervo — Gateways › exclusivo (XOR)"), e
+           * repetir o mesmo rótulo num bloco colado embaixo dela seria a mesma informação duas
+           * vezes em duas linhas seguidas. Quem precisa conferir está lendo a resposta.
+           */
+          const fontes = fontesDoResultado(nome, resultado);
+          // Duas consultas antes da mesma resposta somam, sem repetir chave.
+          if (fontes.length) guardarFontes(fontes);
           atividade = null;
         }
         // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
@@ -1283,8 +1322,9 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
          * sessão realmente serviram. A que nenhuma consulta devolveu vira "[fonte não conferida]"
          * ANTES de aparecer — o texto do modelo continua inteiro, só a etiqueta errada cai.
          *
-         * ⚠ Só no modo TEXTO. Na voz, o áudio vai do provedor ao alto-falante sem passar por
-         * nós: lá vale a regra do prompt, e a assimetria é declarada, não escondida.
+         * ⚠ Este é o caminho do TEXTO. A legenda da voz tem a sua própria conferência (ver
+         * `onTranscript`, side `output`): ela é o nosso texto, no nosso painel, e passou a ser
+         * conferida em 2026-11-16. O que continua fora do nosso alcance é o áudio já falado.
          */
         const conferido = conferirCitacoes(text, chavesServidas);
         if (conferido.trocadas.length) {
@@ -1297,8 +1337,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         // turno recém-aberto e lida como resposta da pergunta nova (T9).
         const n = turnoLocal(turno);
         const bolha = bolhaDoTurno(n);
+        const fontesDesteTurno = fontesDaVez;
         if (bolha) {
           bolha.text = text;
+          if (fontesDesteTurno.length) bolha.fontes = fontesDesteTurno;
           bolha.rodando = false;
           // O turno FECHOU: quem lê não precisa adivinhar pelo texto ter parado de mudar. Uma
           // pausa do modelo no meio da frase é indistinguível do fim, e foi assim que o portão F6
@@ -1307,7 +1349,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           bolha.fallback = Boolean(fallback);
           publish();
         } else {
-          push({ role: 'assistant', text, fallback: Boolean(fallback), completa: Boolean(complete), turn: n });
+          push({
+            role: 'assistant',
+            text,
+            fallback: Boolean(fallback),
+            completa: Boolean(complete),
+            turn: n,
+            ...(fontesDesteTurno.length ? { fontes: fontesDesteTurno } : {}),
+          });
         }
       },
       onTranscript: ({ side, text, turno }) => {
@@ -1315,6 +1364,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         if (side === 'input') {
           // Houve fala de verdade: o que veio antes não era laço de eco.
           interrupcoesSeguidas = 0;
+          // ⚠ FALA NOVA ZERA A PROVENIÊNCIA: as fontes da resposta anterior não são fontes
+          // desta. Só no começo da fala — um pedaço no meio dela não é uma fala nova (a mesma
+          // conta da época do portão falado).
+          if (!rastreador?.estaFalando) zerarFontes();
           // ⚠ UM pedaço não é uma pergunta. O rastreador junta os pedaços numa fala só e a bolha
           // CRESCE; quem fecha é sinal do servidor, nunca um relógio nosso.
           turnoDaFala = turnoLocal(turno);
@@ -1348,11 +1401,36 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         const n = turnoLocal(turno);
         const cru = (legendaCruaDoTurno.get(n) ?? '') + text;
         legendaCruaDoTurno.set(n, cru);
-        const visivel = legendaVisivel(cru);
+        /**
+         * A CONFERÊNCIA DE CITAÇÃO TAMBÉM AQUI (K6, corrigido em 2026-11-16).
+         *
+         * ⚠ Este caminho escrevia a legenda CRUA na tela. O áudio, de fato, não passa por nós
+         * — mas a legenda passa: ela é o nosso texto, no nosso painel. Marca inventada aparecia
+         * ali como se tivesse sido conferida, o que é pior do que não conferir: é a tela
+         * emprestando credibilidade a uma fonte que nenhuma consulta devolveu.
+         *
+         * Confere o ACUMULADO, nunca o pedaço: marca partida entre dois pedaços não casa em
+         * nenhum dos dois (a mesma razão de `legendaVisivel` filtrar o acumulado).
+         */
+        const conferida = conferirCitacoes(legendaVisivel(cru), chavesServidas);
+        const visivel = conferida.texto;
+        if (conferida.trocadas.length) {
+          diag.state('citacao-voz', `${conferida.trocadas.length} marca(s) sem consulta: ${conferida.trocadas.join(', ')}`);
+        }
         if (!visivel.trim()) return;
+        const fontesDaFala = fontesDaVez;
         const bolha = bolhaDoTurno(n);
         if (bolha) {
           bolha.text = visivel;
+          if (fontesDaFala.length) bolha.fontes = fontesDaFala;
+          /**
+           * O ÁUDIO JÁ FOI: a tela não pode consertar o que foi dito, então DIZ.
+           *
+           * No texto a etiqueta errada cai antes de aparecer e assunto encerrado. Na voz o aluno
+           * já ouviu a frase — esconder que a fonte não fecha seria deixar a palavra falada valer
+           * mais que o nosso registro. Marcado no turno, para a tela avisar naquela bolha.
+           */
+          if (conferida.trocadas.length) bolha.citacaoSuspeita = [...conferida.trocadas];
           /**
            * ⚠ CHEGOU RESPOSTA: para de pulsar. Este caminho (a legenda da VOZ) escrevia o texto
            * por cima da bolha de espera e **não limpava** `rodando` — então toda bolha já
@@ -1363,7 +1441,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           bolha.rodando = false;
           publish();
         } else {
-          push({ role: 'assistant', text: visivel, fallback: true, turn: n });
+          push({
+            role: 'assistant',
+            text: visivel,
+            fallback: true,
+            turn: n,
+            ...(fontesDaFala.length ? { fontes: fontesDaFala } : {}),
+            ...(conferida.trocadas.length ? { citacaoSuspeita: [...conferida.trocadas] } : {}),
+          });
         }
       },
       onAudio: async (b64) => {
@@ -1649,6 +1734,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       // turno: o numero e nosso, e perder a contagem quebraria desde o aviso de troca de modo
       // ate a origem do que o modelo mandar guardar.
       voltarAFalar('pergunta nova');
+      // Pergunta nova é resposta nova: as fontes da anterior não são fontes desta.
+      zerarFontes();
       alunoFalou();
       const daSessao = session.ask(q, delta);
       const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);
@@ -1948,6 +2035,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       }
 
       voltarAFalar('escolha no chat');
+      zerarFontes();
       const delta = calcularDelta();
       const daSessao = session.ask(`(escolhido no chat) ${rotulo}`, delta);
       const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);

@@ -101,7 +101,8 @@ story = [
         ["<b>Ensina com fonte</b>",
          "pergunta sobre a notação e recebe a resposta com a referência",
          "um acervo autoral de BPMN servido com o site; o modelo <b>escolhe</b> consultá-lo, e o "
-         "aplicativo <b>confere a citação</b> antes de ela aparecer na tela"],
+         "aplicativo <b>confere a citação</b> antes de ela aparecer na tela — por escrito e por "
+         "voz, onde a fonte sai do registro da consulta e não do que o modelo disse"],
         ["<b>Orienta quem chega</b>",
          "entra pela primeira vez e sabe o que pedir, sem ler manual",
          "uma barra encostada no botão do tutor diz o que dá para fazer naquela trilha e "

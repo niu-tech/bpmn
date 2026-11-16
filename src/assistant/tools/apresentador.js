@@ -28,6 +28,40 @@ const plural = (n, um, muitos) => `${n} ${n === 1 ? um : muitos}`;
  * uma linha escrita à mão, e por isso é só a rede de segurança.
  */
 const COMO_MOSTRAR = {
+  /**
+   * O ACERVO — e esta linha é a PROVENÂNCIA, não um enfeite de progresso.
+   *
+   * ⚠ Ela existia e **nunca apareceu**: o corpo estava colado dentro de `descrever_diagrama`,
+   * referenciando um `nome` que não existe naquele escopo. O `ReferenceError` caía na rede de
+   * segurança de `linhaDeFim` e as DUAS ferramentas viravam "usei <nome>" — a do acervo perdia
+   * os trechos lidos, e a do diagrama perdia a contagem. Medido em 2026-11-16, quando o dono
+   * perguntou se a voz usa o acervo: usa, e o aluno não via nem em texto o que foi lido.
+   *
+   * O título e o localizador vêm aqui porque a chave sozinha (`gateways:exclusivo`) é prova
+   * para nós e nada para o aluno: o que ele confere é "Gateways, §10.5".
+   */
+  consultar_norma: (e, r) => {
+    if (!r || r.ok === false) return 'consultei o acervo';
+    const achados = Array.isArray(r.resultados) ? r.resultados : [];
+    const termo = r.termo ?? e?.termo;
+    const alvo = termo ? `"${termo}"` : 'o acervo';
+    // ⚠ "não achei" tem de dizer o TAMANHO do acervo: sem isso o aluno (e o modelo) leem
+    // "a notação não trata disso", que é outra afirmação e é falsa.
+    if (!achados.length) {
+      return `procurei ${alvo} no acervo de ${r.acervo?.verbetes ?? '?'} verbetes — nada`;
+    }
+    /**
+     * O LOCALIZADOR, e não o título: ele é o ponteiro humano do acervo ("Gateways › exclusivo
+     * (XOR)"), enquanto o título é a frase inteira do verbete ("Gateways — onde o caminho se
+     * divide e volta a juntar"). Os dois juntos repetiam a palavra "Gateways" e faziam uma
+     * linha de 90 caracteres para dizer onde está um trecho.
+     */
+    const onde = achados
+      .map((x) => x.locator || x.title || x.citationKey)
+      .join(' · ');
+    return `li ${plural(achados.length, 'trecho', 'trechos')} do acervo — ${onde}`;
+  },
+
   descrever_diagrama: (_e, r) => {
     if (!r || r.ok === false) return 'olhei o diagrama';
     const partes = [];
@@ -35,12 +69,6 @@ const COMO_MOSTRAR = {
     if (r.raias?.length) partes.push(plural(r.raias.length, 'raia', 'raias'));
     // Ponta solta é o defeito mais comum de aluno: se há, a linha diz quantas.
     if (r.semLigacao?.length) partes.push(plural(r.semLigacao.length, 'sem ligação', 'sem ligação'));
-    if (SEM_CONFERENCIA_NA_VOZ[nome]) {
-      const quantos = (r.resultados ?? []).length;
-      if (!quantos) return `procurei no acervo de ${r.acervo?.verbetes ?? '?'} verbetes — nada sobre isso`;
-      const chaves = r.resultados.map((x) => x.citationKey).join(', ');
-      return `li ${quantos} trecho(s) do acervo: ${chaves}`;
-    }
     if (r.selecionados?.length > 1) {
       partes.push(`selecionados: ${r.selecionados.map((e) => e.nome ?? e.id).join(', ')}`);
     } else if (r.selecionado?.nome) partes.push(`selecionado: ${r.selecionado.nome}`);
@@ -335,11 +363,57 @@ export function linhaDeInicio(nome) {
  * recusa dois nomes de ferramenta como STRING no mesmo arquivo — dois literais são uma tabela de
  * roteamento esperando para acontecer. Como chave de objeto, o nome é declaração, não despacho.
  */
-const SEM_CONFERENCIA_NA_VOZ = { consultar_norma: true };
+const TEM_FONTE_CITAVEL = { consultar_norma: true };
 
+/**
+ * AS FONTES QUE A CONSULTA DE FATO SERVIU, em forma, para a tela mostrar.
+ *
+ * ⚠ Isto é o que torna a citação conferivel NA VOZ (K6, corrigido em 2026-11-16). No texto a
+ * conferência pode ser feita na marca `[fonte:*]` que o modelo escreve; na voz o modelo não
+ * escreve nada — ele fala, e ler "abre colchete fonte dois pontos" em voz alta seria pior que
+ * não citar. Então a proveniência na voz não vem do que ele diz: vem do que NÓS servimos, que é
+ * registro nosso e não depende da boa vontade do modelo.
+ *
+ * Mapa com chave não citada, como `mostraveisDoResultado`: nome de ferramenta como chave é
+ * declaração, como string seria despacho (guardrail).
+ */
+const ONDE_ESTAO_AS_FONTES = {
+  consultar_norma: (r) => (Array.isArray(r.resultados) ? r.resultados : []),
+};
+
+export function fontesDoResultado(nome, resposta) {
+  const resultado = (resposta && typeof resposta === 'object' && 'resultado' in resposta)
+    ? resposta.resultado
+    : resposta;
+  if (!resultado || resultado.ok === false) return [];
+  const lista = ONDE_ESTAO_AS_FONTES[nome]?.(resultado) ?? [];
+  return lista
+    .filter(Boolean)
+    .map((f) => ({
+      chave: String(f.citationKey ?? ''),
+      titulo: String(f.title ?? ''),
+      localizador: String(f.locator ?? ''),
+      // Só http(s): link vindo do índice é dado, e dado não escolhe esquema de URL.
+      link: /^https?:\/\//.test(String(f.officialUrl ?? '')) ? String(f.officialUrl) : null,
+      // Material NOSSO (`curated_card_only`) não pode ser citado como texto da norma da OMG.
+      nosso: f.contentMode === 'curated_card_only',
+    }))
+    .filter((f) => f.chave);
+}
+
+/**
+ * O QUE A VOZ NÃO ALCANÇA, dito onde tem consequência — e só isso.
+ *
+ * ⚠ Esta linha dizia *"na voz, a citação não é conferida pelo aplicativo"*, e isso virou falso
+ * em 2026-11-16: a legenda na tela passou a ser conferida como o texto, e as fontes servidas
+ * aparecem na bolha da consulta nos DOIS modos. O que continua fora do nosso alcance é o
+ * ÁUDIO — ele vai do provedor ao alto-falante e não dá para reescrever o que já foi dito. A
+ * frase mede esse limite, nem mais nem menos: prometer igual seria mentira, e manter a antiga
+ * seria dizer ao aluno que não há conferência quando há.
+ */
 export function avisoDeCitacaoNaVoz(nome, modo) {
-  return SEM_CONFERENCIA_NA_VOZ[nome] && modo === 'voz'
-    ? ' (na voz, a citação não é conferida pelo aplicativo)'
+  return TEM_FONTE_CITAVEL[nome] && modo === 'voz'
+    ? ' (o áudio já foi falado; a fonte vai na resposta)'
     : '';
 }
 

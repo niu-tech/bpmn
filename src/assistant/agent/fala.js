@@ -56,5 +56,7 @@ export function instrucaoDeCanais() {
     'em voz alta — ninguém anota um id ouvindo, e o aluno perde o fio da explicação. Refira-se aos',
     'elementos pelo NOME e pelo tipo ("a tarefa Preparar pedido", "o gateway depois dela"). O id',
     'continua existindo e aparece na tela quando for preciso; a sua parte é a explicação.',
+    'A marca [fonte:...] é marcador de máquina: não a leia em voz alta. Diga "pelo meu material"',
+    '— a tela mostra a fonte que a consulta serviu.',
   ].join(' ');
 }

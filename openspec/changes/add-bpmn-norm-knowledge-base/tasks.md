@@ -51,8 +51,31 @@
 - [x] 3.3 O despacho guarda as `citationKey` servidas na sessão (K6)
 - [x] 3.4 `entregar_resposta` confere as marcas `[fonte:*]` contra o conjunto servido e troca a
       desconhecida por `[fonte não conferida]`, sem reescrever o resto do texto
-- [x] 3.5 A interface declara, no modo voz, que a conferência de citação não se aplica — o áudio
-      não passa pelo aplicativo (K6). Promessa igual nos dois modos seria mentira
+- [x] 3.5 A interface declara, no modo voz, o limite que de fato existe: **o áudio já foi falado**
+      e não dá para reescrever o que foi dito (K6). ⚠ Esta caixa dizia *"a conferência de
+      citação não se aplica"*, e isso virou falso em **2026-11-16**: ver 3.6
+- [x] 3.6 **A legenda da voz também é conferida, e a proveniência vem do que foi SERVIDO**
+      (2026-11-16, a pedido do dono: *"precisamos ter sim as conferências de citações via voz
+      também"*). A frase antiga juntava duas coisas: o **áudio** não passa por nós (limite real),
+      mas a **legenda** passa — e aparecia crua, com marca inventada exibida como se tivesse
+      sido conferida, que é pior que não conferir. Agora: a legenda passa pelo mesmo
+      `conferirCitacoes`; a bolha **avisa** quando a fala citou fonte que não fecha; e a tela
+      mostra a fonte daquela resposta com o **localizador do acervo**, tirada do registro da
+      consulta e não do texto do modelo — que é o que torna a citação conferivel onde o modelo
+      não escreve marca nenhuma (a marca entrou na seção *o que não se diz em voz alta*).
+      ⚠ O recorte é **conversacional**: as fontes consultadas desde que o aluno falou. A
+      primeira versão indexava por TURNO, passou na bancada e falhou na tela — na voz o turno
+      da resposta falada nem sempre é o da pergunta (medido no portão: `tool:1`, `assistant:2`).
+      Provas: `session-manager.mjs` (legenda conferida · marca partida em dois pedaços · turno
+      diferente · pergunta nova não herda fonte), `acervo.mjs` (a linha do acervo, a do
+      diagrama e `fontesDoResultado`) e o portão `voz: a legenda e CONFERIDA...` (sem cota,
+      acervo real, modo voz de verdade)
+- [x] 3.7 **A linha que mostra o trecho lido existia e NUNCA apareceu** (achado em 2026-11-16,
+      no caminho da 3.6). O corpo do apresentador do acervo estava escrito dentro de
+      `descrever_diagrama`, referenciando um `nome` fora de escopo: o `ReferenceError` caía na
+      rede de segurança de `linhaDeFim` e as DUAS ferramentas viravam *"usei &lt;nome&gt;"* — a
+      do acervo sem os trechos, a do diagrama sem a contagem, **em modo nenhum**. Nenhum teste
+      lia a linha; agora três leem
 
 ## 4. Prompt e guardrail
 
@@ -90,8 +113,9 @@
 ## O que esta change entregou, e o que ficou declarado (2026-11-15)
 
 **Entregue e provado.** 12 verbetes autorais (28 trechos, índice de 18,2 KB), build-validador no
-`npm test`, busca lexical própria, `consultar_norma` nos dois perfis, conferência de citação no
-modo texto, seção das duas fontes no prompt. Doze provas determinísticas novas
+`npm test`, busca lexical própria, `consultar_norma` nos dois perfis, conferência de citação
+**nos dois modos** (a do modo voz entrou em 2026-11-16 — ver 3.6), seção das duas fontes no
+prompt. Doze provas determinísticas novas
 (`src/assistant/__tests__/acervo.mjs`), um portão no navegador sem cota, e o portão FK **ao
 vivo**:
 

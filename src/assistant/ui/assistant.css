@@ -858,3 +858,42 @@
   border-color: #94a3b8;
   color: #0f172a;
 }
+
+/* ---------------------------------------------------------------- proveniência da resposta
+   A FONTE que a consulta serviu — título e localizador, abaixo do texto.
+   Discreta de propósito: ela existe para CONFERIR, não para competir com a resposta. */
+.bpmn-assist__fontes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.bpmn-assist__fontes-rotulo {
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.bpmn-assist__fonte {
+  color: #334155;
+  border-bottom: 1px dotted #94a3b8;
+  text-decoration: none;
+}
+a.bpmn-assist__fonte:hover,
+a.bpmn-assist__fonte:focus-visible { border-bottom-style: solid; }
+.bpmn-assist__fontes-nota { color: #64748b; font-style: italic; }
+
+/* O áudio já foi falado e a fonte não fecha: a tela DIZ, em vez de corrigir em silêncio.
+   Mesmo âmbar do aviso de privacidade — é ressalva, não erro do aluno (que é vermelho). */
+.bpmn-assist__citacao-suspeita {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(217, 119, 6, .10);
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.bpmn-assist__citacao-suspeita::before { content: '⚠ '; }

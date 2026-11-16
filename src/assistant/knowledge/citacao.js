@@ -10,9 +10,18 @@
  *  - **não reescreve o texto do modelo.** Só a etiqueta errada é trocada; o que ele disse
  *    continua lá, para o aluno ler e julgar. Apagar a frase seria esconder o erro em vez de
  *    mostrá-lo;
- *  - **não vale para a voz.** O áudio vai do provedor ao alto-falante sem passar por nós. A
- *    assimetria é do transporte, e vai declarada na interface e nas limitações do TCC — nunca
- *    prometida como se fosse igual nos dois modos.
+ *  - **não alcança o ÁUDIO.** O áudio vai do provedor ao alto-falante e não dá para reescrever
+ *    o que já foi dito. Esse limite é do transporte, e vai declarado.
+ *
+ * ⚠ CORREÇÃO DE REGISTRO (2026-11-16). Este cabeçalho dizia *"não vale para a voz"*, e isso
+ * juntava duas coisas diferentes numa frase só — escondendo um defeito nosso atrás de um
+ * limite de transporte. O áudio, de fato, não passa por nós; a **legenda** passa, e ela
+ * aparecia CRUA: marca inventada era exibida como se tivesse sido conferida, o que é pior que
+ * não conferir (a tela empresta credibilidade a uma fonte que nenhuma consulta devolveu).
+ * Agora a legenda da voz passa por aqui como o texto, e a proveniência da resposta falada vem
+ * do que o aplicativo SERVIU — não do que o modelo disse. Quem perguntou foi o dono: *"por
+ * modo voz não usamos a nossa base de conhecimento? Ou só não referenciamos?"* — usa, e agora
+ * referencia.
  */
 
 /** A marca, como o prompt a ensina: `[fonte:<verbete>:<trecho>]`. */

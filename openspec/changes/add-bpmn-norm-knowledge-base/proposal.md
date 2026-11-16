@@ -52,8 +52,10 @@ estamos copiando.
   lexical, a change muda de forma — não ganha servidor.
 - Prometer que o agente "sabe a norma". Ele sabe **o que está no acervo**, e o acervo diz o seu
   próprio tamanho.
-- Prometer conferência de citação na **voz**. O áudio não passa pelo nosso código; a assimetria é
-  declarada na interface, não escondida (K6).
+- ~~Prometer conferência de citação na **voz**.~~ **Virou objetivo, e foi feito** (2026-11-16, a
+  pedido do dono). O que continua fora é reescrever o **áudio** já falado — esse é o limite do
+  transporte. A legenda na tela é conferida como o texto, e a proveniência da resposta falada
+  sai do que o aplicativo SERVIU (K6).
 
 ## As perguntas que bloqueavam, e onde foram parar
 

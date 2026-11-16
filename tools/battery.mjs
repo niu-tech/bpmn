@@ -1649,6 +1649,96 @@ CENARIOS.push({
 });
 
 /**
+ * A CITACAO CONFERIDA NA VOZ (K6, corrigido em 2026-11-16).
+ *
+ * O dono perguntou se o modo voz usa o acervo. Usa — `consultar_norma` e declarada nos dois modos
+ * e o modelo a chama falando. O que NAO acontecia era a confer\u00eancia, e a parte disso que era
+ * defeito nosso (e nao limite de transporte) e esta: a LEGENDA e o nosso texto, no nosso painel,
+ * e ela aparecia CRUA. Marca inventada era exibida como se tivesse sido conferida — pior que nao
+ * conferir, porque a tela empresta credibilidade a uma fonte que nenhuma consulta devolveu.
+ *
+ * O que este portao mede, numa sessao de VOZ de verdade (modo voz, legenda pelo fio), com o
+ * acervo REAL servido pelo site e SEM cota:
+ *
+ *  1. a marca SERVIDA sobrevive na legenda;
+ *  2. a marca INVENTADA vira "[fonte nao conferida]" na tela;
+ *  3. a tela AVISA que a fala citou fonte que nao fecha — o audio ja foi, e corrigir em silencio
+ *     deixaria a palavra falada valer mais que o nosso registro;
+ *  4. e a PROVENIENCIA aparece com titulo e localizador, vinda do que NOS servimos — e nao do
+ *     que o modelo disse. E isso que torna a citacao conferivel na voz, onde ele nao escreve
+ *     marca nenhuma (dizer "abre colchete fonte dois pontos" em voz alta seria pior que nao citar).
+ */
+CENARIOS.push({
+  nome: 'voz: a legenda e CONFERIDA, a fonte aparece na tela, e o audio que ja foi vira aviso (K6)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    CONECTAR,
+    `// O MICROFONE e a porta da voz: clicar nele leva a sessao para o modo voz (sessao nova).
+     document.querySelector('.bpmn-assist__mic').click();
+     await new Promise((f) => setTimeout(f, 200));
+     window.__responde({ setupComplete: {} });
+     await new Promise((f) => setTimeout(f, 600));
+     if (window.__bpmnAssist.estado.modo !== 'voz') {
+       return { ok: false, erro: 'nao entrou no modo voz: ' + window.__bpmnAssist.estado.modo };
+     }
+
+     // A FALA DO ALUNO primeiro, como no fluxo de verdade: e a legenda de ENTRADA que registra
+     // o turno local da pergunta. Sem ela, a consulta cairia num turno e a resposta em outro —
+     // artificio do portao, nao do produto (no fluxo real o servidor transcreve a fala antes de
+     // o modelo chamar ferramenta).
+     window.__responde({ serverContent: { inputTranscription: { text: 'o que e um gateway exclusivo?' } } });
+     await new Promise((f) => setTimeout(f, 200));
+
+     // Consulta REAL ao acervo servido pelo site, pelo caminho do modelo. E ela que registra as
+     // chaves contra as quais a legenda sera conferida.
+     const consulta = await window.__bpmnAssist.ferramenta('consultar_norma', { termo: 'gateway exclusivo', max: 1 });
+     const servida = consulta?.resultado?.resultados?.[0];
+     if (!servida) return { ok: false, erro: 'o acervo nao serviu nada para "gateway exclusivo"' };
+
+     // A linha da ferramenta diz o que foi LIDO (titulo + localizador), e nao "usei <nome>":
+     // este corpo vivia dentro da funcao errada e nunca aparecia em modo nenhum.
+     const linhaDaConsulta = [...document.querySelectorAll('.bpmn-assist__msg--tool')]
+       .map((m) => m.textContent.trim()).at(-1) ?? '';
+
+     // A fala do modelo cita DUAS fontes: a que foi servida e uma que nunca existiu.
+     const inventada = 'acervo-fantasma:trecho-que-nao-existe';
+     window.__responde({ serverContent: { outputTranscription: { text:
+       'Pelo meu material, o exclusivo escolhe UM caminho [fonte:' + servida.citationKey + ']. '
+       + 'E a norma diz mais [fonte:' + inventada + '].' } } });
+     await new Promise((f) => setTimeout(f, 400));
+
+     const bolhas = [...document.querySelectorAll('.bpmn-assist__msg--assistant')];
+     const ultima = bolhas.at(-1);
+     const texto = ultima?.querySelector('.bpmn-assist__text')?.textContent ?? '';
+     const aviso = ultima?.querySelector('.bpmn-assist__citacao-suspeita')?.textContent ?? '';
+     const itens = [...(ultima?.querySelectorAll('.bpmn-assist__fonte') ?? [])];
+     const fontes = itens.map((f) => f.textContent.trim());
+     // O titulo inteiro do verbete vive no tooltip: visivel fica o LOCALIZADOR, que e o
+     // ponteiro curto. Os dois na mesma linha repetiam a palavra e gastavam 90 caracteres.
+     const tooltips = itens.map((f) => f.getAttribute('title') ?? '');
+
+     const servidaFicou = texto.includes('[fonte:' + servida.citationKey + ']');
+     const inventadaCaiu = !texto.includes(inventada) && /fonte n[\u00e3a]o conferida/.test(texto);
+     const avisou = /nenhuma consulta desta sess/.test(aviso);
+     // A proveniencia e legivel: titulo e localizador, nao a chave crua.
+     const temLocalizador = fontes.some((f) => f.includes(servida.locator || servida.title));
+     const tituloNoTooltip = tooltips.some((t) => t.includes(servida.title));
+     const semChaveCrua = !fontes.some((f) => f.includes(servida.citationKey));
+
+     return {
+       ok: servidaFicou && inventadaCaiu && avisou && temLocalizador && tituloNoTooltip
+         && semChaveCrua && linhaDaConsulta.includes(servida.locator || servida.title),
+       chaveServida: servida.citationKey,
+       servidaFicou, inventadaCaiu, avisou, temLocalizador, tituloNoTooltip, semChaveCrua,
+       fontesNaTela: fontes,
+       linhaDaConsulta: linhaDaConsulta.slice(0, 90),
+       texto: texto.slice(0, 160),
+     };`,
+  ],
+});
+
+/**
  * O VIEWER SIMULANDO COM O PAINEL ABERTO (divida T3, fechada em 2026-11-15).
  *
  * O portao antigo media que o viewer CARREGA com o ajudante montado — e parava ali. O que o

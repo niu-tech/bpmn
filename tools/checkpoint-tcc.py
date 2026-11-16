@@ -77,7 +77,8 @@ story = [
         "lê o diagrama aberto, responde sobre os elementos que o aluno clica, "
         "<b>escreve</b> no desenho (cria, liga, renomeia, insere no meio do fluxo, move, alinha, "
         "cria pool e raia), <b>pergunta antes</b> de apagar, consulta um acervo autoral de BPMN e "
-        "<b>cita a fonte</b> — e o aplicativo confere a citação antes de ela aparecer na tela.", P),
+        "<b>cita a fonte</b> — e o aplicativo confere a citação antes de ela aparecer na tela, "
+        "nos dois modos: a legenda da voz passa pela mesma conferência que o texto.", P),
     Paragraph(
         "Nada disso depende de servidor nosso: a chave é do aluno, a conversa morre com a aba, e "
         "o site é um arquivo estático. É o que torna o trabalho reproduzível por quem for "
@@ -195,6 +196,16 @@ story = [
         "bpmn-js desenha diferente depois de uma atualização. E o <b>viewer</b> deixou de ser "
         "provado só “carrega”: agora um portão roda a <b>simulação em lote</b> com o painel "
         "aberto e cobra que o tutor saiba comentar o resultado sem poder editar nada.",
+        "<b>Você perguntou se a voz usa o acervo. Usa — e a pergunta achou dois defeitos.</b> O "
+        "que faltava não era a consulta: era a <b>conferência</b>. A nossa própria frase dizia "
+        "que “na voz a citação não é conferida”, e isso juntava duas coisas: o <b>áudio</b> "
+        "realmente não passa por nós, mas a <b>legenda</b> passa — e aparecia crua, com a marca "
+        "inventada exibida como se tivesse sido conferida, que é pior que não conferir. Agora a "
+        "legenda é conferida como o texto, a bolha <b>avisa</b> quando a fala citou fonte que "
+        "não fecha (o áudio já foi), e a fonte aparece com o localizador do acervo — tirada do "
+        "que o aplicativo <b>serviu</b>, não do que o modelo disse. O segundo defeito: a linha "
+        "que mostra o que a consulta leu estava escrita dentro da função errada e <b>nunca "
+        "apareceu, em modo nenhum</b> — o erro caía numa rede de segurança que o engolia.",
         "<b>Os quatro pontos que você apontou na tela inicial foram atendidos — e dois eram "
         "defeito nosso.</b> A frase que o produto escrevia no seu lugar tinha 47 caracteres numa "
         "caixa de uma linha: <b>chegava cortada</b>, e agora o teto (33) é teste. O “tutor” "

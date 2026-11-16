@@ -27,7 +27,7 @@
 | **F.5** | Memória durável entre visitas | **dono — estacionado** (*"também podemos ir vendo"*) | a memória morre com a aba **por escolha**, e o aviso de privacidade diz isso |
 | **F.2** | MCP | **dono — fora do MVP** | nada do trabalho depende disso hoje |
 | **M5** | Expiração de sessão por idade (`go-away`, ~10 min) vista ao vivo | **declarado** | o quadro é reconhecido e registrado no diário; e desde que a sessão parada passou a **dormir**, ela nem chega a envelhecer |
-| **6.3** | Ao vivo: induzir o modelo a citar uma chave inexistente | **declarado** | provado no gerente, que é onde a troca por `[fonte não conferida]` acontece. Ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
+| **6.3** | Ao vivo: induzir o modelo a citar uma chave inexistente | **declarado** | provado no gerente, que é onde a troca por `[fonte não conferida]` acontece — e desde 2026-11-16 nos **dois** modos, legenda da voz incluída, com portão de navegador sem cota. Ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
 | **—** | Queda de **rede física** (cabo, Wi-Fi do aluno) | **declarado** | nenhuma ferramenta do navegador a produz (medido: `offline` do CDP não derruba socket aberto). A queda que acontece de verdade — a do servidor — **está** provada ao vivo |
 | **T13** | A sobreposição medida ignora **rótulo** | **meu** | como o próprio bpmn-js, o medidor só compara formas |
 | **T18** | *"Arruma o desenho"* — layout automático de verdade | **meu — frente nova** | `alinhar` resolve dois ou três elementos, que é o pedido real do aluno hoje. E o bpmn-js **não tem** layout automático: escrever um é grafo em camadas, raias e rótulos — uma frente, não uma ponta. Fica escrito aqui para não parecer esquecimento |
@@ -93,6 +93,44 @@ síncronas — as **123** assíncronas (onde vivem as 66 provas das ferramentas 
 fora da conta. É o mesmo buraco da dívida T10, uma camada acima: lá elas ficavam fora do
 **veredito**, aqui ficavam fora do **número**. O total honesto é **683** (560 síncronas + 123
 assíncronas), e é esse que os PDFs passam a dizer.
+
+### 0c. A pergunta do dono que achou dois defeitos (2026-11-16)
+
+> *"Atualmente então por modo voz não usamos a nossa base de conhecimento? Ou só não
+> referenciamos? […] precisamos ter sim as conferências de citações via voz também."*
+
+**A resposta era: usa, e não referenciava.** `consultar_norma` é declarada nos dois modos e o
+modelo a chama falando — o acervo nunca esteve fora da voz. O que não acontecia era a
+**conferência**, e a frase que nós mesmos tínhamos escrito (*"na voz, a citação não é conferida
+pelo aplicativo"*) juntava duas coisas diferentes, escondendo um defeito nosso atrás de um
+limite de transporte:
+
+- o **áudio** mesmo não passa por nós — limite real, e o único que sobra;
+- a **legenda** passa, e aparecia CRUA. Marca inventada era exibida como se tivesse sido
+  conferida, o que é **pior** que não conferir: a tela empresta credibilidade a uma fonte que
+  nenhuma consulta devolveu.
+
+**E um segundo defeito, achado no caminho.** A linha que deveria mostrar o que a consulta leu
+estava escrita DENTRO da função errada (`descrever_diagrama`), referenciando um `nome` que não
+existe naquele escopo. O `ReferenceError` caía na rede de segurança do apresentador e as DUAS
+ferramentas viravam *"usei &lt;nome&gt;"*: a do acervo nunca mostrou os trechos lidos, **em modo
+nenhum**, e a do diagrama perdeu a contagem de elementos. Dois meses de prova verde em cima de
+uma linha que nunca apareceu — porque nenhum teste lia a linha, e a rede de segurança engolia
+o erro com elegancia.
+
+**O que passou a valer:** a legenda da voz é conferida como o texto; quando a fala citou fonte
+que não fecha, a bolha **avisa** (o áudio já foi, e corrigir em silêncio deixaria a palavra
+falada valer mais que o nosso registro); e a proveniência aparece com o **localizador do
+acervo**, vinda do que o aplicativo SERVIU — não do que o modelo disse. Isso é o que torna a
+citação conferivel na voz, onde o modelo não escreve marca nenhuma (e agora o prompt diz, na
+seção *o que não se diz em voz alta*, que a marca não se lê).
+
+⚠ **O portão do navegador derrubou a primeira versão, e estava certo.** Eu indexei a
+proveniência por TURNO; passou na bancada e falhou na tela, porque na voz o turno da resposta
+falada nem sempre é o da pergunta — o servidor fecha o turno da fala e abre outro para o
+áudio (medido: `tool:1` com `assistant:2`). O recorte certo é conversacional: *o que foi
+consultado desde que o aluno falou*. Virou teste determinístico, para o navegador não precisar
+descobrir de novo.
 
 ## 1. Portões do dono (publicação na VPS)
 

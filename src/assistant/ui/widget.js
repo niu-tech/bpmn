@@ -572,6 +572,58 @@ export function createWidget({ session, credentials, onClose } = {}) {
     return caixa;
   }
 
+  /**
+   * A PROVENIÊNCIA da resposta: título e localizador do que a consulta SERVIU.
+   *
+   * ⚠ Existe por causa da voz (K6, 2026-11-16). No texto o aluno vê a marca `[fonte:*]` já
+   * conferida dentro da frase; na voz o modelo não escreve marca nenhuma — ele fala —, e sem
+   * isto a resposta falada não tinha de onde ser conferida. A lista NÃO vem do que o modelo
+   * disse: vem do registro da consulta, que é nosso.
+   *
+   * Chave não aparece: `gateways:exclusivo` é prova para nós e ruído para quem lê. O que o
+   * aluno confere é "Gateways §10.5".
+   */
+  function montarFontes(m) {
+    const caixa = el('div', { className: 'bpmn-assist__fontes' });
+    caixa.append(el('span', { className: 'bpmn-assist__fontes-rotulo', textContent: 'fonte:' }));
+    for (const f of m.fontes) {
+      // O LOCALIZADOR visível; o título inteiro fica no tooltip. Ver o apresentador: o
+      // localizador é o ponteiro ("Gateways › exclusivo (XOR)"), o título é a frase do verbete.
+      const rotulo = f.localizador || f.titulo || f.chave;
+      // Link só quando o índice traz um: a referência oficial é onde o aluno confere por fora.
+      const item = f.link
+        ? el('a', { className: 'bpmn-assist__fonte', textContent: rotulo, href: f.link })
+        : el('span', { className: 'bpmn-assist__fonte', textContent: rotulo });
+      if (f.link) { item.target = '_blank'; item.rel = 'noopener noreferrer'; }
+      // ⚠ Material NOSSO não pode ser lido como texto da norma da OMG — a distinção é do
+      // acervo (`contentMode`) e precisa sobreviver até a tela.
+      const detalhe = [f.titulo, f.chave].filter(Boolean).join(' · ');
+      item.title = f.nosso ? `material deste site · ${detalhe}` : detalhe;
+      caixa.append(item);
+    }
+    if (m.fontes.every((f) => f.nosso)) {
+      caixa.append(el('span', { className: 'bpmn-assist__fontes-nota', textContent: 'material deste site' }));
+    }
+    return caixa;
+  }
+
+  /**
+   * O AVISO de citação que não fecha — e ele existe por causa do áudio.
+   *
+   * No texto a etiqueta errada vira `[fonte não conferida]` antes de aparecer e assunto
+   * encerrado. Na voz o aluno JÁ OUVIU a frase: a legenda também é corrigida, mas calar que a
+   * fonte não fecha deixaria a palavra falada valer mais que o nosso registro.
+   */
+  function montarCitacaoSuspeita(m) {
+    const quantas = m.citacaoSuspeita.length;
+    return el('div', {
+      className: 'bpmn-assist__citacao-suspeita',
+      textContent: quantas === 1
+        ? 'a fala citou uma fonte que nenhuma consulta desta sessão devolveu'
+        : `a fala citou ${quantas} fontes que nenhuma consulta desta sessão devolveu`,
+    });
+  }
+
   function montarCandidatos(m) {
     const caixa = el('div', { className: 'bpmn-assist__cands' });
     caixa.setAttribute('role', 'group');
@@ -620,6 +672,8 @@ export function createWidget({ session, credentials, onClose } = {}) {
         li.append(el('span', { className: 'bpmn-assist__via', textContent: comoVeio }));
       }
       li.append(el('span', { className: 'bpmn-assist__text', textContent: m.text }));
+      if (m.citacaoSuspeita?.length) li.append(montarCitacaoSuspeita(m));
+      if (m.fontes?.length) li.append(montarFontes(m));
       if (m.candidatos?.length) li.append(montarCandidatos(m));
       if (m.mostraveis?.length) li.append(montarMostraveis(m));
       log.append(li);
@@ -636,6 +690,14 @@ export function createWidget({ session, credentials, onClose } = {}) {
       // ⚠ Os candidatos chegam DEPOIS da bolha: a linha da ferramenta nasce em "criando…" e só
       // no fim se sabe que a ferramenta recusou por ambiguidade. Sem este ramo, os botões só
       // apareceriam na próxima mensagem — ou nunca.
+      // ⚠ As fontes chegam DEPOIS do texto, e na voz a bolha já existia quando a consulta
+      // terminou: sem este ramo a proveniência só apareceria na mensagem seguinte — ou nunca.
+      if (li && m.citacaoSuspeita?.length && !li.querySelector('.bpmn-assist__citacao-suspeita')) {
+        li.append(montarCitacaoSuspeita(m));
+      }
+      if (li && m.fontes?.length && !li.querySelector('.bpmn-assist__fontes')) {
+        li.append(montarFontes(m));
+      }
       if (li && m.mostraveis?.length && !li.querySelector('.bpmn-assist__cands--ver')) {
         li.append(montarMostraveis(m));
       }

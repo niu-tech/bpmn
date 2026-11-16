@@ -72,7 +72,23 @@ não corresponda a uma chave servida.
 - **WHEN** uma citação é marcada como não conferida
 - **THEN** o restante da resposta chega ao aluno sem alteração
 
-#### Scenario: A assimetria do modo voz é declarada
-- **WHEN** a sessão está em voz
-- **THEN** a interface informa que a conferência de citação não se aplica, porque o áudio não passa
-  pelo aplicativo
+#### Scenario: A legenda da voz também é conferida
+- **WHEN** a sessão está em voz e a fala do agente cita uma chave que nenhuma consulta serviu
+- **THEN** a legenda na tela mostra `[fonte não conferida]` e a interface avisa que a fala citou
+  fonte que nenhuma consulta desta sessão devolveu
+
+#### Scenario: A proveniência da resposta falada vem do que foi SERVIDO
+- **WHEN** uma consulta ao acervo serve um trecho e o agente responde por voz
+- **THEN** a tela mostra a fonte daquela resposta com o localizador do acervo, obtido do
+  registro da consulta e não do texto do modelo
+
+#### Scenario: O limite que sobra é o ÁUDIO, e vai declarado
+- **WHEN** uma consulta ao acervo termina numa sessão de voz
+- **THEN** a linha daquela consulta informa que o áudio já foi falado e aponta a fonte na tela
+
+> ⚠ **Correção de 2026-11-16.** Este bloco dizia: *"a interface informa que a conferência de
+> citação não se aplica, porque o áudio não passa pelo aplicativo"*. A frase juntava duas
+> coisas diferentes e escondia um defeito nosso atrás de um limite de transporte: o áudio, de
+> fato, não passa por nós — mas a **legenda** passa, e ela aparecia crua. O contrato acima é o
+> que vale agora, e está provado em `src/assistant/__tests__/session-manager.mjs` e no portão
+> `voz: a legenda e CONFERIDA...` da bateria (sem cota, com o acervo real).

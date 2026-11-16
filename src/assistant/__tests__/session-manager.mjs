@@ -75,7 +75,23 @@ function fakeLive() {
       },
       falha(reason) { state = 'error'; opts.onState?.({ state, reason }); },
       texto(t, extra = {}) { opts.onText?.({ text: t, fallback: false, complete: false, ...extra }); },
-      legenda(t, side = 'output') { opts.onTranscript?.({ side, text: t }); },
+      /**
+       * A legenda, COM O TURNO quando ele e' conhecido — como o transporte de verdade, que manda
+       * `turno` em todo `onTranscript` (`live/session.js`).
+       *
+       * ⚠ SAIDA: o turno e' o da pergunta aberta por `ask`. O dube omitia, o gerente caia no
+       * `turnoLocal(undefined)` (o turno CORRENTE) e a legenda podia nascer num turno que nao
+       * era o da pergunta. Teste de uma legenda so nao notava; o de proveniencia (K6) notou na
+       * hora — a bolha nascia num turno sem as fontes da consulta daquele turno.
+       *
+       * ⚠ ENTRADA: fica `undefined` de proposito. O turno da FALA do aluno e' do provedor (ele
+       * abre um por fala), e o dube nao tem como saber onde uma fala termina e outra comeca —
+       * fingir um numero fixo juntaria duas falas num turno so, que e' exatamente o que o teste
+       * da epoca do portao mede. Quem precisa de um turno de entrada passa o terceiro argumento.
+       */
+      legenda(t, side = 'output', turno = (side === 'output' ? (s.turnos || 1) : undefined)) {
+        opts.onTranscript?.({ side, text: t, turno });
+      },
       audio(b) { opts.onAudio?.(b); },
       interrompe() { opts.onInterrupted?.(); },
     };
@@ -515,6 +531,159 @@ await (async () => {
     const doAssistente = session.messages.filter((m) => m.role === 'assistant');
     assert.equal(doAssistente.length, 1, 'uma bolha por turno');
     assert.equal(doAssistente[0].text, 'Uma raia serve para organizar.');
+    forgetSecrets();
+  });
+
+  /**
+   * K6 NA VOZ (2026-11-16) — o dono perguntou se o modo voz usa o acervo. Usa: `consultar_norma`
+   * e' declarada nos dois modos e o modelo a chama falando. O que NAO acontecia era a
+   * conferência: este caminho (a legenda) escrevia o texto CRU na tela, e marca inventada
+   * aparecia ali como se tivesse sido conferida — pior que não conferir, porque a tela
+   * empresta credibilidade a uma fonte que nenhuma consulta devolveu.
+   */
+  await testAsync('a legenda da VOZ tambem e conferida: marca inventada cai e a tela AVISA (K6)', async () => {
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    session.ask('o que e um gateway exclusivo?');
+    live.ultima.legenda('O exclusivo escolhe UM caminho [fonte:gateways:exclusivo].');
+
+    const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
+    assert.ok(/fonte n[\u00e3a]o conferida/.test(bolha.text), bolha.text);
+    assert.ok(!/fonte:gateways/.test(bolha.text), 'a marca inventada continuou na tela');
+    // E o aviso, porque o AUDIO ja foi falado: a tela nao pode consertar o que foi dito, diz.
+    assert.deepEqual(bolha.citacaoSuspeita, ['gateways:exclusivo']);
+    forgetSecrets();
+  });
+
+  // A mesma licao da divida T10, agora na marca: `[fonte:gat` + `eways:...]` nao casa em nenhum
+  // dos dois pedacos. Quem e conferido e o ACUMULADO.
+  await testAsync('marca PARTIDA entre dois pedacos da legenda tambem e conferida', async () => {
+    const { session, live } = montar();
+    await session.connect('voz');
+    live.ultima.pronta();
+    session.ask('e o paralelo?');
+    live.ultima.legenda('O paralelo abre TODOS [fonte:gat');
+    live.ultima.legenda('eways:paralelo].');
+
+    const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
+    assert.ok(/fonte n[\u00e3a]o conferida/.test(bolha.text), bolha.text);
+    assert.deepEqual(bolha.citacaoSuspeita, ['gateways:paralelo']);
+    forgetSecrets();
+  });
+
+  /**
+   * E O OUTRO LADO: consulta de verdade, marca que FECHA, e a proveniência na bolha.
+   *
+   * ⚠ A lista de fontes NÃO vem do que o modelo disse — vem do que a consulta SERVIU, que e'
+   * registro nosso. E' isso que torna a citação conferivel na voz, onde o modelo não escreve
+   * marca nenhuma (dizer "abre colchete fonte dois pontos" em voz alta seria pior que não citar).
+   */
+  await testAsync('consulta servida: a marca FICA e a bolha carrega titulo e localizador (K6)', async () => {
+    const acervo = {
+      consultar: async () => ({
+        resultados: [{
+          citationKey: 'gateways:exclusivo',
+          title: 'Gateways',
+          locator: '\u00a710.5',
+          contentMode: 'curated_card_only',
+          excerpt: 'o exclusivo escolhe um caminho',
+          officialUrl: 'https://www.omg.org/spec/BPMN/2.0.2/',
+        }],
+        acervo: { verbetes: 12, trechos: 28 },
+      }),
+    };
+    const { session, live } = montar({ acervo });
+    await session.connect('voz');
+    live.ultima.pronta();
+    session.ask('o que e um gateway exclusivo?');
+    await live.ultima.opts.dispatcher.despachar([
+      { id: 'c1', name: 'consultar_norma', args: { termo: 'gateway exclusivo' } },
+    ]);
+    live.ultima.legenda('Pelo meu material, o exclusivo escolhe UM caminho [fonte:gateways:exclusivo].');
+
+    const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
+    assert.ok(/\[fonte:gateways:exclusivo\]/.test(bolha.text), bolha.text);
+    assert.equal(bolha.citacaoSuspeita, undefined, 'marca servida nao e suspeita');
+    assert.equal(bolha.fontes?.length, 1);
+    assert.equal(bolha.fontes[0].titulo, 'Gateways');
+    assert.equal(bolha.fontes[0].localizador, '\u00a710.5');
+    // Material NOSSO: nao pode ser lido como texto da norma da OMG.
+    assert.equal(bolha.fontes[0].nosso, true);
+
+    // E a LINHA da ferramenta diz o que foi lido — nao "usei consultar_norma".
+    const linha = session.messages.filter((m) => m.role === 'tool').at(-1);
+    // O LOCALIZADOR e o ponteiro humano do acervo; o titulo e a frase inteira do verbete, e
+    // os dois juntos repetiam a mesma palavra numa linha de 90 caracteres.
+    assert.ok(/\u00a710\.5/.test(linha.text), linha.text);
+    assert.ok(!/usei consultar_norma/.test(linha.text), linha.text);
+    forgetSecrets();
+  });
+
+  /**
+   * O QUE O NAVEGADOR DESCOBRIU, guardado aqui (2026-11-16).
+   *
+   * A primeira versao da proveniencia indexava as fontes POR TURNO. Passava na bancada e
+   * falhava na tela: na voz o turno da RESPOSTA falada nem sempre e' o da pergunta — o servidor
+   * fecha o turno da fala e abre outro para o audio, e o portao mostrou `tool:1` com
+   * `assistant:2`. Uma tabela por turno nunca casava, e a fonte nao aparecia.
+   *
+   * O recorte certo e' conversacional: o que foi consultado DESDE QUE O ALUNO FALOU. Este teste
+   * reproduz a assimetria de proposito (legenda num turno diferente do da consulta) e cobra que
+   * a proveniencia chegue assim mesmo.
+   */
+  await testAsync('a fonte chega a resposta mesmo quando o turno da fala NAO e o da consulta', async () => {
+    const acervo = {
+      consultar: async () => ({
+        resultados: [{ citationKey: 'eventos:inicio', title: 'Eventos', locator: '\u00a710.4', contentMode: 'curated_card_only' }],
+        acervo: { verbetes: 12 },
+      }),
+    };
+    const { session, live } = montar({ acervo });
+    await session.connect('voz');
+    live.ultima.pronta();
+    // A fala do aluno abre um turno; a consulta roda nele.
+    live.ultima.legenda('o que e um evento de inicio?', 'input', 1);
+    await live.ultima.opts.dispatcher.despachar([
+      { id: 'c1', name: 'consultar_norma', args: { termo: 'evento de inicio' } },
+    ]);
+    // E a resposta falada chega com OUTRO turno — como o servidor faz de verdade.
+    live.ultima.legenda('O inicio dispara o processo.', 'output', 7);
+
+    const bolha = session.messages.filter((m) => m.role === 'assistant').at(-1);
+    assert.equal(bolha.fontes?.length, 1, 'a fonte nao chegou a resposta');
+    assert.equal(bolha.fontes[0].localizador, '\u00a710.4');
+    forgetSecrets();
+  });
+
+  /**
+   * E o outro lado da mesma regra: PERGUNTA NOVA zera a proveniencia. Sem isto, a fonte da
+   * resposta anterior apareceria embaixo da seguinte — uma citacao herdada, que e' pior que
+   * nenhuma: ela parece conferida.
+   */
+  await testAsync('pergunta nova NAO herda a fonte da resposta anterior', async () => {
+    const acervo = {
+      consultar: async () => ({
+        resultados: [{ citationKey: 'eventos:inicio', title: 'Eventos', locator: '\u00a710.4', contentMode: 'curated_card_only' }],
+        acervo: { verbetes: 12 },
+      }),
+    };
+    const { session, live } = montar({ acervo });
+    await session.connect('texto');
+    live.ultima.pronta();
+    session.ask('o que e um evento de inicio?');
+    await live.ultima.opts.dispatcher.despachar([
+      { id: 'c1', name: 'consultar_norma', args: { termo: 'evento de inicio' } },
+    ]);
+    live.ultima.texto('O inicio dispara o processo.', { complete: true });
+    const comFonte = session.messages.filter((m) => m.role === 'assistant').at(-1);
+    assert.equal(comFonte.fontes?.length, 1);
+
+    // Pergunta nova, SEM consulta nenhuma: a bolha nao pode carregar a fonte da anterior.
+    session.ask('e um gateway?');
+    live.ultima.texto('O gateway decide o caminho.', { complete: true });
+    const semFonte = session.messages.filter((m) => m.role === 'assistant').at(-1);
+    assert.equal(semFonte.fontes, undefined, 'a fonte da resposta anterior foi herdada');
     forgetSecrets();
   });
 
