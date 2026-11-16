@@ -183,15 +183,22 @@ analisar: é escrever os passos com `String.raw`, que **não** processa escape n
 armadilha deixa de existir (e as barras dobradas de hoje passam a ser dobradas de verdade, que é
 o que torna a migração uma frente, e não um sed).
 
-## XIII. Negação num portão anda em par
+## XIII. Cláusula que o VAZIO satisfaz não prova nada
 
 *"Não achei nada de errado"* e *"não havia nada para achar"* são **indistinguíveis de fora**. Por
 isso toda asserção negativa de um portão passa de graça no mundo em que o objeto dela nunca
 existiu — e esse mundo é exatamente o que a gente mais precisa pegar, porque é o que acontece
 quando uma entrega inteira some.
 
-Três, achadas no mesmo dia (2026-11-16), nas duas sessões, e nenhuma por leitura: as três só
-apareceram quando alguém quebrou o produto e olhou o relatório:
+⚠ **E esta regra nasceu estreita.** Ela se chamava *"negação anda em par"* e durou meio dia:
+na geometria o vazio satisfaz **afirmações** também. *"A barra fica acima da alavanca"* é
+verdade para uma barra invisível, porque `0 <= 682`; *"a barra cabe na tela"* também, porque
+`0 >= 0`. **Caixa de área zero é o elemento perfeito: cabe em tudo, não cruza ninguém e fica
+acima de todo mundo.** O que importa não é o sinal da cláusula — é **de que lado da comparação
+cai o zero**. Negação é só o caso mais comum.
+
+Quatro, achadas no mesmo dia (2026-11-16), nas duas sessões, e nenhuma por leitura: as quatro
+só apareceram quando alguém quebrou o produto e olhou o relatório:
 
 - **verdadeira por lista vazia.** `!fontes.some((f) => f.includes(chave))` — *"a chave crua não
   aparece na tela"* — é sempre verdadeira quando **não há fonte nenhuma** na tela. A cláusula que
@@ -210,11 +217,17 @@ apareceram quando alguém quebrou o produto e olhou o relatório:
   cobre a paleta"*, e, aqui, *"Assar a pizza"* de 93×78 virando 0×0 — `antigaAprovaria: true`,
   `novaAprovaria: false`.
 
-São a mesma doença em tempos e dimensões diferentes: a primeira ignora o **objeto**, a segunda
-ignora o **antes**, a terceira ignora o **tamanho**. Então:
+- **verdadeira porque o zero cai do lado certo.** `barra.bottom <= alavanca.top` e
+  `barra.top >= 0` são duas AFIRMAÇÕES, sem negação nenhuma, e o elemento oculto satisfaz as
+  duas. Medido: `{existeNoDom: true, caixaDepois: "0x0 em 0,0", acimaDaAlavancaANTIGA: true,
+  barraCabeANTIGA: true}`.
 
-**Toda negação num portão anda em par com a afirmação do que ela nega.** As duas formas do par,
-as duas em uso aqui:
+São a mesma doença em tempos e dimensões diferentes: a primeira ignora o **objeto**, a segunda
+ignora o **antes**, a terceira e a quarta ignoram o **tamanho** — uma por negação, outra por
+afirmação. Então:
+
+**Toda cláusula que o vazio satisfaz anda em par com a afirmação de que o objeto existe — e,
+na tela, de que ele tem área.** As formas do par, todas em uso aqui:
 
 - **no mesmo instante**: `!texto.includes(inventada) && /fonte não conferida/.test(texto)` — não
   basta a marca errada ter sumido, a troca tem de estar lá;

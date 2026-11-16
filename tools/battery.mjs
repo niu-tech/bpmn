@@ -291,6 +291,16 @@ window.__dentroDe = (id, idConteiner, folga = 6) => {
   const a = window.__caixa(id);
   const b = window.__caixa(idConteiner);
   if (!a || !b) return null;
+  // CAIXA DE AREA ZERO CABE EM TUDO: com largura e altura zero, as duas comparacoes de
+  // limite ficam verdadeiras sozinhas (0 <= qualquer coisa), e um elemento que sumiu da tela
+  // seria reportado DENTRO de um conteiner encostado na origem. E' a mesma armadilha do
+  // medidor de sobreposicao, no predicado positivo (principio XIII).
+  //
+  // Responde FALSE, e nao null, de proposito: ha chamadores que perguntam === true (querem
+  // o elemento dentro) e chamadores que perguntam === false (coletam quem ficou fora). Com
+  // null os primeiros reprovam e os segundos CALAM — e calar e' o defeito que esta regra
+  // existe para matar. Com false, os dois falam: um reprova, o outro acusa.
+  if (!a.w || !a.h || !b.w || !b.h) return false;
   return a.x >= b.x - folga && a.y >= b.y - folga
     && a.x + a.w <= b.x + b.w + folga && a.y + a.h <= b.y + b.h + folga;
 };
