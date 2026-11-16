@@ -139,11 +139,21 @@
 - [x] 6.9 **As barras do medidor têm altura dentro do compositor** — sem isso o `scaleY` trabalhava
       sobre 22 px e virava um fio de pontinhos: o medidor existe justamente para o aluno ver que
       está sendo ouvido
-- [ ] 6.4 **Cartões clicáveis** no resultado da ferramenta (no vídeo, médico + horário). Aqui seria
+- [x] 6.4 **Cartões clicáveis** no resultado da ferramenta (no vídeo, médico + horário). Aqui seria
       o elemento encontrado, clicável para selecionar no diagrama. **Decidido pelo dono
       (2026-11-13): depois da F7** — fica documentado, não é o ponto mais importante agora
-- [ ] 6.5 **"Ouvindo" no modo texto** — o selo diz "ouvindo" numa sessão sem microfone. Anterior a
+      — **feito em 2026-11-15**: o resultado de `buscar_elemento`, `detalhar_elemento` e
+      `criar_elemento` vira cartão que **seleciona no desenho**. ⚠ Não é candidato: candidato
+      responde uma pergunta do agente e **gasta um turno**; este só mostra onde fica, não fala
+      com o modelo e não gasta cota. E **seleciona**, não pinta — pintar escreveria no arquivo
+      do aluno depois que a curiosidade passou. Portão sem cota mede os três fatos: o cartão
+      aparece, o elemento certo fica selecionado no `<g>` do bpmn-js, e **zero turnos gastos**
+- [x] 6.5 **"Ouvindo" no modo texto** — o selo diz "ouvindo" numa sessão sem microfone. Anterior a
       esta change, e do mesmo assunto do bloco 2
+      — o estado técnico `listening` significa *"a vez é do aluno"* e o turno DIGITADO passa por
+      ele também. Agora "ouvindo" exige **microfone aberto**; sem ele o selo diz `processando`.
+      Numa ferramenta de voz, dizer que está ouvindo quando não está é a mentira mais cara que a
+      tela pode contar: o aluno fala e ninguém escuta
 
 ## 7. O achado de licença (2026-11-14)
 
@@ -191,4 +201,9 @@ O `bpmn-js` **não é MIT**. A licença dele é permissiva, com uma condição e
       sessão nesta aba** — quem sabe disso é quem guarda a credencial, então a resposta é
       injetada. Teste determinístico junto
 - [x] 5.2 `openspec/roadmap.md` e `openspec/open-items.md` atualizados no MESMO change
-- [ ] 5.3 Peça visual do plano atualizada e entregue ao dono (regra do `CLAUDE.md`)
+- [x] 5.3 Peça visual do plano atualizada e entregue ao dono (regra do `CLAUDE.md`)
+      — entregue em 2026-11-15 como o **checkpoint do projeto** (`tools/checkpoint-tcc.py` →
+      `artifacts/checkpoint-tcc.pdf`), que traz o estado desta colheita junto com o resto.
+      ⚠ A peça ORIGINAL do plano (`openspec/apresentacoes/plano-colheita.html`) **não** foi
+      reescrita de propósito: ela é registro datado de quando a colheita foi proposta, e
+      reescrever história ali apagaria o que foi decidido com aquela informação na mão

@@ -5,8 +5,10 @@
 >
 > **Não leia quando:** estiver em voz, prompt, memória ou interface — nada aqui toca esses lados.
 >
-> É **adendo**, não mudança de rumo: o trabalho em `changes/close-the-loop-with-the-canvas` segue
-> como está, e este documento diz o que mudou embaixo dele enquanto ele era escrito.
+> É **adendo**, não mudança de rumo: o trabalho em `changes/archive/close-the-loop-with-the-canvas`
+> segue como está, e este documento diz o que mudou embaixo dele enquanto ele era escrito.
+> (A change desceu para o arquivo em 2026-11-15, com todas as caixas fechadas — ver
+> `openspec/changes/README.md`.)
 
 ## 1. O que entrou
 

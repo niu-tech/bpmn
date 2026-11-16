@@ -7,6 +7,37 @@
 > Atualize esta página na mesma change que fechar um item. Item fechado sai daqui e vira linha de
 > `tasks.md` com a prova.
 
+## 0. O que está pendente HOJE — tudo numa tabela só (2026-11-15)
+
+> Esta página cresceu por rodada, e quem chega agora não quer ler onze seções para descobrir o que
+> falta. **Esta tabela é a lista completa do que está aberto**; o resto do arquivo é o registro de
+> como cada coisa foi descoberta e fechada, e continua valendo como método.
+>
+> Três colunas de dono, e a diferença entre elas importa: **estacionado** é decisão tomada de
+> deixar para depois; **declarado** é prova que existe onde a decisão é nossa e não existe onde
+> dependeria do mundo; **meu** é trabalho que eu faço quando valer a pena. *"Ninguém decidiu"* não
+> é nenhuma das três, e não aparece aqui.
+
+| # | Pendência | De quem | Por que não bloqueia |
+|---|---|---|---|
+| **D1–D5** | Publicação definitiva: domínio, DNS, secrets do Actions, ambiente `production`, rollback ensaiado | **dono — estacionado** (*"isso não precisamos agora"*) | o site publica a cada entrega no endereço provisório e serve tudo |
+| **F8b** | A pedagogia do tutor: quando propor e quando calar, como explicar a escolha de representação, quanto corrigir de uma vez | **dono — estacionado**, para elaborar com o orientador | a **mecânica** está pronta e provada: a proposta fica recusada até o aluno responder, e a tela é lida de volta a cada escrita |
+| **K-G** | Declarar no texto a licença do `bpmn-js` e a marca d'água que não pode ser removida | **dono — banca** | o software já cumpre: o portão mede que o painel não cobre a marca. O que falta é a frase no texto |
+| **K-E** | Frente acadêmica: modalidade do TCC, prazos, exigências do orientador, ABNT | **dono — com o orientador** | o software é a parte prática e segue sem isso |
+| **F.5** | Memória durável entre visitas | **dono — estacionado** (*"também podemos ir vendo"*) | a memória morre com a aba **por escolha**, e o aviso de privacidade diz isso |
+| **F.2** | MCP | **dono — fora do MVP** | nada do trabalho depende disso hoje |
+| **M5** | Expiração de sessão por idade (`go-away`, ~10 min) vista ao vivo | **declarado** | o quadro é reconhecido e registrado no diário; e desde que a sessão parada passou a **dormir**, ela nem chega a envelhecer |
+| **6.3** | Ao vivo: induzir o modelo a citar uma chave inexistente | **declarado** | provado no gerente, que é onde a troca por `[fonte não conferida]` acontece. Ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
+| **—** | Queda de **rede física** (cabo, Wi-Fi do aluno) | **declarado** | nenhuma ferramenta do navegador a produz (medido: `offline` do CDP não derruba socket aberto). A queda que acontece de verdade — a do servidor — **está** provada ao vivo |
+| **2.4** | Medir o teto do `clientContent` | **meu** | a ferramenta existe (`tools/medir-contexto.mjs`) e nunca foi corrida; o contexto de hoje cabe com folga |
+| **T3** | Cenário do **viewer** na bateria além de carregar | **meu** | a simulação em lote com o painel aberto só foi verificada à mão |
+| **T5** | Rodar a bateria no CI | **meu — decisão de custo** | ela roda aqui a cada rodada; no CI custaria minutos e uma chave |
+| **T12** | Criar com nome gasta dois `Ctrl+Z` | **meu** | a forma e o rótulo entram como comandos separados; desfaz, só que em dois |
+| **T13** | A sobreposição medida ignora **rótulo** | **meu** | como o próprio bpmn-js, o medidor só compara formas |
+| **T18** | *"Arruma o desenho"* — layout automático de verdade | **meu — frente nova** | `alinhar` resolve dois ou três elementos, que é o pedido real do aluno hoje |
+| **E1 / E2** | Desfazer em bloco · sugestão proativa ao abrir um diagrama com problema | **meu — frentes novas** | são capacidades a mais, não conserto de nada |
+| **T1 / T2 / T4** | Pontas de documento: caixa duplicada no MVP, `config.yaml` velho, roteiro manual já automatizado | **meu — higiene** | não afetam o produto nem a prova |
+
 ## 1. Portões do dono (publicação na VPS)
 
 Nada aqui é código. O site **já está no ar** no endereço provisório
@@ -25,7 +56,7 @@ domínio, e não bloqueiam mais o uso pelo orientador.
 
 | # | Item | Estado | Por quê |
 |---|---|---|---|
-| M1 | Voz **humana** em microfone físico | aberto | o teste usa fala sintética pt-BR (SAPI) entrando pelo caminho real do microfone. Mede o produto, não a pessoa — mas é diferença real, e fica dita |
+| M1 | Voz **humana** em microfone físico | **fechada pelo dono (2026-11-15)** | *"nós já fizemos testes com eu mesmo falando"*. E fizemos — as sessões de voz dele, ao longo das rodadas de reteste, são a única razão de quatro defeitos existirem no histórico: **a frase partida no meio** (o detector de fala do servidor fechava o turno no silêncio curto, e só uma pessoa de verdade pausa no meio de uma frase — a fala sintética não pausa), **o turno perdido enquanto ele falava** (a queda levava a fala junto e a tela não dizia nada), **os botões de mudo mortos durante a resposta** (o ícone era recriado a cada quadro de áudio e o clique nunca chegava) e **o "pensando" invisível**, que ninguém nota até ficar olhando uma tela parada depois de falar. Fala sintética não produziu nenhum dos quatro. ⚠ O que **não** existe é uma captura legível por máquina dessas sessões guardada no repositório: o que ficou é o relato dele nas rodadas de reteste (`openspec/apresentacoes/reteste-rodada-*.html`) e o conserto com o teste que o acompanha. Para o texto do TCC isso basta como *evidência de uso*, e não como medição — e é assim que deve ser escrito lá |
 | M2 | Barge-in contra o Gemini | **PROVADO** (2026-11-12) | ver §3 — e o achado maior: o fluxo de audio governa o turno digitado |
 | M3 | Negação de microfone | **fechada, e achou defeito (2026-11-15)** | o cenário no navegador existe (portão `microfone NEGADO` em `tools/battery.mjs`, sem cota: o socket é o dublê): `getUserMedia` recusa com `NotAllowedError` como o Chrome recusa quando a pessoa clica em **Bloquear**. A cadeia inteira está certa — `audio.js` traduz em `mic-denied`, o gerente nomeia, a tela diz *"microfone: o microfone foi negado"*, o microfone fica fechado e a faixa de voz ("Estou ouvindo") **não** aparece. **E o portão achou um defeito que a prova em unidade não pegava**: negar o microfone marcava a **SESSÃO** como `error`, e `error` desliga a caixa de texto — quem bloqueava o microfone perdia o ajudante inteiro, **inclusive o modo texto**, que não tem nada a ver com microfone (medido: `estado: error`, `podeEscrever: false`). O teste em unidade se chamava *"sem derrubar a sessao"* e não conferia isso. Agora o que falha é a ENTRADA DE VOZ: a sessão Live segue de pé (ela foi aceita antes do microfone), o aluno continua conversando por escrito, e só vira erro se a própria sessão tiver morrido. Provas: o portão no navegador (`podeEscrever: true`, `estado: ready`) e a prova em unidade, que passou a **medir** a promessa do próprio título |
 | M4 | Desconexão no meio da aula | **exercitada e fechada (2026-11-15)** | a dívida pedia "cortar a rede de verdade", e cortar a rede de verdade **desmentiu a própria dívida**. `tools/probe-offline.mjs` pôs `Network.emulateNetworkConditions {offline:true}` numa sessão viva: `navigator.onLine` virou `false` na hora e **nenhum `ws.close` apareceu em doze segundos**; depois, com a rede fora por **cinquenta** segundos e uma pergunta no ar, o modelo **respondeu normalmente** — a emulação do CDP não alcança conexão já estabelecida. Portão que corta a rede e vê a conversa seguir não prova recuperação: prova que nada caiu. **A queda que acontece de verdade nesta aula é a do servidor**, e ela apareceu na mesma corrida: `ws.close code=1008 Session closed due to client inactivity` aos **74,5 s** e aos **119 s** de aluno calado — a MESMA queda que o dono levou **nove vezes** na trilha dele, e que terminava em *"o limite de sessões da sua chave foi atingido"* com a chave boa. **A causa era nossa**: fecho por inatividade caía no ramo de *vaga de sessão*, reabríamos na hora e íamos disputar a vaga do fio que acabara de morrer, nove vezes, até o teto. Dois consertos: (1) o fecho por inatividade faz a sessão **DORMIR** — zero socket, alça guardada, e o **próprio envio** do aluno a acorda retomando a mesma conversa; (2) com o navegador **offline** nenhuma reconexão é gasta: a sessão espera o evento `online` do próprio navegador (o teto de 3 tentativas com recuo de 500 ms se esgotava em **3,5 s**, então qualquer quedinha de Wi-Fi maior que isso matava a aula para sempre). **Prova ao vivo** (portão `a sessao cai de verdade` em `tools/battery.mjs`): o servidor fechou aos 119 s → estado `dormindo` → a pergunta do aluno acordou (`ws.acordar=1`) → `out.setup` = `["modo=texto", "modo=texto retomando"]` → e a resposta citou a primeira pergunta da aula **de volta do servidor** (no despertar o gerente **não** resemeia nada), com **`ws.vaga` = 0** e **nenhum** aviso de "a conexão caiu" na tela — despertar não é queda, e aviso que mente é aviso que o aluno aprende a ignorar. Provas determinísticas: `spike/__tests__/session.mjs` (dorme em vez de reabrir; o envio acorda COM a alça; offline não gasta tentativa; a rede voltando reabre sozinha) e `src/assistant/__tests__/session-manager.mjs` (dormindo a caixa de texto continua viva; o despertar não avisa queda nem refaz a pergunta). ⚠ O que **continua** sem prova ao vivo é a queda de rede física (cabo/Wi-Fi do aluno): nenhuma ferramenta do navegador a produz, e forçá-la exigiria pôr um proxy nosso no meio do caminho da sessão — costura de teste dentro do produto, que não se paga |
@@ -531,7 +562,7 @@ Suítes: **16, zero falhas**, com 5 testes novos — três para a T10 (marcador 
 turno só de marcador), um para a legenda emprestada e um para o fallback que esvazia — e uma
 fixture corrigida, que mandava legenda sem áudio e por isso não distinguia os dois casos.
 
-## 3h. A bateria inteira depois dos três consertos: 6 de 9, com o conjunto trocado (2026-11-13)
+## 3i. A bateria inteira depois dos três consertos: 6 de 9, com o conjunto trocado (2026-11-13)
 
 Os três portões passaram isolados. Na bateria inteira o número ficou o mesmo — **6 de 9** — e as
 falhas são **outras**. Isso não é azar: é o que acontece quando o relatório finalmente distingue as

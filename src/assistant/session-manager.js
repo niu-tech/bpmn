@@ -19,7 +19,9 @@
 import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
 import { portaoDaFerramenta } from './agent/catalog.js';
-import { avisoDeCitacaoNaVoz, candidatosDoResultado, linhaDeFim, linhaDeInicio } from './tools/apresentador.js';
+import {
+  avisoDeCitacaoNaVoz, candidatosDoResultado, linhaDeFim, linhaDeInicio, mostraveisDoResultado,
+} from './tools/apresentador.js';
 import { montarQuadro, quadroDelta } from './agent/frame.js';
 import { criarMemoria } from './agent/memory.js';
 import { criarExecutoresDeLeitura } from './tools/leitura.js';
@@ -1008,6 +1010,14 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
            */
           const candidatos = candidatosDoResultado(nome, resultado);
           if (candidatos.length) atividade.candidatos = candidatos;
+          /**
+           * E O QUE DÁ PARA VER: o elemento que a ferramenta achou vira cartão clicável que
+           * **seleciona no desenho** (harvest 6.4). Não fala com o modelo e não gasta cota —
+           * é a resposta para *"onde fica isso?"*, que hoje o aluno só descobria procurando a
+           * olho num diagrama de 47 elementos.
+           */
+          const mostraveis = mostraveisDoResultado(nome, resultado);
+          if (mostraveis.length) atividade.mostraveis = mostraveis;
           atividade = null;
         }
         // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
@@ -1944,6 +1954,26 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       push({ role: 'user', text: rotulo, via: 'escolha', turn: n });
       push({ role: 'assistant', text: 'pensando…', rodando: true, turn: n });
       return true;
+    },
+
+    /**
+     * MOSTRA no desenho o que a ferramenta achou — sem falar com o modelo (harvest 6.4).
+     *
+     * ⚠ Seleciona, e **não** pinta. Pintar (`destacar`) escreve no diagrama do aluno: a cor fica
+     * no arquivo dele depois que a curiosidade passou. Seleção é exatamente o que o clique dele
+     * faria — inclusive a nota da página que conta ao modelo o que ele está olhando.
+     */
+    mostrarNoDesenho(alvo) {
+      const id = typeof alvo === 'string' ? alvo : alvo?.id;
+      if (!id) return false;
+      try {
+        const ok = Boolean(deps.acesso?.selecionar?.(id));
+        diag.record('pagina', ok ? 'mostrou' : 'nao-mostrou', id);
+        return ok;
+      } catch (err) {
+        diag.record('pagina', 'nao-mostrou', `${id}: ${err?.message ?? err}`);
+        return false;
+      }
     },
 
     /** Encerramento completo e idempotente. */

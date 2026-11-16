@@ -245,18 +245,23 @@ mais de um, pergunta em qual.
 > desenhado FORA do próprio pool — nenhum teste com dublê alcança isso. A conta (20 px de folga +
 > 30 px da faixa do rótulo) ficou nossa, com a origem nomeada no código.
 
-### F8 — Tutor
+### F8 — Tutor  ⬜ mecânica fechada · pedagogia estacionada pelo dono (2026-11-15)
 Ensina com o diagrama como exemplo · propõe a representação a partir de uma descrição · recomenda
 quando há escolha · monta em passos que o aluno aceita · propõe sem decidir pelo aluno.
 
-> ⚠ **Metade do portão F8 já está provada** (2026-11-14, cenário 4.5): três frases do aluno
-> viraram início, três tarefas e fim **ligados, legíveis, dentro do pool e em ordem de leitura**.
-> O que falta é a camada que torna isso um TUTOR: **propor antes de aplicar** (proposta nomeada
-> que o aluno aceita), explicar a escolha, e não mexer no que não foi pedido.
+> **Metade do portão F8 está provada** (2026-11-14, cenário 4.5): três frases do aluno viraram
+> início, três tarefas e fim **ligados, legíveis, dentro do pool e em ordem de leitura**. A outra
+> metade — **propor antes de aplicar**, explicar a escolha, não mexer no que não foi pedido —
+> deixou de ser prosa no prompt e virou mecânica (F8a, abaixo): a proposta fica **recusada** até
+> o aluno responder, e a tela é lida de volta a cada escrita.
 
 > **Portão F8** — AO VIVO: descrever um processo em três frases produz uma **proposta nomeada**;
 > ao aceitar, o diagrama ganha início, tarefas e fim ligados; e o agente não mexe no que não foi
 > pedido.
+>
+> ⚠ **Este portão não será corrido agora, e isso é decisão do dono**, não esquecimento (ver F8b):
+> o que ele mede é a **forma** do que o tutor diz, e essa forma vai ser elaborada com o
+> orientador. Correr o portão antes seria carimbar uma pedagogia que ninguém decidiu ainda.
 
 #### F8a — A mecânica do tutor (2026-11-15)
 
@@ -288,15 +293,32 @@ categoria e linha de base, de onde saem as tabelas da dissertação). Planejamen
 | `sustain-a-class-session` | compressão de contexto no setup, teto de 25 min, a cota MEDIDA (não é cadência — é consumo), latência por turno (2,7 / 2,2 / 1,3 s ao vivo) e custo (5,7 k → 7,6 k tokens) |
 | `prove-it-with-a-golden-set` | 32 perguntas em 12 categorias, camada determinística 32/32 dentro do `npm test`, camada ao vivo com descanso e "não executada" honesta, e as três tabelas geradas dos arquivos |
 
-O que **não** fechou e segue sendo de gente: a voz do dono (plano executivo em
-`openspec/plano-de-teste-por-voz.md`) e a pedagogia do F8b, logo abaixo.
+O que segue sendo **de gente**: a pedagogia do F8b, logo abaixo — e ela foi **estacionada pelo
+dono** para ser elaborada com o orientador. A voz dele, que estava nesta mesma linha até
+2026-11-15, saiu daqui: as sessões faladas aconteceram ao longo das rodadas de reteste e
+produziram quatro defeitos que a fala sintética nunca produziu (M1 do `open-items.md`).
 
-#### F8b — A pedagogia, que continua em aberto
+#### F8b — A pedagogia: **estacionada pelo dono, para elaborar com o orientador** (2026-11-15)
 
 O que a mecânica **não** resolve, e segue sendo o conteúdo da fase: quando propor e quando calar,
 como explicar a escolha de representação (por que gateway exclusivo e não paralelo), quanto
-corrigir de uma vez, e como apontar um erro sem desfazer o trabalho do aluno. Isso se decide com
-diagrama de aula na frente, não no código.
+corrigir de uma vez, e como apontar um erro sem desfazer o trabalho do aluno.
+
+> **Decisão do dono (2026-11-15), textual:** *"sobre o tutor, acho que quero deixar isso para
+> elaborar mais com o meu orientador, acho que chegamos num ponto bom aqui"* — e, sobre o que
+> ele já opinou no caminho: *"minha opinião foi elaborada junto com os testes que fizemos e as
+> rodadas de melhoria, que chegamos num estado estável"*.
+>
+> Fica escrito porque **"ninguém decidiu" e "foi decidido deixar para depois" são coisas
+> diferentes**, e aqui vale a segunda. A pedagogia não é uma lacuna de engenharia que sobrou: é
+> conteúdo acadêmico, e a autoridade sobre ele é do orientador e da instituição — a mesma
+> fronteira já registrada no K-E do `open-items.md`.
+>
+> O que **não** fica pendente por causa disso: a mecânica inteira está de pé e provada (a proposta
+> fica recusada até o aluno responder, a tela é lida de volta a cada escrita, e três frases já
+> viram um processo ligado, legível e na ordem). O que a decisão estaciona é **a redução a
+> regra** do que o tutor diz — e essa, pela própria natureza, se decide com diagrama de aula na
+> frente, não no código.
 
 ### FK — Conhecimento citável  ✅ 2026-11-15
 Acervo OKF autoral de BPMN servido como arquivo estático · `consultar_norma` escolhida por

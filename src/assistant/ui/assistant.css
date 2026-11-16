@@ -9,6 +9,14 @@
  * só o botão e o painel interceptam.
  */
 
+/* ESCALA (tarefa 3.2 do refine). Espaçamento 4 / 8 / 12 / 16 / 24 e raios 10 / 12 / 16 — e nada
+ * entre eles. Não é capricho: com 7, 9, 11, 13, 14 e 18 px espalhados pelo arquivo, dois blocos
+ * irmãos ficavam com respiro diferente por acidente, e cada regra nova precisava adivinhar qual
+ * dos seis vizinhos copiar. Dois valores ficaram FORA de propósito, cada um com o motivo na
+ * própria linha: o raio de 2 px da barrinha do medidor (que tem 3 px de largura) e o `margin-top`
+ * de 1 px do número do passo, que é alinhamento óptico. Medidas que NÃO são espaçamento (largura,
+ * altura, fonte, borda) seguem livres. */
+
 .bpmn-assist {
   position: fixed;
   right: 14px;
@@ -26,7 +34,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
   pointer-events: none;                 /* o canvas continua arrastável por baixo */
   font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: #0f172a;
@@ -41,8 +49,8 @@
 .bpmn-assist__toggle {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 18px;
+  gap: 8px;
+  padding: 12px 16px;
   border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 999px;
   background: #1f6feb;
@@ -85,7 +93,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 14px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(8px);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.22);
@@ -100,7 +108,7 @@
 
 .bpmn-assist__head {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 10px 10px 14px;
+  padding: 8px 8px 8px 12px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.10);
 }
 .bpmn-assist__head h2 { margin: 0; font-size: 14px; flex: 1; }
@@ -110,7 +118,7 @@
 .bpmn-assist__status {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11.5px;
-  padding: 3px 9px 3px 7px;
+  padding: 4px 8px 4px 8px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.06);
   color: #475569;
@@ -142,7 +150,7 @@
 
 .bpmn-assist__icon {
   border: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
   width: 28px; height: 28px;
   font: inherit; line-height: 1;
@@ -167,9 +175,9 @@
 .bpmn-assist textarea {
   width: 100%;
   box-sizing: border-box;
-  padding: 7px 10px;
+  padding: 8px 8px;
   border: 1px solid rgba(15, 23, 42, 0.22);
-  border-radius: 8px;
+  border-radius: 10px;
   font: inherit;
   background: #fff;
   color: #0f172a;
@@ -190,9 +198,9 @@
   color: #475569;
   background: rgba(210, 153, 34, 0.10);
   border: 1px solid rgba(210, 153, 34, 0.35);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin: 0 0 10px;
+  border-radius: 10px;
+  padding: 8px 8px;
+  margin: 0 0 8px;
 }
 .bpmn-assist__privacy strong { color: #92400e; }
 .bpmn-assist__privacy summary { cursor: pointer; }
@@ -204,9 +212,9 @@
 .bpmn-assist__row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 
 .bpmn-assist button.bpmn-assist__btn {
-  padding: 7px 12px;
+  padding: 8px 12px;
   border: 1px solid rgba(15, 23, 42, 0.18);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
   font: inherit;
   cursor: pointer;
@@ -233,8 +241,8 @@
 }
 
 .bpmn-assist__msg {
-  padding: 10px 13px;
-  border-radius: 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
   font-size: 13.5px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -265,7 +273,7 @@
   line-height: 1.4;
   color: #8a8f98;
   padding: 2px 10%;
-  margin: 2px 0;
+  margin: 4px 0;
 }
 .bpmn-assist__msg--error { color: #b42318; }
 .bpmn-assist__msg--context-reset {
@@ -282,7 +290,7 @@
   text-transform: uppercase;
   opacity: .6;
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 .bpmn-assist__msg--user .bpmn-assist__via { opacity: .75; }
 
@@ -301,7 +309,7 @@
   display: flex;
   gap: 8px;
   align-items: flex-end;
-  padding: 12px 14px;
+  padding: 12px 12px;
 }
 
 /* As ACOES do rodape: "Comecar" antes de conectar, "Parar de falar" enquanto ele responde.
@@ -309,7 +317,7 @@
 .bpmn-assist__acoes {
   display: flex;
   gap: 8px;
-  padding: 0 14px 12px;
+  padding: 0 12px 12px;
 }
 .bpmn-assist__acoes .bpmn-assist__btn { flex: 1; }
 .bpmn-assist button.bpmn-assist__btn--calar {
@@ -379,7 +387,7 @@
 
 .bpmn-assist__miclabel {
   display: block;
-  padding: 8px 14px 0;
+  padding: 8px 12px 0;
   font-size: 11.5px;
   color: #64748b;
 }
@@ -476,6 +484,7 @@
 .bpmn-assist__bar {
   display: block;
   width: 3px; height: 22px;
+  /* A barrinha do medidor tem 3 px de largura: raio da escala aqui deformaria a capsula. */
   border-radius: 2px;
   background: #1f6feb;
   transform: scaleY(0.08);
@@ -498,8 +507,8 @@
   font-size: 12px; line-height: 1.45;
   color: #92400e;
   background: rgba(210, 153, 34, 0.12);
-  border-radius: 8px;
-  padding: 7px 10px;
+  border-radius: 10px;
+  padding: 8px 8px;
 }
 
 /* ---------------------------------------------------------------- diagnostico */
@@ -513,7 +522,7 @@
   font-size: 10.5px; line-height: 1.4;
   white-space: pre-wrap; overflow-wrap: anywhere;
   background: #0f172a; color: #e2e8f0;
-  border-radius: 8px; padding: 8px 10px;
+  border-radius: 10px; padding: 8px 10px;
 }
 
 /* ⚠ O painel e CLARO (#fff, texto #0f172a). Branco translucido aqui e TEXTO INVISIVEL: foi o que
@@ -527,7 +536,7 @@
   align-self: stretch;
   background: none;
   border: none;
-  padding: 2px 0 2px 10px;
+  padding: 4px 0 4px 8px;
   border-left: 2px solid #cbd5e1;
   font-size: .82rem;
   color: #64748b;
@@ -590,7 +599,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 12px 12px;
   border-bottom: 1px solid var(--cor-borda);
   background: #f8fafc;
 }
@@ -609,7 +618,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px 12px;
   border-top: 1px solid var(--cor-borda);
   background: #f0fdfa;                      /* verde-azulado claro: escuta, nao alerta */
 }
@@ -622,16 +631,16 @@
    notacao — glossário no lugar de produto (dono, 2026-11-15). */
 .bpmn-assist__empty { padding: 18px 16px 8px; }
 .bpmn-assist__empty-titulo {
-  margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--cor-texto);
+  margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--cor-texto);
 }
 .bpmn-assist__empty-sub { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: var(--cor-texto-suave); }
 .bpmn-assist__empty-rodape {
-  margin: 14px 0 0; font-size: 12px; line-height: 1.45; color: var(--cor-texto-fraco, #94a3b8);
+  margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: var(--cor-texto-fraco, #94a3b8);
 }
 .bpmn-assist__exemplos { display: flex; flex-direction: column; gap: 6px; }
 .bpmn-assist__exemplo {
   font: inherit; font-size: 12.5px; text-align: left; line-height: 1.35;
-  padding: 9px 11px; border-radius: 10px;
+  padding: 8px 12px; border-radius: 10px;
   border: 1px solid var(--cor-borda); background: #fff; color: var(--cor-texto);
   cursor: pointer;
 }
@@ -647,7 +656,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .bpmn-assist__passo { display: flex; gap: 10px; align-items: flex-start; }
 .bpmn-assist__passo-n {
@@ -658,6 +667,7 @@
   color: var(--cor-primaria);
   font-size: 12.5px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
+  /* Alinhamento optico do numero com a primeira linha do titulo -- nao e espacamento. */
   margin-top: 1px;
 }
 .bpmn-assist__passo-corpo { flex: 1; min-width: 0; }
@@ -671,9 +681,9 @@
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  padding: 7px 13px;
+  padding: 8px 12px;
   border: 1px solid #c7d2fe;
-  border-radius: 9px;
+  border-radius: 10px;
   background: #f5f3ff;
   color: #4338ca;
   font-size: 12.5px;
@@ -697,7 +707,7 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   border: 1px solid var(--cor-borda);
   background: #fff;
   color: var(--cor-texto-suave);
@@ -720,7 +730,7 @@
 .bpmn-assist__voz .bpmn-assist__meter {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   height: 34px;
   flex: none;
 }
@@ -776,8 +786,8 @@
 .bpmn-assist__confirma {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 12px 12px;
   border-top: 1px solid var(--cor-erro);
   background: #fef2f2;
 }
@@ -799,14 +809,14 @@
 .bpmn-assist__cands {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 6px 0 2px;
+  gap: 4px;
+  margin: 4px 0 4px;
 }
 .bpmn-assist__cand {
   font: inherit;
   font-style: normal;
   font-size: .8rem;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid #93c5fd;
   background: #eff6ff;
@@ -827,7 +837,24 @@
   color: #475569;
   background: rgba(100, 116, 139, 0.08);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   text-align: left;
   font-style: italic;
+}
+
+/* VER NO DESENHO (harvest 6.4). Mesma forma do candidato, outro verbo — e a diferença tem de
+ * aparecer, senão o aluno acha que está respondendo uma pergunta do agente quando só quer
+ * olhar. Candidato é azul cheio (ação de conversa); este é discreto e tem a seta de ir até lá. */
+.bpmn-assist__cands--ver { margin-top: 4px; }
+.bpmn-assist__cand--ver {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.18);
+  color: #334155;
+}
+.bpmn-assist__cand--ver::before { content: '⌖ '; opacity: .75; }
+.bpmn-assist__cand--ver:hover { background: #eef2f7; }
+.bpmn-assist__cand--ver.bpmn-assist__cand--escolhido {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
 }

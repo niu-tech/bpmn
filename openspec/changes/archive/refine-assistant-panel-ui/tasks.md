@@ -29,17 +29,29 @@
 ## 3. Legibilidade e acessibilidade
 
 - [x] 3.1 Corpo 14–15 px, metadados 12–13 px, **nunca abaixo de 12**
-- [ ] 3.2 Escala de espaçamento 4/8/12/16/24 e raios 16/12/10
+- [x] 3.2 Escala de espaçamento 4/8/12/16/24 e raios 16/12/10
+      — **43 declarações** ajustadas (só `padding`/`margin`/`gap`/`border-radius`, só px). Dois
+      valores ficaram fora **de propósito**, com o motivo na própria linha: o raio de 2 px da
+      barrinha do medidor (3 px de largura — raio da escala ali deforma a cápsula) e o
+      `margin-top` de 1 px do número do passo, que é alinhamento óptico. Medida que não é
+      espaçamento (largura, altura, fonte, borda) seguiu livre
 - [x] 3.3 Foco visível em tudo que recebe foco; `prefers-reduced-motion` respeitado; o medidor é
       `aria-hidden` e o estado é `aria-live="polite"` — não se anuncia volume
 
 ## 4. Primeira utilização (BYOK)
 
-- [ ] 4.1 Introdução curta com **uma** ação primária
+- [x] 4.1 Introdução curta com **uma** ação primária
+      — dois passos numerados e **um** botão primário (`Começar`); a dica do rodapé fica vazia
+      de propósito, porque dizer a mesma coisa no passo, no rótulo e no rodapé era a terceira
+      repetição. Portão `primeira tela: acao visivel e os dois passos da chave`
 - [x] 4.2 **Aviso de segurança que hoje não existe**: a chave viaja na URL do WebSocket e aparece
       nas ferramentas de rede do navegador. "Só em memória" não quer dizer invisível, e o aluno
       merece saber antes de colar
-- [ ] 4.3 Consentimento **não** pré-marcado, e link de onde tirar a chave
+- [x] 4.3 Consentimento **não** pré-marcado, e link de onde tirar a chave
+      — portão `primeira tela: consentimento NAO pre-marcado...` mede os dois no navegador:
+      `checked === false` na primeira visita e o botão externo apontando para
+      `aistudio.google.com/apikey`. Marcar por ele seria obter consentimento de ninguém — e o
+      que se consente aqui é a chave dele viajar na URL do socket
 
 > **Uma regra no lugar de nove.** `[hidden]` do navegador é `display:none` com peso MÍNIMO:
 > qualquer `.classe { display: flex }` nossa vence o atributo, e o elemento fica na tela com o
@@ -48,6 +60,16 @@
 
 ## 5. Prova
 
-- [ ] 5.1 Prints dos mesmos cenários de antes, lado a lado com os antigos
-- [ ] 5.2 Bateria ao vivo sem regressão — os seletores e textos que ela dirige continuam valendo
-- [ ] 5.3 A marca d'água do bpmn.io continua sem sobreposição (K-G, exigência de licença)
+- [x] 5.1 Prints dos mesmos cenários de antes, lado a lado com os antigos
+      — `tools/prints-lado-a-lado.py` compõe os dois pares (a primeira tela e a tela com a voz
+      aberta) a partir das capturas de 13/11 e dos prints que a bateria tira hoje, com a MESMA
+      escala nos dois lados: par com escalas diferentes esconde justamente o que mudou de
+      tamanho. Saída em `artifacts/ui/lado-a-lado-*.png`
+- [x] 5.2 Bateria sem regressão — os seletores e textos que ela dirige continuam valendo
+      — **25 de 25** sem cota depois do redesenho (e os cenários AO VIVO seguem passando nas
+      corridas da mesma noite). Era o risco inteiro desta change: redesenhar a tela não pode
+      derrubar a prova junto
+- [x] 5.3 A marca d'água do bpmn.io continua sem sobreposição (K-G, exigência de licença)
+      — o portão mede **interseção de retângulos** entre `.bjs-powered-by` e o painel, e exige
+      que ela esteja visível. Não é zelo estético: a licença do `bpmn-js` proíbe remover ou
+      cobrir a marca, e o nosso painel mora no mesmo canto dela

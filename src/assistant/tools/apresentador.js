@@ -244,6 +244,51 @@ export function candidatosDoResultado(nome, resposta) {
     }));
 }
 
+/**
+ * O que, no resultado da ferramenta, o aluno pode querer **VER no desenho** (cartão clicável).
+ *
+ * ⚠ NÃO é o mesmo que `candidatosDoResultado`, e a diferença é o que o clique FAZ. Candidato é
+ * resposta a uma pergunta do agente (*"em qual pool?"*): clicar **diz** a escolha ao modelo e
+ * gasta um turno. Aqui o aluno só quer saber **onde fica** o que a ferramenta achou — clicar
+ * **seleciona** no diagrama, como o clique dele selecionaria, e não fala com o modelo nem gasta
+ * cota. Vinha do vídeo do *appointment agent* (lá, médico e horário em cartões); aqui é o
+ * elemento encontrado.
+ *
+ * Os dois nunca aparecem juntos: havendo candidato, a pergunta do agente está em pé e é ela que
+ * manda — duas fileiras de botão para a mesma coisa é o aluno adivinhando qual clicar.
+ */
+export function mostraveisDoResultado(nome, resposta) {
+  if (candidatosDoResultado(nome, resposta).length) return [];
+  const envelope = resposta && typeof resposta === 'object' ? resposta : {};
+  if (envelope.ok === false) return [];
+  const resultado = 'resultado' in envelope ? envelope.resultado : envelope;
+  if (!resultado || typeof resultado !== 'object') return [];
+
+  // ⚠ MAPA de chaves, e não `nome === 'buscar_elemento'`: comparar texto com nome de ferramenta
+  // é a forma proibida pelo §III do project.md (quem escolhe ação é o MODELO, nunca uma comparação
+  // de string no nosso código), e a varredura dos guardrails reprova a build por isso. Aqui não
+  // se decide ação nenhuma — só se sabe onde, em cada formato de resultado, mora o elemento —,
+  // mas a regra vale pela FORMA: chave de objeto, como o `COMO_MOSTRAR` logo abaixo.
+  const ONDE_ESTA_O_ELEMENTO = {
+    buscar_elemento: (r) => (Array.isArray(r.elementos) ? r.elementos : []),
+    detalhar_elemento: (r) => [r],
+    criar_elemento: (r) => [r.criado],
+  };
+  const lista = ONDE_ESTA_O_ELEMENTO[nome]?.(resultado) ?? [];
+
+  return lista
+    .filter((c) => c && c.id)
+    .slice(0, MAX_CANDIDATOS)
+    .map((c) => ({
+      id: c.id,
+      nome: c.nome ?? null,
+      tipo: c.tipo ?? null,
+      rotulo: c.nome ? String(c.nome) : String(c.id),
+      // A marca que o painel lê para saber que o clique MOSTRA, em vez de escolher.
+      mostrar: true,
+    }));
+}
+
 /** Enquanto roda: o aluno precisa saber que há algo acontecendo, antes de haver resultado. */
 export function linhaDeInicio(nome) {
   return ({

@@ -408,7 +408,7 @@ const CENARIOS = [
         await new Promise((r) => setTimeout(r, 250));
       }
       const formas = document.querySelectorAll('#canvas .djs-visual').length;
-      const tira = document.querySelector('.pv-tira');
+      const barra = document.querySelector('.pv-barra');
       const convite = document.querySelector('.pv');
       const escolha = localStorage.getItem('bpmn.primeira-vez');
 
@@ -418,16 +418,19 @@ const CENARIOS = [
       if (!alvo) return { ok: false, erro: 'nao achei o elemento para editar' };
       await window.__bpmnAssist.ferramenta('renomear', { id: alvo, nome: 'Assar a pizza' });
       await new Promise((r) => setTimeout(r, 300));
-      const tiraDepois = !!document.querySelector('.pv-tira');
+      const barraDepois = !!document.querySelector('.pv-barra');
       // E as barras VOLTAM: elas so' saem enquanto o convite esta' no ar.
       const barraDeVolta = getComputedStyle(document.querySelector('.bz-toolbar')).display !== 'none';
 
       return {
-        ok: formas > 10 && !!tira && /Exemplo/i.test(tira.textContent) && !convite
-          && escolha === 'exemplo' && !tiraDepois && barraDeVolta,
+        // A barra diz que e' exemplo E ensina o que fazer com ele (clicar numa forma e perguntar):
+        // dizer "isto e' um exemplo" sem dizer o que fazer era metade do recado.
+        ok: formas > 10 && !!barra && /exemplo/i.test(barra.textContent)
+          && /clique/i.test(barra.textContent) && !!barra.querySelector('.pv-barra__acao')
+          && !convite && escolha === 'exemplo' && !barraDepois && barraDeVolta,
         barraDeVolta,
-        formas, tira: tira && tira.textContent.trim(), convite: !!convite, escolha,
-        tiraSumiuAoEditar: !tiraDepois,
+        formas, barra: barra && barra.textContent.trim().slice(0, 90), convite: !!convite, escolha,
+        barraSumiuAoEditar: !barraDepois,
       };
     `],
   },
@@ -465,18 +468,18 @@ const CENARIOS = [
       for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
         await new Promise((r) => setTimeout(r, 250));
       }
-      const voltar = [...document.querySelectorAll('.pv-tira__link')].find((b) => b.textContent === 'voltar ao menu');
-      if (!voltar) return { ok: false, erro: 'a tira nao oferece voltar ao menu' };
+      const voltar = [...document.querySelectorAll('.pv-barra__link')].find((b) => b.textContent === 'voltar ao menu');
+      if (!voltar) return { ok: false, erro: 'a barra nao oferece voltar ao menu' };
       voltar.click();
       await new Promise((r) => setTimeout(r, 500));
       return {
         ok: !!document.querySelector('.pv')
-          && !document.querySelector('.pv-tira')
+          && !document.querySelector('.pv-barra')
           && localStorage.getItem('bpmn.primeira-vez') === null
           && document.querySelector('.bpmn-assist__panel').hidden
           && getComputedStyle(document.querySelector('.bz-toolbar')).display === 'none',
         convite: !!document.querySelector('.pv'),
-        tira: !!document.querySelector('.pv-tira'),
+        barra: !!document.querySelector('.pv-barra'),
         escolha: localStorage.getItem('bpmn.primeira-vez'),
         painelRecolhido: document.querySelector('.bpmn-assist__panel').hidden,
       };
@@ -516,6 +519,45 @@ const CENARIOS = [
         perguntou, aindaTemTrabalho, aindaNoDiagrama,
         voltouAoMenu: !!document.querySelector('.pv'),
         formasDepois: document.querySelectorAll('#canvas .djs-visual').length,
+      };
+    `],
+  },
+  {
+    nome: 'a barra do tutor fala DA FORMA que o aluno clicou, e abre o painel com a pergunta',
+    url: ALVO_BASE,
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="exemplo"]').click();
+      for (let i = 0; i < 40 && document.querySelectorAll('#canvas .djs-visual').length < 10; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const barra = document.querySelector('.pv-barra');
+      if (!barra) return { ok: false, erro: 'a barra do tutor nao apareceu' };
+      const antesDoClique = barra.querySelector('.pv-barra__acao').textContent;
+
+      // O aluno CLICA numa forma — mesmo caminho do mouse dele (\`selection.select\`).
+      const id = (window.__bpmnAssist.desenho.nos.find((n) => n.nome === 'Assar a pizza') || {}).id;
+      if (!id) return { ok: false, erro: 'nao achei a forma para selecionar' };
+      window.__bpmnAssist.selecionar(id);
+      await new Promise((r) => setTimeout(r, 400));
+      const tituloDepois = barra.querySelector('.pv-barra__titulo').textContent;
+      const acaoDepois = barra.querySelector('.pv-barra__acao').textContent;
+
+      // E a sugestao leva ao painel com a pergunta pronta — sem enviar.
+      barra.querySelector('.pv-barra__acao').click();
+      await new Promise((r) => setTimeout(r, 600));
+      const painel = document.querySelector('.bpmn-assist__panel');
+      const composer = painel.querySelector('textarea').value;
+      const enviadas = document.querySelectorAll('.bpmn-assist__log li').length;
+      // Com o painel aberto a barra sai de cena: os dois moram no mesmo canto.
+      const barraEscondida = getComputedStyle(barra).display === 'none';
+
+      return {
+        ok: /este diagrama/i.test(antesDoClique)
+          && /Assar a pizza/.test(tituloDepois) && /Assar a pizza/.test(acaoDepois)
+          && /Assar a pizza/.test(composer) && enviadas === 0
+          && !painel.hidden && barraEscondida,
+        antesDoClique, tituloDepois, acaoDepois, composer, enviadas, barraEscondida,
       };
     `],
   },
@@ -1349,6 +1391,109 @@ CENARIOS.push({
        ligacoesAntes: antes,
        ligacoesDepois: d.ligacoes.length,
        recusou: r?.erro ?? null,
+     };`,
+  ],
+});
+
+/**
+ * VER NO DESENHO, e o selo que não mente (colheita da cápsula, 6.4 e 6.5).
+ *
+ * Duas dívidas antigas, e as duas são sobre a tela dizer a verdade:
+ *
+ * • **6.4** — a ferramenta achava o elemento e o aluno ficava procurando a olho num diagrama de
+ *   47 formas. Agora o resultado vira cartão clicável que **seleciona no desenho** — e isto é
+ *   diferente de candidato: candidato RESPONDE uma pergunta do agente e gasta um turno; este só
+ *   mostra onde fica, e não fala com o modelo.
+ * • **6.5** — o selo dizia **"ouvindo"** numa sessão de TEXTO, sem microfone aberto. Numa
+ *   ferramenta de voz é a mentira mais cara que a tela pode contar: o aluno fala e ninguém ouve.
+ *
+ * Sem cota: o socket é o dublê, e os dois fatos são do nosso lado.
+ */
+CENARIOS.push({
+  nome: 'ver no desenho sem gastar turno, e o selo que nao diz "ouvindo" sem microfone (6.4/6.5)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    CONECTAR,
+    `// A ferramenta acha o elemento pelo caminho do modelo, sem cota.
+     const r = await window.__bpmnAssist.ferramenta('buscar_elemento', { termo: 'Assar' });
+     const cartoes = [...document.querySelectorAll('.bpmn-assist__cand--ver')];
+     const perguntasAntes = window.__bpmnAssist.mensagens.filter((m) => m.role === 'user').length;
+
+     if (!cartoes.length) return { ok: false, erro: 'o resultado nao virou cartao clicavel', achou: r?.resultado?.total ?? null };
+     cartoes[0].click();
+     await new Promise((res) => setTimeout(res, 300));
+
+     // SELECIONADO no desenho, como o clique do aluno selecionaria (o bpmn-js marca o <g>).
+     const selecionados = [...document.querySelectorAll('.djs-element.selected')]
+       .map((n) => n.getAttribute('data-element-id'));
+     const alvo = r?.resultado?.elementos?.[0] ?? null;
+     const diario = window.__bpmnAssist.eventos.filter((e) => e.key === 'pagina.mostrou').length;
+     return {
+       ok: Boolean(alvo) && selecionados.includes(alvo.id) && diario === 1
+         // E NAO gastou turno: ver onde fica nao e' falar com o modelo.
+         && window.__bpmnAssist.mensagens.filter((m) => m.role === 'user').length === perguntasAntes,
+       cartoes: cartoes.map((b) => b.textContent.trim()),
+       alvo: alvo?.nome ?? null,
+       selecionadosNoDesenho: selecionados,
+       anotouNoDiario: diario,
+       turnosGastos: window.__bpmnAssist.mensagens.filter((m) => m.role === 'user').length - perguntasAntes,
+     };`,
+    `// 6.5: turno DIGITADO passa pelo estado \`listening\`, e o selo nao pode dizer "ouvindo".
+     const vistos = [];
+     const chip = document.querySelector('.bpmn-assist__status');
+     const ta = document.querySelector('.bpmn-assist__composer textarea');
+     ta.value = 'quantas tarefas tem o diagrama?';
+     window.__btn('Enviar').click();
+     for (let i = 0; i < 12; i++) {
+       await new Promise((res) => setTimeout(res, 120));
+       const t = chip.textContent.trim();
+       if (!vistos.includes(t)) vistos.push(t);
+     }
+     return {
+       ok: !vistos.includes('ouvindo') && vistos.includes('processando')
+         && window.__bpmnAssist.estado.micOn === false,
+       selosVistos: vistos,
+       micAberto: window.__bpmnAssist.estado.micOn,
+     };`,
+  ],
+});
+
+/**
+ * A PRIMEIRA TELA E A MARCA D'ÁGUA (refine 4.3 e 5.3).
+ *
+ * • **4.3** — consentimento **não** pré-marcado: marcar por ele é obter consentimento de
+ *   ninguém, e aqui o que se consente é a chave dele viajar na URL do socket. E o caminho de
+ *   onde tirar a chave tem de estar na tela, porque quem nunca viu uma chave de API não sabe
+ *   que precisa sair do site e voltar.
+ * • **5.3** — a marca d'água do bpmn.io **não pode ser removida nem coberta**: é exigência da
+ *   licença do `bpmn-js` (dívida K-G), e o nosso painel mora no mesmo canto dela. Portão que
+ *   mede sobreposição é o que impede uma mudança de layout de virar problema de licença.
+ */
+CENARIOS.push({
+  nome: 'primeira tela: consentimento NAO pre-marcado, e a marca do bpmn.io livre (4.3/5.3)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `const consent = document.querySelector('#bpmn-assist-consent');
+     const linkDaChave = document.querySelector('.bpmn-assist__botao-externo');
+     const marca = document.querySelector('.bjs-powered-by');
+     const painel = document.querySelector('.bpmn-assist__panel');
+     const a = marca && marca.getBoundingClientRect();
+     const b = painel && painel.getBoundingClientRect();
+     const cobre = Boolean(a && b)
+       && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+     const visivel = Boolean(a && a.width > 0 && a.height > 0
+       && getComputedStyle(marca).visibility !== 'hidden' && getComputedStyle(marca).display !== 'none');
+     return {
+       ok: Boolean(consent) && consent.checked === false
+         && Boolean(linkDaChave) && /ai\u002estudio|studio/i.test(linkDaChave.href ?? '')
+         && visivel && !cobre,
+       consentimentoPreMarcado: consent ? consent.checked : null,
+       levaAoAiStudio: linkDaChave ? linkDaChave.href : null,
+       marcaExiste: Boolean(marca),
+       marcaVisivel: visivel,
+       painelCobreAMarca: cobre,
      };`,
   ],
 });

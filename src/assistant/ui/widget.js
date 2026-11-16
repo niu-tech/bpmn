@@ -531,6 +531,38 @@ export function createWidget({ session, credentials, onClose } = {}) {
    * São `<button>` de verdade (não `div` com clique): foco por Tab, Enter e Espaço de graça, e
    * leitor de tela os anuncia como ação. O aluno de mãos livres é o caso de uso inteiro.
    */
+  /**
+   * Os cartões de **VER NO DESENHO** (harvest 6.4). Mesma forma dos candidatos, outro verbo.
+   *
+   * ⚠ Não desabilitam depois do clique, e isso é de propósito: escolher é uma vez (a segunda
+   * escolha chegaria ao modelo fora de ordem), mas OLHAR é quantas vezes o aluno quiser — ele
+   * compara dois elementos clicando em um, depois no outro.
+   */
+  function montarMostraveis(m) {
+    const caixa = el('div', { className: 'bpmn-assist__cands bpmn-assist__cands--ver' });
+    caixa.setAttribute('role', 'group');
+    caixa.setAttribute('aria-label', 'Ver no desenho');
+    for (const c of m.mostraveis) {
+      const b = el('button', {
+        className: 'bpmn-assist__cand bpmn-assist__cand--ver',
+        type: 'button',
+        textContent: c.rotulo,
+      });
+      b.title = `ver ${c.rotulo} no desenho (${c.id})`;
+      b.addEventListener('click', () => {
+        const ok = session.mostrarNoDesenho(c);
+        // Marca o ÚLTIMO que o aluno olhou: sem isso, clicar em três seguidos não dá retorno
+        // nenhum na tela, e ele não sabe se o clique pegou.
+        for (const outro of caixa.querySelectorAll('button')) {
+          outro.classList.remove('bpmn-assist__cand--escolhido');
+        }
+        if (ok) b.classList.add('bpmn-assist__cand--escolhido');
+      });
+      caixa.append(b);
+    }
+    return caixa;
+  }
+
   function montarCandidatos(m) {
     const caixa = el('div', { className: 'bpmn-assist__cands' });
     caixa.setAttribute('role', 'group');
@@ -580,6 +612,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
       }
       li.append(el('span', { className: 'bpmn-assist__text', textContent: m.text }));
       if (m.candidatos?.length) li.append(montarCandidatos(m));
+      if (m.mostraveis?.length) li.append(montarMostraveis(m));
       log.append(li);
     }
     // Bolhas CRESCEM no lugar: a legenda chega em pedaços, e a linha da ferramenta começa em
@@ -594,6 +627,9 @@ export function createWidget({ session, credentials, onClose } = {}) {
       // ⚠ Os candidatos chegam DEPOIS da bolha: a linha da ferramenta nasce em "criando…" e só
       // no fim se sabe que a ferramenta recusou por ambiguidade. Sem este ramo, os botões só
       // apareceriam na próxima mensagem — ou nunca.
+      if (li && m.mostraveis?.length && !li.querySelector('.bpmn-assist__cands--ver')) {
+        li.append(montarMostraveis(m));
+      }
       if (li && m.candidatos?.length && !li.querySelector('.bpmn-assist__cands')) {
         li.append(montarCandidatos(m));
         if (seguir) descerAteOFim();
@@ -658,7 +694,16 @@ export function createWidget({ session, credentials, onClose } = {}) {
     const emVoz = mode === 'voz' && (micOn || Boolean(view.micMudo));
 
     dot.setAttribute('data-state', state);
-    const label = STATE_LABELS[state] ?? state;
+    /**
+     * ⚠ **"OUVINDO" EXIGE MICROFONE ABERTO.** O estado técnico `listening` significa *"a vez é
+     * do aluno"*, e o turno digitado passa por ele também — então o selo dizia "ouvindo" numa
+     * sessão de TEXTO, sem microfone nenhum aberto (dívida 6.5 da colheita da cápsula). Numa
+     * ferramenta de voz, dizer que está ouvindo quando não está é a mentira mais cara que a
+     * tela pode contar: o aluno fala e ninguém escuta.
+     */
+    const label = (state === 'listening' && !micOn)
+      ? 'processando'
+      : (STATE_LABELS[state] ?? state);
     /**
      * ⚠ O selo diz o ESTADO, não o motivo. Ele carregava a frase inteira do erro — e a mesma
      * frase estava na conversa, logo abaixo: duas cópias na mesma tela (dono, 2026-11-14: "está
