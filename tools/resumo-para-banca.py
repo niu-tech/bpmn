@@ -102,6 +102,10 @@ story = [
          "pergunta sobre a notação e recebe a resposta com a referência",
          "um acervo autoral de BPMN servido com o site; o modelo <b>escolhe</b> consultá-lo, e o "
          "aplicativo <b>confere a citação</b> antes de ela aparecer na tela"],
+        ["<b>Orienta quem chega</b>",
+         "entra pela primeira vez e sabe o que pedir, sem ler manual",
+         "uma barra encostada no botão do assistente diz o que dá para fazer naquela trilha e "
+         "oferece <b>uma</b> sugestão clicável — que acompanha o elemento selecionado no desenho"],
         ["<b>Diz o que não sabe</b>",
          "pergunta algo fora do acervo",
          "a resposta declara o tamanho do próprio acervo em vez de afirmar o que a norma inteira "
@@ -134,8 +138,27 @@ story = [
         "o trabalho tem a dizer sobre método: a diferença entre um teste que protege e um teste "
         "que apenas tranquiliza.", P),
 
+    Paragraph("Uma decisão de interface tomada por pesquisa, não por gosto", H2),
+    Paragraph(
+        "A orientação de quem chega pela primeira vez é um exemplo pequeno do método. A tentação "
+        "era abrir o painel de conversa junto com o diagrama de exemplo e piscar o botão até a "
+        "pessoa clicar. A literatura de usabilidade diz o contrário: <b>orientação sobreposta faz "
+        "o produto parecer mais complexo do que é</b>, e quem chega para desenhar um diagrama não "
+        "quer uma janela de conversa por cima dele. Também diz que a <b>caixa em branco</b> esconde "
+        "o que um assistente sabe fazer — e que o remédio são <b>poucas sugestões, clicáveis e "
+        "editáveis</b>, de preferência ligadas ao que está na tela, que funcionam melhor que as "
+        "genéricas.", P),
+    Paragraph(
+        "O desenho saiu daí: uma barra discreta encostada no botão, com <b>uma</b> sugestão por "
+        "vez, que muda conforme o elemento selecionado. As duas ideias recusadas ficaram "
+        "<b>registradas com o motivo</b>, e não apagadas — porque a decisão final é de quem "
+        "orienta o trabalho, e recusa sem argumento escrito é só teimosia de quem implementa.", P),
+
     Paragraph("O que dá para demonstrar ao vivo, em poucos minutos", H2),
     bullets([
+        "<b>Abrir pela primeira vez</b> — a tela pergunta o que a pessoa quer fazer, e a barra que "
+        "aparece depois já sugere a primeira pergunta; clicando num elemento do desenho, a "
+        "sugestão passa a ser sobre ele.",
         "<b>“O que é um gateway exclusivo?”</b> — a resposta vem com a referência do acervo; "
         "perguntando algo fora dele, o agente diz que não está no material e separa o que é "
         "conhecimento geral.",

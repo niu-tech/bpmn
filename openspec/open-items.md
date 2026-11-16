@@ -37,6 +37,7 @@
 | **T18** | *"Arruma o desenho"* — layout automático de verdade | **meu — frente nova** | `alinhar` resolve dois ou três elementos, que é o pedido real do aluno hoje |
 | **E1 / E2** | Desfazer em bloco · sugestão proativa ao abrir um diagrama com problema | **meu — frentes novas** | são capacidades a mais, não conserto de nada |
 | **T1 / T2 / T4** | Pontas de documento: caixa duplicada no MVP, `config.yaml` velho, roteiro manual já automatizado | **meu — higiene** | não afetam o produto nem a prova |
+| **5.1 / 5.2** (trilhas) | Partidas por histórico de quem volta · medir se a orientação da primeira visita funcionou | **declarado — fica fora** | a primeira depende de memória entre visitas, que foi decidida em contrário; a segunda exigiria telemetria, e não vai haver. Ficam escritas para ninguém as "descobrir" como esquecimento |
 
 ## 1. Portões do dono (publicação na VPS)
 
@@ -681,6 +682,15 @@ Não são dívidas — são escolhas, registradas para ninguém "consertar" por 
 - **`dist/` não é versionado**; a imagem reconstrói do zero.
 - **`.env` com a chave do dono fica na máquina dele**, fora do git, autorizado em 2026-11-12 para
   os cenários AO VIVO rodarem sem intervenção.
+- **A primeira visita NÃO abre o painel junto com o exemplo, e a alavanca NÃO pisca.** As duas
+  ideias são do dono (2026-11-15) e foram **recusadas com motivo**, não esquecidas: a pesquisa de
+  UI/UX da change `guide-the-first-run-trails` mostra que orientação sobreposta faz o produto
+  parecer **mais** complexo do que é — e quem chega para desenhar um diagrama não quer um painel
+  de conversa por cima dele. O lugar da orientação passou a ser uma **barra encostada na
+  alavanca**, que diz o que dá para fazer naquela trilha e oferece **uma** sugestão clicável.
+  O argumento inteiro está em `changes/guide-the-first-run-trails/design.md` (G2) — está lá
+  justamente para o dono poder **reverter a recusa com o contra-argumento na mão**: a decisão
+  final é dele, e uma recusa sem motivo escrito seria só teimosia de quem implementa.
 
 ## 6. Fora do MVP, agora virando trabalho
 

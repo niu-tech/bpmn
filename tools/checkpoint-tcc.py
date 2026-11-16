@@ -112,6 +112,9 @@ story = [
          "<font color='%s'><b>no ar</b></font> 15/11" % VERDE],
         ["Acabamento do painel", "escala de espaçamento, consentimento, marca d'água, o selo que não mente",
          "<font color='%s'><b>fechado</b></font> 15/11" % VERDE],
+        ["Orientação da primeira visita", "barra encostada na alavanca: o que dá para fazer naquela "
+         "trilha, uma sugestão clicável, e ela segue o que você clica no desenho",
+         "<font color='%s'><b>no ar</b></font> 15/11" % VERDE],
     ], [4.0 * cm, 7.6 * cm, 4.4 * cm]),
 
     # ---------------------------------------------------------------- 3. as provas
@@ -162,6 +165,12 @@ story = [
         "fluxo, e um portão que dava verde sem provar nada.",
         "<b>A primeira tela</b> ficou em português, com dois passos para a chave e sempre um "
         "caminho de volta — e o exemplo da pizzaria foi traduzido.",
+        "<b>A primeira visita ganhou orientação</b> — e a forma dela veio de pesquisa, não de "
+        "gosto: tutorial sobreposto faz o produto parecer <b>mais</b> complexo, caixa em branco "
+        "esconde o que o assistente sabe fazer, e sugestão ligada ao que está na tela vence a "
+        "genérica. Resultado: uma barra encostada na alavanca, com <b>uma</b> sugestão clicável "
+        "que <b>segue a sua seleção</b> — clicou em “Assar a pizza”, ela passa a falar dessa "
+        "tarefa e deixa a pergunta pronta no painel, sem enviar.",
         "<b>O acabamento do painel fechou</b>, e trouxe uma capacidade nova: o que a ferramenta "
         "acha vira <b>cartão clicável que mostra o elemento no desenho</b> — sem falar com o "
         "modelo e <b>sem gastar turno</b>. Junto com isso: o selo deixou de dizer “ouvindo” numa "
@@ -194,6 +203,11 @@ story = [
          "as três têm prova equivalente onde a decisão é nossa; forçá-las exigiria costura de "
          "teste dentro do produto",
          "<b>declaradas</b>, não escondidas"],
+        ["<b>Duas da orientação que ficam fora</b>: partidas pelo histórico de quem volta, e medir "
+         "se a orientação funcionou",
+         "a primeira depende de memória entre visitas, que você decidiu não ter; a segunda "
+         "exigiria telemetria, e não vai haver",
+         "<b>declaradas</b> — escritas para ninguém as descobrir como esquecimento"],
         ["<b>Pontas minhas, sem pressa</b>: o viewer na bateria, a bateria no CI, desfazer em "
          "bloco, layout automático de verdade, o teto do contexto",
          "nenhuma conserta nada — são capacidades a mais ou higiene",

@@ -99,3 +99,23 @@ pergunta), nunca o XML inteiro despejado. A cota é do aluno: desperdício é cu
 
 O modelador, o viewer e a simulação em lote continuam funcionando exatamente como hoje. O ajudante
 falha **sozinho** (`try/catch` na montagem) — defeito no agente nunca leva o produto junto.
+
+## XI. Quem commita num checkout compartilhado passa o caminho
+
+Duas sessões trabalham neste mesmo diretório ao mesmo tempo, e o índice do git é **um só**.
+`git add -A` e `git commit` sem caminho varrem o que a outra sessão deixou staged: o trabalho
+dela entra num commit cujo texto fala de outra coisa. Aconteceu duas vezes em 2026-11-15 — a
+segunda levou uma feature de interface inteira para dentro de um commit chamado `docs(pdf)`.
+
+Então: **stage por caminho** (`git add -- <arquivos meus>`) e **commit por caminho**
+(`git commit -- <arquivos meus>`), que ignora o resto do índice. Antes de commitar, `git status`
+e conferir que não há nada de terceiro staged.
+
+Nada se perde quando isso falha — o que se perde é a **mensagem**, e aqui ela não é detalhe: é a
+evidência de método que o texto do TCC cita. Commit cuja mensagem não descreve o diff é um
+registro que mente para quem vier ler.
+
+Duas regras irmãs, da mesma convivência: **o script de teste e o arquivo que ele roda vão no
+MESMO commit**, e **quem commita por índice privado (`GIT_INDEX_FILE`) ressincroniza o índice
+compartilhado logo depois** — senão os blobs velhos que sobram no índice revertem o commit do
+outro sem conflito nenhum.
