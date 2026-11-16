@@ -70,6 +70,9 @@ e não foi usada para decidir nada sozinha.
 - **Se `Tutor BPMN` é o melhor nome.** Nome se valida com gente, não com fonte. O que a pesquisa
   sustenta é a **forma** (papel, sem "IA", escopado ao produto) e a fonte única; a palavra é
   decisão do dono e troca-se numa linha.
+  **FECHADO em 2026-11-16: o dono viu o nome na tela e decidiu — "fica assim".** Fica registrado
+  aqui porque esta linha dizia que a escolha ainda era dele; quem ler depois precisa saber que ela
+  foi feita, e não ficou esquecida. Trocar continua custando uma linha (`assistant/identidade.js`).
 - **Se a âncora é descoberta.** Ela é permanente, rotulada e está na moldura — que é o que a
   diretriz pede. Se é notada no primeiro minuto, só teste com aluno diz, e não há telemetria (nem
   vai haver: o produto é estático).
