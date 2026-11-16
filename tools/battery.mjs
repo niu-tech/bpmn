@@ -391,10 +391,30 @@ const CENARIOS = [
       const m = marca && marca.getBoundingClientRect();
       const t = tela.getBoundingClientRect();
       const marcaLivre = !!m && m.top >= t.bottom - 1;
+
+      // ⚠ O QUE A TELA DIZ, e não só o que ela tem. Este cenário media contagem, booleano e
+      // geometria — a tela base podia dizer qualquer coisa e ele passava. E não é hipótese: a
+      // tela da CHAVE ficou uma rodada inteira chamando o agente de "ajudante", logo abaixo de
+      // um cabecalho que dizia "Tutor BPMN", com todos os portoes verdes (2026-11-16).
+      // (Sem crase neste comentario: ele mora DENTRO de um template literal, e uma crase aqui
+      // fecha o literal — foi assim que um build de 135 KB foi servido sem erro em 2026-11-15.)
+      //
+      // Então aqui se cobra o texto: o nome UMA vez (duas seria a repetição que o dono mandou
+      // tirar), nunca o nome velho, e a frase que diz o que ele é — que foi o pedido dele,
+      // "deixar claro que temos um agente de IA especializado em ensinar sobre BPMN".
+      // "undefined" entra junto porque o texto e' montado com constantes de outro modulo.
+      const prosa = tela.textContent;
+      const quantasVezesONome = (prosa.match(/Tutor BPMN/g) || []).length;
+      const dizOQueEle = /agente de IA/i.test(prosa);
+      const semNomeVelho = !/ajudante/i.test(prosa);
+      const semBuraco = !/undefined|\\[object/.test(prosa);
+
       return {
         ok: caminhos.length === 4 && formas <= 3 && !pedeChave && !painelAberto && marcaLivre
-          && barrasEscondidas,
+          && barrasEscondidas
+          && quantasVezesONome === 1 && dizOQueEle && semNomeVelho && semBuraco,
         caminhos, formas, pedeChave, painelAberto, marcaLivre, barras,
+        quantasVezesONome, dizOQueEle, semNomeVelho, semBuraco,
       };
     `],
   },
