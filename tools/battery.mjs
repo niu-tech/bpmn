@@ -757,31 +757,50 @@ const CENARIOS = [
       // ajudante escreve a reserva do rodape por ResizeObserver, DEPOIS da montagem.
       await new Promise((r) => setTimeout(r, 1400));
 
-      const barra = document.querySelector('.pv-barra');
-      const alavanca = document.querySelector('.bpmn-assist__toggle');
-      if (!barra || !alavanca) return { ok: false, erro: 'faltou a barra ou a alavanca' };
-      const b = barra.getBoundingClientRect();
-      const a = alavanca.getBoundingClientRect();
+      // ⚠ MEDIDOR, E NAO MEDIDA SOLTA: uma caixa so' vale se tiver AREA.
+      //
+      // O teste mecanico do principio XIII pega este cenario inteiro, e nao so' a clausula de
+      // sobreposicao que eu tinha consertado. Medido na pagina, escondendo a barra com
+      // display:none (ela CONTINUA no DOM, entao o "if (!barra)" de antes aprovava):
+      //
+      //   {"existeNoDom":true,"caixaDepois":"0x0 em 0,0",
+      //    "acimaDaAlavancaANTIGA":true,"barraCabeANTIGA":true}
+      //
+      // Ou seja: "a barra fica ACIMA da alavanca" era verdade para uma barra invisivel, porque
+      // 0 <= 682. Geometria de caixa vazia aprova qualquer coisa — 0x0 em 0,0 nao cruza ninguem,
+      // cabe em tudo e fica acima de todo mundo.
+      //
+      // A outra sessao consertou a mesma classe no INSTRUMENTO dela (os medidores que 16
+      // asserções usam passaram a devolver marcador nomeado em vez de lista vazia), e tem razao:
+      // lembrar em cada clausula nao e' plano. Aqui sao cinco caixas em um cenario, entao o
+      // medidor e' local — mas e' medidor: quem nao tem area volta null e derruba o veredito.
+      const caixa = (sel) => {
+        const n = document.querySelector(sel);
+        if (!n) return null;
+        const c = n.getBoundingClientRect();
+        return (c.width > 0 && c.height > 0) ? c : null;
+      };
+      const b = caixa('.pv-barra');
+      const a = caixa('.bpmn-assist__toggle');
+      if (!b || !a) return { ok: false, erro: 'barra ou alavanca ausente ou sem area na tela' };
 
       // A ANCORA EM TELA ESTREITA. Aqui a faixa do alto nao esta' livre: a simulacao ocupa
       // y14-65 de x29 a x361 e a paleta desce de y60 em x20-68 — foi um print que pegou a ancora
       // nascida em cima do interruptor "Token Simulation", e nenhum teste reclamou. Entao a prova
       // nao e' "ela existe": e' que o PONTO DELA responde por ela, e que ela nao cruza as duas.
-      const ancora = document.querySelector('.pv-ancora');
-      if (!ancora) return { ok: false, erro: 'a ancora sumiu — nao ha caminho de volta' };
-      const an = ancora.getBoundingClientRect();
+      const an = caixa('.pv-ancora');
+      if (!an) return { ok: false, erro: 'a ancora sumiu da tela — nao ha caminho de volta' };
       const noPonto = document.elementFromPoint(an.left + an.width / 2, an.top + an.height / 2);
       const ancoraClicavel = !!noPonto && !!noPonto.closest('.pv-ancora');
       const cruza = (x, y) => !(an.left >= y.right || an.right <= y.left || an.top >= y.bottom || an.bottom <= y.top);
-      const paleta = document.querySelector('.djs-palette').getBoundingClientRect();
-      const sim = document.querySelector('.bts-toggle-mode').getBoundingClientRect();
-      // ⚠ OS DOIS ALVOS PRECISAM EXISTIR NA TELA. "nao cruza" e' negacao, e o teste mecanico do
-      // principio XIII (faca o objeto sumir e veja se a negacao ainda passa) reprova a versao
-      // antiga: com a paleta em display:none a caixa dela vira 0x0 em 0,0, nada cruza coisa
-      // nenhuma, e a clausula aprovava um mundo SEM paleta — exatamente o contrario de "a ancora
-      // nao cobre a paleta". Querer que elas existam e' o par que falta, e aqui o par e' tamanho.
-      const alvosExistem = paleta.width > 0 && paleta.height > 0 && sim.width > 0 && sim.height > 0;
-      const limpa = alvosExistem && !cruza(an, paleta) && !cruza(an, sim);
+      // "Nao cruza" e' negacao, e com a paleta em display:none a caixa dela vira 0x0 em 0,0:
+      // medido lado a lado, a forma antiga aprovava um mundo SEM paleta
+      // ({"paletaCaixa":"0x0","limpaANTIGA":true,"limpaNOVA":false}). Agora quem recusa e' o
+      // medidor: sem area, a caixa volta null e o veredito cai aqui em cima.
+      const paleta = caixa('.djs-palette');
+      const sim = caixa('.bts-toggle-mode');
+      const alvosNaTela = !!paleta && !!sim;
+      const limpa = alvosNaTela && !cruza(an, paleta) && !cruza(an, sim);
 
       return {
         ok: b.bottom <= a.top + 1 && b.top >= 0 && ancoraClicavel && limpa
@@ -789,7 +808,7 @@ const CENARIOS = [
         folga: Math.round(a.top - b.bottom),
         barraCabe: b.top >= 0,
         ancora: Math.round(an.top) + ',' + Math.round(an.left),
-        ancoraClicavel, limpa, alvosExistem,
+        ancoraClicavel, limpa, alvosNaTela,
         rolaNaHorizontal: document.documentElement.scrollWidth > window.innerWidth + 1,
       };
     `],
