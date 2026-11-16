@@ -33,7 +33,10 @@
       "Assar a pizza" ela nomeia a forma; o clique abre o painel com a pergunta digitada e **nada
       enviado**; e a barra sai de cena
 - [x] 4.2 Os cenários de tela base passam a medir a barra (e que ela **explica**, não só navega)
-- [x] 4.3 375×812: a barra inteira acima da alavanca, com folga, e sem rolagem horizontal
+- [x] 4.3 375×812: cenário próprio na bateria — a barra inteira **acima** da alavanca (folga
+      medida), o "voltar ao menu" clicável e sem rolagem horizontal. Existe porque a outra sessão
+      apontou o buraco: mexer na reserva do rodapé do painel quebraria a barra **sem nenhum teste
+      reclamar**, e quem tinha pego isso da primeira vez foi um print, não a suíte
 - [x] 4.4 `npm test` e a bateria determinística verdes
 - [x] 4.5 Prints olhados: exemplo, seleção, celular
 

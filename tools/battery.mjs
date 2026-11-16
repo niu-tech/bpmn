@@ -562,6 +562,41 @@ const CENARIOS = [
     `],
   },
   {
+    nome: 'a barra do tutor em 375x812 fica ACIMA da alavanca, sem cobrir nada',
+    url: ALVO_BASE,
+    janela: [375, 812],
+    passos: [`
+      for (let i = 0; i < 40 && !document.querySelector('.pv'); i++) await new Promise((r) => setTimeout(r, 250));
+      document.querySelector('[data-caminho="branco"]').click();
+      // A barra se posiciona MEDINDO a alavanca, e a medida roda de novo 400 ms depois: o
+      // ajudante escreve a reserva do rodape por ResizeObserver, DEPOIS da montagem.
+      await new Promise((r) => setTimeout(r, 1400));
+
+      const barra = document.querySelector('.pv-barra');
+      const alavanca = document.querySelector('.bpmn-assist__toggle');
+      if (!barra || !alavanca) return { ok: false, erro: 'faltou a barra ou a alavanca' };
+      const b = barra.getBoundingClientRect();
+      const a = alavanca.getBoundingClientRect();
+
+      // O defeito que isto existe para pegar: com offset FIXO, a linha "voltar ao menu" ficava
+      // EMBAIXO da alavanca em 375 px (110 px medidos contra 131 px reais). Nenhum teste
+      // reclamava — foi um print. Se a reserva do rodape do painel mudar, aqui reprova.
+      const voltar = [...barra.querySelectorAll('.pv-barra__link')].find((x) => x.textContent === 'voltar ao menu');
+      const v = voltar && voltar.getBoundingClientRect();
+      const noPonto = v && document.elementFromPoint(v.left + v.width / 2, v.top + v.height / 2);
+      const voltarClicavel = !!noPonto && !!noPonto.closest('.pv-barra');
+
+      return {
+        ok: b.bottom <= a.top + 1 && b.top >= 0 && voltarClicavel
+          && document.documentElement.scrollWidth <= window.innerWidth + 1,
+        folga: Math.round(a.top - b.bottom),
+        barraCabe: b.top >= 0,
+        voltarClicavel,
+        rolaNaHorizontal: document.documentElement.scrollWidth > window.innerWidth + 1,
+      };
+    `],
+  },
+  {
     nome: 'tela base em 375x812: os caminhos empilham e nada rola na horizontal',
     url: ALVO_BASE,
     janela: [375, 812],
