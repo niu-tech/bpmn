@@ -50,8 +50,8 @@ function criarViewerFalso() {
   };
 }
 
-function montar({ confirmar = async () => true, semVaga = false, updateLabelMudo = false } = {}) {
-  const falso = criarModeladorFalso({ semVaga, updateLabelMudo });
+function montar({ confirmar = async () => true, semVaga = false, updateLabelMudo = false, semNomeNaCriacao = false } = {}) {
+  const falso = criarModeladorFalso({ semVaga, updateLabelMudo, semNomeNaCriacao });
   const acesso = criarAcessoBpmn(falso.modelador);
   const pedidos = [];
   const exec = criarExecutoresDeEscrita({
@@ -177,27 +177,34 @@ testAsync('diagrama vazio começa em cima, onde o aluno está olhando', async ()
 
 /* ---------------------------------------------------------------- o nome CHEGA no desenho */
 
-testAsync('o nome vai num comando PRÓPRIO — `updateLabel`, não atributo da criação', async () => {
+testAsync('o nome nasce no `businessObject` da FORMA — um comando, sem `updateLabel` de reserva', async () => {
   // ⚠ Print do portão F7 (2026-11-14): a tarefa nasceu ANÔNIMA na tela e o agente narrou o nome.
   // `createShape({ type, name })` deixa o `name` na forma e nunca no `businessObject`, que é o
-  // que o desenho lê — e o rótulo externo de evento e gateway só existe se alguém o criar.
+  // que o desenho lê. A correção de 2026-11-15 (dívida T12) não foi voltar a mandar `name` por
+  // atributo: foi escrever no businessObject DA FORMA, antes de ela entrar. Assim o nome chega
+  // ao desenho e ao XML, o rótulo externo de evento/gateway sai do `LabelBehavior` no mesmo
+  // comando, e o aluno desfaz a criação com UM `Ctrl+Z`.
   const { exec, chamadas, raiz, guardar } = montar();
   guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
 
   const r = await exec.criar_elemento({ tipo: 'Task', nome: 'Receber pedido', depoisDe: 'StartEvent_1' });
 
-  // Nenhuma chamada de criação carrega `name`: o nome não viaja por atributo.
+  // Nenhuma chamada de criação carrega `name` COMO ATRIBUTO: aquele caminho continua morto.
   for (const c of chamadas.filter((x) => x.fn === 'appendShape' || x.fn === 'createShape')) {
     assert.equal(c.nome, undefined, c.fn);
   }
-  const rotulo = chamadas.find((c) => c.fn === 'updateLabel');
-  assert.equal(rotulo.nome, 'Receber pedido');
+  // E nenhum comando de rótulo: um comando a mais aqui é um `Ctrl+Z` a mais para o aluno.
+  assert.equal(chamadas.filter((c) => c.fn === 'updateLabel').length, 0);
   assert.equal(r.criado.nome, 'Receber pedido');
 });
 
 testAsync('nome que não pegou no desenho é `nada_mudou` — a criação não assina o que não vê', async () => {
   // O modelador aceita a chamada e não muda nada: o jeito mais fácil de o instrumento mentir.
-  const { exec, raiz, guardar } = montar({ updateLabelMudo: true });
+  //
+  // ⚠ Os DOIS caminhos mudos de propósito: a criação não guarda o nome da forma
+  // (`semNomeNaCriacao`) E a reserva `updateLabel` também não põe. Com um só deles a tela do
+  // aluno ainda fica certa — e é por isso que a reserva existe.
+  const { exec, raiz, guardar } = montar({ updateLabelMudo: true, semNomeNaCriacao: true });
   guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
 
   await assert.rejects(
@@ -387,9 +394,9 @@ testAsync('nenhuma das quatro toca XML ou `businessObject` direto (tarefa 3.5)',
     'consulta.vaga', 'elementFactory.createShape',
   ]);
   assert.deepEqual(chamadas.filter((c) => !permitidos.has(c.fn)), []);
-  // 5 comandos para 4 operações: criar com nome são dois (a forma e o rótulo), e ligar,
-  // renomear e remover são um cada. A vaga não conta — ela não escreve.
-  assert.equal(chamadas.filter((c) => c.fn !== 'consulta.vaga' && c.fn !== 'elementFactory.createShape').length, 5);
+  // 4 comandos para 4 operações: criar com nome é UM (o nome nasce no businessObject da forma,
+  // divida T12), e ligar, renomear e remover são um cada. A vaga não conta — ela não escreve.
+  assert.equal(chamadas.filter((c) => c.fn !== 'consulta.vaga' && c.fn !== 'elementFactory.createShape').length, 4);
 });
 
 testAsync('desfazer devolve o diagrama ao que era: o que o agente criou sai do registro (gate 4.1)', async () => {
@@ -403,10 +410,10 @@ testAsync('desfazer devolve o diagrama ao que era: o que o agente criou sai do r
   assert.ok(!antes.has(r.criado.id));
 
   // Desfaz na mão o que os comandos registraram — o espelho do que o commandStack faria.
-  // A vaga vem antes do append e não é comando. Criar COM nome são dois: a forma e o rótulo,
-  // então o aluno desfaz duas vezes. É o preço de o nome chegar ao desenho.
+  // A vaga vem antes do append e não é comando. Criar COM nome é UM comando: o nome viaja no
+  // businessObject da forma, então não há `updateLabel` de reserva nenhum para desfazer depois.
   const comandos = chamadas.filter((c) => c.fn === 'appendShape' || c.fn === 'updateLabel').map((c) => c.fn);
-  assert.deepEqual(comandos, ['appendShape', 'updateLabel']);
+  assert.deepEqual(comandos, ['appendShape']);
   for (const id of [...mapa.keys()]) if (!antes.has(id)) mapa.delete(id);
   assert.deepEqual([...mapa.keys()].sort(), [...antes].sort());
 });
@@ -994,21 +1001,46 @@ testAsync('alvo que não é pool nem raia, e `onde` desconhecido, são recusas n
 
 /* ---------------------------------------------------------------- desfazer e destacar */
 
-testAsync('desfazer pela conversa é a MESMA pilha do Ctrl+Z: criar com nome são dois passos', async () => {
-  // A declaração promete isto ao modelo, então o teste cobra: desfazer uma vez tira o NOME,
-  // desfazer de novo tira o elemento. Promessa na descrição sem portão é promessa que apodrece.
+testAsync('desfazer pela conversa é a MESMA pilha do Ctrl+Z: criar com nome é UM passo (T12)', async () => {
+  // A declaração promete isto ao modelo, então o teste cobra. Era o contrário até 2026-11-15:
+  // criar com nome custava dois `Ctrl+Z` (a forma e o rótulo), e a primeira desfeita deixava na
+  // tela uma caixa anônima que o aluno não pediu. Promessa na descrição sem portão apodrece.
   const g = montarGeometria();
   const criado = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Verificar pagamento', depoisDe: 'Task_2' });
+  assert.equal(g.acesso.porId(criado.criado.id).businessObject.name, 'Verificar pagamento');
 
-  const primeiro = await g.exec.desfazer();
-  assert.equal(primeiro.desfeito, true);
-  // Nenhum id mudou — e isso NÃO é erro: desfazer um nome não tira ninguém do diagrama.
-  assert.deepEqual(primeiro.sairamDoDiagrama, []);
-  assert.equal(g.acesso.porId(criado.criado.id).businessObject.name, undefined);
-
-  const segundo = await g.exec.desfazer();
-  assert.ok(segundo.sairamDoDiagrama.includes(criado.criado.id));
+  const unico = await g.exec.desfazer();
+  assert.equal(unico.desfeito, true);
+  assert.equal(unico.desfeitos, 1);
+  // UMA desfeita tira o elemento, o nome e a ligação — não sobra forma anônima na tela.
+  assert.ok(unico.sairamDoDiagrama.includes(criado.criado.id));
   assert.equal(g.acesso.porId(criado.criado.id), null);
+});
+
+testAsync('desfazer EM LOTE volta o turno inteiro, e conta o que de fato voltou (E1)', async () => {
+  // O agente escreveu três vezes no mesmo turno e o aluno diz "desfaz isso tudo". Um `undo` por
+  // chamada fazia o modelo gastar um turno por comando; `quantos` resolve em uma chamada.
+  const g = montarGeometria();
+  const a = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Primeira', depoisDe: 'Task_2' });
+  const b = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Segunda', depoisDe: a.criado.id });
+  const c = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Terceira', depoisDe: b.criado.id });
+
+  const lote = await g.exec.desfazer({ quantos: 3 });
+  assert.equal(lote.desfeitos, 3);
+  assert.equal(lote.pedidos, 3);
+  for (const id of [a.criado.id, b.criado.id, c.criado.id]) assert.equal(g.acesso.porId(id), null);
+});
+
+testAsync('pedir mais do que a pilha tem desfaz o que dá — e DIZ quantos, sem inventar', async () => {
+  // "Desfiz 9" numa pilha de 1 seria a ferramenta assinando o que não aconteceu. E o teto de 10
+  // existe porque a pilha é a MESMA do aluno: um lote maior apagaria o trabalho dele.
+  const g = montarGeometria();
+  await g.exec.criar_elemento({ tipo: 'Task', nome: 'Só uma', depoisDe: 'Task_2' });
+
+  const lote = await g.exec.desfazer({ quantos: 99 });
+  assert.equal(lote.desfeitos, 1);
+  assert.equal(lote.pedidos, 10);
+  assert.equal(lote.aindaDaParaDesfazer, false);
 });
 
 testAsync('desfazer com a pilha vazia é `nada_mudou` — não "pronto, desfiz"', async () => {

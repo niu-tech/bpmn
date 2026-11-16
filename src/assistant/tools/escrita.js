@@ -161,6 +161,19 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
    * ferramenta precise do seu próprio campo para isso — foram cinco em 48 horas antes desta regra.
    */
   const retrato = () => instantaneoDaTela(acesso);
+  /**
+   * Quantos `Ctrl+Z` uma escrita custou, lido no contador da camada de acesso.
+   *
+   * Existe porque uma escrita nao e' UM comando: inserir no meio de um fluxo abre espaco,
+   * cria a forma e redesenha as setas da vizinhanca. Medido em 2026-11-15, criar um gateway
+   * com nome no meio do caminho custava **7** desfazeres — e o aluno que dizia "desfaz isso"
+   * via o agente desfazer um roteamento de seta e anunciar que havia voltado atras. Aninhar a
+   * cosmetica derrubou para 2; o numero exato depende do desenho, e por isso e' MEDIDO.
+   *
+   * Vai ao MODELO no resultado, e e' o `quantos` de `desfazer`. Nao e' estimativa: sai do
+   * `commandStack.changed` do proprio bpmn-js.
+   */
+  const contarComandos = () => Number(acesso.comandosRegistrados ?? 0);
   const tela = (tocado, antes) => estadoDaTela(acesso, { tocado, antes });
   /**
    * Os mesmos fatos, EM FORMA, para a linha que o aluno lê na tela.
@@ -192,7 +205,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
    * estourava dentro do bpmn-js e deixava a forma desenhada com o XML quebrado — três vezes,
    * porque o agente tentou de novo. Fantasma na tela é pior que recusa com nome.
    */
-  const criarSemAncora = (tipoBpmn, dentro) => {
+  const criarSemAncora = (tipoBpmn, dentro, nome = '') => {
     if (!dentro) {
       const lugares = acesso.lugaresParaCriar(tipoBpmn);
       if (!lugares.length) {
@@ -210,7 +223,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
         );
       }
     }
-    return acesso.criarSolto({ tipo: tipoBpmn, dentro });
+    return acesso.criarSolto({ tipo: tipoBpmn, dentro, nome });
   };
 
   return {
@@ -236,6 +249,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       if (entre !== undefined && nomesEntre.length !== 2) {
         throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, 'entre pede exatamente dois ids, na ordem do fluxo');
       }
+      const comandosAntes = contarComandos();
       const anterior = nomesEntre.length ? exigirElemento(nomesEntre[0], 'entre[0]') : null;
       const seguinte = nomesEntre.length ? exigirElemento(nomesEntre[1], 'entre[1]') : null;
 
@@ -291,7 +305,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
               `não há fluxo de ${anterior.id} para ${seguinte.id}; ligue os dois antes, ou use depoisDe`,
             );
           }
-          criado = acesso.inserirEntre({ fluxo: fluxoPartido, tipo: tipoBpmn });
+          criado = acesso.inserirEntre({ fluxo: fluxoPartido, tipo: tipoBpmn, nome: rotuloPedido });
         } else if (ancora) {
           /**
            * "DEPOIS DE X" ENCADEIA — ramo paralelo só quando pedido.
@@ -310,12 +324,12 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
           if (!comoRamo && saidas.length === 1) {
             fluxoPartido = saidas[0];
             encadeou = { de: resumir(ancora), para: resumir(saidas[0].target) };
-            criado = acesso.inserirEntre({ fluxo: fluxoPartido, tipo: tipoBpmn });
+            criado = acesso.inserirEntre({ fluxo: fluxoPartido, tipo: tipoBpmn, nome: rotuloPedido });
           } else {
-            criado = acesso.criarDepoisDe({ ancora, tipo: tipoBpmn });
+            criado = acesso.criarDepoisDe({ ancora, tipo: tipoBpmn, nome: rotuloPedido });
           }
         } else {
-          criado = criarSemAncora(tipoBpmn, dentro);
+          criado = criarSemAncora(tipoBpmn, dentro, rotuloPedido);
         }
       } catch (err) {
         if (!/sem_lugar_para_criar/.test(err?.message ?? '')) throw err;
@@ -332,21 +346,23 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       if (!confirmado) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o elemento não apareceu no registro');
 
       /**
-       * O NOME é um comando à parte, de propósito.
+       * O NOME NASCE COM O ELEMENTO — um comando, um `Ctrl+Z` (divida T12, fechada).
        *
-       * Passá-lo junto na criação não funciona: ele fica como atributo da forma e o desenho
-       * continua em branco. Quem põe nome no diagrama é `modeling.updateLabel` — e é ele também
-       * que CRIA o rótulo externo de evento e gateway, que a criação sozinha não cria.
+       * Era um comando a parte por um motivo que estava ERRADO pela metade: passar `name` nos
+       * atributos de verdade nao funciona (fica na forma, e o desenho nasce anonimo), mas o nome
+       * no **businessObject** da forma funciona — ver `formaDe` em `tools/bpmn-api.js`. Com ele,
+       * tarefa desenha o rotulo direto e evento/gateway ganham o rotulo externo dentro do MESMO
+       * comando, pelo `LabelBehavior` do bpmn-js.
        *
-       * ponytail: dois comandos ⇒ dois `Ctrl+Z` para desfazer uma criação com nome. É o preço de
-       * usar o verbo certo; o errado deixava a forma anônima na tela do aluno.
+       * ⚠ O `renomear` fica como RESERVA, e a leitura de volta e quem decide: caminho sem
+       * `elementFactory` (append cru) ainda nasce anonimo, e ali um comando a mais e melhor que
+       * uma forma sem nome na tela do aluno.
        */
-      const rotulo = typeof nome === 'string' ? nome.trim() : '';
-      if (rotulo) {
-        acesso.renomear({ el: confirmado, nome: rotulo });
-        if (nomeDe(acesso.porId(confirmado.id)) !== rotulo) {
-          throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o elemento nasceu sem o nome "${rotulo}"`);
-        }
+      if (rotuloPedido && nomeDe(acesso.porId(confirmado.id)) !== rotuloPedido) {
+        acesso.renomear({ el: confirmado, nome: rotuloPedido });
+      }
+      if (rotuloPedido && nomeDe(acesso.porId(confirmado.id)) !== rotuloPedido) {
+        throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o elemento nasceu sem o nome "${rotuloPedido}"`);
       }
 
       const { entradas, saidas } = acesso.entradasESaidas(confirmado.id);
@@ -361,6 +377,8 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
           : encadeou,
         religado: anterior ? { entradas: entradas.length, saidas: saidas.length } : null,
         total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
+        // Quantos `Ctrl+Z` isto custou — o `quantos` de `desfazer`, se o aluno nao gostar.
+        comandos: Math.max(1, contarComandos() - comandosAntes),
         // O ramo paralelo (a âncora já tinha saída) sai daqui: a leitura olha o DESENHO.
         tela: tela(confirmado.id, retratoAntes),
         fatos: fatos(confirmado.id, retratoAntes),
@@ -417,9 +435,10 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       const retratoAntes = retrato();
       const poolsAntes = acesso.pools().length;
 
+      const rotulo = typeof nome === 'string' ? nome.trim() : '';
       let criado;
       try {
-        criado = acesso.criarPool();
+        criado = acesso.criarPool({ nome: rotulo });
       } catch (err) {
         if (!/sem_lugar_para_criar/.test(err?.message ?? '')) throw err;
         // A raiz recusou o participante: é o caso do diagrama que não é processo nem colaboração.
@@ -429,12 +448,12 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       const confirmado = acesso.porId(criado?.id);
       if (!confirmado) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o pool não apareceu no registro');
 
-      const rotulo = typeof nome === 'string' ? nome.trim() : '';
-      if (rotulo) {
+      // Reserva, como em `criar_elemento`: o nome ja deve ter nascido com o pool.
+      if (rotulo && nomeDe(acesso.porId(confirmado.id)) !== rotulo) {
         acesso.renomear({ el: confirmado, nome: rotulo });
-        if (nomeDe(acesso.porId(confirmado.id)) !== rotulo) {
-          throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o pool nasceu sem o nome "${rotulo}"`);
-        }
+      }
+      if (rotulo && nomeDe(acesso.porId(confirmado.id)) !== rotulo) {
+        throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o pool nasceu sem o nome "${rotulo}"`);
       }
 
       return {
@@ -742,7 +761,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
      * atalho. E é honesto sobre o alcance: a pilha é UMA, então o último comando pode ter sido
      * dele. O resultado diz o que saiu e o que voltou, para o agente contar em vez de afirmar.
      */
-    async desfazer() {
+    async desfazer({ quantos } = {}) {
       exigirEdicao();
       const retratoAntes = retrato();
       const idsDe = () => acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).map((e) => e.id);
@@ -750,7 +769,7 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
 
       let r;
       try {
-        r = acesso.desfazer();
+        r = acesso.desfazer({ quantos: quantos ?? 1 });
       } catch (err) {
         const m = err?.message ?? '';
         // Pilha vazia NÃO é falha nossa: é um fato que o agente precisa contar ao aluno.
@@ -762,6 +781,10 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
       const depois = idsDe();
       return {
         desfeito: true,
+        // Quantos comandos voltaram DE FATO. Pedir mais do que a pilha tem nao e erro — e o
+        // numero daqui e o que o agente conta ao aluno, em vez do que ele pediu.
+        desfeitos: r?.desfeitos ?? 1,
+        pedidos: r?.pedidos ?? 1,
         // Mudança de nome, de cor ou de posição não muda id nenhum: as duas listas vêm vazias e
         // isso não é erro. O que prova o desfazer é a pilha ter aceitado (`canUndo` antes).
         sairamDoDiagrama: antes.filter((id) => !depois.includes(id)),

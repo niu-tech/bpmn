@@ -233,6 +233,43 @@ export function criarAcessoBpmn(modelador) {
    * raia e rótulo ficam parados: o pool cresce sozinho quando o conteúdo passa da borda, e
    * rótulo anda junto do dono.
    */
+  /**
+   * QUANTOS `Ctrl+Z` o aluno vai precisar — contado no evento do proprio bpmn-js.
+   *
+   * `commandStack.changed` dispara UMA vez por grupo desfazivel (o `_popAction` so' avisa
+   * quando a pilha de acoes em voo esvazia), entao contar este evento durante uma escrita da'
+   * exatamente o numero de desfazeres que aquela escrita custa. Comando aninhado nao conta duas
+   * vezes, que e' o ponto.
+   *
+   * ⚠ Medido em 2026-11-15, e foi assim que a divida T12 mostrou o tamanho real: criar um
+   * gateway com nome no MEIO de um fluxo custava **7** desfazeres, nao dois. Quem chama devolve
+   * este numero ao modelo, e e' com ele que `desfazer({ quantos })` volta a escrita inteira.
+   */
+  let comandos = 0;
+  try { eventBus?.on('commandStack.changed', () => { comandos += 1; }); } catch { /* sem eventBus: fica em 0 */ }
+
+  /**
+   * Roda o arrumado DENTRO do comando que o bpmn-js esta' executando — um desfazer, nao cinco.
+   *
+   * E' o mesmo mecanismo dos comportamentos do bpmn-js (`CommandInterceptor.postExecute`): o
+   * `CommandStack` da' ao comando disparado durante a execucao de outro o **mesmo id de acao**
+   * (`_pushAction`: `action.id = baseAction.id`), e `undo()` reverte o grupo inteiro. Nossos
+   * comandos de cosmetica rodavam DEPOIS, de fora, e cada um virava um `Ctrl+Z` sozinho.
+   *
+   * ⚠ Nao e' lugar para efeito que o aluno pediu: o que entra aqui e' ajuste de desenho
+   * (roteamento de seta), que ninguem quer desfazer separadamente do que o causou.
+   */
+  const juntoDoComando = (evento, fn) => {
+    if (!eventBus || typeof eventBus.once !== 'function') { return () => fn(null); }
+    let correu = false;
+    eventBus.once(`commandStack.${evento}.postExecute`, (e) => {
+      correu = true;
+      try { fn(e?.context ?? null); } catch { /* cosmetica nunca derruba a escrita */ }
+    });
+    // Comando que nao aconteceu (regra recusou) deixa o gancho pendurado: o de fora o cobre.
+    return () => { if (!correu) fn(null); };
+  };
+
   const empurrarParaDireita = (alvo, quanto) => {
     if (!(quanto > 0) || !alvo?.parent || typeof modeling.moveElements !== 'function') return 0;
     const ESTATICOS = ['bpmn:Participant', 'bpmn:Lane'];
@@ -329,10 +366,24 @@ export function criarAcessoBpmn(modelador) {
     return { x: Math.round((a.x + b.x) / 2), y: Math.round((a.y + b.y) / 2) };
   };
 
-  /** A forma pronta (com largura e altura) que as regras e a vaga precisam para decidir. */
-  const formaDe = (tipo) => (elementFactory
-    ? elementFactory.createShape({ type: tipo })
-    : { type: tipo, width: 100, height: 80 });
+  /**
+   * A forma pronta (com largura e altura) que as regras e a vaga precisam para decidir.
+   *
+   * ⚠ O `nome` entra no **businessObject**, nao nos atributos da forma — e essa distincao e a
+   * diferenca entre UMA e DUAS entradas no `commandStack` (divida T12). `createShape({name})`
+   * pendura o nome na FORMA, onde nem o desenho nem o XML o leem: era por isso que o nome tinha
+   * de vir depois, num `updateLabel` a parte, e o aluno gastava dois `Ctrl+Z` para desfazer uma
+   * criacao. No businessObject o nome nasce COM o elemento: tarefa desenha o rotulo direto e,
+   * em evento/gateway (rotulo externo), o `LabelBehavior` do bpmn-js cria o rotulo no
+   * `postExecute` do MESMO comando — um comando, um desfazer.
+   */
+  const formaDe = (tipo, nome = '') => {
+    const forma = elementFactory
+      ? elementFactory.createShape({ type: tipo })
+      : { type: tipo, width: 100, height: 80 };
+    if (nome && forma.businessObject) forma.businessObject.name = nome;
+    return forma;
+  };
 
   /**
    * Candidatos a receber um elemento solto: a raiz e os filhos diretos dela (os pools). Raia de
@@ -534,15 +585,13 @@ export function criarAcessoBpmn(modelador) {
      * UM comando no commandStack (`appendShape`), com a vaga ja' resolvida: o Ctrl+Z do aluno
      * desfaz a forma e a ligacao de uma vez.
      */
-    criarDepoisDe({ ancora, tipo }) {
-      // ⚠ Sem `name` aqui: o atributo fica na FORMA e nunca chega ao `businessObject`, entao a
-      // forma nasce anonima no desenho. Quem poe nome e `renomear` (`modeling.updateLabel`).
-      const atributos = { type: tipo };
+    criarDepoisDe({ ancora, tipo, nome = '' }) {
       const alvo = ancora?.parent ?? canvas.getRootElement();
       // Sem a fabrica nao da' para medir a vaga: append cru, no ponto fixo — pode sobrepor.
-      if (!elementFactory) return modeling.appendShape(ancora, atributos, null, alvo);
+      // Ali o nome vai como atributo e quem o poe no desenho e o `renomear` de quem chama.
+      if (!elementFactory) return modeling.appendShape(ancora, { type: tipo }, null, alvo);
 
-      const forma = elementFactory.createShape(atributos);
+      const forma = formaDe(tipo, nome);
       /**
        * ⚠ O pai da ancora tambem pode NAO receber o tipo novo — "uma tarefa depois do pool X" e
        * um pedido que o modelo faz. E' o mesmo fantasma do `criarSolto`: o bpmn-js desenha a
@@ -563,8 +612,8 @@ export function criarAcessoBpmn(modelador) {
      * ⚠ Nunca a raiz por padrao: numa colaboracao a raiz nao guarda fluxo, e insistir nela
      * desenha a forma na tela com o XML quebrado (ver `aceita`).
      */
-    criarSolto({ tipo, dentro = null }) {
-      const forma = formaDe(tipo);
+    criarSolto({ tipo, dentro = null, nome = '' }) {
+      const forma = formaDe(tipo, nome);
       const alvo = dentro ?? candidatosPara(forma)[0] ?? null;
       if (!alvo || !aceita(forma, alvo)) throw new Error('sem_lugar_para_criar');
       return modeling.createShape(forma, vagaSolta(alvo, forma), alvo);
@@ -597,11 +646,14 @@ export function criarAcessoBpmn(modelador) {
      * colateral nosso: é o que o arrasto da paleta faz. O que é nosso é o tamanho (ver
      * `vagaDePool`) e dizer ao modelo que a raiz mudou.
      */
-    criarPool() {
+    criarPool({ nome = '' } = {}) {
       const raiz = canvas.getRootElement();
       const forma = elementFactory
         ? elementFactory.createParticipantShape()
         : { type: 'bpmn:Participant', width: 600, height: 250 };
+      // Mesmo motivo de `formaDe`: o nome do pool no businessObject nasce com ele, e o
+      // `Ctrl+Z` do aluno tira a caixa e o nome de uma vez.
+      if (nome && forma.businessObject) forma.businessObject.name = nome;
       if (!aceita(forma, raiz)) throw new Error('sem_lugar_para_criar');
       const novo = modeling.createShape(forma, vagaDePool(raiz, forma), raiz);
       try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o pool já está lá */ }
@@ -800,12 +852,34 @@ export function criarAcessoBpmn(modelador) {
      * `canUndo()` antes é o que separa "desfiz" de "não havia nada": sem ele, `undo()` numa pilha
      * vazia não faz nada e não avisa, e o agente diria ao aluno que voltou atrás.
      */
-    desfazer() {
+    desfazer({ quantos = 1 } = {}) {
       if (!pilha || typeof pilha.undo !== 'function') throw new Error('sem_pilha');
-      if (typeof pilha.canUndo === 'function' && !pilha.canUndo()) throw new Error('nada_para_desfazer');
-      pilha.undo();
-      return { aindaDaParaDesfazer: typeof pilha.canUndo === 'function' ? Boolean(pilha.canUndo()) : null };
+      const da = () => (typeof pilha.canUndo === 'function' ? Boolean(pilha.canUndo()) : true);
+      if (!da()) throw new Error('nada_para_desfazer');
+      /**
+       * EM LOTE, e com teto (divida E1). O aluno diz "desfaz isso tudo" depois de o agente ter
+       * escrito tres vezes no mesmo turno, e um `undo` por pedido fazia o modelo chamar a
+       * ferramenta em sequencia — cada chamada custando um turno.
+       *
+       * ⚠ O laco PARA quando a pilha esvazia, e devolve quantos de fato voltaram: pedir 5 numa
+       * pilha de 2 nao e erro, e dizer "desfiz 5" seria mentira. Teto de 10 porque a pilha e a
+       * MESMA do aluno — um lote maior apagaria o trabalho dele, que o agente nao viu.
+       */
+      const pedidos = Math.min(10, Math.max(1, Math.trunc(Number(quantos) || 1)));
+      let feitos = 0;
+      while (feitos < pedidos && da()) { pilha.undo(); feitos += 1; }
+      return {
+        desfeitos: feitos,
+        pedidos,
+        aindaDaParaDesfazer: typeof pilha.canUndo === 'function' ? Boolean(pilha.canUndo()) : null,
+      };
     },
+
+    /**
+     * Quantos grupos desfaziveis o diagrama acumulou nesta sessao. A escrita compara antes e
+     * depois e devolve a diferenca ao modelo — e' o `quantos` de `desfazer`.
+     */
+    get comandosRegistrados() { return comandos; },
 
     /** Pinta (ou despinta) elementos. `modeling.setColor` grava no DI — desfazível como o resto. */
     destacar({ els, cores }) {
@@ -829,8 +903,8 @@ export function criarAcessoBpmn(modelador) {
       return { fundo: ler('background-color'), borda: ler('border-color') };
     },
 
-    inserirEntre({ fluxo, tipo }) {
-      const forma = formaDe(tipo);
+    inserirEntre({ fluxo, tipo, nome = '' }) {
+      const forma = formaDe(tipo, nome);
       /**
        * ABRIR ESPAÇO ANTES DE ENTRAR — senão o elemento novo nasce EM CIMA dos vizinhos.
        *
@@ -851,6 +925,11 @@ export function criarAcessoBpmn(modelador) {
       }
       const ponto = meioDoFluxo(fluxo);
       if (!ponto || !aceita(forma, fluxo, ponto)) throw new Error('sem_lugar_para_criar');
+      // O endireitamento entra DENTRO do `shape.create` (ver `juntoDoComando`): antes, as 4 ou 5
+      // chamadas de roteamento viravam 4 ou 5 `Ctrl+Z` que o aluno gastava antes de a forma sair.
+      const seNaoCorreu = juntoDoComando('shape.create', (ctx) => {
+        endireitarVizinhanca([de, para, ctx?.shape ?? null]);
+      });
       const novo = modeling.createShape(forma, ponto, fluxo);
       /**
        * E AS SETAS DA VIZINHANÇA SÃO REDESENHADAS.
@@ -864,7 +943,7 @@ export function criarAcessoBpmn(modelador) {
        * um traçado que o aluno tenha ajustado à mão ali — é o preço, e o outro lado da moeda era
        * uma seta cortando uma tarefa.
        */
-      endireitarVizinhanca([de, para, novo]);
+      seNaoCorreu();
       try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o elemento já está lá */ }
       return novo;
     },

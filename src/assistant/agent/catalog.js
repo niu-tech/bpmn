@@ -402,13 +402,25 @@ export const FERRAMENTAS = Object.freeze([
     declaracao: {
       name: 'desfazer',
       description:
-        'Desfaz a última mudança no diagrama, como o Ctrl+Z do aluno — e é a MESMA pilha, então '
+        'Desfaz as últimas mudanças no diagrama, como o Ctrl+Z do aluno — e é a MESMA pilha, então '
         + 'o que volta atrás pode ser uma ação dele. Use quando ele disser que não gostou do que '
-        + 'acabou de sair ("desfaz isso", "volta"). O resultado diz quais elementos saíram e '
-        + 'quais voltaram; conte isso em vez de só dizer que desfez. Sem nada para desfazer, o '
-        + 'erro é nada_mudou. Uma criação com nome são dois comandos: desfazer uma vez tira o '
-        + 'nome, desfazer de novo tira o elemento.',
-      parameters: { type: 'object', properties: {} },
+        + 'acabou de sair ("desfaz isso", "volta"). Desfez mais de uma coisa neste turno e ele '
+        + 'quer tudo de volta? passe quantos — e o número certo vem do campo comandos que a '
+        + 'escrita devolveu (criar um elemento no meio de um fluxo custa mais de um Ctrl+Z, '
+        + 'porque abre espaço e redesenha setas). O resultado diz quantos voltaram DE FATO '
+        + '(desfeitos) e quais elementos saíram e voltaram; conte isso em vez de só dizer que '
+        + 'desfez. Sem nada para desfazer, o erro é nada_mudou.',
+      parameters: {
+        type: 'object',
+        properties: {
+          quantos: {
+            type: 'integer',
+            description:
+              'Quantos comandos desfazer de uma vez (1 a 10; padrão 1). A pilha é a mesma do '
+              + 'aluno: não peça mais do que VOCÊ escreveu, ou você apaga o trabalho dele.',
+          },
+        },
+      },
     },
   },
 

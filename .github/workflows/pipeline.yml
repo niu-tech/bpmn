@@ -81,6 +81,34 @@ jobs:
             curl -fsS --retry 10 --retry-all-errors --retry-delay 1 -o /dev/null "http://127.0.0.1:8080$p"
           done
 
+      # A BATERIA DE TELA, contra a imagem que vai ao ar — e nao contra o dev server.
+      #
+      # So' os cenarios SEM COTA (`--sem-vivo`): 31 deles abrem o navegador por CDP, dirigem a
+      # pagina e julgam o DOM com um dube do socket do Google no lugar da sessao Live. Nenhum
+      # precisa de chave, e e' por isso que isto pode rodar em PR de qualquer um. Os cenarios AO
+      # VIVO continuam fora: exigiriam a credencial do dono num runner publico.
+      #
+      # ⚠ `--no-sandbox` nao e' zelo: no Ubuntu 24.04 do runner o sandbox do Chrome depende de
+      # user namespace sem privilegio, restringido por AppArmor. Sem a bandeira o navegador morre
+      # antes de abrir a porta de depuracao, e a bateria reporta "nenhum navegador abriu".
+      #
+      # O que isto pega e que nenhum outro passo pega: pagina que o build nao copiou, CSS que
+      # some, botao que muda de nome, geometria que o bpmn-js desenha diferente depois de um
+      # upgrade. O `npm test` nao abre navegador; o smoke so' pergunta se a URL responde.
+      - name: Screen battery (no quota)
+        env:
+          BPMN_BROWSER_FLAGS: '--no-sandbox'
+        run: node tools/battery.mjs --sem-vivo http://127.0.0.1:8080/
+
+      # A prova de tela e' PRINT: sem isto, uma reprovacao no CI vira adivinhacao.
+      - name: Keep the battery evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bateria
+          path: artifacts/bateria/
+          if-no-files-found: ignore
+
       # Guarda de segredo na imagem: nenhuma chave do Google pode ter entrado no bundle servido.
       # O produto é BYOK — a chave é digitada pelo visitante, então QUALQUER ocorrência aqui é
       # vazamento, não configuração.

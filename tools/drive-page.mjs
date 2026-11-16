@@ -311,8 +311,18 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
   // anterior faz o Edge anexar na instancia velha e sair sem abrir a porta - e o sintoma e
   // "o navegador nao abriu a porta", que parece problema de rede e e lixo de disco.
   const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-drive-${porta}-${process.pid}-${Date.now()}`;
+  /**
+   * Bandeiras EXTRAS do navegador, por ambiente (`BPMN_BROWSER_FLAGS`, separadas por espaco).
+   *
+   * Existe pelo CI: no runner Ubuntu 24.04 o sandbox do Chrome depende de user namespace sem
+   * privilegio, que o AppArmor de la' restringe — o navegador morre antes de abrir a porta e o
+   * sintoma e' "nenhum navegador abriu a porta", que parece falta de Chrome e e' politica do
+   * sistema. O workflow passa `--no-sandbox`; nesta maquina a variavel nao existe e nada muda.
+   */
+  const extras = String(process.env.BPMN_BROWSER_FLAGS ?? '').split(' ').map((f) => f.trim()).filter(Boolean);
   const filho = spawn(exe, [
     ...(headless ? ['--headless=new'] : []),
+    ...extras,
     '--disable-gpu',
     '--no-first-run',
     '--no-default-browser-check',

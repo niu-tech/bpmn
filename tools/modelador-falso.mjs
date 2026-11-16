@@ -17,6 +17,7 @@
 export function criarModeladorFalso({
   semVaga = false,
   updateLabelMudo = false,
+  semNomeNaCriacao = false,
   regras = null,
   semAlinhador = false,
   semSubstituidor = false,
@@ -46,7 +47,29 @@ export function criarModeladorFalso({
    * inversos, o teste prova o que o aluno vê: desfez, voltou.
    */
   const pilha = [];
-  const registrar = (nome, desfazer) => pilha.push({ nome, desfazer });
+  /**
+   * Registra um grupo desfazivel E AVISA, como o `CommandStack` do bpmn-js avisa: um
+   * `commandStack.changed` por grupo. E' esse evento que a camada de acesso conta para dizer ao
+   * modelo quantos `Ctrl+Z` a escrita custou — sem o aviso, o dube mediria sempre zero.
+   */
+  const registrar = (nome, desfazer) => {
+    pilha.push({ nome, desfazer });
+    try { eventBus.emitir('commandStack.changed', { trigger: 'execute' }); } catch { /* sem ouvinte */ }
+  };
+  /**
+   * O businessObject com que a forma ENTRA no desenho.
+   *
+   * `semNomeNaCriacao` dubla um modelador que aceita a forma e NAO guarda o nome dela — o jeito
+   * mais facil de o instrumento mentir sobre T12. Com ele ligado, quem tem de salvar a tela do
+   * aluno e a reserva (`renomear`); com os dois mudos, a ferramenta precisa RECUSAR.
+   */
+  const nomeDaForma = (atributos) => {
+    const trazido = atributos.businessObject ?? (atributos.name ? { name: atributos.name } : {});
+    if (!semNomeNaCriacao) return trazido;
+    const { name: _ignorado, ...resto } = trazido;
+    return resto;
+  };
+
   const commandStack = {
     canUndo: () => pilha.length > 0,
     undo() {
@@ -62,7 +85,10 @@ export function criarModeladorFalso({
         id: `${atributos.type.replace('bpmn:', '')}_${++seq}`,
         type: atributos.type,
         parent: pai ?? raiz,
-        businessObject: atributos.name ? { name: atributos.name } : {},
+        // ⚠ O nome do bpmn-js mora no businessObject que a FORMA traz, e nao num atributo da
+        // forma: `elementFactory.createShape({name})` pendura o nome onde o desenho nao o le.
+        // Dublar isso e o que faz o teste alcancar "criar com nome e UM comando" (T12).
+        businessObject: nomeDaForma(atributos),
         incoming: [],
         outgoing: [],
       });
@@ -95,7 +121,7 @@ export function criarModeladorFalso({
         id: `${atributos.type.replace('bpmn:', '')}_${++seq}`,
         type: atributos.type,
         parent: noFluxo ? (noFluxo.parent ?? raiz) : (pai ?? raiz),
-        businessObject: atributos.name ? { name: atributos.name } : {},
+        businessObject: nomeDaForma(atributos),
         incoming: [],
         outgoing: [],
         // A forma chega PRONTA do `elementFactory` (um pool tem 600×250, e o nosso cálculo pode
@@ -305,7 +331,10 @@ export function criarModeladorFalso({
   const elementFactory = {
     createShape(atributos) {
       chamadas.push({ fn: 'elementFactory.createShape', tipo: atributos.type });
-      return { ...atributos, width: 100, height: 80 };
+      // ⚠ COM businessObject, porque o bpmn-js cria um (pelo `bpmnFactory`) e e nele que o nome
+      // mora. Sem isso o dube dizia que `formaDe(tipo, nome)` nao consegue nomear a forma — e
+      // media um produto que nao existe: o de verdade nomeia, e gasta UM comando (T12).
+      return { businessObject: {}, ...atributos, width: 100, height: 80 };
     },
     /**
      * ⚠ Um pool nasce com 600×250 E com `processRef` — o processo de dentro dele. Participante

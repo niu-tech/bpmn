@@ -690,6 +690,9 @@ const CENARIOS = [
   },
   {
     nome: 'voz: escuta continua com fala real no microfone',
+    // Fala GRAVADA, nao o tom sintetico do Chromium: sem a fixture este cenario nao prova o
+    // que o nome dele diz, e por isso fica de fora em vez de passar por engano (ver `aRodar`).
+    precisaDeVoz: true,
     url: ALVO,
     mic,
     passos: [PREPARAR, CONECTAR, `
@@ -720,6 +723,9 @@ const CENARIOS = [
   },
   {
     nome: 'rede de seguranca: laco de eco liga meia-duplex e avisa',
+    // O laco de eco e' medido na ENERGIA do que volta pelo microfone: tom sintetico mudaria o
+    // que esta' sob teste.
+    precisaDeVoz: true,
     url: ALVO,
     mic,
     passos: [PREPARAR, CONECTAR, `
@@ -1426,6 +1432,146 @@ CENARIOS.push({
        ligacoesAntes: antes,
        ligacoesDepois: d.ligacoes.length,
        recusou: r?.erro ?? null,
+     };`,
+  ],
+});
+
+/**
+ * UM `Ctrl+Z` PARA UMA CRIACAO COM NOME (divida T12, fechada em 2026-11-15).
+ *
+ * O preco antigo era dois: a forma nascia anonima (`createShape({name})` deixa o nome na FORMA,
+ * que o desenho nao le) e o nome vinha depois, num `updateLabel` a parte. O aluno desfazia uma
+ * vez e ficava com uma caixa SEM nome na tela — um elemento que ele nunca pediu.
+ *
+ * A correcao escreve o nome no **businessObject da forma**, antes de ela entrar. O teste do
+ * dube prova a tarefa; este prova o que SO o bpmn-js de verdade tem: em evento e gateway o rotulo
+ * e um elemento SEPARADO, criado pelo `LabelBehavior` — e a pergunta e se ele nasce dentro do
+ * MESMO comando. Se nascesse fora, o rotulo "Pagou?" sobreviveria ao desfazer, orfao na tela.
+ *
+ * Sem cota: o verbo e dirigido pelo caminho do modelo (`ferramenta`), e o veredito e o DOM.
+ */
+CENARIOS.push({
+  nome: 'criar com nome desfaz com UM Ctrl+Z, inclusive o rotulo externo do gateway (T12)',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `const A = window.__bpmnAssist;
+     // O rotulo de gateway e um <g> proprio, com data-element-id terminando em _label.
+     const rotulos = () => [...document.querySelectorAll('g.djs-element text')]
+       .map((t) => t.textContent.trim()).filter(Boolean);
+     const noDesenho = (id) => !!document.querySelector('g.djs-element[data-element-id="' + id + '"]');
+     const base = A.desenho.nos.find((x) => (x.nome ?? '').toLowerCase() === 'pagar a pizza');
+     if (!base) return { ok: false, erro: 'o diagrama base nao tem a tarefa esperada' };
+
+     const nosAntes = A.desenho.nos.length;
+     const r = await A.ferramenta('criar_elemento', { tipo: 'ExclusiveGateway', nome: 'Pagou?', depoisDe: base.id });
+     if (!r || r.ok === false) return { ok: false, erro: 'nao criou: ' + (r?.erro ?? '?'), chaves: Object.keys(r ?? {}) };
+     // ATENCAO: dirigirFerramenta devolve a RESPOSTA do despachante (ok + resultado), e nao o
+     // resultado cru. Ler r.criado dava undefined e o portao acusava 'nao devolveu id'.
+     // (sem acento grave neste passo: ele vive dentro de um template literal.)
+     const feito = r.resultado ?? r;
+     const id = feito.criado?.id ?? null;
+     if (!id) return { ok: false, erro: 'a criacao nao devolveu id', chaves: Object.keys(feito) };
+
+     await new Promise((f) => setTimeout(f, 120));
+     const rotuloApareceu = rotulos().includes('Pagou?');
+     const idDoRotulo = [...document.querySelectorAll('g.djs-element[data-element-id$="_label"]')]
+       .map((n) => n.getAttribute('data-element-id'))
+       .find((x) => x.startsWith(id)) ?? null;
+
+     // MEDE quantos Ctrl+Z a criacao custa: desfaz de um em um ate a forma sair do desenho.
+     let passos = 0;
+     while (passos < 8 && noDesenho(id)) {
+       const u = (await A.ferramenta('desfazer', {}))?.resultado ?? null;
+       if (!u || !u.desfeitos) break;
+       passos += u.desfeitos;
+       await new Promise((f) => setTimeout(f, 80));
+     }
+     const nosDepois = A.desenho.nos.length;
+     const rotuloSobrou = rotulos().includes('Pagou?');
+     const formaSobrou = noDesenho(id);
+     const rotuloOrfao = idDoRotulo ? noDesenho(idDoRotulo) : false;
+
+     return {
+       ok: rotuloApareceu && !!idDoRotulo && passos === 1
+         && !rotuloSobrou && !formaSobrou && !rotuloOrfao && nosDepois === nosAntes,
+       id, idDoRotulo, rotuloApareceu, rotuloSobrou, formaSobrou, rotuloOrfao,
+       nosAntes, nosDepois, ctrlZQueCustou: passos,
+     };`,
+  ],
+});
+
+/**
+ * O VIEWER SIMULANDO COM O PAINEL ABERTO (divida T3, fechada em 2026-11-15).
+ *
+ * O portao antigo media que o viewer CARREGA com o ajudante montado — e parava ali. O que o
+ * aluno faz naquela pagina e outra coisa: ele roda a simulacao em lote e PERGUNTA do resultado.
+ * Essa combinacao (simulacao + painel aberto) so tinha sido conferida a mao.
+ *
+ * Quatro fatos, nesta ordem:
+ *  1. a corrida acontece de verdade (o estado diz "Conclu\u00eddo" e o heatmap marca o desenho);
+ *  2. o canal DA PAGINA avisa o modelo — o agente comenta a corrida, nunca a dispara (design T5);
+ *  3. `resumir_simulacao` responde com os numeros daquela corrida;
+ *  4. e escrever continua RECUSADO: viewer e somente leitura, simulacao rodada ou nao.
+ *
+ * O cenario de simulacao e o MESMO arquivo do produto (`simulations/pizza-collaboration.sim.json`,
+ * servido na raiz pelo devServer e pela imagem) — nao um cfg inventado aqui, que mediria o motor
+ * contra numeros que o aluno nunca usa. A entrada de arquivo e preenchida com `DataTransfer`,
+ * que e como se preenche `input[type=file]` de dentro da pagina.
+ */
+CENARIOS.push({
+  nome: 'viewer: simulacao em lote com o painel aberto, e escrever segue recusado (T3)',
+  url: new URL('viewer.html', ALVO_BASE).href,
+  passos: [
+    PREPARAR,
+    CONECTAR,
+    `const A = window.__bpmnAssist;
+     const status = () => document.querySelector('#status')?.textContent ?? '';
+     const resp = await fetch('simulations/pizza-collaboration.sim.json');
+     if (!resp.ok) return { ok: false, erro: 'o cenario de simulacao nao e servido: HTTP ' + resp.status };
+     const cfg = await resp.text();
+
+     const entrada = document.querySelector('#file-sim');
+     if (!entrada) return { ok: false, erro: 'a barra da simulacao nao esta na pagina' };
+     const dt = new DataTransfer();
+     dt.items.add(new File([cfg], 'pizza.sim.json', { type: 'application/json' }));
+     entrada.files = dt.files;
+     entrada.dispatchEvent(new Event('change'));
+
+     // 30 replicacoes do cenario do produto: a corrida leva alguns segundos.
+     for (let i = 0; i < 60 && !/Conclu/i.test(status()); i++) await new Promise((f) => setTimeout(f, 250));
+     const concluiu = /Conclu/i.test(status());
+     // ATENCAO: sem regex com classe de escape aqui. Este passo vive dentro de um template
+     // literal, e o JS come a barra invertida ao monta-lo: a classe de espaco e a de digito
+     // chegam na pagina como as letras 's' e 'd', e a regex casa com nada. O numero sai de um
+     // split, e e conferido contra o que a ferramenta diz.
+     const replicacoes = parseInt((status().split('Replicações:')[1] ?? '').trim(), 10) || 0;
+     const marcados = document.querySelectorAll('[class*="sim-hot-"], .sim-bottleneck, [class*="sim-perf-"]').length;
+
+     // 2) o canal da pagina falou com o modelo (socket dublado: o quadro fica em __frames).
+     const avisou = window.__frames.some((f) => /rodou a simula/i.test(f));
+
+     // 3) a metrica daquela corrida chega pela ferramenta de leitura.
+     const dirigida = await A.ferramenta('resumir_simulacao', {});
+     const resumo = dirigida?.resultado ?? dirigida;
+     const temNumeros = !!resumo && dirigida?.ok !== false
+       && Number(resumo.replicacoes ?? resumo.resumo?.replicacoes ?? resumo.corridas ?? 0) > 0;
+
+     // 4) e escrever continua recusado nesta pagina.
+     const escrita = await A.ferramenta('criar_elemento', { tipo: 'Task', nome: 'Nao deveria entrar' });
+     const recusouEscrita = !!escrita && escrita.ok === false;
+
+     // A barra da simulacao e a ferramenta tem de dizer o MESMO numero: duas fontes divergindo
+     // e' exatamente como um numero velho passa por atual na tela do aluno.
+     const batem = replicacoes > 0 && Number(resumo.replicacoes ?? 0) === replicacoes;
+
+     return {
+       ok: concluiu && batem && marcados > 0 && avisou && temNumeros && recusouEscrita,
+       concluiu, replicacoes, batem, replicacoesDaFerramenta: resumo.replicacoes ?? null,
+       marcados, avisou, temNumeros, recusouEscrita,
+       recusa: escrita?.erro ?? null,
+       chavesDoResumo: Object.keys(resumo ?? {}),
+       somenteLeitura: A.contexto.somenteLeitura,
      };`,
   ],
 });
@@ -3073,8 +3219,21 @@ const soEsses = (() => { const i = process.argv.indexOf('--so'); return i > 0 ? 
  * e a cota fica para o que so' ela prova.
  */
 const semVivo = process.argv.includes('--sem-vivo');
+/**
+ * Cenario que precisa de FALA GRAVADA e nao a tem fica de fora, dito em voz alta.
+ *
+ * As fixtures (`artifacts/voz/*.wav`) nascem do SAPI do Windows (`npm run voz`) e o git nao as
+ * guarda. Numa maquina nova — ou no runner do CI, que e' Linux — o Chromium cairia no TOM
+ * sintetico dele, e o cenario chamado "com fala real no microfone" passaria medindo outra coisa.
+ * Passar medindo outra coisa e' pior que ficar de fora: ensina a confiar no verde errado.
+ */
+const foraPorVoz = CENARIOS.filter((c) => c.precisaDeVoz && !c.mic);
 const aRodar = (soEsses ? CENARIOS.filter((c) => c.nome.toLowerCase().includes(soEsses.toLowerCase())) : CENARIOS)
-  .filter((c) => !(semVivo && c.nome.startsWith('AO VIVO')));
+  .filter((c) => !(semVivo && c.nome.startsWith('AO VIVO')))
+  .filter((c) => !(c.precisaDeVoz && !c.mic));
+if (foraPorVoz.length) {
+  console.log(`(sem fixture de voz em artifacts/voz: ${foraPorVoz.length} cenario(s) de microfone fora — gere com: npm run voz)\n`);
+}
 
 const resultados = [];
 /**

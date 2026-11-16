@@ -186,11 +186,14 @@ const COMO_MOSTRAR = {
     const voltaram = r.voltaramAoDiagrama?.length ?? 0;
     // Desfazer um nome ou um movimento não muda id nenhum: dizer "1 elemento saiu" ali seria
     // inventar. A linha só fala do que de fato entrou ou saiu.
-    if (!sairam && !voltaram) return 'desfiz a última mudança';
+    // Lote: o numero que o aluno le e o que VOLTOU, nunca o que foi pedido.
+    const feitos = Number(r.desfeitos ?? 1);
+    const quantas = feitos > 1 ? `desfiz as ${feitos} últimas mudanças` : 'desfiz a última mudança';
+    if (!sairam && !voltaram) return quantas;
     const partes = [];
     if (sairam) partes.push('saiu ' + plural(sairam, 'elemento', 'elementos'));
     if (voltaram) partes.push('voltou ' + plural(voltaram, 'elemento', 'elementos'));
-    return 'desfiz — ' + partes.join(' · ');
+    return (feitos > 1 ? `desfiz ${feitos} — ` : 'desfiz — ') + partes.join(' · ');
   },
 
   destacar: (e, r) => {
