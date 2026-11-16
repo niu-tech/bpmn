@@ -1697,6 +1697,15 @@ CENARIOS.push({
  *     marca nenhuma (dizer "abre colchete fonte dois pontos" em voz alta seria pior que nao citar).
  */
 CENARIOS.push({
+  // ⚠ O MAPA DOS VERMELHOS deste portão, medido quebrando o produto de propósito (2026-11-16).
+  // Cláusula sem vermelho próprio é cobertura imaginária — então aqui está o que foi provado,
+  // inclusive o que NÃO tem vermelho só dele:
+  //  · `servidaFicou` — conferência trocando TUDO (nem a marca servida sobrevive): cai sozinha;
+  //  · `inventadaCaiu` + `avisou` — conferência desligada: caem JUNTAS, e são acopladas de
+  //    verdade (o aviso só existe quando houve troca). Não há vermelho só de `avisou`;
+  //  · `temLocalizador` + `tituloNoTooltip` + `semChaveCrua` — proveniência removida: caem
+  //    juntas, pelo mesmo motivo (sem fonte na tela não há rótulo nem tooltip);
+  //  · `linhaDizOnde` — apresentador do acervo devolvendo linha genérica: cai sozinha.
   nome: 'voz: a legenda e CONFERIDA, a fonte aparece na tela, e o audio que ja foi vira aviso (K6)',
   url: ALVO,
   passos: [
@@ -1752,13 +1761,24 @@ CENARIOS.push({
      // A proveniencia e legivel: titulo e localizador, nao a chave crua.
      const temLocalizador = fontes.some((f) => f.includes(servida.locator || servida.title));
      const tituloNoTooltip = tooltips.some((t) => t.includes(servida.title));
-     const semChaveCrua = !fontes.some((f) => f.includes(servida.citationKey));
+     // ATENCAO: exigir lista NAO-VAZIA aqui nao e redundancia. Sem isso a clausula fica
+     // VERDADEIRA quando nao ha fonte nenhuma na tela - verdadeira por vazio, que e o defeito
+     // que este portao inteiro existe para cacar. Medido na quebra 2 (proveniencia removida):
+     // fontesNaTela vazio e semChaveCrua true no mesmo relatorio.
+     // (sem crase neste comentario: ele vive dentro de um template literal - principio XII.)
+     const semChaveCrua = fontes.length > 0 && !fontes.some((f) => f.includes(servida.citationKey));
+
+     // ATENCAO: clausula NOMEADA, e nao escondida dentro do ok. Quebrando a linha da consulta
+     // de proposito, o relatorio saiu ok:false com os SEIS booleanos true - vermelho ilegivel,
+     // que obriga quem le a reconstruir a conjuncao de cabeca. O que pode falhar tem nome.
+     const linhaDizOnde = linhaDaConsulta.includes(servida.locator || servida.title);
 
      return {
        ok: servidaFicou && inventadaCaiu && avisou && temLocalizador && tituloNoTooltip
-         && semChaveCrua && linhaDaConsulta.includes(servida.locator || servida.title),
+         && semChaveCrua && linhaDizOnde,
        chaveServida: servida.citationKey,
        servidaFicou, inventadaCaiu, avisou, temLocalizador, tituloNoTooltip, semChaveCrua,
+       linhaDizOnde,
        fontesNaTela: fontes,
        linhaDaConsulta: linhaDaConsulta.slice(0, 90),
        texto: texto.slice(0, 160),
