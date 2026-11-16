@@ -125,9 +125,18 @@ test('o nome do agente e de papel: sem "IA" dentro, e com o escopo do produto', 
   assert.ok(/BPMN/.test(NOME), 'o nome escopa o agente ao produto');
   // Palavra por palavra, e nao busca de substring: "Guia BPMN" tem "ia" dentro e seria um nome
   // legitimo — o que se recusa aqui e' a PALAVRA "IA", nao duas letras no meio de outra.
-  const palavras = NOME.split(/[^\p{L}]+/u).filter(Boolean);
-  assert.ok(!palavras.some((p) => /^(ia|ias|ai)$/i.test(p)),
-    `"${NOME}" nao deveria carregar "IA" no nome`);
+  const carregaIA = (n) => n.split(/[^\p{L}]+/u).filter(Boolean)
+    .some((p) => /^(ia|ias|ai)$/i.test(p));
+
+  // ⚠ O GUARDA PROVA A PROPRIA MORDIDA, e nao e' zelo: e' o principio XII do `project.md`.
+  // `\p{L}` aqui e' seguro (este arquivo nao e' um template literal), mas um guarda cuja regex
+  // deixe de casar nao reprova — ele fica VERDE medindo o vazio, e ninguem descobre. Com a
+  // barra comida, `[^\p{L}]+` vira `[^p{L}]+`, que parte a frase em pedacos vazios: a primeira
+  // linha abaixo passaria a nao achar "IA" em "Assistente de IA" e reprova aqui, em vez de
+  // aprovar um nome que a regra proibe.
+  assert.equal(carregaIA('Assistente de IA'), true, 'o guarda precisa achar a palavra IA');
+  assert.equal(carregaIA('Guia BPMN'), false, '"ia" no meio de palavra nao e a palavra IA');
+  assert.ok(!carregaIA(NOME), `"${NOME}" nao deveria carregar "IA" no nome`);
   // E a frase ao lado carrega a CAPACIDADE, que e' a outra metade do pedido do dono: que ali tem
   // um agente de IA, e que ele ENSINA. O escopo (BPMN) nao se repete aqui — ja' esta' no nome.
   assert.ok(/IA/.test(O_QUE_E), `"${O_QUE_E}" precisa dizer que e' um agente de IA`);
