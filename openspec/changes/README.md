@@ -17,6 +17,7 @@ ideia).
 | `add-bpmn-public-live-assistant-mvp` | 6 | publicação definitiva (domínio, ambiente `production`, o gate do dono), MCP e memória durável — as duas últimas **estacionadas por ele**, de propósito |
 | `add-bpmn-norm-knowledge-base` | 1 | a 6.3 **ao vivo**: induzir o modelo a citar chave inexistente. Está provada no gerente, que é onde a troca por `[fonte não conferida]` acontece; ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
 | `harvest-proven-voice-foundations` | 1 | declarar no texto do TCC a licença do `bpmn-js` e a marca d'água (K-G) — é de banca, não de software |
+| `guide-the-first-run-trails` | 2 | o que fica **fora** dela, de propósito: partidas por histórico de quem volta (depende de memória entre visitas, decidida em contrário) e medir se a orientação funcionou (não há telemetria) |
 
 ## Arquivadas — tudo feito, e a prova está dentro
 

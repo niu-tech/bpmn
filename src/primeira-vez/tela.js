@@ -135,56 +135,149 @@ export function montarTelaBase({ raiz = document.body, aoEscolher = () => {} } =
 }
 
 /**
- * A tira que diz o que está aberto.
+ * A BARRA DO TUTOR: o que fazer agora, no canto de quem pode ajudar.
  *
- * `exemplo`: o diagrama é de outra pessoa e precisa estar escrito, senão passa por trabalho da
- * própria (design B6). `branco`: o exemplo continua a um clique, que é a pergunta 4 do estudo.
- * Quem restaurou o próprio trabalho não recebe tira nenhuma.
+ * Substitui a pilula que ficava no alto do canvas. Ela dizia o que estava aberto e oferecia os
+ * caminhos, mas (a) pousava EM CIMA do desenho, (b) nao explicava nada e (c) nao tinha relacao
+ * visual nenhuma com o tutor — que e' quem resolve a duvida de quem acabou de chegar.
+ *
+ * O desenho vem da pesquisa de 2026-11-15, e tres achados a decidiram:
+ *
+ *   1. TUTORIAL SOBREPOSTO SAI PELA CULATRA. Quem le o passo-a-passo acha o produto MAIS
+ *      complicado do que quem pula (NN/g, citado em conffab). Entao nada de tour, spotlight ou
+ *      sequencia de "proximo" — e por isso tambem nao abrimos o painel sozinhos nem piscamos a
+ *      alavanca: as duas sao interrupcao, e interrupcao e' o que a pesquisa desaconselha.
+ *   2. CAIXA EM BRANCO ESCONDE O QUE O ASSISTENTE SABE FAZER. O remedio conhecido e' sugestao
+ *      clicavel ("icebreakers"), e o conselho e' poucas e boas: tres caminhos focados valem mais
+ *      que vinte exemplos (shapeof.ai; Adobe AI Assistant; Notion AI).
+ *   3. SUGESTAO LIGADA AO QUE ESTA NA TELA vence sugestao generica (arXiv 2412.10933; Granola
+ *      sugere pelo transcript, Gemini pela pagina aberta). Nos temos a melhor versao disso: o
+ *      agente LE o diagrama. Entao, quando o aluno seleciona uma forma, a barra passa a falar
+ *      DAQUELA forma.
+ *
+ * Ela nao e' modal, nao bloqueia o canvas, fecha num clique e nao volta na mesma visita.
  */
-export function montarTira({
+export function montarBarra({
   raiz = document.body,
   estado,
   aoClicar = () => {},
   aoVoltar = () => {},
+  aoPerguntar = () => {},
 } = {}) {
   if (estado !== 'exemplo' && estado !== 'branco') return null;
 
-  const acao = el('button', {
+  const titulo = el('p', { className: 'pv-barra__titulo' });
+  const texto = el('p', { className: 'pv-barra__texto' });
+  const perguntar = el('button', { className: 'pv-barra__acao', type: 'button' });
+
+  /** O que a barra diz quando NADA esta selecionado — por trilha. */
+  const PADRAO = {
+    exemplo: {
+      titulo: 'Este diagrama é um exemplo',
+      texto: 'O tutor lê o que está na tela. Clique em qualquer elemento e pergunte o que ele '
+        + 'faz — ou peça para criar, ligar, renomear e mover.',
+      acao: 'Perguntar sobre este diagrama',
+      frase: 'O que esse processo faz?',
+    },
+    branco: {
+      titulo: 'Sua tela em branco',
+      texto: 'Conte o seu processo em algumas frases e o tutor desenha com você, passo a passo. '
+        + 'O que ele desenhar você desfaz com Ctrl+Z.',
+      acao: 'Descrever o meu processo',
+      frase: 'Quero modelar o MEU processo — vou te descrever',
+    },
+  };
+
+  function dizer({ titulo: t, texto: x, acao, frase }) {
+    titulo.textContent = t;
+    texto.textContent = x;
+    perguntar.textContent = acao;
+    perguntar.dataset.frase = frase;
+  }
+
+  dizer(PADRAO[estado]);
+  perguntar.addEventListener('click', () => aoPerguntar(perguntar.dataset.frase));
+
+  const trocar = el('button', {
     type: 'button',
-    className: 'pv-tira__link',
+    className: 'pv-barra__link',
     textContent: estado === 'exemplo' ? 'começar o meu' : 'ver um exemplo',
   });
-  acao.addEventListener('click', () => aoClicar(estado === 'exemplo' ? 'branco' : 'exemplo'));
+  trocar.addEventListener('click', () => aoClicar(estado === 'exemplo' ? 'branco' : 'exemplo'));
 
-  /**
-   * VOLTAR AO MENU. Pedido do dono (2026-11-15): *"depois de clicar em uma das opções senti falta
-   * de um botão para voltar ao menu novamente"*.
-   *
-   * Mora aqui, e não num canto novo da tela, porque a tira já é a faixa que diz "o que está
-   * aberto" — e ela some na primeira edição, que é exatamente quando voltar ao convite deixaria de
-   * ser gratuito. Depois disso, quem leva de volta é o "Recomeçar" da barra, que pergunta antes.
-   */
   const voltar = el('button', {
     type: 'button',
-    className: 'pv-tira__link',
+    className: 'pv-barra__link',
     textContent: 'voltar ao menu',
   });
   voltar.addEventListener('click', () => aoVoltar());
 
-  const sep = () => el('span', { className: 'pv-tira__sep', textContent: '·' });
+  const fechar = el('button', { type: 'button', className: 'pv-barra__fechar', textContent: '×' });
+  fechar.setAttribute('aria-label', 'Fechar esta ajuda');
 
-  const tira = el('div', { className: 'pv-tira' }, [
-    ...(estado === 'exemplo'
-      ? [el('span', { className: 'pv-tira__selo', textContent: 'Exemplo' }),
-        el('span', { className: 'pv-tira__texto', textContent: 'pedido de pizza' }),
-        sep()]
-      : []),
-    acao,
-    sep(),
-    voltar,
+  const barra = el('aside', { className: 'pv-barra' }, [
+    fechar,
+    titulo,
+    texto,
+    perguntar,
+    el('p', { className: 'pv-barra__rodape' }, [
+      trocar,
+      el('span', { className: 'pv-barra__sep', textContent: ' · ' }),
+      voltar,
+    ]),
   ]);
-  tira.dataset.estado = estado;
+  barra.dataset.estado = estado;
+  // Nao e' alerta: e' ajuda que aparece junto com a tela. `polite` para o leitor de tela anunciar
+  // a mudanca quando a selecao troca o texto, sem cortar o que estiver sendo lido.
+  barra.setAttribute('aria-live', 'polite');
 
-  raiz.append(reservarRodape(tira));
-  return { raiz: tira, remover: () => tira.remove() };
+  const remover = () => {
+    clearTimeout(segundaOlhada);
+    window.removeEventListener('resize', sentarSobreAAlavanca);
+    barra.remove();
+  };
+  fechar.addEventListener('click', remover);
+
+  raiz.append(reservarRodape(barra));
+
+  /**
+   * A barra senta EM CIMA DA ALAVANCA, medindo-a — não num offset adivinhado.
+   *
+   * ⚠ O número fixo errou no celular, e o print mostrou: em 375 px o ajudante reserva a barra do
+   * modelador INTEIRA no rodapé (`calcularReserva`), então a alavanca sobe e cobria a linha
+   * "voltar ao menu". Medir é a única forma de acompanhar uma reserva que muda quando a barra do
+   * modelador expande.
+   */
+  function sentarSobreAAlavanca() {
+    const r = document.querySelector('.bpmn-assist__toggle')?.getBoundingClientRect();
+    if (!r || !r.height) return;
+    barra.style.setProperty('--pv-barra-bottom', `${Math.round(window.innerHeight - r.top + 10)}px`);
+  }
+
+  // ⚠ Três momentos, e cada um existe por um motivo medido: AGORA (caso a alavanca já esteja
+  // posta), no PRÓXIMO QUADRO e de novo em 400 ms — porque o ajudante escreve a reserva do rodapé
+  // por `ResizeObserver`, depois da montagem. Medir só na montagem deu 110 px contra os 131 px
+  // que a alavanca passou a ocupar, e a linha "voltar ao menu" ficava embaixo dela em 375 px.
+  sentarSobreAAlavanca();
+  requestAnimationFrame(sentarSobreAAlavanca);
+  const segundaOlhada = setTimeout(sentarSobreAAlavanca, 400);
+  window.addEventListener('resize', sentarSobreAAlavanca);
+
+  return {
+    raiz: barra,
+    remover,
+    /**
+     * O aluno clicou numa forma: a barra passa a falar DELA (achado 3). Sem nome, cai no padrao
+     * da trilha — um fluxo sem rotulo nao rende pergunta melhor que "o que esse processo faz?".
+     */
+    selecionou(nome) {
+      if (!nome) { dizer(PADRAO[estado]); return; }
+      dizer({
+        titulo: `Selecionado: «${nome}»`,
+        texto: 'Pergunte o que ele faz, ou peça para renomear, mover ou ligar a outro elemento.',
+        acao: `Perguntar sobre «${nome}»`,
+        frase: `O que faz "${nome}"?`,
+      });
+    },
+  };
 }

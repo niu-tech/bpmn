@@ -12,8 +12,8 @@ import "./batchsim/batch-sim.css";
 import { bindSimulation } from "./batchsim/simulation-integration.js";
 
 import { mountAssistant } from "./assistant/mount.js";
-import { CHAVE_ESCOLHA, decidirAbertura, tiraPara } from "./primeira-vez/abertura.js";
-import { montarTelaBase, montarTira } from "./primeira-vez/tela.js";
+import { CHAVE_ESCOLHA, barraPara, decidirAbertura } from "./primeira-vez/abertura.js";
+import { montarBarra, montarTelaBase } from "./primeira-vez/tela.js";
 
 const DEFAULT_DIAGRAM_URL = "pizza-collaboration.bpmn";
 const LOCAL_STORAGE_KEY = "bpmn.autosave.xml";
@@ -619,36 +619,47 @@ async function abrirDiagrama(modeler, abertura) {
  */
 function receberQuemChega(modeler, abertura, ajudante) {
   let convite = null;
-  let tira = null;
+  let barra = null;
 
   /**
    * A tira some na PRIMEIRA edição: editar é o que transforma um exemplo em trabalho da própria
    * pessoa, e continuar chamando de "exemplo" o que ela já mexeu seria falso.
    *
    * ⚠ UM listener, registrado aqui e para sempre — não um `once` por tira. A primeira versão usava
-   * `eventBus.once(...)` dentro de `mostrarTira` e a tira **não sumia**: o rename chegava ao
+   * `eventBus.once(...)` dentro de `mostrarBarra` e a barra (então uma tira) **não sumia**: o rename chegava ao
    * `commandStack.changed` (o autosave guardava o nome novo, medido) e a tira continuava na tela.
-   * Como `mostrarTira` é chamada no fim de um `async` que ninguém espera, a falha não aparecia
+   * Como ela é chamada no fim de um `async` que ninguém espera, a falha não aparecia
    * nem no console. `on` é o que o autosave já usa ali do lado, e o custo é um `if` por comando.
    *
    * Importar diagrama NÃO é comando (medido: depois de carregar o exemplo o autosave seguia
    * vazio), então trocar de caminho não apaga a própria tira que acabou de nascer.
    */
   modeler.get("eventBus").on("commandStack.changed", () => {
-    tira?.remover();
-    tira = null;
+    barra?.remover();
+    barra = null;
   });
 
-  function mostrarTira(estado) {
-    tira?.remover();
-    tira = null;
-    if (estado) {
-      tira = montarTira({
-        estado,
-        aoClicar: (destino) => escolher(destino),
-        aoVoltar: voltarAoMenu,
-      });
-    }
+  function mostrarBarra(estado) {
+    barra?.remover();
+    barra = null;
+    if (!estado) return;
+
+    barra = montarBarra({
+      estado,
+      aoClicar: (destino) => escolher(destino),
+      aoVoltar: voltarAoMenu,
+      /**
+       * O caminho mais curto entre "não sei o que perguntar" e uma resposta: a barra abre o
+       * painel com a pergunta JÁ DIGITADA, e quem manda continua sendo o aluno. É o padrão de
+       * sugestão clicável da pesquisa — e, quando há uma forma selecionada, a pergunta é sobre
+       * ELA, que é o que diferencia sugestão útil de sugestão enfeite.
+       */
+      aoPerguntar: (frase) => {
+        const painel = ajudante()?.widget;
+        painel?.open();
+        painel?.sugerir(frase);
+      },
+    });
   }
 
   async function escolher(caminho) {
@@ -665,7 +676,7 @@ function receberQuemChega(modeler, abertura, ajudante) {
       painel?.sugerir(caminho === "tutor" ? FRASE_DESCREVER : FRASE_DESCOBRIR);
     }
 
-    mostrarTira(destino === "exemplo" ? "exemplo" : "branco");
+    mostrarBarra(destino === "exemplo" ? "exemplo" : "branco");
   }
 
   /**
@@ -675,7 +686,7 @@ function receberQuemChega(modeler, abertura, ajudante) {
    * o convite, nao o caminho que ela acabou de abandonar.
    */
   function voltarAoMenu() {
-    mostrarTira(null);
+    mostrarBarra(null);
     localStorage.removeItem(CHAVE_ESCOLHA);
     // O painel se recolhe junto: voltar ao menu e' recomecar a escolha, e ele flutua ACIMA do
     // convite (100000 contra 9500). Deixa-lo aberto poria a tela da chave por cima das tres
@@ -684,10 +695,23 @@ function receberQuemChega(modeler, abertura, ajudante) {
     if (!convite) convite = montarTelaBase({ aoEscolher: escolher });
   }
 
+  /**
+   * A barra passa a falar da forma que o aluno acabou de clicar.
+   *
+   * ⚠ Só o NOME, e nada mais: a barra não decide nada sobre o diagrama, não chama ferramenta e
+   * não fala com o modelo. Ela monta uma frase que o aluno pode editar ou apagar antes de mandar
+   * — a condução continua sendo dele e do modelo (constituição §III).
+   */
+  modeler.get("eventBus").on("selection.changed", (e) => {
+    const sel = (e?.newSelection ?? []).filter((x) => x && !x.labelTarget);
+    const nome = sel.length === 1 ? (sel[0].businessObject?.name || "").trim() : "";
+    barra?.selecionou(nome || null);
+  });
+
   voltarAoInicio = voltarAoMenu;
 
   if (abertura === "convite") convite = montarTelaBase({ aoEscolher: escolher });
-  else mostrarTira(tiraPara(abertura));
+  else mostrarBarra(barraPara(abertura));
 }
 
 /* =====================================================

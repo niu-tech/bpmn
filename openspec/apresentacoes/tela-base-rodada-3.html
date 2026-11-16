@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rodada 3 · a pesquisa</title>
+<style>
+  :root {
+    --tinta:#15161a; --suave:#5c5d67; --fraco:#8a8b94; --linha:#e6e6ec;
+    --fundo:#fbfbfd; --papel:#fff; --roxo:#5b53d6; --roxo-fraco:#eeedfb;
+    --verde:#3f6b2e; --verde-fraco:#eef5e7; --ambar:#8a4b12; --ambar-fraco:#fdf4e7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta);
+    font:16px/1.6 "Segoe UI",-apple-system,Inter,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .env { max-width:880px; margin:0 auto; padding:44px 28px 56px; }
+  .marca { display:inline-flex; align-items:center; gap:9px; font-size:12px; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--roxo); }
+  .marca::before { content:""; width:26px; height:3px; background:var(--roxo); border-radius:2px; }
+  h1 { font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:600; margin:14px 0 10px; }
+  .sub { font-size:17px; color:var(--suave); margin:0 0 28px; max-width:62ch; }
+  .numeros { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:34px; }
+  .num { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 17px; }
+  .num b { display:block; font-size:23px; font-weight:600; letter-spacing:-.02em; line-height:1.1; }
+  .num span { display:block; font-size:12.5px; color:var(--fraco); margin-top:5px; }
+  .num.ok { background:var(--roxo-fraco); border-color:#ddd9f7; }
+  .num.ok b { color:var(--roxo); }
+  h2 { font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--fraco); margin:0 0 13px; }
+  section { margin-bottom:32px; }
+  .feito { background:var(--papel); border:1px solid var(--linha); border-radius:13px; overflow:hidden; }
+  .f { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:baseline;
+    padding:13px 18px; border-bottom:1px solid #f1f1f5; }
+  .f:last-child { border-bottom:none; }
+  .f p { margin:0; font-size:14.5px; }
+  .f p span { display:block; color:var(--fraco); font-size:13px; margin-top:2px; }
+  .prova { font-size:12.5px; color:var(--verde); font-weight:600; white-space:nowrap; }
+  .fonte { font-size:12px; color:var(--roxo); font-weight:600; white-space:nowrap; }
+  .alerta { background:var(--ambar-fraco); border:1px solid #f0dfc2; border-radius:13px;
+    padding:16px 19px; font-size:14px; line-height:1.55; color:#4a4b54; }
+  .alerta b { color:var(--ambar); }
+  .proximo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .p { background:var(--papel); border:1px solid var(--linha); border-radius:13px; padding:15px 18px; }
+  .p b { font-size:14.5px; display:block; margin-bottom:3px; }
+  .p span { font-size:13.5px; color:var(--suave); }
+  footer { margin-top:30px; padding-top:15px; border-top:1px solid var(--linha);
+    font-size:12.5px; color:var(--fraco); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  code { font-family:Consolas,"SF Mono",monospace; font-size:.88em; background:#f2f2f6;
+    padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .numeros,.proximo{grid-template-columns:1fr;} .f{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="env">
+
+  <div class="marca">Rodada 3 · pesquisa de UI/UX · 16 nov 2026</div>
+  <h1>Nenhum tour. Uma barra que fala do que você clicou.</h1>
+  <p class="sub">Você viu certo: escolhida a trilha, a tela ficava parada e nada dizia que dá para
+  perguntar. A pesquisa resolveu três coisas — e recusou as duas saídas que você levantou, com
+  motivo.</p>
+
+  <div class="numeros">
+    <div class="num ok"><b>3 achados</b><span>e cada um decidiu uma linha do desenho</span></div>
+    <div class="num ok"><b>1 sugestão</b><span>por estado, nunca uma lista</span></div>
+    <div class="num"><b>0</b><span>interrupções: sem tour, sem piscar</span></div>
+  </div>
+
+  <section>
+    <h2>O que a pesquisa disse</h2>
+    <div class="feito">
+      <div class="f">
+        <p><b>Tutorial sobreposto sai pela culatra</b>
+        <span>quem <i>lê</i> o passo-a-passo acha o produto <b>mais complicado</b> do que quem pula. Spotlight só para interação não óbvia; modal que bloqueia impede a pessoa de se sentir competente</span></p>
+        <span class="fonte">NN/g (2ª mão)</span></div>
+      <div class="f">
+        <p><b>Caixa em branco esconde o que o assistente faz</b>
+        <span>o remédio conhecido é sugestão clicável — com duas ressalvas: <b>poucas e boas</b> (três caminhos focados valem mais que vinte exemplos) e <b>editáveis</b></span></p>
+        <span class="fonte">shapeof.ai · Notion</span></div>
+      <div class="f">
+        <p><b>Sugestão ligada ao que está na tela vence a genérica</b>
+        <span>Granola sugere pelo transcript, Gemini pela página aberta, Adobe tem painel de descoberta. Nós temos a melhor versão disso: o agente <b>lê o diagrama</b></span></p>
+        <span class="fonte">arXiv 2412.10933</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que mudou na tela</h2>
+    <div class="feito">
+      <div class="f">
+        <p><b>A barra do tutor, encostada na alavanca</b>
+        <span>com uma seta apontando para ela: a pergunta é "e agora?" e a resposta é "fale com ele" — as duas no mesmo canto dizem isso sem uma linha de texto. A tira que ficava <i>em cima do desenho</i> morreu</span></p>
+        <span class="prova">fora do canvas</span></div>
+      <div class="f">
+        <p>Cada trilha chega com <b>o seu recado</b>
+        <span>exemplo: "o tutor lê o que está na tela — clique em qualquer elemento e pergunte". Do zero: "conte o seu processo em algumas frases e ele desenha com você"</span></p>
+        <span class="prova">3 trilhas</span></div>
+      <div class="f">
+        <p>Clicou numa forma? <b>A barra passa a falar dela</b>
+        <span>"Selecionado: «Assar a pizza»" e o botão vira "Perguntar sobre «Assar a pizza»", que abre o painel com a pergunta digitada — <b>sem enviar</b>. É a resposta literal ao "pode clicar nos elementos e perguntar": em vez de escrever isso numa dica, o produto demonstra no instante do clique</span></p>
+        <span class="prova">provado</span></div>
+      <div class="f">
+        <p>Com o painel aberto, <b>a barra sai</b>
+        <span>os dois moram no mesmo canto, e o painel diz as mesmas coisas melhor</span></p>
+        <span class="prova">por CSS</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>As duas ideias suas que a pesquisa recusou</h2>
+    <div class="alerta">
+      Você levantou <b>abrir o painel junto com o exemplo</b> ou <b>piscar a alavanca</b>. As duas
+      são interrupção, que é o que o primeiro achado desaconselha — e abrir o painel é pior no nosso
+      caso: na trilha do exemplo ele cobriria justamente o diagrama que você pediu para ver, em
+      375 px cobriria a tela toda, e sem chave a primeira coisa na frente da pessoa seria o pedido
+      de chave. A barra persegue o mesmo objetivo sem tomar a vez de ninguém: fica visível, aponta
+      para a alavanca e diz o que pedir. <b>A decisão é sua e dá para reverter</b> — o motivo está
+      escrito em <code>design.md</code> G2 para não se perder.
+    </div>
+  </section>
+
+  <section>
+    <h2>O que a pesquisa não resolve</h2>
+    <div class="proximo">
+      <div class="p"><b>Quanto tempo a barra deve ficar</b><span>hoje fica até você fechar ou abrir o painel. Nenhuma fonte dá número, e inventar um seria chute</span></div>
+      <div class="p"><b>Quem volta pela segunda vez</b><span>uma fonte sugere trocar as partidas pelo histórico das perguntas da própria pessoa. Não temos memória entre visitas — é decisão registrada, não esquecimento</span></div>
+      <div class="p"><b>Medir se funcionou</b><span>não há telemetria e não vai haver: o produto é estático. A prova possível é a da bateria — o caminho existe, é alcançável e leva ao resultado certo</span></div>
+      <div class="p"><b>Um print decidiu a geometria</b><span>com offset fixo, em 375 px o "voltar ao menu" ficava embaixo da alavanca. Agora a barra <b>mede</b> a alavanca, três vezes, porque o ajudante escreve a reserva do rodapé depois da montagem</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span><code>guide-the-first-run-trails</code> · pesquisa em <code>research.md</code></span>
+    <span>niu-tech/bpmn · TCC</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -47,13 +47,16 @@ export function decidirAbertura({ salvo = null, escolha = null, atalho = null } 
 }
 
 /**
- * Qual tira a tela mostra depois de abrir.
+ * Qual barra do tutor a tela mostra depois de abrir.
  *
  * `exemplo` precisa dizer que é exemplo (senão o diagrama de outra pessoa passa por trabalho da
- * própria); `branco` precisa manter o exemplo a um clique (pergunta 4 do estudo). Quem restaurou o
- * próprio trabalho não recebe tira nenhuma: não há o que explicar.
+ * própria) e convidar a clicar numa forma e perguntar; `branco` precisa dizer que basta descrever
+ * o processo, e manter o exemplo a um clique (pergunta 4 do estudo).
+ *
+ * Quem restaurou o próprio trabalho não recebe barra nenhuma: já sabe o que está fazendo, e ajuda
+ * que não se pode desligar vira moldura.
  */
-export function tiraPara(abertura) {
+export function barraPara(abertura) {
   if (abertura === 'exemplo') return 'exemplo';
   if (abertura === 'branco') return 'branco';
   return null;

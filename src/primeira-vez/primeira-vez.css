@@ -133,40 +133,65 @@ body.pv-no-ar .sim-dashboard { display: none; }
   cursor: pointer;
 }
 
-/* ---- a tira que diz o que está aberto -------------------------------------------------------- */
-
-.pv-tira {
+/* ---- a barra do tutor ------------------------------------------------------------------------
+   Encostada na alavanca do ajudante, no canto de baixo a' direita: a ajuda mora ao lado de quem
+   pode ajudar, e nao em cima do desenho (a pilula anterior pousava no alto do canvas e cobria o
+   pool de cima). Nao e' modal, nao bloqueia nada e fecha num clique. */
+.pv-barra {
   position: fixed;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: calc(100vw - 32px);
-  padding: 6px 12px;
+  right: 14px;
+  /* A alavanca do ajudante mora no mesmo canto e a barra senta em cima dela. O valor vem MEDIDO
+     da alavanca (`tela.js`); o calc e' so' a reserva de quando ela ainda nao existe. */
+  bottom: var(--pv-barra-bottom, calc(var(--pv-rodape, 44px) + 66px));
+  z-index: 9900;
+  width: 320px;
+  max-width: calc(100vw - 28px);
+  padding: 14px 16px 12px;
   border: 1px solid var(--cor-borda, #dce4ef);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 1px 3px rgba(23, 38, 60, 0.08);
-  font: 12.5px/1.3 Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #526277;
-  white-space: nowrap;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(23, 38, 60, 0.14);
+  font: 13px/1.5 Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #17263c;
+  animation: pv-sobe 200ms ease-out;
 }
 
-.pv-tira__selo {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: #8a4b12;
-  background: #fdf4e7;
-  border-radius: 6px;
-  padding: 2px 7px;
+/* A seta que amarra a barra a' alavanca: sem ela sao duas coisas soltas no mesmo canto. */
+.pv-barra::after {
+  content: "";
+  position: absolute;
+  right: 28px;
+  bottom: -7px;
+  width: 12px; height: 12px;
+  background: #fff;
+  border-right: 1px solid var(--cor-borda, #dce4ef);
+  border-bottom: 1px solid var(--cor-borda, #dce4ef);
+  transform: rotate(45deg);
 }
 
-.pv-tira__link {
+@keyframes pv-sobe { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.pv-barra__titulo { margin: 0 20px 4px 0; font-size: 13.5px; font-weight: 700; }
+.pv-barra__texto { margin: 0 0 11px; color: #526277; }
+
+.pv-barra__acao {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #f5f8ff;
+  color: #2563eb;
+  cursor: pointer;
+}
+.pv-barra__acao:hover { border-color: #2563eb; background: #eef4ff; }
+
+.pv-barra__rodape { margin: 10px 0 0; font-size: 12.5px; color: #94a3b8; }
+.pv-barra__link {
   font: inherit;
   padding: 0;
   border: none;
@@ -175,13 +200,24 @@ body.pv-no-ar .sim-dashboard { display: none; }
   text-decoration: underline;
   cursor: pointer;
 }
+.pv-barra__fechar {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 28px; height: 28px;
+  font-size: 16px; line-height: 1;
+  border: none; border-radius: 8px;
+  background: none; color: #94a3b8;
+  cursor: pointer;
+}
+.pv-barra__fechar:hover { background: #f1f5f9; color: #475569; }
 
-.pv-tira__sep { color: #94a3b8; }
+/* Com o painel ABERTO a barra sai: ele ocupa o mesmo canto e diz as mesmas coisas, melhor. */
+body:has(.bpmn-assist__panel:not([hidden])) .pv-barra { display: none; }
 
 /* ---- foco visível, celular e movimento reduzido ---------------------------------------------- */
 
 .pv button:focus-visible,
-.pv-tira button:focus-visible {
+.pv-barra button:focus-visible {
   outline: 3px solid var(--cor-primaria, #2563eb);
   outline-offset: 2px;
 }
@@ -198,15 +234,11 @@ body.pv-no-ar .sim-dashboard { display: none; }
   /* O alto da tela estreita e' da barra de simulacao (0 a ~66 px), entao a tira desce o mesmo
      tanto que o convite — e NAO para o rodape, onde ficava espremida entre a barra do modelador
      e o painel do ajudante (medido em 375x812). */
-  .pv-tira { top: 76px; }
-  /* Em 375 px os tres pedacos nao cabem numa linha so' (medido: 369 px, com o "voltar ao menu"
-     cortado na borda). Deixar quebrar virou um bloco de quatro linhas sobre o desenho, pior que
-     o problema. Entao o que sai e' a PROSA — o selo e os dois caminhos ficam, porque sao eles
-     que a tira existe para oferecer. */
-  .pv-tira__texto,
-  .pv-tira__sep { display: none; }
+  .pv-barra { left: 10px; right: 10px; width: auto; }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pv { animation: none; }
+  .pv,
+  .pv-barra { animation: none; }
 }

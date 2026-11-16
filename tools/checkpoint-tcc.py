@@ -67,7 +67,7 @@ def tabela(linhas, larguras):
 story = [
     Paragraph("Ajudante BPMN — checkpoint para avaliação", H1),
     Paragraph("15 de novembro de 2026 · o que o produto faz hoje, o que está provado, o que "
-              "ficou pendente e o que vem a seguir", SUB),
+              "ficou pendente — e o que vem a seguir, depois das suas decisões desta noite", SUB),
 
     # ---------------------------------------------------------------- 1. o produto hoje
     Paragraph("1. O que o produto faz hoje", H2),
@@ -104,11 +104,14 @@ story = [
         ["FK · Conhecimento citável", "acervo OKF autoral, <font face='Courier'>consultar_norma</font>, chave de citação conferida",
          "<font color='%s'><b>fechada</b></font> 15/11" % VERDE],
         ["F8 · Tutor", "propõe antes de aplicar, explica a escolha, monta em passos",
-         "<font color='%s'><b>metade</b></font>: a mecânica fechou, a pedagogia não" % AMBAR],
-        ["Trilha H · cápsula de voz", "dono do turno, canais, barge-in por nível, estado tipado",
-         "<font color='%s'><b>colhida</b></font>, menos dois enfeites" % VERDE],
+         "<b>mecânica fechada</b>; a pedagogia você <b>estacionou</b> para elaborar com o orientador"],
+        ["Trilha H · cápsula de voz", "dono do turno, canais, barge-in por nível, estado tipado, "
+         "cartões clicáveis",
+         "<font color='%s'><b>colhida inteira</b></font>" % VERDE],
         ["Tela base", "primeira tela em português, dois passos para a chave, sempre há volta",
          "<font color='%s'><b>no ar</b></font> 15/11" % VERDE],
+        ["Acabamento do painel", "escala de espaçamento, consentimento, marca d'água, o selo que não mente",
+         "<font color='%s'><b>fechado</b></font> 15/11" % VERDE],
     ], [4.0 * cm, 7.6 * cm, 4.4 * cm]),
 
     # ---------------------------------------------------------------- 3. as provas
@@ -120,7 +123,7 @@ story = [
          "o núcleo: prompt, despacho, ferramentas, memória, guardrails, protocolo, áudio. Roda "
          "sem rede, sem chave e sem cota"],
         ["Portões no navegador",
-         "<b>42 cenários</b><br/>25 sem cota · 17 ao vivo",
+         "<b>45 cenários</b><br/>28 sem cota · 17 ao vivo",
          "o produto contra o bpmn-js de verdade, e contra o Gemini de verdade. É onde os defeitos "
          "de desenho e de sessão aparecem"],
         ["Conjunto dourado",
@@ -159,6 +162,12 @@ story = [
         "fluxo, e um portão que dava verde sem provar nada.",
         "<b>A primeira tela</b> ficou em português, com dois passos para a chave e sempre um "
         "caminho de volta — e o exemplo da pizzaria foi traduzido.",
+        "<b>O acabamento do painel fechou</b>, e trouxe uma capacidade nova: o que a ferramenta "
+        "acha vira <b>cartão clicável que mostra o elemento no desenho</b> — sem falar com o "
+        "modelo e <b>sem gastar turno</b>. Junto com isso: o selo deixou de dizer “ouvindo” numa "
+        "sessão sem microfone, a escala de espaçamento ficou uniforme, e dois portões novos medem "
+        "o consentimento não pré-marcado e a marca d’água do bpmn.io livre — esta última é "
+        "exigência da licença, não zelo estético.",
     ]),
 
     # ---------------------------------------------------------------- 5. pendencias
@@ -167,13 +176,9 @@ story = [
         ["Pendência", "Por que não bloqueia", "De quem é"],
         ["<b>A pedagogia do tutor</b> (F8b): quando propor e quando calar, como explicar a escolha "
          "de representação, quanto corrigir de uma vez",
-         "a mecânica está pronta: o agente já propõe, a ferramenta recusa até o aluno responder, e "
-         "a tela é lida de volta a cada escrita",
-         "<b>decisão sua</b>, com diagrama de aula na frente"],
-        ["<b>A sua voz</b> em microfone físico (M1)",
-         "a voz é provada com fala sintética entrando pelo caminho real do microfone — mede o "
-         "produto, não a pessoa",
-         "<b>20 minutos seus</b>; o roteiro já está escrito"],
+         "a mecânica está pronta e provada: o agente propõe, a ferramenta recusa até o aluno "
+         "responder, e a tela é lida de volta a cada escrita",
+         "<b>estacionada por você</b>, para elaborar com o orientador"],
         ["<b>Duas declarações no texto</b>: a licença do <font face='Courier'>bpmn-js</font> (a "
          "marca d'água não pode ser removida) e o reúso de trabalho anterior seu",
          "não afeta o software; afeta a banca, e a correção é uma frase",
@@ -189,56 +194,45 @@ story = [
          "as três têm prova equivalente onde a decisão é nossa; forçá-las exigiria costura de "
          "teste dentro do produto",
          "<b>declaradas</b>, não escondidas"],
-        ["<b>Sobras de acabamento</b>: escala de espaçamento, prints lado a lado, dois enfeites da "
-         "cápsula (cartões clicáveis, selo “ouvindo” no texto)",
-         "nada disso muda o que o produto faz",
-         "minhas, quando você quiser"],
+        ["<b>Pontas minhas, sem pressa</b>: o viewer na bateria, a bateria no CI, desfazer em "
+         "bloco, layout automático de verdade, o teto do contexto",
+         "nenhuma conserta nada — são capacidades a mais ou higiene",
+         "minhas, quando valer a pena"],
     ], [5.2 * cm, 6.4 * cm, 4.4 * cm]),
 
-    PageBreak(),
-
     # ---------------------------------------------------------------- 6. proximos passos
-    Paragraph("6. Próximos passos, em ordem de recomendação", H2),
+    Paragraph("6. Próximos passos, depois das suas decisões", H2),
     Paragraph(
-        "<b>1. Fechar a fase F8 — o tutor.</b> É o último portão do roadmap e é o que separa “um "
-        "agente que executa” de “um tutor que ensina”. A mecânica já existe; o que falta é "
-        "conteúdo: as seções de ensino no prompt (explicar ancorado no diagrama aberto, "
-        "recomendar quando há escolha, resposta curta por padrão e mais curta na voz) e o portão "
-        "ao vivo: <b>descrever um processo em três frases produz uma proposta nomeada; ao "
-        "aceitar, o diagrama ganha início, tarefas e fim ligados; e o agente não mexe no que não "
-        "foi pedido</b>. Eu consigo escrever e provar a mecânica inteira; as escolhas "
-        "pedagógicas precisam de você uma vez, por uns 15 minutos, com um diagrama de aula na "
-        "frente.", P),
+        "<b>1. A conversa com o orientador.</b> Você levou a pedagogia do tutor para lá, e isso "
+        "reordena o resto: enquanto a forma do que o tutor diz não estiver decidida, correr o "
+        "portão F8 seria carimbar uma pedagogia que ninguém escolheu. Na mesma conversa cabem as "
+        "duas frases que faltam no texto — a licença do <font face='Courier'>bpmn-js</font> (a "
+        "marca d’água não pode ser removida, e o software já cumpre isso com portão) e o reúso de "
+        "trabalho anterior seu —, além da modalidade, dos prazos e da ABNT.", P),
     Paragraph(
-        "<b>2. A sua voz, uma vez.</b> Toda a camada de voz está provada com fala sintética. Uma "
-        "sessão sua de verdade — com pausa, hesitação e sotaque — é a única coisa que pode "
-        "derrubar suposições que eu não sei que estou fazendo. O roteiro curto já está pronto; "
-        "são 20 minutos e eu leio a trilha depois.", P),
+        "<b>2. Quando a pedagogia voltar: fechar o F8.</b> São as seções de ensino no prompt "
+        "(explicar ancorado no diagrama aberto, recomendar quando há escolha, resposta curta por "
+        "padrão e mais curta na voz) e o portão ao vivo: <b>descrever um processo em três frases "
+        "produz uma proposta nomeada; ao aceitar, o diagrama ganha início, tarefas e fim "
+        "ligados; e o agente não mexe no que não foi pedido</b>. A mecânica inteira já está de "
+        "pé — o que entrar ali é conteúdo, e é rápido.", P),
     Paragraph(
-        "<b>3. As duas frases do texto.</b> A licença do <font face='Courier'>bpmn-js</font> e o "
-        "reúso de trabalho anterior seu. São de banca, custam uma frase cada, e é o tipo de coisa "
-        "que só dá problema se chegar lá sem estar escrita.", P),
+        "<b>3. Publicar de verdade, se e quando você quiser.</b> Domínio, DNS, secrets e o "
+        "ensaio do rollback. Hoje o endereço provisório publica a cada entrega e serve tudo, "
+        "então isto é melhoria, não conserto.", P),
     Paragraph(
-        "<b>4. Higiene do quadro.</b> Seis das onze <i>changes</i> estão com todas as caixas "
-        "fechadas e podem ser arquivadas; cinco têm caixas abertas, e três dessas caixas são o "
-        "F8. Arquivar é meia hora e deixa o quadro dizendo a verdade sobre o que falta.", P),
-    Paragraph(
-        "<b>5. O acabamento.</b> As sobras de UI e os dois enfeites da cápsula, quando não "
-        "houver nada melhor para fazer.", P),
+        "<b>4. As pontas minhas</b>, sem pressa e sem bloquear nada: o viewer na bateria, a "
+        "bateria no CI, desfazer em bloco, um layout automático de verdade (“arruma o "
+        "desenho”), e medir o teto do contexto com a ferramenta que já existe.", P),
 
     Spacer(1, 6),
-    Paragraph("O que eu recomendo para a próxima sessão", H2),
+    Paragraph("Onde o trabalho está, em uma frase", H2),
     Paragraph(
-        "Começar pelo <b>F8</b>, e começar pela parte que não depende de você: escrever as seções "
-        "de ensino no prompt e montar o portão ao vivo da proposta nomeada. Quando ele estiver de "
-        "pé, aí vale os seus 15 minutos de pedagogia — porque nessa hora a pergunta deixa de ser "
-        "abstrata (“quando o tutor deve propor?”) e passa a ser concreta: você vê a proposta na "
-        "tela, com o diagrama ao lado, e diz o que está errado nela.", P),
-    Paragraph(
-        "O produto está num estado em que dá para mostrar para outra pessoa sem pedir desculpa: "
-        "ele ensina, desenha, cita a fonte, pergunta antes de apagar e não cai no meio da aula. "
-        "O que falta é o que sempre faltou — a parte que é <b>sua</b> opinião sobre como se "
-        "ensina.", P),
+        "Num estado <b>estável e mostrável</b>: o ajudante ensina, desenha, cita a fonte, pergunta "
+        "antes de apagar, não cai no meio da aula e tem como provar cada uma dessas afirmações "
+        "com um comando. O que falta não é engenharia — é a parte acadêmica, que é de quem "
+        "orienta, e foi exatamente para lá que você mandou. Enquanto ela acontece, nada aqui "
+        "para de funcionar: o site publica a cada entrega, e a prova roda inteira num comando.", P),
 ]
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,

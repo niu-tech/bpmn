@@ -14,7 +14,7 @@ import {
   CHAVE_ESCOLHA,
   decidirAbertura,
   escolhaValida,
-  tiraPara,
+  barraPara,
 } from '../abertura.js';
 import { declarada } from '../../assistant/agent/catalog.js';
 import { report, test } from '../../../tools/test-harness.mjs';
@@ -89,11 +89,11 @@ test('escolhaValida recusa o que nao e caminho', () => {
   assert.equal(escolhaValida('restaurar'), false);
 });
 
-test('a tira diz o que esta aberto, e so quando ha o que dizer', () => {
-  assert.equal(tiraPara('exemplo'), 'exemplo');   // "isto e' um exemplo"
-  assert.equal(tiraPara('branco'), 'branco');     // "ver um exemplo" continua a um clique
-  assert.equal(tiraPara('restaurar'), null);      // o trabalho e' dela: nao ha' o que explicar
-  assert.equal(tiraPara('convite'), null);        // a tira so' aparece depois da escolha
+test('a barra do tutor aparece so quando ha o que dizer', () => {
+  assert.equal(barraPara('exemplo'), 'exemplo');   // fala do exemplo
+  assert.equal(barraPara('branco'), 'branco');     // "ver um exemplo" continua a um clique
+  assert.equal(barraPara('restaurar'), null);      // o trabalho e' dela: nao ha' o que explicar
+  assert.equal(barraPara('convite'), null);        // a tira so' aparece depois da escolha
 });
 
 test('a tela so promete "diz de onde tirou" porque a ferramenta existe', () => {
