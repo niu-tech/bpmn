@@ -182,3 +182,38 @@ guarda que grita à toa ensina a ignorar guarda. Se um dia valer a pena, o camin
 analisar: é escrever os passos com `String.raw`, que **não** processa escape nenhum — aí a
 armadilha deixa de existir (e as barras dobradas de hoje passam a ser dobradas de verdade, que é
 o que torna a migração uma frente, e não um sed).
+
+## XIII. Negação num portão anda em par
+
+*"Não achei nada de errado"* e *"não havia nada para achar"* são **indistinguíveis de fora**. Por
+isso toda asserção negativa de um portão passa de graça no mundo em que o objeto dela nunca
+existiu — e esse mundo é exatamente o que a gente mais precisa pegar, porque é o que acontece
+quando uma entrega inteira some.
+
+Duas, achadas no mesmo dia (2026-11-16), uma em cada sessão, e nenhuma por leitura: as duas só
+apareceram quando alguém quebrou o produto e olhou o relatório:
+
+- **verdadeira por lista vazia.** `!fontes.some((f) => f.includes(chave))` — *"a chave crua não
+  aparece na tela"* — é sempre verdadeira quando **não há fonte nenhuma** na tela. A cláusula que
+  existia para proteger a proveniência estava aprovando a tela SEM proveniência. Medido: quebra da
+  proveniência saiu `fontesNaTela: []` com `semChaveCrua: true`;
+- **verdadeira porque nunca nasceu.** `!document.querySelector('.pv-barra')` — *"a orientação sumiu
+  depois da primeira edição"* — é também verdadeira se a orientação **nunca apareceu**. Medido:
+  com a barra devolvendo `null` sempre, o cenário inteiro ficava verde enquanto a entrega da
+  rodada anterior não existia mais.
+
+São a mesma doença em tempos diferentes: a primeira ignora o **objeto**, a segunda ignora o
+**antes**. Então:
+
+**Toda negação num portão anda em par com a afirmação do que ela nega.** As duas formas do par,
+as duas em uso aqui:
+
+- **no mesmo instante**: `!texto.includes(inventada) && /fonte não conferida/.test(texto)` — não
+  basta a marca errada ter sumido, a troca tem de estar lá;
+- **antes e depois**: `rotuloApareceu` medido ANTES do desfazer, `!rotuloSobrou` depois. Sem a
+  primeira metade, *"o rótulo não sobrou"* aprovaria um rótulo que nunca foi criado.
+
+E o teste da regra é mecânico, não é leitura: **faça o objeto não existir** (a lista vazia, o
+elemento que nunca nasce, a ferramenta que nunca roda) e veja se a negação ainda passa. Se passar,
+ela nunca provou nada — e revisão humana não pega isto, porque ler uma negação dá a sensação de
+segurança que o código não tem.
