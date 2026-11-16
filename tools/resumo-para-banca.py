@@ -121,10 +121,10 @@ story = [
         "afirmações sem lastro:", P),
     tabela([
         ["Camada de prova", "Tamanho", "O que ela garante"],
-        ["Testes determinísticos", "<b>32 suítes · 685 asserções</b>",
+        ["Testes determinísticos", "<b>32 suítes · 697 asserções</b>",
          "o núcleo — prompt, despacho, ferramentas, memória, proteções, protocolo, áudio. Roda "
          "sem rede, sem credencial e em segundos"],
-        ["Portões no navegador", "<b>51 cenários</b><br/>34 sem credencial · 17 ao vivo",
+        ["Portões no navegador", "<b>52 cenários</b><br/>35 sem credencial · 17 ao vivo",
          "o sistema real: o bpmn-js de verdade desenhando, e o modelo de verdade respondendo"],
         ["Conjunto de perguntas", "<b>35 perguntas · 13 categorias</b>",
          "taxa de acerto por categoria, que é o que vira tabela no texto"],

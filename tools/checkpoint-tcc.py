@@ -126,11 +126,11 @@ story = [
     tabela([
         ["Camada", "Tamanho", "O que ela garante"],
         ["<font face='Courier'>npm test</font> (determinística)",
-         "<b>32 suítes · 685 asserções</b><br/>562 síncronas · 123 assíncronas",
+         "<b>32 suítes · 697 asserções</b><br/>567 síncronas · 130 assíncronas",
          "o núcleo: prompt, despacho, ferramentas, memória, guardrails, protocolo, áudio. Roda "
          "sem rede, sem chave e sem cota"],
         ["Portões no navegador",
-         "<b>51 cenários</b><br/>34 sem cota · 17 ao vivo",
+         "<b>52 cenários</b><br/>35 sem cota · 17 ao vivo",
          "o produto contra o bpmn-js de verdade, e contra o Gemini de verdade. É onde os defeitos "
          "de desenho e de sessão aparecem"],
         ["Conjunto dourado",
@@ -190,7 +190,7 @@ story = [
         "“desfaz” e o agente desfazia o traçado de uma linha, anunciando que havia voltado atrás. "
         "Agora é <b>um</b> — e, quando for mais de um (abrir espaço para a forma é comando "
         "legítimo), a ferramenta devolve o número <b>contado</b>, não estimado, e desfaz o lote.",
-        "<b>A prova de tela entrou no CI</b>: 32 cenários rodam a cada envio, no servidor do "
+        "<b>A prova de tela entrou no CI</b>: 33 cenários rodam a cada envio, no servidor do "
         "GitHub, contra a imagem que vai ao ar — e sem credencial nenhuma. Pega o que nada mais "
         "pegava: página que o build não copiou, botão que trocou de nome, geometria que o "
         "bpmn-js desenha diferente depois de uma atualização. E o <b>viewer</b> deixou de ser "
