@@ -1549,6 +1549,30 @@ testAsync('clicar num candidato NAO abre o portao de confirmacao', async () => {
   forgetSecrets();
 });
 
+testAsync('o selo de ESCRITA volta quando a ferramenta termina \u2014 e a tela nao fica travada', async () => {
+  // \u26a0 Regress\u00e3o achada pelo pr\u00f3prio port\u00e3o do navegador, no commit que separou *desenhando*
+  // de *consultando*: a volta do estado conhecia s\u00f3 `tool`, e o selo de escrita ficava PRESO.
+  //
+  // Selo preso n\u00e3o \u00e9 cosm\u00e9tico \u2014 ele TRAVA a tela: `escolherCandidato` s\u00f3 aceita clique em
+  // estado de conversa, ent\u00e3o clicar num candidato respondia *"conecte antes de escolher"* com a
+  // sess\u00e3o aberta e saud\u00e1vel. Por isso o teste afirma as DUAS coisas: o selo volta **e** o
+  // gesto do aluno continua funcionando. Afirmar s\u00f3 o selo deixaria passar o dano real.
+  const { session, live } = montarComDiagrama();
+  await session.connect('voz');
+  live.ultima.pronta();
+  session.ask('pinte o assar');
+  const d = live.ultima.opts.dispatcher;
+
+  const espera = d.despachar([{ id: 'c1', name: 'destacar', args: { ids: ['Task_1'], cor: 'azul' } }]);
+  assert.equal(session.state, 'escrevendo', `escrita devia dizer desenhando, e diz ${session.state}`);
+  await espera;
+
+  assert.notEqual(session.state, 'escrevendo', 'o selo de escrita ficou preso');
+  assert.equal(session.escolherCandidato({ id: 'Task_1', rotulo: 'Assar a pizza' }), true,
+    'o clique do aluno foi recusado com a sessao aberta: o selo preso travou a tela');
+  forgetSecrets();
+});
+
 testAsync('sem sessao, escolher avisa em vez de perder o clique', async () => {
   const { session } = montarComDiagrama();
   assert.equal(session.escolherCandidato({ id: 'Task_1', rotulo: 'Assar' }), false);

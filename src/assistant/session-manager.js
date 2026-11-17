@@ -270,6 +270,19 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    */
   const AJUSTE_DURANTE_CONSTRUCAO = { desfazer: true };
   /**
+   * Os selos que são "estou no meio de uma ferramenta" — e que portanto têm de ser
+   * DEVOLVIDOS quando ela termina.
+   *
+   * ⚠ Isto existe porque a lista estava escrita duas vezes: ao separar *desenhando* de
+   * *consultando*, uma das duas voltas continuou conhecendo só `tool`. O selo de escrita
+   * ficava preso, e com ele a sessão: `escolherCandidato` só aceita clique em estado de
+   * conversa, então clicar num candidato respondia *"conecte antes de escolher"* com a
+   * sessão aberta. Selo preso não é cosmético: ele TRAVA a tela.
+   */
+  const OCUPADO_POR_FERRAMENTA = { tool: true, escrevendo: true };
+  /** Quantas formas o desenho tinha quando a ferramenta de agora começou. */
+  let formasAntesDaFerramenta = null;
+  /**
    * Quantas FORMAS o desenho tem agora.
    *
    * ⚠ A contagem da construção conta o DESENHO, e não as chamadas. Contar chamadas dizia
@@ -1054,6 +1067,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           // `push` carimba id e hora como em qualquer mensagem — a linha da ferramenta é uma
           // mensagem da conversa, não um enfeite paralelo.
           estadoAntesDaFerramenta = state;
+          // ⚠ O desenho ANTES desta chamada, medido. Deduzir a base (`agora - 1`) presumia
+          // que a escrita criou algo — e uma escrita que RECUSOU (ambiguidade) ou que só
+          // pintou fazia a mensagem anunciar *"1 elementos"* sem ter desenhado nada.
+          formasAntesDaFerramenta = formasAgora();
           atividade = push({ role: 'tool', text: linhaDeInicio(nome), rodando: true, turn: turnSeq });
           // Estado próprio: 'pronto' durante uma busca é mentira, e 'falando' também. E
           // escrever no desenho tem selo próprio: a espera é a mesma, o significado não.
@@ -1116,9 +1133,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           if (escreveNoDesenho(nome)) {
             const linha = atividade.text;
             if (!construcao) {
-              // A base é o desenho ANTES desta construção: a primeira forma já entrou.
-              const agora = formasAgora();
-              construcao = { msg: atividade, base: agora === null ? null : agora - 1, elementos: 1, detalhes: [linha] };
+              construcao = { msg: atividade, base: formasAntesDaFerramenta, elementos: 1, detalhes: [linha] };
             } else {
               const agora = formasAgora();
               construcao.elementos = (agora !== null && construcao.base !== null)
@@ -1126,12 +1141,16 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
                 : construcao.elementos + 1;
               construcao.detalhes.push(linha);
               construcao.msg.construcao = { elementos: construcao.elementos, detalhes: [...construcao.detalhes] };
-              construcao.msg.text = `montando o processo — ${construcao.elementos} elementos`;
+              // Plural do número, e a palavra honesta quando o desenho não cresceu: duas
+              // escritas que pintam ou que recusam não são "montando o processo".
+              construcao.msg.text = construcao.elementos === 0
+                ? `mexendo no desenho — ${construcao.detalhes.length} ações`
+                : `montando o processo — ${construcao.elementos} elemento${construcao.elementos === 1 ? '' : 's'}`;
               // A linha desta chamada já foi absorvida: a mensagem dela sai da conversa.
               const i = messages.indexOf(atividade);
               if (i >= 0) messages.splice(i, 1);
               atividade = null;
-              if (state === 'escrevendo' || state === 'tool') {
+              if (OCUPADO_POR_FERRAMENTA[state]) {
                 setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
               }
               publish();
@@ -1142,7 +1161,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
         // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
         // ferramenta terminar — e selo preso é pior que selo nenhum: mente com confiança.
-        if (state === 'tool') setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
+        if (OCUPADO_POR_FERRAMENTA[state]) setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
         publish();
       },
       executores: {
