@@ -205,8 +205,59 @@ export const FERRAMENTAS = Object.freeze([
               + 'quando o aluno disser que esqueceu um passo no meio do processo. Se não houver '
               + 'fluxo entre os dois, o erro é sem_lugar.',
           },
+          /**
+           * ⚠ O handler aceita `comoRamo` desde 2026-11-15 e a declaração **nunca o expôs** —
+           * medido na sessão do dono em 2026-11-17. Sem ele, pedir uma segunda saída cai em
+           * `depoisDe`, que ENCADEIA, e o modelo não tinha como abrir caminho nenhum.
+           */
+          comoRamo: {
+            type: 'boolean',
+            description:
+              'Para o elemento nascer como uma SEGUNDA saída de depoisDe, em vez de entrar no '
+              + 'meio da sequência que já existe. Sem isto, depoisDe num elemento que já tem '
+              + 'saída encadeia — que é o que o aluno quer quando diz "a próxima etapa". Para '
+              + 'caminho de DECISÃO, prefira ramificar: ela já rotula a seta.',
+          },
         },
         required: ['tipo'],
+      },
+    },
+  },
+
+  {
+    nome: 'ramificar',
+    escreve: true,
+    /**
+     * ⚠ Esta ferramenta existe porque abrir o segundo caminho de um gateway era IMPOSSÍVEL
+     * (sessão do dono, 2026-11-17). E ela leva o rótulo junto de propósito: rotular depois
+     * exigiria o id da ligação, que é a única informação do desenho que o aluno nunca diz — e
+     * que morre a cada desfazer.
+     */
+    declaracao: {
+      name: 'ramificar',
+      description:
+        'Abre UM caminho de uma decis\u00e3o: cria o elemento, liga ao gateway e escreve o R\u00d3TULO na '
+        + 'seta, tudo numa chamada. Chame uma vez por caminho \u2014 "Sim" e "N\u00e3o" s\u00e3o duas chamadas. '
+        + 'O r\u00f3tulo \u00e9 a resposta que leva por ali (Sim, N\u00e3o, "acima de R$ 1.000"). O resultado diz '
+        + 'quantos caminhos a decis\u00e3o tem agora e quantos t\u00eam r\u00f3tulo: decis\u00e3o com um caminho s\u00f3 '
+        + 'est\u00e1 pela metade. S\u00f3 funciona em gateway; para uma segunda sa\u00edda em outro elemento, use '
+        + 'criar_elemento com comoRamo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          decisao: { type: 'string', description: 'Id do gateway de onde o caminho sai.' },
+          tipo: {
+            type: 'string',
+            enum: [...TIPOS_CRIAVEIS],
+            description: 'Tipo BPMN do elemento que abre o caminho, sem o prefixo bpmn:.',
+          },
+          nome: { type: 'string', description: 'O r\u00f3tulo do elemento criado.' },
+          rotulo: {
+            type: 'string',
+            description: 'O r\u00f3tulo da SETA \u2014 a resposta que leva por este caminho.',
+          },
+        },
+        required: ['decisao', 'tipo', 'rotulo'],
       },
     },
   },

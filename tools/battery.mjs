@@ -1758,6 +1758,81 @@ CENARIOS.push({
 });
 
 /**
+ * A DECISAO COM OS DOIS CAMINHOS (change `give-gateways-their-second-path`, 2026-11-17).
+ *
+ * O dono descreveu um processo por voz e o gateway saiu com UM caminho, com o outro lado solto no
+ * desenho. A causa nao era o modelo: `comoRamo` existia no handler e nunca foi declarado, entao
+ * pedir o segundo caminho caia em `depoisDe`, que ENCADEIA. Era impossivel abrir uma decisao.
+ *
+ * Este portao mede o conserto onde ele vive, contra o bpmn-js de verdade e SEM cota:
+ *
+ *  1. `comoRamo` declarado funciona: o gateway nasce como ramo, com zero saidas;
+ *  2. `ramificar` abre cada caminho JA' ROTULADO, e o id da ligacao nunca sai do nosso codigo;
+ *  3. a decisao termina com dois caminhos, os dois com rotulo;
+ *  4. nenhum elemento fica orfao, nenhum sobrepoe ninguem, nenhuma seta atravessa caixa;
+ *  5. e UM desfazer tira o caminho inteiro (ramo + seta + rotulo), como a divida T12 pede.
+ *
+ * ⚠ Sem crase e sem classe de escape neste passo (principio XII).
+ */
+CENARIOS.push({
+  // ⚠ O MAPA DOS VERMELHOS: `comoRamoAbriu` cai sozinha se a declaracao sumir; `doisCaminhos` e
+  // `doisRotulos` caem juntas se `ramificar` parar de rotular; `umDesfazerTirouOCaminho` cai
+  // sozinha se o rotulo deixar de entrar no mesmo comando.
+  nome: 'decisao com os DOIS caminhos rotulados, e um Ctrl+Z por caminho',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `${MEDIR_SOBREPOSICAO}
+     const A = window.__bpmnAssist;
+     const F = async (n, a) => (await A.ferramenta(n, a))?.resultado ?? null;
+     const nos = () => A.desenho.nos;
+     const base = nos().find((x) => (x.nome || '').toLowerCase() === 'pagar a pizza');
+     if (!base) return { ok: false, erro: 'o diagrama base nao tem a tarefa esperada' };
+
+     // 1. O gateway nasce como RAMO (comoRamo recem-declarado): zero saidas, e o caminho que ja'
+     //    existia na linha principal continua intacto.
+     const gw = await F('criar_elemento', { tipo: 'ExclusiveGateway', nome: 'Pagou?', depoisDe: base.id, comoRamo: true });
+     const idGw = gw?.criado?.id ?? null;
+     if (!idGw) return { ok: false, erro: 'nao criei a decisao', gw };
+     const saidasLogo = A.desenho.ligacoes.filter((l) => l.de === idGw).length;
+     const comoRamoAbriu = saidasLogo === 0;
+
+     // 2. Cada caminho, uma chamada, ja' rotulado.
+     const sim = await F('ramificar', { decisao: idGw, tipo: 'Task', nome: 'Entregar o pedido', rotulo: 'Sim' });
+     const nao = await F('ramificar', { decisao: idGw, tipo: 'Task', nome: 'Cobrar de novo', rotulo: 'Nao' });
+
+     const flechas = () => A.desenho.ligacoes.filter((l) => l.de === idGw);
+     const doisCaminhos = flechas().length === 2;
+     const rotulos = flechas().map((l) => (l.nome || '').trim()).sort();
+     const doisRotulos = rotulos.length === 2 && rotulos.every((r) => r.length > 0);
+
+     // 3. Nenhum orfao entre os criados, e a geometria limpa.
+     const criados = [idGw, sim?.criado?.id, nao?.criado?.id].filter(Boolean);
+     const temEntrada = (id) => A.desenho.ligacoes.some((l) => l.para === id);
+     const orfaos = criados.filter((id) => !temEntrada(id));
+     const sobrepostos = criados.flatMap((id) => window.__sobrepoe(id) || []);
+     const atravessadas = criados.flatMap((id) => window.__linhaAtravessa(id) || []);
+
+     // 4. UM desfazer tira o caminho inteiro: ramo, seta e rotulo.
+     const antesDoDesfazer = flechas().length;
+     const u = await F('desfazer', {});
+     const depoisDoDesfazer = flechas().length;
+     const umDesfazerTirouOCaminho = antesDoDesfazer === 2 && depoisDoDesfazer === 1
+       && !nos().some((n) => n.id === nao?.criado?.id);
+
+     return {
+       ok: comoRamoAbriu && doisCaminhos && doisRotulos && orfaos.length === 0
+         && sobrepostos.length === 0 && atravessadas.length === 0 && umDesfazerTirouOCaminho,
+       comoRamoAbriu, doisCaminhos, doisRotulos, umDesfazerTirouOCaminho,
+       rotulos, orfaos, sobrepostos, atravessadas,
+       caminhosDaDecisao: sim?.caminhosDaDecisao + ' depois ' + nao?.caminhosDaDecisao,
+       desfeitos: u?.desfeitos ?? null,
+       comandosPorCaminho: nao?.comandos ?? null,
+     };`,
+  ],
+});
+
+/**
  * A CITACAO CONFERIDA NA VOZ (K6, corrigido em 2026-11-16).
  *
  * O dono perguntou se o modo voz usa o acervo. Usa — `consultar_norma` e declarada nos dois modos

@@ -81,7 +81,7 @@ test('ferramenta restrita a um perfil so aparece nele', () => {
 });
 
 const LEITURA = ['lembrar', 'consultar_norma', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
-const ESCRITA = ['criar_elemento', 'criar_pool', 'criar_raia', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'remover'];
+const ESCRITA = ['criar_elemento', 'ramificar', 'criar_pool', 'criar_raia', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'remover'];
 
 test('a PAGINA decide: leitura nas duas, escrita so no modelador (F7)', () => {
   // Era "todas valem nas duas paginas", com a nota de que este teste mudaria quando a primeira

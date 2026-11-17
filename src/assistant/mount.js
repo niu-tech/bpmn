@@ -187,7 +187,16 @@ export function mountAssistant({
           .map((e) => ({ id: e.id, tipo: tipo(e), nome: e.businessObject?.name ?? null })),
         ligacoes: todos
           .filter((e) => Array.isArray(e.waypoints))
-          .map((c) => ({ id: c.id, tipo: tipo(c), de: c.source?.id ?? null, para: c.target?.id ?? null })),
+          // ⚠ O NOME da ligação entra aqui desde 2026-11-17: caminho de decisão é seta COM
+          // rótulo ("Sim", "Não"), e a projeção dizia só de onde para onde — então nenhum
+          // portão conseguia perguntar se o caminho tinha resposta escrita nele.
+          .map((c) => ({
+            id: c.id,
+            tipo: tipo(c),
+            de: c.source?.id ?? null,
+            para: c.target?.id ?? null,
+            nome: c.businessObject?.name ?? null,
+          })),
       };
     },
     /** O último quadro que o modelo de fato recebeu. É o espelho do delta. */

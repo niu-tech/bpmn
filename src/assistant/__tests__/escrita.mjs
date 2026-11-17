@@ -1001,6 +1001,77 @@ testAsync('alvo que não é pool nem raia, e `onde` desconhecido, são recusas n
 
 /* ---------------------------------------------------------------- desfazer e destacar */
 
+/* ---------------------------------------------------------------- o caminho da decisao */
+
+/**
+ * Monta uma DECISAO com o primeiro caminho ja' aberto — o estado em que o modelo travava.
+ *
+ * ⚠ E' o cenario exato da sessao do dono (2026-11-17): o gateway tem UMA saida, e o que falta e'
+ * a segunda. Com `depoisDe` isso encadeia (entra no meio do primeiro caminho), e era por ali que
+ * o modelo ia, porque era a unica coisa que a declaracao oferecia.
+ */
+async function montarDecisao() {
+  const g = montar();
+  g.guardar({ id: 'Gateway_1', type: 'bpmn:ExclusiveGateway', parent: g.raiz, businessObject: { name: 'Tem componentes?' }, incoming: [], outgoing: [] });
+  const primeiro = await g.exec.criar_elemento({ tipo: 'Task', nome: 'Montar base', depoisDe: 'Gateway_1' });
+  return { ...g, primeiro };
+}
+
+const saidasDe = (acesso, id) => acesso.entradasESaidas(id).saidas;
+
+testAsync('ramificar abre a SEGUNDA saida da decisao — nao encadeia na primeira', async () => {
+  const { exec, acesso, primeiro } = await montarDecisao();
+  assert.equal(saidasDe(acesso, 'Gateway_1').length, 1, 'o primeiro caminho deveria existir');
+
+  const r = await exec.ramificar({ decisao: 'Gateway_1', tipo: 'Task', nome: 'Gerar resultado', rotulo: 'N\u00e3o' });
+
+  const saidas = saidasDe(acesso, 'Gateway_1');
+  assert.equal(saidas.length, 2, 'a decisao ficou com um caminho so');
+  // E o primeiro caminho continua INTEIRO: encadear teria posto o novo no meio dele.
+  const alvos = saidas.map((c) => c.target.id);
+  assert.ok(alvos.includes(primeiro.criado.id), 'o primeiro caminho foi quebrado');
+  assert.ok(alvos.includes(r.criado.id), 'o caminho novo nao saiu da decisao');
+});
+
+testAsync('o ROTULO fica na seta, e o id dela nunca precisa sair daqui', async () => {
+  const { exec, acesso } = await montarDecisao();
+  const r = await exec.ramificar({ decisao: 'Gateway_1', tipo: 'Task', nome: 'Gerar resultado', rotulo: 'N\u00e3o' });
+
+  const seta = acesso.porId(r.caminho.id);
+  assert.equal(seta.businessObject.name, 'N\u00e3o', 'a seta ficou sem o rotulo do caminho');
+  // O contrato com o modelo: ele recebe o rotulo, nunca precisa carregar o id da ligacao.
+  assert.equal(r.caminho.rotulo, 'N\u00e3o');
+  assert.equal(r.caminhosDaDecisao, 2, 'o resultado deveria contar os caminhos da decisao');
+  assert.equal(r.rotulados, 1, 'so o caminho novo tem rotulo neste ponto');
+});
+
+testAsync('caminho com rotulo so sai de DECISAO, e a recusa diz o que usar no lugar', async () => {
+  const { exec, raiz, guardar } = montar();
+  guardar({ id: 'Task_1', type: 'bpmn:Task', parent: raiz, businessObject: { name: 'Receber' }, incoming: [], outgoing: [] });
+
+  await assert.rejects(
+    () => exec.ramificar({ decisao: 'Task_1', tipo: 'Task', rotulo: 'Sim' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /comoRamo/.test(e.message),
+  );
+});
+
+testAsync('caminho sem rotulo e recusado: seta sem resposta nao e caminho de decisao', async () => {
+  const { exec } = await montarDecisao();
+  await assert.rejects(
+    () => exec.ramificar({ decisao: 'Gateway_1', tipo: 'Task', rotulo: '   ' }),
+    (e) => e.nome === ERROS_ESCRITA.TIPO_INVALIDO && /rotulo|r\u00f3tulo/i.test(e.message),
+  );
+});
+
+testAsync('a leitura da tela conta os caminhos de cada decisao', async () => {
+  const { exec, acesso } = await montarDecisao();
+  // Um caminho, nenhum rotulo: a decisao esta' pela metade e o fato tem de estar legivel.
+  assert.deepEqual(acesso.caminhosDe('Gateway_1'), { caminhos: 1, rotulados: 0 });
+
+  await exec.ramificar({ decisao: 'Gateway_1', tipo: 'Task', nome: 'Gerar resultado', rotulo: 'N\u00e3o' });
+  assert.deepEqual(acesso.caminhosDe('Gateway_1'), { caminhos: 2, rotulados: 1 });
+});
+
 testAsync('desfazer pela conversa é a MESMA pilha do Ctrl+Z: criar com nome é UM passo (T12)', async () => {
   // A declaração promete isto ao modelo, então o teste cobra. Era o contrário até 2026-11-15:
   // criar com nome custava dois `Ctrl+Z` (a forma e o rótulo), e a primeira desfeita deixava na

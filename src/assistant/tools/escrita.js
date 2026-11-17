@@ -386,6 +386,83 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
     },
 
     /**
+     * ABRE UM CAMINHO DE UMA DECISÃO — o ramo, a ligação e o RÓTULO, numa chamada.
+     *
+     * ⚠ Nasceu de uma sessão ao vivo do dono (2026-11-17) em que o agente **não conseguiu** abrir
+     * o segundo caminho de um gateway. Não foi escolha errada de ferramenta: `depoisDe` num
+     * elemento que já tem saída ENCADEIA (entra no meio do primeiro caminho), e essa regra é de
+     * propósito. O que faltava era o verbo — e, sem ele, o modelo encadeou, desfez duas vezes e
+     * terminou com três elementos soltos no desenho.
+     *
+     * O rótulo vem JUNTO porque rotular depois exige o id da ligação, e id de ligação é a única
+     * coisa do desenho que o aluno nunca diz em voz alta: na mesma sessão o modelo tentou
+     * renomear um `Flow_...` que um desfazer já havia matado, e o "Não" foi parar na seta que
+     * ENTRA no gateway.
+     */
+    async ramificar({ decisao, tipo, nome, rotulo } = {}) {
+      exigirEdicao();
+      const comandosAntes = contarComandos();
+      const retratoAntes = retrato();
+
+      const alvo = exigirElemento(decisao, 'decisao');
+      // Caminho ROTULADO pertence a uma decisão. Em qualquer outro elemento o que o aluno quer é
+      // um ramo (criar_elemento com comoRamo), e dizer isso no erro poupa a tentativa seguinte.
+      if (!/Gateway$/.test(String(alvo.type))) {
+        throw nomeado(
+          ERROS_ESCRITA.TIPO_INVALIDO,
+          `${nomeDe(alvo) || alvo.id} não é uma decisão; caminho com rótulo só sai de um gateway. `
+          + 'Para uma segunda saída em outro elemento, use criar_elemento com comoRamo',
+        );
+      }
+      const marca = typeof rotulo === 'string' ? rotulo.trim() : '';
+      if (!marca) {
+        throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, 'rotulo é a resposta que leva por este caminho (ex.: Sim, Não)');
+      }
+      const tipoBpmn = resolverTipo(tipo);
+      const rotuloDoRamo = typeof nome === 'string' ? nome.trim() : '';
+
+      let criado;
+      let ligacao;
+      try {
+        ({ novo: criado, ligacao } = acesso.ramificar({
+          decisao: alvo, tipo: tipoBpmn, nome: rotuloDoRamo, rotulo: marca,
+        }));
+      } catch (err) {
+        if (!/sem_lugar_para_criar/.test(err?.message ?? '')) throw err;
+        throw nomeado(ERROS_ESCRITA.SEM_LUGAR, `não cabe um ${tipoCurto(tipoBpmn)} como caminho de ${alvo.id}`);
+      }
+
+      // Leitura de volta: é o registro que diz se existe, não a chamada que não deu erro.
+      const confirmado = acesso.porId(criado?.id);
+      if (!confirmado) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o caminho não apareceu no registro');
+      if (rotuloDoRamo && nomeDe(confirmado) !== rotuloDoRamo) {
+        acesso.renomear({ el: confirmado, nome: rotuloDoRamo });
+      }
+      // E o rótulo do CAMINHO, conferido no desenho e não na chamada que o pediu.
+      const noDesenho = ligacao ? acesso.porId(ligacao.id) : null;
+      if (!noDesenho) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'o caminho nasceu sem ligação com a decisão');
+      if (nomeDe(noDesenho) !== marca) {
+        acesso.renomear({ el: noDesenho, nome: marca });
+      }
+      if (nomeDe(acesso.porId(noDesenho.id)) !== marca) {
+        throw nomeado(ERROS_ESCRITA.NAO_MUDOU, `o caminho ficou sem o rótulo "${marca}"`);
+      }
+
+      const quantos = acesso.caminhosDe?.(alvo.id) ?? null;
+      return {
+        criado: resumir(confirmado),
+        decisao: resumir(alvo),
+        caminho: { id: noDesenho.id, rotulo: marca },
+        // Quantos caminhos a decisão tem AGORA, e quantos têm rótulo: é por aqui que o modelo
+        // descobre sozinho que ela ainda está pela metade (nada no código decide por ele).
+        ...(quantos ? { caminhosDaDecisao: quantos.caminhos, rotulados: quantos.rotulados } : {}),
+        comandos: Math.max(1, contarComandos() - comandosAntes),
+        tela: tela(confirmado.id, retratoAntes),
+        fatos: fatos(confirmado.id, retratoAntes),
+      };
+    },
+
+    /**
      * Liga dois elementos. **Não reimplementa as regras do BPMN**: manda o `modeling` conectar e
      * LÊ o tipo que nasceu.
      *

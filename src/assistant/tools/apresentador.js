@@ -129,6 +129,16 @@ const COMO_MOSTRAR = {
     return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '') + ramo;
   },
 
+  ramificar: (e, r) => {
+    if (!r || r.ok === false || !r.criado) return 'tentei abrir um caminho';
+    const alvo = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
+    const quantos = r.caminhosDaDecisao;
+    // A linha diz o CAMINHO, nunca o id da liga\u00e7\u00e3o: o aluno l\u00ea "Sim", n\u00e3o Flow_0x9a1.
+    const base = `abri o caminho ${QUOTE}${r.caminho?.rotulo ?? '?'}${QUOTE} para ${alvo}`;
+    // "1 de 2 caminhos" \u00e9 o fato que faz o aluno perceber que falta o outro lado da decis\u00e3o.
+    return quantos ? `${base} \u2014 ${plural(quantos, 'caminho', 'caminhos')} nesta decis\u00e3o` : base;
+  },
+
   criar_pool: (e, r) => {
     if (!r || r.ok === false || !r.criado) return 'tentei criar um pool';
     const nome = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
@@ -329,6 +339,7 @@ export function linhaDeInicio(nome) {
     detalhar_elemento: 'abrindo o elemento…',
     resumir_simulacao: 'lendo a simulação…',
     criar_elemento: 'criando no diagrama…',
+    ramificar: 'abrindo o caminho…',
     criar_pool: 'criando o pool…',
     criar_raia: 'criando a raia…',
     conectar: 'ligando os elementos…',

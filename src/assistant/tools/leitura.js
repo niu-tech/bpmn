@@ -263,6 +263,35 @@ export function estadoDaTela(acesso, { tocado = null, antes = null } = {}) {
     }
   }
 
+  /**
+   * OS CAMINHOS DE CADA DECISÃO, no texto que o modelo lê.
+   *
+   * ⚠ Existe porque decisão com um caminho só é desenho incompleto, e até 2026-11-17 nada na
+   * leitura dizia isso — o modelo desenhava o gateway, abria um lado e seguia em frente. O fato
+   * fica aqui, legível; o que fazer com ele continua sendo decisão dele (constituição §III).
+   *
+   * Conta direto do elemento, sem depender da camada de acesso: `estadoDaTela` roda contra
+   * dublês de teste que não têm todos os verbos.
+   */
+  const caminhosDe = (g) => {
+    const saidas = (Array.isArray(g?.outgoing) ? g.outgoing : [])
+      .filter((c) => String(c?.type) === 'bpmn:SequenceFlow');
+    return {
+      caminhos: saidas.length,
+      rotulados: saidas.filter((c) => String(c?.businessObject?.name ?? '').trim()).length,
+    };
+  };
+  const decisoes = conteudo.filter((e) => /Gateway$/.test(String(e?.type)) && !e?.labelTarget);
+  if (decisoes.length) {
+    partes.push(`Decisões: ${decisoes.map((g) => {
+      const { caminhos, rotulados } = caminhosDe(g);
+      const semRotulo = caminhos - rotulados;
+      const detalhe = `${caminhos} ${caminhos === 1 ? 'caminho' : 'caminhos'}`
+        + (semRotulo > 0 ? `, ${semRotulo} sem rótulo` : '');
+      return `${marca(g)} (${detalhe})`;
+    }).join(', ')}.`);
+  }
+
   const selecionados = (() => {
     try {
       // ⚠ Com recuo para `selecionado()`: camada de acesso sem o verbo novo (e todo dublê de

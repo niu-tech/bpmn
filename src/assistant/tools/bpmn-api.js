@@ -31,6 +31,7 @@ export function criarAcessoBpmn(modelador) {
     // Escrita no acesso inerte NAO e no-op silencioso: quem chamar recebe o mesmo erro nomeado
     // que receberia num viewer. No-op silencioso faria o agente narrar uma criacao que nao houve.
     criarDepoisDe: () => { throw new Error('pagina_somente_leitura'); },
+    ramificar: () => { throw new Error('pagina_somente_leitura'); },
     criarSolto: () => { throw new Error('pagina_somente_leitura'); },
     lugaresParaCriar: () => [],
     ligar: () => { throw new Error('pagina_somente_leitura'); },
@@ -603,6 +604,63 @@ export function criarAcessoBpmn(modelador) {
       // bpmn-js tambem rola ate o elemento novo.
       try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o elemento ja' esta la' */ }
       return novo;
+    },
+
+    /**
+     * ABRE UM CAMINHO DE DECISAO: o ramo, a ligacao e o ROTULO dela, num comando so'.
+     *
+     * ⚠ Por que isto existe, e nao e' acucar em cima de `criarDepoisDe`: para abrir o SEGUNDO
+     * caminho de um gateway, `depoisDe` nao serve — num elemento que ja' tem saida ele ENCADEIA
+     * (entra no meio do primeiro caminho), e essa regra e' de proposito desde 2026-11-15. Entao
+     * o segundo caminho de uma decisao era, literalmente, impossivel de pedir (medido na sessao
+     * do dono em 2026-11-17: o modelo tentou, encadeou, desfez duas vezes e terminou com tres
+     * elementos soltos).
+     *
+     * ⚠ E o ROTULO entra aqui, dentro do mesmo comando, porque rotular depois exigiria o id da
+     * ligacao — e id de ligacao e' a unica coisa do desenho que o aluno nunca diz em voz alta.
+     * Na mesma sessao, o modelo tentou `renomear` num `Flow_...` que um desfazer ja' tinha
+     * matado, e o rotulo "Nao" foi parar na seta que ENTRA no gateway.
+     */
+    ramificar({ decisao, tipo, nome = '', rotulo = '' }) {
+      const forma = formaDe(tipo, nome);
+      const alvo = decisao?.parent ?? canvas.getRootElement();
+      if (!aceita(forma, alvo)) throw new Error('sem_lugar_para_criar');
+
+      // O rotulo viaja DENTRO do `connection.create` que o append dispara: um `Ctrl+Z` tira o
+      // caminho inteiro (ramo + seta + rotulo), como a divida T12 pede.
+      let rotulada = false;
+      const seNaoCorreu = juntoDoComando('connection.create', (ctx) => {
+        const c = ctx?.connection;
+        if (!c || !rotulo) return;
+        modeling.updateLabel(c, rotulo);
+        rotulada = true;
+      });
+      const novo = elementFactory
+        ? modeling.appendShape(decisao, forma, vagaDepoisDe(decisao, forma), alvo)
+        : modeling.appendShape(decisao, { type: tipo }, null, alvo);
+      seNaoCorreu();
+
+      const ligacao = fluxoEntreDireto(decisao, novo);
+      // Reserva: caminho sem `eventBus.once` (dube antigo) ou comando que nao disparou o gancho.
+      // Custa um desfazer a mais e salva o rotulo — que e' o que o aluno le na seta.
+      if (rotulo && !rotulada && ligacao) modeling.updateLabel(ligacao, rotulo);
+      try { canvas.scrollToElement(novo); } catch { /* sem o verbo: o elemento ja' esta la' */ }
+      return { novo, ligacao };
+    },
+
+    /**
+     * Os caminhos de uma DECISAO: quantas saidas de sequencia ela tem e quantas tem rotulo.
+     *
+     * Vai no resultado da escrita e na leitura da tela — e' assim que o modelo descobre, sem
+     * ninguem decidir por ele, que a decisao que ele acabou de criar esta' pela metade.
+     */
+    caminhosDe(id) {
+      const el = this.porId(id);
+      if (!el) return null;
+      const saidas = (Array.isArray(el.outgoing) ? el.outgoing : [])
+        .filter((c) => String(c?.type) === 'bpmn:SequenceFlow');
+      const rotulados = saidas.filter((c) => String(c?.businessObject?.name ?? '').trim()).length;
+      return { caminhos: saidas.length, rotulados };
     },
 
     /**
