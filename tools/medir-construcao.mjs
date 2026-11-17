@@ -88,8 +88,17 @@ async function medir(url) {
        window.__btn('Enviar').click();
        // Fim do turno: nenhuma ferramenta nova por 6 s seguidos depois da primeira.
        let ultima = 0;
+       // MARCO = quantas formas existiam quando a lista de eventos tinha N entradas. Indexado por
+       // CONTAGEM DE EVENTOS, nao por relogio: e' o que permite dizer "este turno desenhou X
+       // formas" sem misturar dois clocks (o da pagina e o do assistente).
+       const marcos = [];
        for (let i = 0; i < 300; i++) {
          await new Promise((r) => setTimeout(r, 400));
+         const todos = window.__bpmnAssist.eventos
+           .filter((e) => e.key === 'tool.executando' || e.key === 'tool.concluida');
+         if (!marcos.length || marcos.at(-1).ate !== todos.length) {
+           marcos.push({ ate: todos.length, formas: window.__nos() });
+         }
          const ev = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando');
          if (ev.length) {
            const fim = ev.at(-1).ms;
@@ -105,6 +114,7 @@ async function medir(url) {
          formasAntes: window.__antes,
          formasDepois: window.__nos(),
          eventos: ev,
+         marcos,
          /**
           * O QUE ELE DISSE quando parou de desenhar.
           *
@@ -135,10 +145,46 @@ async function medir(url) {
       if (prox) esperas.push((prox.ms - ev[i].ms) / 1000);
     }
   }
+  /**
+   * TURNOS: a ultima alavanca desta frente, e a unica que nao e' nossa.
+   *
+   * Chamadas do MESMO turno chegam JUNTAS (o modelo emite N function calls numa mensagem e o
+   * despachante as roda por `Promise.all`), entao elas se sobrepoem no tempo. O que separa um
+   * turno do seguinte e' o SILENCIO: a volta ao modelo. Meio segundo e' folgado para a primeira
+   * (nossa escrita e' 0,01 s) e curto para a segunda (a volta medida e' ~0,6 s para cima).
+   *
+   * Com isto, "3 chamadas" deixa de ser ambiguo: 3 chamadas em 1 turno e' uma espera; em 3
+   * turnos, tres. E a conta de quantas FORMAS cada turno desenhou sai dos marcos.
+   */
+  const SILENCIO_DE_TURNO_MS = 500;
+  const inicios = [];
+  let fimAnterior = null;
+  ev.forEach((e, i) => {
+    if (e.key === 'tool.concluida') { fimAnterior = e.ms; return; }
+    if (!inicios.length || (fimAnterior !== null && e.ms - fimAnterior > SILENCIO_DE_TURNO_MS)) {
+      inicios.push(i);
+    }
+    fimAnterior = null;
+  });
+  const marcos = passo.marcos ?? [];
+  const formasEm = (ate) => [...marcos].reverse().find((m) => m.ate <= ate)?.formas ?? null;
+  const turnos = inicios.map((inicio, k) => {
+    const ate = inicios[k + 1] ?? ev.length;
+    const antes = k === 0 ? (passo.formasAntes ?? null) : formasEm(inicio);
+    const depois = k === inicios.length - 1 ? (passo.formasDepois ?? null) : formasEm(ate);
+    return {
+      verbos: ev.slice(inicio, ate).filter((e) => e.key === 'tool.executando').map((e) => e.nome),
+      formas: `${antes ?? '?'} -> ${depois ?? '?'}`,
+      elementos: antes !== null && depois !== null ? depois - antes : null,
+    };
+  });
+
   return {
     url,
     erro: r.passos.find((p) => p.erro)?.erro ?? r.excecoes[0] ?? null,
     chamadas: nossos.length,
+    turnos: turnos.length,
+    porTurno: turnos,
     /**
      * QUAIS verbos o modelo escolheu, na ordem — e não só quantos.
      *

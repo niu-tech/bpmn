@@ -247,6 +247,17 @@ porque reimplementar a regra do BPMN é ter duas versões dela — e a nossa est
 > modelo escolhendo a fila sozinho. E o que NÃO se promete: segundos — a volta ao modelo é dele e
 > da rede do aluno; o que o produto controla é a contagem.
 
+> ✅ **E a alavanca acabou AQUI, medida (2026-11-17, 16h).** Fechadas as duas changes de
+> agrupamento (`one-call-for-a-whole-sequence` e `one-call-for-a-whole-decision`), o mesmo pedido
+> do dono custa **3 chamadas** no publicado — e o instrumento passou a contar **turnos**: são
+> **3 chamadas em 3 turnos**, uma por volta ao modelo, desenhando 1, 2 e 5 elementos. Dos 1,9 s
+> que o aluno espera, 1,8 s são as duas voltas; 0,03 s é a nossa escrita inteira.
+>
+> Juntar os três turnos num só exigiria endereçar por **nome** em vez de id (cada chamada depende
+> do id que a anterior devolveu) e sequenciar o despachante — o produto decidindo uma ordem que o
+> aluno não disse, por ~0,9 s. **Fica fechada sem código**, e com o número no lugar da intuição: a
+> espera que resta não é nossa.
+
 #### F7c — Pool e raia  ✅ 2026-11-15
 `criar_pool` · `criar_raia`. Estavam fora da lista de tipos criáveis de propósito, e a razão
 continua válida: não são "mais um elemento". O **primeiro pool** de um diagrama plano troca a raiz

@@ -111,3 +111,39 @@ tarefas homônimas de verdade), mas fica medido para quem for mexer em `ramifica
   encadeouDentroDoGalho, seloDesenhando, umaLinha, avisouQueFalta, voltouTudo, herdouSemRotulo,
   contouAHeranca}` todos verdadeiros, `orfaos: []`, `sobrepostos: []`, `atravessadas: []`
 - Ao vivo: `artifacts/medicao/construcao.json`
+
+## A alavanca seguinte: MEDIDA, e fechada sem código (2026-11-17, 16h)
+
+O instrumento passou a contar **turnos**, não só chamadas (`turnos`/`porTurno` em
+`tools/medir-construcao.mjs`). Como as chamadas do MESMO turno chegam juntas — o modelo emite N
+function calls numa mensagem e o despachante as roda por `Promise.all` —, o que separa um turno do
+seguinte é o **silêncio**: a volta ao modelo. Teto de 500 ms, folgado para a nossa escrita (0,01 s)
+e curto para a volta medida (0,9 s).
+
+Mesmo pedido, no publicado: **3 chamadas em 3 turnos** — uma por volta, desenhando 1, 2 e 5
+elementos.
+
+| turno | o que o modelo pediu | formas |
+|---|---|---|
+| 1 | `criar_pool` | 2 → 3 |
+| 2 | `criar_sequencia` | 3 → 5 |
+| 3 | `criar_decisao` | 5 → 10 |
+
+Dos **1,9 s** que o aluno espera, **1,8 s são as duas voltas ao modelo** e 0,03 s são a nossa
+escrita inteira.
+
+**E as três não dão para juntar num turno só**, porque cada uma precisa de um **id que a anterior
+devolveu**: `criar_sequencia({dentroDe: <pool>})` e `criar_decisao({depoisDe: <último passo>})`. É
+a MESMA dependência de dados que a fila desfez dentro de uma corrente, um nível acima — não é
+preguiça do modelo.
+
+O que seria preciso para juntar, e por que não se faz: endereçar por **nome** em vez de id e então
+**sequenciar** o despachante (que hoje roda as chamadas do mesmo turno em paralelo, de propósito).
+Seria o produto decidindo uma ordem que o aluno não disse, para ganhar ~0,9 s de uma espera de
+1,9 s. E o verbo "o processo inteiro numa chamada" já estava recusado em D1 por um motivo que
+continua valendo: o resultado volta ao modelo e é cortado pelo teto do corpo (4000), e quem fala
+descreve **um** nível por frase.
+
+**Então a frente fecha aqui**: a sessão do dono custava 17 chamadas, o mesmo pedido custa 3, e a
+espera que resta é a volta ao modelo — que é dele e da rede do aluno, não nossa. Prova:
+`artifacts/medicao/construcao.json`.

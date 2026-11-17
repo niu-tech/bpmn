@@ -4,6 +4,11 @@ O que o dono trouxe do teste ao vivo de 2026-11-17 virou três changes, e este �
 fecha as três de uma vez: o que ele viu, o que estava errado por baixo, o que foi feito, e o que
 ficou medido — inclusive o número que diz que a espera NÃO é nossa.
 
+E uma QUARTA frente, que não saiu de um relato e sim desse número: se a espera é a volta ao modelo,
+o que o produto controla é *quantas chamadas* a construção pede. Duas changes de agrupamento
+depois (`one-call-for-a-whole-sequence`, `one-call-for-a-whole-decision`), o mesmo pedido custa 3
+chamadas em vez de 17 — e a alavanca seguinte ficou medida e fechada sem código.
+
 Mesmo formato dos outros relatórios (ReportLab, A4, Helvetica, tabelas pequenas, nenhuma captura
 de tela): é documento para LER e decidir.
 
@@ -57,6 +62,14 @@ def _medida(onde):
 LOCAL = _medida("127.0.0.1")
 PUBLICADO = _medida("github.io")
 
+# A medição que EXISTE, e o endereço dela. Uma corrida `--so-publicado` não tem coluna local, e um
+# documento com travessão onde devia haver número parece defeito nosso. O publicado vem primeiro
+# porque é o endereço que o dono usa de verdade.
+M = PUBLICADO or LOCAL
+ONDE = "site publicado" if PUBLICADO else "dev server (local)"
+TURNOS = M.get("turnos")
+POR_TURNO = M.get("porTurno") or []
+
 # Asserções contadas no repositório, na hora.
 TESTES = RAIZ / "src" / "assistant" / "__tests__"
 ASSERCOES = sum(len(re.findall(r"\bassert\.", f.read_text(encoding="utf-8")))
@@ -65,7 +78,17 @@ SUITES = len(list(TESTES.glob("*.mjs"))) if TESTES.exists() else 0
 
 
 def num(v, suf="", padrao="—"):
-    return f"{v}{suf}" if v is not None else padrao
+    """O número da prova, com vírgula decimal e a seta que se lê.
+
+    O valor vem CRU do JSON (`1.9`, `2 -> 10`), e o documento é em português: "1.9 s" ao lado de
+    "2,8 s" parece erro de digitação, e `->` numa tabela parece código vazando. A troca é aqui, no
+    formatador, e não no número — para o artefato de prova continuar sendo o artefato de prova.
+    """
+    if v is None:
+        return padrao
+    if isinstance(v, float):
+        v = f"{v}".replace(".", ",")
+    return f"{v}{suf}".replace(" -> ", " → ")
 
 
 base = getSampleStyleSheet()
@@ -104,17 +127,21 @@ def tabela(linhas, larguras):
 
 
 story = [
-    Paragraph("Ajudante BPMN — macrocheckpoint das três frentes", H1),
+    Paragraph("Ajudante BPMN — macrocheckpoint do dia: três frentes e o agrupamento", H1),
     Paragraph("17 de novembro de 2026 · o que você viu no teste ao vivo, o que estava errado por "
-              "baixo, e o que ficou medido", SUB),
+              "baixo, o que a medição mandou fazer depois, e onde a alavanca acabou", SUB),
 
     Paragraph("Em uma frase", H2),
     Paragraph(
         "As três coisas que você trouxe estão feitas e provadas na sessão ao vivo: a decisão "
-        f"agora nasce com os <b>dois</b> caminhos rotulados, dá para começar do zero sem perder "
+        "agora nasce com os <b>dois</b> caminhos rotulados, dá para começar do zero sem perder "
         "o que está na tela, e a tela conta o que está sendo desenhado enquanto o modelo "
-        "trabalha. A quarta coisa não é entrega, é um número: <b>a espera que você sentiu em "
-        f"produção não é nossa</b> — a nossa parte é {num(LOCAL.get('nossaFatia'))} do tempo.", P),
+        "trabalha. A quarta não veio de um relato, veio de um número: <b>a espera que você "
+        f"sentiu não é nossa</b> — a nossa parte é {num(M.get('nossaFatia'))} do tempo —, então o "
+        "que havia para fazer era pedir <b>menos vezes</b>. Dois verbos novos depois, o mesmo "
+        f"processo que custou 17 chamadas na sua sessão custa <b>{num(M.get('chamadas'))}</b>, em "
+        f"{num(M.get('segundosDoAlunoEsperando'), ' s')}. E a alavanca seguinte está medida: ela "
+        "acaba aqui.", P),
 
     Paragraph("1. O gateway tinha causa no código, e não no modelo", H2),
     Paragraph("Você disse:", P),
@@ -175,6 +202,41 @@ story = [
         "dizia “7 elementos” com cinco na tela, na mudança que existe justamente para a tela "
         "parar de mentir.", P),
 
+    Paragraph("4. Pedir menos vezes: uma chamada para a fila, uma para a decisão", H2),
+    Paragraph(
+        "Esta frente saiu da medição da anterior, e não de uma reclamação. Se a nossa escrita no "
+        f"desenho é {num(M.get('nosso', {}).get('mediana'), ' s')} e cada volta ao modelo é "
+        f"{num(M.get('esperaPeloModelo', {}).get('mediana'), ' s')}, então o relógio que o aluno "
+        "sente não mede o nosso código: mede <b>quantas chamadas</b> a construção pediu. E uma "
+        "ferramenta por elemento transforma <i>uma</i> frase em oito idas e vindas — quem fala "
+        "descreve uma fila (“o pedido chega, o comprador confere, depois cota”) e uma decisão "
+        "inteira (“se sim…; se não…”), não um elemento por vez.", P),
+    Paragraph(
+        "Nasceram dois verbos — a <b>fila</b> e a <b>decisão com os caminhos dela</b> — e nenhum "
+        "dos dois tem desenho novo por dentro: ambos <b>compõem</b> os verbos que já estavam "
+        "provados. Isso não é economia de linhas, é o que garante que o desenho feito numa "
+        "chamada seja idêntico ao feito em oito: a mesma vaga, o mesmo encadeamento, o mesmo "
+        "gêmeo recusado, o mesmo Ctrl+Z.", P),
+    tabela([
+        ["O mesmo pedido, em palavras de quem aprende", "antes", "agora"],
+        ["o tronco — uma fila de seis passos", "8 chamadas", "<b>1</b>"],
+        ["a árvore — a decisão e os dois caminhos", "4 chamadas", "<b>1</b>"],
+        ["o processo do Suporte inteiro (10 formas)", "6 chamadas · 2,8 s",
+         f"<b>{num(M.get('chamadas'))} chamadas · {num(M.get('segundosDoAlunoEsperando'), ' s')}</b>"],
+        ["a sessão que você testou ao vivo", "17 chamadas, 2 desfazeres", "—"],
+    ], [7.4 * cm, 4.5 * cm, 4.5 * cm]),
+    Paragraph(
+        "Os números de “antes” foram medidos <b>antes</b> de implementar — é a regra desta frente, "
+        "e por isso eles não envelhecem: são fato histórico, registrado nas duas changes. Os de "
+        "“agora” saem do artefato de prova a cada vez que este documento é gerado.", P),
+    Paragraph(
+        "Duas coisas que valem mais que os segundos. A primeira: <b>o ensino foi para a declaração "
+        "da ferramenta</b>, e não para o prompt — terceira vez que essa escolha se repete, e é o "
+        "que mantém o tier estável dentro do teto. A segunda: <b>o modelo escolheu os dois verbos "
+        "sozinho</b>, com o pedido em palavras e sem ninguém citar nome de ferramenta nenhum. O "
+        "instrumento registra os nomes na ordem, porque “ele escolheu” sem os nomes é dedução, e "
+        "dedução não é evidência.", P),
+
     PageBreak(),
 
     Paragraph("O número que decide o que é honesto prometer", H2),
@@ -182,30 +244,28 @@ story = [
         "Antes de prometer velocidade, medimos de onde vem a espera. A ferramenta corre o "
         "<b>mesmo</b> pedido e separa, por chamada, a nossa execução da volta ao modelo:", P),
     tabela([
-        ["O que se mediu", "Dev server (local)", "Site publicado"],
-        ["Chamadas de ferramenta no turno", num(LOCAL.get("chamadas")), num(PUBLICADO.get("chamadas"))],
-        ["Formas no desenho", num(LOCAL.get("formas")), num(PUBLICADO.get("formas"))],
+        ["O que se mediu", f"No {ONDE}, com os dois verbos novos"],
+        ["Chamadas de ferramenta", num(M.get("chamadas"))],
+        ["<b>Idas e voltas ao modelo</b> (turnos)", f"<b>{num(TURNOS)}</b>"],
+        ["Formas no desenho", num(M.get("formas"))],
         ["<b>Nossa escrita</b> (mediana / pior)",
-         f"{num(LOCAL.get('nosso', {}).get('mediana'), ' s')} / {num(LOCAL.get('nosso', {}).get('pior'), ' s')}",
-         f"{num(PUBLICADO.get('nosso', {}).get('mediana'), ' s')} / {num(PUBLICADO.get('nosso', {}).get('pior'), ' s')}"],
+         f"{num(M.get('nosso', {}).get('mediana'), ' s')} / {num(M.get('nosso', {}).get('pior'), ' s')}"],
         ["<b>Volta ao modelo</b> (mediana / pior)",
-         f"{num(LOCAL.get('esperaPeloModelo', {}).get('mediana'), ' s')} / {num(LOCAL.get('esperaPeloModelo', {}).get('pior'), ' s')}",
-         f"{num(PUBLICADO.get('esperaPeloModelo', {}).get('mediana'), ' s')} / {num(PUBLICADO.get('esperaPeloModelo', {}).get('pior'), ' s')}"],
-        ["Do envio ao último elemento entrar",
-         num(LOCAL.get("segundosDoAlunoEsperando"), " s"),
-         num(PUBLICADO.get("segundosDoAlunoEsperando"), " s")],
+         f"{num(M.get('esperaPeloModelo', {}).get('mediana'), ' s')} / {num(M.get('esperaPeloModelo', {}).get('pior'), ' s')}"],
+        ["Do envio ao último elemento entrar", num(M.get("segundosDoAlunoEsperando"), " s")],
         ["<b>Nossa fatia do total</b>",
-         f"<font color='{VERDE}'><b>{num(LOCAL.get('nossaFatia'))}</b></font>",
-         f"<font color='{VERDE}'><b>{num(PUBLICADO.get('nossaFatia'))}</b></font>"],
-    ], [6.0 * cm, 5.2 * cm, 5.2 * cm]),
+         f"<font color='{VERDE}'><b>{num(M.get('nossaFatia'))}</b></font>"],
+    ], [8.4 * cm, 8.0 * cm]),
     Paragraph(
-        "<b>E o site publicado não é mais lento que o nosso dev server</b> — as duas colunas "
-        "acima saíram da mesma hora, com o mesmo pedido, e deram praticamente o mesmo número. "
-        "Então os 3 a 5 segundos por bloco que você sentiu não vêm de estar publicado: vêm da "
-        "volta ao modelo, que varia de turno para turno (o pior caso medido aqui é "
-        f"{num(max([x for x in [LOCAL.get('esperaPeloModelo', {}).get('pior'), PUBLICADO.get('esperaPeloModelo', {}).get('pior')] if x] or [None]), ' s')}, "
-        "e um turno com mais elementos tem mais voltas). Isso fecha uma suspeita: não há nada "
-        "para consertar no deploy.", P),
+        "<b>E o site publicado não é mais lento que o nosso dev server</b> — a primeira medição "
+        "correu nos dois endereços, na mesma hora e com o mesmo pedido, e deu praticamente o "
+        "mesmo número. Então os 3 a 5 segundos por bloco que você sentiu não vêm de estar "
+        "publicado: vêm da volta ao modelo, que varia de turno para turno (o pior caso medido "
+        f"agora é {num(M.get('esperaPeloModelo', {}).get('pior'), ' s')}, e um turno com mais "
+        "elementos tem mais voltas). Isso fecha uma suspeita: não há nada para consertar no "
+        "deploy. <b>Toda medição desde então corre contra o publicado</b>, que é o endereço que "
+        "você usa — e foi ela que denunciou, no mesmo dia, um deploy que a esteira havia deixado "
+        "parado por um teste vermelho.", P),
     Paragraph(
         "<b>Então esta frente não promete velocidade, e isso é decisão, não desculpa.</b> A "
         "espera entre blocos é a volta ao modelo; nenhuma mudança nossa a encurta. O que ela "
@@ -213,6 +273,38 @@ story = [
         "e quantos elementos já entraram. Isso fica escrito no registro, e <b>não</b> na tela: o "
         "aluno não precisa de uma aula sobre a arquitetura do Gemini para entender uma barra de "
         "progresso.", P),
+
+    Paragraph("Onde a alavanca acaba — e isso também é medido", H2),
+    Paragraph(
+        "Com os dois verbos novos dava para dizer “3 chamadas” e parar aí. Mas 3 chamadas em "
+        "<b>um</b> ida-e-volta ao modelo e 3 chamadas em <b>três</b> são esperas diferentes, e o "
+        "instrumento não sabia distinguir. Agora sabe: chamadas do mesmo turno chegam juntas e se "
+        "sobrepõem no tempo, então o que separa um turno do seguinte é o <b>silêncio</b> da volta "
+        "ao modelo.", P),
+    tabela([["Turno", "O que o modelo pediu", "Formas no desenho", "Elementos"]] +
+           [[str(i + 1), " · ".join(f"<font face='Courier'>{v}</font>" for v in t.get("verbos", [])),
+             num(t.get("formas")), num(t.get("elementos"))]
+            for i, t in enumerate(POR_TURNO)],
+           [1.8 * cm, 6.6 * cm, 4.2 * cm, 2.4 * cm]),
+    Paragraph(
+        f"São <b>{num(M.get('chamadas'))} chamadas em {num(TURNOS)} turnos</b> — uma por volta. "
+        f"Dos {num(M.get('segundosDoAlunoEsperando'), ' s')} que o aluno espera, as voltas ao "
+        "modelo são quase tudo; a nossa escrita, somada, não passa de "
+        f"{num(M.get('nosso', {}).get('pior'), ' s')} no pior caso.", P),
+    Paragraph(
+        "<b>E as três não dão para juntar num turno só</b>, porque cada uma precisa de um <b>id "
+        "que a anterior devolveu</b>: a fila nasce DENTRO do pool que acabou de ser criado, e a "
+        "decisão entra DEPOIS do último passo da fila. É a mesma dependência de dados que a fila "
+        "desfez dentro de uma corrente, um nível acima — não é preguiça do modelo, e nenhuma "
+        "instrução no prompt a remove.", P),
+    Paragraph(
+        "Juntar exigiria endereçar os elementos por <b>nome</b> em vez de id e então sequenciar o "
+        "despachante, que hoje roda as chamadas do mesmo turno em paralelo de propósito. Seria o "
+        "produto decidindo uma ordem que o aluno não disse, para ganhar cerca de um segundo de "
+        f"{num(M.get('segundosDoAlunoEsperando'), ' s')}. <b>Então a alavanca fecha aqui, sem "
+        "código</b> — com o número no lugar da intuição. O que restou da espera é a volta ao "
+        "modelo: é dele e da rede do aluno, não nossa, e dizer o contrário seria vender o que não "
+        "temos.", P),
 
     Paragraph("O que os portões acharam de mim mesmo", H2),
     Paragraph("Três defeitos meus, nesta rodada, todos achados por portões — e por isso vale "
@@ -227,7 +319,7 @@ story = [
         "<b>O selo existia por microssegundos.</b> Numa construção de oito elementos, o estado "
         "“desenhando” <b>nunca</b> foi observado — nem amostrando a tela a cada 120 ms. A nossa "
         "escrita é instantânea (mediana de "
-        f"{num(LOCAL.get('nosso', {}).get('mediana'), ' s')}), então o selo nascia e morria no "
+        f"{num(M.get('nosso', {}).get('mediana'), ' s')}), então o selo nascia e morria no "
         "mesmo instante. Agora tem tempo mínimo de leitura, que o seu gesto encurta: clicar "
         "prova que você leu.",
     ]),
@@ -267,10 +359,16 @@ story = [
          "continua fora de propósito: “guardar” aqui quer dizer baixar o arquivo. Persistir exige "
          "reescrever o aviso de privacidade e pedir consentimento",
          "sua decisão"],
-        ["Agrupar chamadas no mesmo turno",
-         f"só vale a pena se a volta ao modelo dominar — e agora está medido que domina "
-         f"({num(LOCAL.get('nossaFatia'))} é nosso). É o próximo candidato real de velocidade",
-         "próxima rodada"],
+        ["Agrupar as chamadas de uma construção",
+         f"<b>feito no mesmo dia</b>, porque a medição mostrou que a volta ao modelo domina (só "
+         f"{num(M.get('nossaFatia'))} é nosso): a fila e a decisão viraram um verbo cada, e o "
+         f"mesmo pedido saiu de 6 chamadas para {num(M.get('chamadas'))}",
+         "fechado"],
+        ["Juntar os três turnos restantes num só",
+         "<b>medido e fechado sem código</b>: cada chamada precisa do id que a anterior devolveu, "
+         "então juntar exigiria endereçar por nome e sequenciar o despachante — o produto "
+         "decidindo uma ordem que o aluno não disse, por cerca de um segundo",
+         "decidido"],
     ], [4.4 * cm, 9.4 * cm, 2.6 * cm]),
 ]
 
@@ -280,4 +378,5 @@ SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
                   author="rodada de 2026-11-17").build(story)
 print(f"PDF: {OUT}")
 print(f"  bateria={CENARIOS_OK}/{CENARIOS_DE} · assercoes={ASSERCOES} em {SUITES} suites")
-print(f"  local={LOCAL.get('nossaFatia')} nosso · publicado={PUBLICADO.get('nossaFatia') or '(nao medido)'}")
+print(f"  medido no {ONDE}: {M.get('chamadas')} chamadas em {TURNOS} turnos \u00b7 "
+      f"{M.get('nossaFatia')} nosso \u00b7 {M.get('segundosDoAlunoEsperando')} s de espera")
