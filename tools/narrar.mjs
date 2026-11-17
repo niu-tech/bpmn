@@ -26,7 +26,12 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, basename } from 'node:path';
 
-const MODELO = 'gemini-3.8-flash-lite-tts';
+/**
+ * O modelo canônico das narrações. `--modelo` existe porque a cota de 10/dia é **por
+ * modelo**: com o balde do dia gasto, outro modelo de TTS tem o próprio. Trocar muda a voz
+ * um pouco — então quem troca **diz no registro qual usou**, nunca deixa implícito.
+ */
+const MODELO_PADRAO = 'gemini-3.8-flash-lite-tts';
 const VOZ_PADRAO = 'Zephyr';
 const TAXA = 24000;
 
@@ -56,14 +61,35 @@ function paraFala(md) {
 }
 
 /**
- * Um pedido por PARÁGRAFO. É o recorte natural da fala e o que o narrador da MAIA faz com as
- * falas dele: pedaço curto erra menos, e um pedaço que falhe não derruba a narração inteira.
+ * Parágrafos agrupados em BLOCOS de ~`TETO_DE_BLOCO` caracteres, sem partir parágrafo.
+ *
+ * ⚠ Era um pedido por parágrafo, e isso **não cabe na cota**. Medido em 2026-11-17, com a
+ * resposta do próprio servidor: `GenerateRequestsPerDayPerProjectPerModel-FreeTier`,
+ * `quotaValue: 10` — **dez pedidos por DIA e por modelo**. Uma peça de 28 parágrafos pedia 28, e
+ * morria no terceiro com 429 e `retryDelay: 7590s` (a virada do dia no fuso do Google). O
+ * sintoma chega como "o TTS está fora", e é contabilidade.
+ *
+ * O limite de ENTRADA do modelo é muito maior que isto, então blocos grandes não custam
+ * qualidade — custam menos junta. Mesmo motivo do cache: não queimar cota à toa.
  */
+const TETO_DE_BLOCO = Number(process.env.BPMN_TETO_DE_BLOCO ?? 1500);
+
 function emPedacos(texto) {
-  return texto
+  const paragrafos = texto
     .split(/\n\s*\n/)
     .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
     .filter(Boolean);
+  const blocos = [];
+  for (const par of paragrafos) {
+    const ultimo = blocos.at(-1);
+    // Parágrafo nunca é partido: a pausa da fala nasce do ponto final, não do corte.
+    if (ultimo && (ultimo.length + 2 + par.length) <= TETO_DE_BLOCO) {
+      blocos[blocos.length - 1] = `${ultimo}\n\n${par}`;
+    } else {
+      blocos.push(par);
+    }
+  }
+  return blocos;
 }
 
 const LIMITE = 6; // o TTS é compartilhado e responde 429/503 em rajada
@@ -167,6 +193,7 @@ const arg = (nome, padrao) => {
   return i > 0 ? process.argv[i + 1] : padrao;
 };
 const voz = arg('--voz', VOZ_PADRAO);
+const MODELO = arg('--modelo', MODELO_PADRAO);
 const saida = arg('--out', `artifacts/falado/${basename(entrada).replace(/\.falado\.md$|\.md$|\.txt$/, '')}.wav`);
 
 const chave = chaveDoEnv();

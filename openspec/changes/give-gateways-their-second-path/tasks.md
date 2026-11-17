@@ -40,16 +40,16 @@
 - [x] 5.1 **Sem cota**, contra o bpmn-js de verdade: `ramificar` duas vezes no mesmo gateway →
       duas saídas, dois rótulos, nenhum órfão, nenhuma seta atravessando caixa
 - [x] 5.2 **Sem cota**: um desfazer tira ramo + ligação + rótulo (um `Ctrl+Z`, como T12)
-- [ ] 5.3 **AO VIVO**: *"quero desenhar o atendimento de um chamado, com uma decisão de ter
+- [x] 5.3 **AO VIVO**: *"quero desenhar o atendimento de um chamado, com uma decisão de ter
       componentes suficientes ou não"* → o desenho termina com a decisão de **dois** caminhos
       rotulados e **zero** elementos órfãos. ⚠ O portão mede o registro do bpmn-js, não a narração
-- [ ] 5.4 O portão afirma o **antes** (diagrama vazio) e o **depois** (decisão completa): contagem
+- [x] 5.4 O portão afirma o **antes** (diagrama vazio) e o **depois** (decisão completa): contagem
       de órfãos sem piso aprovaria um canvas que não desenhou nada (princípio XIII)
 
 ## 6. Registro
 
-- [ ] 6.1 `openspec/open-items.md`: a sessão de 2026-11-17 e o que ela mostrou
-- [ ] 6.2 `roadmap.md`: esta change pendura em **F7 — Ferramentas de escrita**, que fechou sem o
+- [x] 6.1 `openspec/open-items.md`: a sessão de 2026-11-17 e o que ela mostrou
+- [x] 6.2 `roadmap.md`: esta change pendura em **F7 — Ferramentas de escrita**, que fechou sem o
       segundo caminho da decisão. Dizer isso lá, com a data
 
 ## O que ficou provado (2026-11-17)
@@ -74,3 +74,29 @@ decisão tem.
 ⚠ **Achado de brinde:** a projeção de diagnóstico não trazia o NOME da ligação. Nenhum portão
 conseguia perguntar se o caminho tinha resposta escrita nele — e foi o primeiro vermelho deste
 portão.
+
+## Ao vivo (2026-11-17)
+
+**Portão 5.3, sessão viva contra o Gemini**, com o pedido do dono em palavras (sem id, sem tipo,
+sem dizer "ramifique"):
+
+`{"elementosNovos":8,"decisao":"ExclusiveGateway","caminhos":2,"rotulos":["Sim","Não"],`
+`"orfaos":[],"nasceramEmpilhados":[],"ramificou":2,`
+`"ligacoesNovas":["Gateway -> «Sim»","Gateway -> «Não»", ...]}`
+
+O modelo **escolheu** `ramificar` duas vezes. Era a prova que faltava: o portão sem cota mostra
+que a ferramenta funciona; só a sessão viva mostra que a **declaração** basta para ele pedir a
+coisa certa quando o aluno fala como aluno.
+
+⚠ **Duas correções no PEDIDO, e nenhuma delas é ajustar o teste ao defeito.** Na primeira corrida
+o modelo ofereceu *limpar a tela* (a frente 2 atropelando a frente 1) — a declaração de
+`comecar_do_zero` dizia "quando o aluno quiser começar outro processo", e descrever um processo
+novo casava com isso. Estreitada: *"descrever um processo novo NÃO é pedido de limpar; o desenho
+aceita mais de um processo"*. Na segunda ele perguntou **em qual pool** desenhar — pergunta
+legítima num diagrama com dois pools, e ambiguidade que **este** portão não mede (quem mede é o
+portão do candidato clicável). O pedido passou a dizer o lugar.
+
+⚠ **E um conserto de INSTRUMENTO:** contêiner não é órfão. O portão reprovou com
+`orfaos:["Participant \"Suporte\""]` enquanto a decisão tinha os dois caminhos rotulados — pool
+e raia não se ligam a nada por definição, eles **contêm** o fluxo. Medir errado e consertar o
+produto seria o pior resultado possível desta corrida.

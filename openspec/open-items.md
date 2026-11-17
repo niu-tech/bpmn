@@ -807,3 +807,54 @@ descobertas por acaso:
 |---|---|---|
 | ~~O botão "♻️ Novo" da barra~~ | **fechado em 2026-11-15**, a pedido do dono | virou "♻️ Recomeçar" e leva ao MENU: com trabalho salvo, o primeiro clique pergunta no próprio botão por 5 s e o segundo descarta. Não é `confirm()` nativo — diálogo do navegador trava a página dirigida, e confirmação sem prova viva vale tanto quanto nenhuma. Prova nas tarefas da change, bloco 9 |
 | ~~O exemplo em inglês~~ | **fechado em 2026-11-15**, a pedido do dono | traduzido para pt-BR mantendo os ids (`_6-463` continua `_6-463`); os 56 pontos que casavam por nome foram atualizados junto — bateria e `npm test` verdes. Prova nas tarefas da change `introduce-bpmn-first-run-workspace`, bloco 8 |
+
+## 8. O teste ao vivo do dono abriu tres frentes (2026-11-17)
+
+O dono dirigiu o produto pela primeira vez numa construcao inteira, com o diagrama da aula
+aberto, e trouxe tres coisas. As palavras dele, porque o resumo perde o que importa:
+
+> *"A gente nao tem uma opcao dele estar com um processo, por exemplo, de exemplo aberto, ele nao
+> consegue tirar tudo e iniciar um novo. (...) A gente pode talvez perguntar o que a gente quer
+> fazer, com o que tem, que a gente vai perder, ou (...) abrir para perguntar se ele quer
+> salvar."*
+
+> *"Eu acho que ela poderia ser melhor enquanto o modelo esta trabalhando. (...) eu tentei hoje
+> em producao, e ele demorou, ficou demorando cada bloco (...) cerca de 5 segundos, sei la, 3
+> segundos, 4 segundos, e isso e ruim porque o usuario esta vendo e nao sabe que esta acontecendo
+> alguma coisa."*
+
+> *"Ele nao entendeu direito e a gente nao esta fazendo um bom uso de gateways. (...) quando os
+> gateways acontecem, a gente deveria ter o correto, o nao e sim. (...) nao esta seguindo dois
+> caminhos, esta seguindo um caminho so e o outro esta desconectado."*
+
+Viraram tres changes, feitas e provadas ao vivo no mesmo dia:
+`give-gateways-their-second-path` · `start-a-new-process-without-losing-work` ·
+`show-the-work-while-the-agent-builds`.
+
+**O gateway tinha causa no codigo, nao no modelo.** `comoRamo` existia no handler de
+`criar_elemento` desde 2026-11-15 e **nunca foi declarado** ao modelo. Sem ele, pedir o segundo
+caminho caia em `depoisDe`, que ENCADEIA: o modelo recebia um encadeamento onde pediu um ramo,
+desfazia, tentava de novo, e sobrava elemento solto. A sessao do dono tem as 17 chamadas disso,
+resumidas em `changes/give-gateways-their-second-path/proposal.md`. Parametro aceito e nao
+declarado e' uma capacidade que o produto TEM e o modelo nao pode usar -- e o sintoma chega como
+"o modelo nao entende gateway".
+
+**A espera NAO e' nossa, e isso esta medido.** `tools/medir-construcao.mjs` corre o mesmo pedido
+contra o dev server e contra o site publicado e separa, por chamada, a nossa execucao da volta ao
+modelo. Numeros da sessao ao vivo de 2026-11-17, no dev server: **8 elementos em 4,9 s, 14
+chamadas, 0,4 s por chamada**; a nossa escrita no bpmn-js e' **sincrona** (volta no mesmo passo
+do laco de eventos). Os 3 a 5 s por bloco que o dono sentiu em producao sao a volta ao MODELO.
+Entao a change `show-the-work-while-the-agent-builds` **nao promete velocidade** -- ela entrega a
+espera LEGIVEL: uma mensagem que cresce com a contagem do desenho, o canvas piscando no que
+mudou, e o selo *desenhando* separado de *pensando*. Isso fica escrito aqui, e nao na tela: o
+aluno nao precisa de uma aula sobre a arquitetura do Gemini.
+
+**Um selo que ninguem conseguia ler.** O estado `escrevendo` existia e **nunca** foi observado ao
+vivo -- nem amostrando a tela a cada 120 ms -- justamente porque a nossa escrita e' sincrona.
+Ficou com tempo minimo de leitura (700 ms), que o gesto do aluno encurta (clicar prova que leu).
+Um selo que pisca por microssegundos nao e' feedback, e' contabilidade interna.
+
+**O que continua fora, de proposito:** memoria entre visitas (F.5 da secao 6). "Guardar" nesta
+change quer dizer **baixar o arquivo** -- nao ha servidor nosso, nao ha conta, e o desenho vive
+so na aba. A frase da tela diz isso onde a perda acontece: *"ele vive so nesta aba, nao fica
+guardado em lugar nenhum"*.

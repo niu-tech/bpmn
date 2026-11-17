@@ -38,15 +38,15 @@
 - [x] 5.1 **Sem cota**: com o exemplo da pizzaria aberto (57 formas), pedir folha limpa pergunta e
       **nada muda**; cancelar mantém as 57; começar sem baixar deixa **uma**
 - [x] 5.2 **Sem cota**: baixar e começar produz um arquivo que volta a abrir
-- [ ] 5.3 **AO VIVO**, por voz: *"quero começar um processo do zero"* → recusa, o aluno responde,
+- [x] 5.3 **AO VIVO**, por voz: *"quero começar um processo do zero"* → recusa, o aluno responde,
       e só então a tela limpa
 - [x] 5.4 O portão afirma o **antes** (57 formas) e o **depois** (1): contagem sem piso aprovaria
       um canvas que nunca desenhou
 
 ## 6. Registro
 
-- [ ] 6.1 `open-items.md`: o pedido do dono de 2026-11-17, com as palavras dele
-- [ ] 6.2 Dizer no texto da change que **memória entre visitas continua fora** (F.5), para ninguém
+- [x] 6.1 `open-items.md`: o pedido do dono de 2026-11-17, com as palavras dele
+- [x] 6.2 Dizer no texto da change que **memória entre visitas continua fora** (F.5), para ninguém
       ler "guardar" como "servidor"
 
 ## O que ficou provado (2026-11-17)
@@ -69,3 +69,27 @@ pior que recusar).
 catálogo (`ACOES_COM_PORTAO`) em vez de a ferramenta citar o próprio nome como string. De quebra,
 o nome do portão passou a ter **uma fonte** — antes existia no `exigeConfirmacao` e na chamada,
 sem nada impedindo de divergirem.
+
+## Ao vivo, por voz (2026-11-17)
+
+**Portão 5.3**, duas falas num WAV só com 14 s de silêncio entre elas (o silêncio é o que dá
+tempo de o agente perguntar). O que se mede é a **ordem**, com o relógio:
+
+| Quando | O que aconteceu |
+|---|---|
+| 5,7 s | ouviu *"Quero começar um processo do zero."* |
+| 9,3 s | `tool.sem-confirmacao comecar_do_zero` — **recusou**, e as 24 formas continuam na tela |
+| 24,3 s | ouviu *"Pode limpar. Sim, não precisa guardar."* |
+| 24,3 s | `tool.executando comecar_do_zero` → sobraram **2** (Process + StartEvent) |
+
+A linha na conversa: *"comecei do zero — 18 formas saíram da tela"*.
+
+Um portão frouxo apagaria o desenho do aluno sem ele ter dito nada; um duro travaria a conversa.
+Os dois erros são de **ordem** — e é por isso que a prova olha QUANDO cada coisa aconteceu, e não
+só o estado final.
+
+## Registro
+
+- `openspec/open-items.md` §8: o pedido do dono com as palavras dele, e a frase que fecha a
+  leitura errada — **memória entre visitas continua fora** (F.5). "Guardar" aqui quer dizer
+  **baixar o arquivo**: não há servidor nosso, não há conta, e o desenho vive só na aba.

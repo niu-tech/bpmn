@@ -2,12 +2,12 @@
 
 ## 1. Medir antes de prometer
 
-- [ ] 1.1 `tools/medir-construcao.mjs`: dirige o MESMO pedido de construção contra
+- [x] 1.1 `tools/medir-construcao.mjs`: dirige o MESMO pedido de construção contra
       `127.0.0.1:8126` e contra o site publicado, e devolve por chamada — nossa execução ×
       espera pela volta do modelo —, com mediana e pior caso
-- [ ] 1.2 Rodar nos dois e guardar o número. ⚠ Se a espera for toda do transporte, **esta change
+- [x] 1.2 Rodar nos dois e guardar o número. ⚠ Se a espera for toda do transporte, **esta change
       não promete velocidade** — e isso vai escrito no `proposal.md`, não no commit
-- [ ] 1.3 O relatório diz quantas chamadas o turno gastou: é o insumo para decidir, depois, se
+- [x] 1.3 O relatório diz quantas chamadas o turno gastou: é o insumo para decidir, depois, se
       vale pedir ao modelo que agrupe
 
 ## 2. O canvas fala
@@ -38,7 +38,7 @@
 - [x] 5.1 **Sem cota**, dirigindo as ferramentas pelo caminho do modelo: construção de ≥ 4
       elementos → uma mensagem de construção, destaque que entra e sai, selo *desenhando*
 - [x] 5.2 **Sem cota**: desfazer no meio da construção aparece como ajuste
-- [ ] 5.3 **AO VIVO**: descrever um processo de ≥ 6 passos e medir o que a tela mostrou do começo
+- [x] 5.3 **AO VIVO**: descrever um processo de ≥ 6 passos e medir o que a tela mostrou do começo
       ao fim — print no início, no meio e no fim da construção
 - [x] 5.4 O portão afirma o **antes** (os elementos entraram no desenho) e o **depois** (a conversa
       tem uma mensagem com o número certo): "não há doze mensagens" é verdade num chat vazio
@@ -46,8 +46,8 @@
 
 ## 6. Registro
 
-- [ ] 6.1 O número medido em 1.2 entra no `open-items.md`, com a data e as duas origens
-- [ ] 6.2 Se a espera for do transporte, dizer isso **no produto** não: dizer no registro. A tela
+- [x] 6.1 O número medido em 1.2 entra no `open-items.md`, com a data e as duas origens
+- [x] 6.2 Se a espera for do transporte, dizer isso **no produto** não: dizer no registro. A tela
       não deve explicar a arquitetura do Gemini para o aluno
 
 ## O que ficou provado (2026-11-17)
@@ -86,3 +86,51 @@ mensagem diz o que de fato houve: *"mexendo no desenho — 2 ações"*.
 vivo contra os dois endereços. O que já está medido é o nosso lado — **0,4 a 1,0 s por chamada**,
 execução inclusa, na sessão do dono. Esta change **não promete velocidade**: a espera entre
 chamadas é a volta ao modelo, e o que ela entrega é a espera **legível**.
+
+## Ao vivo, e a medição que decidiu o que prometer (2026-11-17)
+
+**Portão 5.3**, sessão viva, amostrando a tela a cada 120 ms durante a construção:
+
+`{"elementosNovos":8,"chamadasDeFerramenta":14,"linhasDeFerramenta":7,"mensagensDeConstrucao":1,`
+`"detalhesDentro":8,"estadosVistos":["listening","escrevendo","speaking","ready"],`
+`"selosQueATelaPintou":["processando","desenhando","falando","pronto"],"canvasPiscou":true}`
+
+A tela foi mudando assim: `1,0s desenhando | criei o pool "Compras"` → `1,9s desenhando |
+montando o processo — 2 elementos` → `2,9s | 3 elementos` → … → `8 elementos`. **Sete linhas na
+conversa para catorze chamadas**: as outras foram absorvidas. Filme (um quadro a cada 0,5 s) em
+`artifacts/bateria/filme-construcao/`.
+
+### A medição (1.1–1.3), nos dois endereços
+
+`tools/medir-construcao.mjs` separa, por chamada, **nossa execução** (`tool.executando` →
+`tool.concluida`) da **volta ao modelo** (`concluida` → `executando` seguinte). Para isso o
+despachante passou a emitir `tool.concluida`: sem evento de fim, a pergunta "a espera é nossa ou
+do modelo?" só podia ser estimada pelo intervalo entre começos, que mistura as duas.
+
+| | dev server | publicado |
+|---|---|---|
+| chamadas / formas | 8 · 2→10 | 8 · 2→10 |
+| **nossa escrita** (mediana / pior) | **0,01 s** / 0,01 s | **0,00 s** / 0,01 s |
+| **volta ao modelo** (mediana / pior) | 0,46 s / 0,69 s | 0,47 s / 0,86 s |
+| do envio ao último elemento | 3,5 s | 3,7 s |
+| **nossa fatia** | **1%** | **1%** |
+
+**Duas conclusões, as duas registradas e nenhuma na tela:**
+
+1. **Esta change não promete velocidade** (tarefa 1.2 avisava que isso iria para o `proposal.md`
+   se desse assim, e deu): 99% da espera é a volta ao modelo. O que ela entrega é a espera
+   **legível**.
+2. **O publicado não é mais lento que o local.** As duas colunas saíram da mesma hora, com o
+   mesmo pedido. Então os 3 a 5 s por bloco que o dono sentiu não vêm de estar publicado — vêm da
+   volta ao modelo, que varia por turno. **Não há nada para consertar no deploy**, e essa
+   suspeita fica fechada.
+3. **Insumo para a próxima rodada (1.3):** 14 chamadas para 8 elementos. Agrupar chamadas no
+   mesmo turno é o único candidato real de velocidade, e só valia a pena se o modelo dominasse o
+   tempo — agora está medido que domina.
+
+⚠ **E um terceiro defeito meu, o pior:** o selo de escrita existia por **microssegundos**. Numa
+construção de oito elementos o estado `escrevendo` **nunca** foi observado, nem a 120 ms de
+amostragem, porque a nossa escrita é síncrona (mediana de 0,01 s). Selo que pisca por
+microssegundos não é feedback, é contabilidade interna. Ficou com tempo mínimo de leitura (700
+ms), que o **gesto do aluno encurta** — clicar prova que ele leu, e sem isso a espera custaria o
+clique dele nos botões de candidato, que nascem exatamente dentro dessa janela.

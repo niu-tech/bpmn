@@ -224,6 +224,17 @@ porque reimplementar a regra do BPMN é ter duas versões dela — e a nossa est
 > a âncora já tem saída, porque ali é um ramo paralelo. A resposta certa era dar o verbo de
 > inserir no meio e DIZER ao modelo que aquilo é um ramo — não achatar o desenho.
 
+> ⚠ **F7 fechou sem o segundo caminho da decisão (achado em 2026-11-17).** Os verbos de escrita
+> passaram o portão, e mesmo assim **abrir o segundo caminho de um gateway era impossível**:
+> `comoRamo` existia no handler e nunca foi declarado ao modelo, então pedir um ramo caa em
+> `depoisDe`, que encadeia. Nenhum portão de F7/F7b/F7c pedia uma decisão com DOIS caminhos
+> rotulados — e por isso nenhum reprovou. Fechado pela change
+> `give-gateways-their-second-path` (verbo `ramificar`), com portão próprio sem cota e ao vivo.
+>
+> A lição para os próximos blocos: **verbo declarado ≠ capacidade alcançável**. Parâmetro que o
+> handler aceita e a declaração não cita é uma capacidade que o produto TEM e o modelo não pode
+> usar, e o sintoma chega como "o modelo não entende X".
+
 #### F7c — Pool e raia  ✅ 2026-11-15
 `criar_pool` · `criar_raia`. Estavam fora da lista de tipos criáveis de propósito, e a razão
 continua válida: não são "mais um elemento". O **primeiro pool** de um diagrama plano troca a raiz
