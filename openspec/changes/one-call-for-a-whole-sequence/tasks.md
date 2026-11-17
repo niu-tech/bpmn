@@ -80,6 +80,24 @@ seis passos em vez de um. É por isso que a conta certa é o **total**, nunca o 
 duas voltas grandes custam menos que oito pequenas. Pela mesma razão a change não promete
 segundos — ela promete menos voltas.
 
+## E no PUBLICADO, depois do deploy (2026-11-17, 14h50)
+
+`tools/medir-construcao.mjs --so-publicado` contra `niu-tech.github.io/bpmn`, com o mesmo pedido:
+**2 chamadas** (`criar_pool` + `criar_sequencia`), **1,4 s**, 2 → 10 formas — idêntico ao local.
+
+⚠ **E foi esta medição que achou um defeito de ESTEIRA, não de produto.** A primeira corrida contra
+o publicado devolveu `verbos: [criar_pool, 8× criar_elemento]` — o código de ANTES da fila. Causa:
+o CI do commit anterior (`0eb5417`) havia reprovado no passo da bateria com *"o navegador nao abriu
+a porta de depuracao 9632 em 15000ms"*, no 25º cenário, depois de 24 navegadores terem subido na
+mesma corrida (runner sob carga). Como **o job de deploy depende do build**, o site ficou parado no
+commit anterior **o dia inteiro**, com as três frentes provadas ao vivo dentro do repositório e fora
+do ar.
+
+A lição é a do binário velho, aplicada ao site: **teto de instrumento curto demais não pega um
+defeito antes — ele para a publicação por um motivo que não é do código.** Consertado em `a52b569`
+(45 s na esteira, 15 s aqui, onde porta lenta é Edge zumbi). E a prova de que era intermitência: a
+corrida da própria fila passou com o teto antigo, 4 minutos antes.
+
 ## O achado do portão: a fila longa volta em DUAS chamadas de desfazer
 
 Seis passos custam **12** comandos no `commandStack`, e `desfazer` tem teto de **10 por chamada**
