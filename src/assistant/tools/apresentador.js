@@ -129,6 +129,26 @@ const COMO_MOSTRAR = {
     return 'criei ' + (tipo ? tipo + ' ' : '') + nome + (antes ? ' depois de ' + antes : '') + ramo;
   },
 
+  /**
+   * A FILA: uma linha para N elementos — e a linha diz o que PAROU, quando parou.
+   *
+   * ⚠ A frase de `criar_elemento` fala de um elemento só ("criei tarefa «X» depois de «Y»"), e
+   * repeti-la seis vezes era exatamente a parede de linhas que a change da espera legível tirou
+   * da tela. Aqui a linha é a fila inteira, com os dois primeiros nomes para o aluno conferir no
+   * desenho sem ler uma lista.
+   */
+  criar_sequencia: (e, r) => {
+    if (!r || r.ok === false || !Array.isArray(r.criados) || !r.criados.length) {
+      return 'tentei desenhar a sequência';
+    }
+    const nomes = r.criados.map((c) => (c?.nome ? QUOTE + c.nome + QUOTE : c?.id)).filter(Boolean);
+    const mostra = nomes.slice(0, 2).join(', ');
+    const resto = nomes.length > 2 ? ` … +${nomes.length - 2}` : '';
+    const base = `desenhei a fila: ${plural(r.criados.length, 'passo', 'passos')} — ${mostra}${resto}`;
+    // Parar no meio é o fato mais importante da linha: o aluno pediu seis e viu três.
+    return r.parou ? `${base} · parei no passo ${r.parou.passo}` : base;
+  },
+
   ramificar: (e, r) => {
     if (!r || r.ok === false || !r.criado) return 'tentei abrir um caminho';
     const alvo = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
@@ -349,6 +369,7 @@ export function linhaDeInicio(nome) {
     detalhar_elemento: 'abrindo o elemento…',
     resumir_simulacao: 'lendo a simulação…',
     criar_elemento: 'criando no diagrama…',
+    criar_sequencia: 'desenhando a sequência…',
     ramificar: 'abrindo o caminho…',
     criar_pool: 'criando o pool…',
     criar_raia: 'criando a raia…',

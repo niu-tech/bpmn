@@ -129,6 +129,14 @@ async function medir(url) {
     url,
     erro: r.passos.find((p) => p.erro)?.erro ?? r.excecoes[0] ?? null,
     chamadas: nossos.length,
+    /**
+     * QUAIS verbos o modelo escolheu, na ordem — e não só quantos.
+     *
+     * ⚠ Sem isto, "2 chamadas" é um número sem prova de quem o produziu: a frase "o modelo
+     * escolheu a fila sozinho" é dedução, e dedução não é evidência. Os nomes vêm do mesmo
+     * evento `tool.executando` que já era lido aqui; o pedido nunca cita nome de ferramenta.
+     */
+    verbos: ev.filter((e) => e.key === 'tool.executando').map((e) => e.nome),
     formas: `${passo.formasAntes ?? '?'} -> ${passo.formasDepois ?? '?'}`,
     segundosDoAlunoEsperando: passo.doEnvioAoFimMs ? Number((passo.doEnvioAoFimMs / 1000).toFixed(1)) : null,
     nosso: { mediana: mediana(nossos), pior: nossos.length ? Number(Math.max(...nossos).toFixed(2)) : null },

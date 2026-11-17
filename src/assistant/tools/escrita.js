@@ -41,7 +41,25 @@ export const ERROS_ESCRITA = Object.freeze({
    * ele ia fazer já está feito: o resultado diz o id do que existe, para ele seguir dali.
    */
   JA_EXISTE: 'ja_existe',
+  /**
+   * A fila pedida é maior que o teto de passos.
+   *
+   * ⚠ Erro próprio, e não `tipo_invalido`, porque o que o modelo tem de fazer a respeito é
+   * específico e ele só sabe se a gente disser: **quebrar o pedido em mais de uma chamada**. A
+   * mensagem leva o teto; sem ele, o modelo repete a mesma lista e é recusado de novo.
+   */
+  MUITOS_PASSOS: 'muitos_passos',
 });
+
+/**
+ * Quantos passos uma fila aceita por chamada (D4 da change `one-call-for-a-whole-sequence`).
+ *
+ * O número não é estético: o resultado volta ao modelo e é cortado em 4000 caracteres pelo
+ * despachante, cada passo mexe no canvas que o aluno está acompanhando, e fila de 40 passos é
+ * ditado longo — outro problema de produto. Doze cobre o processo de aula inteiro; acima disso,
+ * duas chamadas ainda são 1/12 do custo de hoje.
+ */
+export const TETO_DE_PASSOS = 12;
 
 /**
  * As direções de `mover`, em palavras — porque o modelo NÃO vê coordenadas (a projeção manda id,
@@ -234,7 +252,9 @@ export function criarExecutoresDeEscrita({
     return acesso.criarSolto({ tipo: tipoBpmn, dentro, nome });
   };
 
-  return {
+  // `const exec` em vez de `return {…}` direto: a fila chama o PRÓPRIO `criar_elemento` (D2), e
+  // `this` não serve — o despachante chama `executor(entrada)` solto do objeto.
+  const exec = {
     /**
      * Cria um elemento, de preferência ANCORADO num que já existe: `depoisDe` faz o bpmn-js
      * posicionar e JÁ LIGAR o novo elemento ao anterior, que é o que o aluno pede em palavras
@@ -390,6 +410,100 @@ export function criarExecutoresDeEscrita({
         // O ramo paralelo (a âncora já tinha saída) sai daqui: a leitura olha o DESENHO.
         tela: tela(confirmado.id, retratoAntes),
         fatos: fatos(confirmado.id, retratoAntes),
+      };
+    },
+
+    /**
+     * A FILA INTEIRA NUMA CHAMADA — e o motivo é a volta ao modelo, não o nosso desenho.
+     *
+     * ⚠ Medido em 2026-11-17 (`artifacts/medicao/construcao.json`): o pedido do dono gastou **8**
+     * chamadas para 8 elementos, e a nossa escrita foi **1%** do tempo — 0,01 s de mediana contra
+     * 0,46 s de volta ao modelo por chamada. Não havia nada para otimizar aqui dentro: o que custa
+     * é quantas vezes a conversa vai e volta.
+     *
+     * E o que serializava não era o nosso despachante (ele já roda N chamadas em paralelo): era a
+     * DEPENDÊNCIA DE DADO. `depoisDe` precisa do id que a chamada anterior devolveu, e o modelo
+     * não pode citar um id que ainda não recebeu. Aqui os ids nascem e são consumidos do nosso
+     * lado, e a corrente desaparece.
+     *
+     * Cada passo é o `criar_elemento` de verdade (D2), e não um segundo caminho de desenho: a
+     * vaga continua sendo do `autoPlace`, "depois de X" continua encadeando, o nome continua
+     * nascendo no mesmo comando e o gêmeo continua recusado. Uma reimplementação nasceria errada
+     * em pelo menos uma dessas regras — cada uma delas custou uma sessão ao vivo.
+     */
+    async criar_sequencia({ passos, depoisDe, dentroDe } = {}) {
+      exigirEdicao();
+
+      const lista = Array.isArray(passos) ? passos.filter((p) => p && typeof p === 'object') : [];
+      if (!lista.length) {
+        throw nomeado(ERROS_ESCRITA.TIPO_INVALIDO, 'passos pede uma lista de { tipo, nome }, na ordem do fluxo');
+      }
+      if (lista.length > TETO_DE_PASSOS) {
+        throw nomeado(
+          ERROS_ESCRITA.MUITOS_PASSOS,
+          `a fila aceita ${TETO_DE_PASSOS} passos por chamada e o pedido tem ${lista.length}; `
+          + 'divida em mais de uma chamada, começando a segunda no último elemento desta',
+        );
+      }
+
+      const comandosAntes = contarComandos();
+      const retratoAntes = retrato();
+      const criados = [];
+      let ligacoes = 0;
+      /** O primeiro passo nasce na âncora pedida; cada um depois nasce no passo anterior. */
+      let ancora = typeof depoisDe === 'string' && depoisDe.trim() ? depoisDe : null;
+      let parou = null;
+
+      for (let i = 0; i < lista.length; i++) {
+        const passo = lista[i];
+        try {
+          const r = await exec.criar_elemento({
+            tipo: passo.tipo,
+            nome: passo.nome,
+            // Só UM dos dois: `dentroDe` vale enquanto não há âncora (o primeiro passo solto).
+            ...(ancora ? { depoisDe: ancora } : (dentroDe ? { dentroDe } : {})),
+          });
+          criados.push(r.criado);
+          if (r.ligacao) ligacoes++;
+          ancora = r.criado?.id ?? ancora;
+        } catch (err) {
+          /**
+           * PASSO 1: nada foi desenhado, então a recusa nomeada É o resultado — inclusive
+           * `sem_lugar`, que leva os nomes dos pools e os candidatos clicáveis para a tela.
+           */
+          if (!criados.length) throw err;
+          /**
+           * DEPOIS DO PRIMEIRO: o que entrou FICA, e vira fato no resultado (D3).
+           *
+           * ⚠ Lançar aqui diria ao modelo que nada aconteceu: o despachante transforma exceção em
+           * `{ok:false, erro:'ferramenta_falhou'}` e **descarta o corpo**. O aluno está olhando
+           * três elementos novos na tela, e o modelo narraria o contrário do que ele vê — e
+           * tentaria a fila inteira de novo, agora recusada pelos gêmeos.
+           */
+          parou = {
+            passo: i + 1,
+            pedido: { tipo: passo.tipo ?? null, nome: passo.nome ?? null },
+            erro: err?.nome ?? null,
+            motivo: String(err?.message ?? err).slice(0, 200),
+            ...(Array.isArray(err?.candidatos) && err.candidatos.length
+              ? { candidatos: err.candidatos.slice(0, 8) }
+              : {}),
+          };
+          break;
+        }
+      }
+
+      return {
+        criados,
+        passosPedidos: lista.length,
+        ligacoes,
+        // `null` quando a fila inteira entrou. Quem narra precisa saber que faltou um pedaço.
+        parou,
+        total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
+        // O total da FILA: é o `quantos` de `desfazer` para voltar atrás de tudo de uma vez.
+        comandos: Math.max(1, contarComandos() - comandosAntes),
+        // UMA tela, no fim (D5): seis retratos completos estourariam o teto do corpo sozinhos.
+        tela: tela(criados.at(-1)?.id ?? null, retratoAntes),
       };
     },
 
@@ -1023,4 +1137,6 @@ export function criarExecutoresDeEscrita({
       };
     },
   };
+
+  return exec;
 }

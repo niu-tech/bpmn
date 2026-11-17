@@ -2025,6 +2025,114 @@ CENARIOS.push({
 });
 
 /**
+ * A FILA NUMA CHAMADA (change `one-call-for-a-whole-sequence`, 2026-11-17).
+ *
+ * A medicao da change anterior fechou a duvida: a nossa escrita e' 0,01 s (1% do tempo) e a volta
+ * ao modelo e' 0,46 s POR CHAMADA. Entao a unica alavanca de velocidade e' haver menos chamadas —
+ * e o pedido tipico do aluno e' uma FILA (7 das 8 chamadas medidas eram o mesmo verbo).
+ *
+ * O que este portao mede, contra o bpmn-js de verdade e SEM cota:
+ *
+ *  1. seis passos numa chamada so, cada um ligado ao anterior, na ordem pedida;
+ *  2. nenhum orfao, nenhuma sobreposicao, nenhuma seta atravessando caixa — o desenho tem de sair
+ *     IGUAL ao de seis chamadas, senao a economia veio as custas do desenho do aluno;
+ *  3. a tela conta UMA linha para a fila (a parede de seis linhas e' o que a change anterior
+ *     tirou), e o selo diz DESENHANDO enquanto ela corre;
+ *  4. desfazer a quantidade que o resultado informou volta o desenho ao estado de antes — o aluno
+ *     que nao gostou da fila nao fica dando Ctrl+Z as cegas.
+ *
+ * ⚠ ACHADO DESTE PORTAO (2026-11-17): uma fila de SEIS passos custa **12** comandos, e `desfazer`
+ * tem teto de **10 por chamada** — de proposito (divida E1: a pilha e a MESMA do aluno, e um lote
+ * maior apagaria o trabalho que o agente nao viu). Entao a volta de uma fila longa sao DUAS
+ * chamadas, e a primeira tem de dizer isso: `aindaDaParaDesfazer`. O portao afirma as duas, porque
+ * uma fila que so' volta pela metade e' pior que uma fila que nao volta.
+ *
+ * ⚠ Principio XIII: o portao afirma primeiro que os seis ENTRARAM, e so' entao conta as linhas.
+ */
+CENARIOS.push({
+  // ⚠ MAPA DOS VERMELHOS: `seisNumaChamada` cai sozinha se o laco parar no primeiro passo;
+  // `encadeou` cai sozinha se o `depoisDe` deixar de apontar para o passo anterior; `umaLinha`
+  // cai sozinha se a fila voltar a narrar um elemento por vez; `voltouTudo` cai sozinha se o
+  // total de comandos deixar de ser o da fila inteira.
+  nome: 'a fila inteira numa chamada: seis passos encadeados, uma linha, um desfazer contado',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `${MEDIR_SOBREPOSICAO}
+     const A = window.__bpmnAssist;
+     const nos = () => A.desenho.nos;
+     const ligs = () => A.desenho.ligacoes;
+     const msgs = () => [...document.querySelectorAll('.bpmn-assist__msg--tool')];
+     const base = nos().find((x) => (x.nome || '').toLowerCase() === 'pagar a pizza');
+     if (!base) return { ok: false, erro: 'o diagrama base nao tem a tarefa esperada' };
+
+     const formasAntes = nos().length;
+     const ligacoesAntes = ligs().length;
+     const msgsAntes = msgs().length;
+
+     // 1 e 3. UMA chamada, e o selo medido ENQUANTO ela corre.
+     const emVoo = A.ferramenta('criar_sequencia', {
+       depoisDe: base.id,
+       passos: [
+         { tipo: 'Task', nome: 'Receber o pedido' },
+         { tipo: 'Task', nome: 'Conferir o estoque' },
+         { tipo: 'Task', nome: 'Cotar fornecedores' },
+         { tipo: 'Task', nome: 'Escolher fornecedor' },
+         { tipo: 'Task', nome: 'Emitir a ordem' },
+         { tipo: 'EndEvent', nome: 'Material recebido' },
+       ],
+     });
+     let seloDesenhando = false;
+     for (let i = 0; i < 40 && !seloDesenhando; i++) {
+       if (A.estado.estado === 'escrevendo') seloDesenhando = true;
+       await new Promise((f) => setTimeout(f, 10));
+     }
+     const r = (await emVoo)?.resultado ?? null;
+
+     const criados = (r?.criados ?? []).map((c) => c.id);
+     const seisNumaChamada = criados.length === 6 && (nos().length - formasAntes) === 6;
+     const naOrdem = (r?.criados ?? []).map((c) => c.nome).join(' | ');
+
+     // 2. O ENCADEAMENTO, lido do desenho: a entrada de cada passo vem do passo anterior.
+     const antes = [base.id, ...criados.slice(0, -1)];
+     const encadeou = criados.every((id, i) => ligs().some((l) => l.de === antes[i] && l.para === id));
+     const temEntrada = (id) => ligs().some((l) => l.para === id);
+     const orfaos = criados.filter((id) => !temEntrada(id));
+     const sobrepostos = criados.flatMap((id) => window.__sobrepoe(id) || []);
+     const atravessadas = criados.flatMap((id) => window.__linhaAtravessa(id) || []);
+
+     // 3. UMA linha para a fila inteira, e ela diz a contagem.
+     const novas = msgs().length - msgsAntes;
+     const ultima = msgs().at(-1)?.textContent || '';
+     const umaLinha = novas === 1 && /desenhei a fila/.test(ultima) && /6 passos/.test(ultima);
+
+     // 4. Desfazer a fila inteira. Acima do teto de 10 por chamada, o resultado tem de AVISAR
+     //    que falta, e a segunda chamada fecha — e' o que o aluno chama de "desfaz isso".
+     const total = r?.comandos ?? 1;
+     const u = (await A.ferramenta('desfazer', { quantos: total }))?.resultado ?? null;
+     const faltou = Math.max(0, total - (u?.desfeitos ?? 0));
+     const avisouQueFalta = faltou === 0 || u?.aindaDaParaDesfazer === true;
+     const u2 = faltou > 0
+       ? (await A.ferramenta('desfazer', { quantos: faltou }))?.resultado ?? null
+       : null;
+     const voltouTudo = nos().length === formasAntes && ligs().length === ligacoesAntes;
+
+     return {
+       ok: seisNumaChamada && encadeou && orfaos.length === 0 && sobrepostos.length === 0
+         && atravessadas.length === 0 && seloDesenhando && umaLinha && voltouTudo
+         && avisouQueFalta,
+       seisNumaChamada, encadeou, seloDesenhando, umaLinha, voltouTudo, avisouQueFalta,
+       naOrdem, orfaos, sobrepostos, atravessadas,
+       ligacoesDaFila: r?.ligacoes ?? null,
+       comandosDaFila: r?.comandos ?? null,
+       desfeitos: (u?.desfeitos ?? 0) + (u2?.desfeitos ?? 0),
+       emQuantasChamadas: u2 ? 2 : 1,
+       linha: ultima.slice(0, 160),
+     };`,
+  ],
+});
+
+/**
  * A CITACAO CONFERIDA NA VOZ (K6, corrigido em 2026-11-16).
  *
  * O dono perguntou se o modo voz usa o acervo. Usa — `consultar_norma` e declarada nos dois modos

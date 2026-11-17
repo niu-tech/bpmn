@@ -225,6 +225,67 @@ export const FERRAMENTAS = Object.freeze([
   },
 
   {
+    nome: 'criar_sequencia',
+    escreve: true,
+    /**
+     * ⚠ O ENSINO MORA AQUI, e não no prompt estável (D7 da change
+     * `one-call-for-a-whole-sequence`). O tier estável tem 60 caracteres de folga em 5400, e
+     * subir o teto para caber a própria adição é como um orçamento vira ficção (§IX). Descrição
+     * de ferramenta é o canal certo para "como se usa este verbo": é o que o modelo lê no momento
+     * de escolher a chamada, e `ramificar` provou ao vivo (2026-11-17) que ela basta — foi
+     * escolhido duas vezes, sem uma linha de prompt.
+     */
+    declaracao: {
+      name: 'criar_sequencia',
+      description:
+        'Desenha uma FILA de passos encadeados numa única chamada: cada passo nasce ligado ao '
+        + 'anterior. Use sempre que o aluno descrever dois ou mais passos em sequência ("o pedido '
+        + 'chega, o comprador confere o estoque, depois cota com tres fornecedores") — é muito '
+        + 'mais rápido para ele do que uma chamada por elemento, e você não precisa de nenhum id '
+        + 'intermediário. Passe depoisDe para a fila continuar de um elemento que já existe, ou '
+        + 'dentroDe para ela começar dentro de um pool ou raia. Para UM elemento só, ou para '
+        + 'inserir no meio de um fluxo, use criar_elemento; para um caminho de decisão, que leva '
+        + 'rótulo na seta, use ramificar. O resultado diz o id de cada passo criado, quantos '
+        + 'desfazeres a fila custou e, se algum passo falhar, qual parou e por quê — os passos '
+        + 'anteriores ficam desenhados.',
+      parameters: {
+        type: 'object',
+        properties: {
+          passos: {
+            type: 'array',
+            description:
+              'Os passos na ORDEM do fluxo. No máximo 12 por chamada; se o processo for maior, '
+              + 'faça outra chamada começando no último elemento criado.',
+            items: {
+              type: 'object',
+              properties: {
+                tipo: {
+                  type: 'string',
+                  enum: [...TIPOS_CRIAVEIS],
+                  description: 'Tipo BPMN do passo, sem o prefixo bpmn:.',
+                },
+                nome: { type: 'string', description: 'O rótulo que aparece no desenho.' },
+              },
+              required: ['tipo'],
+            },
+          },
+          depoisDe: {
+            type: 'string',
+            description: 'Id do elemento de onde a fila continua. Use o id do contexto ou da busca.',
+          },
+          dentroDe: {
+            type: 'string',
+            description:
+              'Id do pool, da raia ou do subprocesso que recebe o primeiro passo. Só faz sentido '
+              + 'sem depoisDe.',
+          },
+        },
+        required: ['passos'],
+      },
+    },
+  },
+
+  {
     nome: 'ramificar',
     escreve: true,
     /**
@@ -460,7 +521,9 @@ export const FERRAMENTAS = Object.freeze([
         + 'escrita devolveu (criar um elemento no meio de um fluxo custa mais de um Ctrl+Z, '
         + 'porque abre espaço e redesenha setas). O resultado diz quantos voltaram DE FATO '
         + '(desfeitos) e quais elementos saíram e voltaram; conte isso em vez de só dizer que '
-        + 'desfez. Sem nada para desfazer, o erro é nada_mudou.',
+        + 'desfez. Escreveu mais de 10 comandos de uma vez (uma fila longa de criar_sequencia)? '
+        + 'o resultado traz aindaDaParaDesfazer — chame de novo com o que ainda falta do SEU '
+        + 'total, nunca além dele. Sem nada para desfazer, o erro é nada_mudou.',
       parameters: {
         type: 'object',
         properties: {

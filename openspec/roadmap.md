@@ -235,6 +235,18 @@ porque reimplementar a regra do BPMN é ter duas versões dela — e a nossa est
 > handler aceita e a declaração não cita é uma capacidade que o produto TEM e o modelo não pode
 > usar, e o sintoma chega como "o modelo não entende X".
 
+> ⚠ **E F7 fechou com UM verbo por elemento, o que é uma decisão de CUSTO (medido em 2026-11-17).**
+> A conta, do mesmo dia: a nossa escrita no bpmn-js é **0,01 s** (síncrona) e a volta ao modelo é
+> **0,46 s por chamada**. Então o relógio que o aluno sente não mede o nosso código — mede
+> **quantas chamadas** a construção pediu. Um pedido de seis passos custava oito voltas.
+>
+> A lição, para qualquer verbo novo: **a unidade da ferramenta é a unidade do pedido do aluno, não
+> a unidade do desenho.** Quem fala descreve uma fila ("o pedido chega, o comprador confere,
+> depois cota"); uma ferramenta por elemento transforma uma frase em oito idas e voltas. Fechado
+> pela change `one-call-for-a-whole-sequence` (verbo `criar_sequencia`): 8 chamadas → **2**, com o
+> modelo escolhendo a fila sozinho. E o que NÃO se promete: segundos — a volta ao modelo é dele e
+> da rede do aluno; o que o produto controla é a contagem.
+
 #### F7c — Pool e raia  ✅ 2026-11-15
 `criar_pool` · `criar_raia`. Estavam fora da lista de tipos criáveis de propósito, e a razão
 continua válida: não são "mais um elemento". O **primeiro pool** de um diagrama plano troca a raiz

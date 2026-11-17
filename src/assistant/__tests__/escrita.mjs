@@ -24,7 +24,7 @@
  */
 import assert from 'node:assert/strict';
 
-import { ERROS_ESCRITA, TIPOS_CRIAVEIS, criarExecutoresDeEscrita } from '../tools/escrita.js';
+import { ERROS_ESCRITA, TETO_DE_PASSOS, TIPOS_CRIAVEIS, criarExecutoresDeEscrita } from '../tools/escrita.js';
 import { criarAcessoBpmn } from '../tools/bpmn-api.js';
 import { permitida } from '../agent/policy.js';
 import { ACOES_COM_PORTAO, FERRAMENTAS } from '../agent/catalog.js';
@@ -1232,6 +1232,114 @@ testAsync('cor que não pega devolve `nada_mudou`', async () => {
     () => g.exec.destacar({ ids: ['Task_1'], cor: 'azul' }),
     (e) => e.nome === ERROS_ESCRITA.NAO_MUDOU && /Task_1/.test(e.message),
   );
+});
+
+/* ---------------------------------------------------------------- a fila numa chamada */
+
+testAsync('a fila de seis passos nasce encadeada, na ordem, numa chamada so', async () => {
+  // Change `one-call-for-a-whole-sequence`: o que esta change compra nao e' desenho novo -- e'
+  // UMA volta ao modelo em vez de seis. O desenho tem de sair identico ao de seis chamadas.
+  const { exec, acesso, raiz, guardar } = montar();
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
+
+  const r = await exec.criar_sequencia({
+    depoisDe: 'StartEvent_1',
+    passos: [
+      { tipo: 'Task', nome: 'Receber pedido' },
+      { tipo: 'Task', nome: 'Conferir estoque' },
+      { tipo: 'Task', nome: 'Cotar fornecedores' },
+      { tipo: 'Task', nome: 'Escolher fornecedor' },
+      { tipo: 'Task', nome: 'Emitir ordem' },
+      { tipo: 'EndEvent', nome: 'Material recebido' },
+    ],
+  });
+
+  assert.equal(r.criados.length, 6);
+  assert.equal(r.parou, null);
+  assert.deepEqual(r.criados.map((c) => c.nome), [
+    'Receber pedido', 'Conferir estoque', 'Cotar fornecedores',
+    'Escolher fornecedor', 'Emitir ordem', 'Material recebido',
+  ]);
+
+  // O ENCADEAMENTO, lido do desenho: a entrada de cada passo vem do passo anterior.
+  const antes = ['StartEvent_1', ...r.criados.slice(0, -1).map((c) => c.id)];
+  r.criados.forEach((c, i) => {
+    const entradas = acesso.entradasESaidas(c.id).entradas;
+    assert.equal(entradas[0]?.source?.id, antes[i], `passo ${i + 1} ligado em ${entradas[0]?.source?.id}`);
+  });
+});
+
+testAsync('falha no MEIO devolve o que entrou -- nunca estoura', async () => {
+  /**
+   * ⚠ A regra do D3, e ela e' mecanica: exceção virа `{ok:false}` no despachante e o corpo e'
+   * DESCARTADO. Lançar aqui diria ao modelo que nada aconteceu enquanto o aluno olha tres
+   * elementos novos na tela -- e ele tentaria a fila inteira de novo.
+   */
+  const { exec, acesso, raiz, guardar } = montar();
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
+
+  const r = await exec.criar_sequencia({
+    depoisDe: 'StartEvent_1',
+    passos: [
+      { tipo: 'Task', nome: 'Abrir' },
+      { tipo: 'Task', nome: 'Conferir' },
+      { tipo: 'Task', nome: 'Fechar' },
+      // O quarto repete o terceiro, colado nele: o gemeo e' recusado (ja_existe).
+      { tipo: 'Task', nome: 'Fechar' },
+      { tipo: 'EndEvent', nome: 'Fim' },
+    ],
+  });
+
+  assert.equal(r.criados.length, 3);
+  assert.equal(r.passosPedidos, 5);
+  assert.equal(r.parou.passo, 4);
+  assert.equal(r.parou.erro, ERROS_ESCRITA.JA_EXISTE);
+  assert.equal(r.parou.pedido.nome, 'Fechar');
+  // E os tres FICAM no desenho: o aluno os viu aparecer.
+  for (const c of r.criados) assert.ok(acesso.porId(c.id), `${c.id} saiu do desenho`);
+});
+
+testAsync('falha no PRIMEIRO passo estoura com o erro nomeado -- nada foi desenhado', async () => {
+  const { exec, mapa } = montar();
+  const quantos = mapa.size;
+
+  await assert.rejects(
+    () => exec.criar_sequencia({ passos: [{ tipo: 'Banana' }, { tipo: 'Task', nome: 'Depois' }] }),
+    /tipo_invalido/,
+  );
+  assert.equal(mapa.size, quantos, 'o desenho mudou numa fila que nao comecou');
+});
+
+testAsync('a fila tem TETO declarado, e a recusa diz quantos cabem', async () => {
+  const { exec, mapa } = montar();
+  const quantos = mapa.size;
+  const passos = Array.from({ length: TETO_DE_PASSOS + 1 }, (_, i) => ({ tipo: 'Task', nome: `P${i}` }));
+
+  // O numero na mensagem e' o que permite ao modelo quebrar em duas chamadas em vez de repetir.
+  await assert.rejects(() => exec.criar_sequencia({ passos }), new RegExp(`muitos_passos.*${TETO_DE_PASSOS}`));
+  await assert.rejects(() => exec.criar_sequencia({ passos: [] }), /tipo_invalido/);
+  assert.equal(mapa.size, quantos);
+});
+
+testAsync('UMA tela no fim, e o desfazer da fila inteira vem contado', async () => {
+  const { exec, raiz, guardar } = montar();
+  guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: raiz, businessObject: {}, incoming: [], outgoing: [] });
+
+  const r = await exec.criar_sequencia({
+    depoisDe: 'StartEvent_1',
+    passos: [{ tipo: 'Task', nome: 'A' }, { tipo: 'Task', nome: 'B' }, { tipo: 'EndEvent', nome: 'Fim' }],
+  });
+
+  // Uma tela, nao uma lista: seis retratos completos estourariam o teto do corpo sozinhos (D5).
+  // Ela e' a PROSA do desenho de agora, e por isso traz a contagem final -- nao a intermediaria.
+  assert.equal(typeof r.tela, 'string');
+  // 4 formas (o inicio + os tres passos) e 3 ligações: o retrato do FIM, nao de um passo do meio.
+  assert.match(r.tela, /4 formas e 3 liga/);
+  // `total` conta formas E ligações, como em `criar_elemento` -- medida diferente, de propósito.
+  assert.equal(r.total, 7);
+  // O `quantos` de `desfazer`: menos que o numero de passos seria mentira na mao do aluno.
+  assert.ok(r.comandos >= 3, `fila de 3 passos custou ${r.comandos} comandos`);
+  assert.equal(r.ligacoes, 3);
 });
 
 /* ---------------------------------------------------------------- catálogo */
