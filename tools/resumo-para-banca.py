@@ -7,6 +7,8 @@ demonstrar e onde estão os limites. Sem datas, sem cronologia, sem jargão inte
 
 Uso: python tools/resumo-para-banca.py
 """
+import json
+import re
 from pathlib import Path
 
 from reportlab.lib.enums import TA_LEFT
@@ -17,7 +19,42 @@ from reportlab.lib import colors
 from reportlab.platypus import (ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer,
                                 Table, TableStyle)
 
-OUT = Path(__file__).resolve().parent.parent / "artifacts" / "resumo-para-banca.pdf"
+RAIZ = Path(__file__).resolve().parent.parent
+OUT = RAIZ / "artifacts" / "resumo-para-banca.pdf"
+
+# --------------------------------------------------------------------------- números, da prova
+#
+# Este documento afirma, duas seções abaixo, que "cada número citado tem o comando que o produziu".
+# Então os números são CONTADOS aqui, na hora de gerar: digitados à mão, eles envelhecem calados —
+# e um documento de apresentação com número velho desmente a própria frase.
+TESTES = sorted(RAIZ.glob("src/*/__tests__/*.mjs"))
+ARQUIVOS_DE_TESTE = len(TESTES)
+ASSERCOES = sum(len(re.findall(r"\bassert\.", f.read_text(encoding="utf-8"))) for f in TESTES)
+
+_bateria = tools = RAIZ / "tools" / "battery.mjs"
+_fonte_bateria = _bateria.read_text(encoding="utf-8") if _bateria.exists() else ""
+CENARIOS_AO_VIVO = len(re.findall(r"nome: 'AO VIVO", _fonte_bateria))
+try:
+    _res = json.loads((RAIZ / "artifacts" / "bateria" / "resultado.json").read_text(encoding="utf-8"))
+    CENARIOS_SEM_COTA = _res.get("de")
+except Exception:
+    CENARIOS_SEM_COTA = None
+CENARIOS = (CENARIOS_SEM_COTA + CENARIOS_AO_VIVO) if CENARIOS_SEM_COTA else None
+
+try:
+    _acervo = json.loads((RAIZ / "avaliacao" / "perguntas-douradas.json").read_text(encoding="utf-8"))
+    PERGUNTAS = len(_acervo["perguntas"])
+    CATEGORIAS = len({q.get("categoria") for q in _acervo["perguntas"]})
+except Exception:
+    PERGUNTAS = CATEGORIAS = None
+
+FERRAMENTAS = len(list((RAIZ / "tools").glob("*.mjs")) + list((RAIZ / "tools").glob("*.py"))
+                  + list((RAIZ / "tools").glob("*.ps1")))
+
+
+def num(v, padrao="—"):
+    return str(v) if v is not None else padrao
+
 AZUL = "#0A7EA4"
 VERDE = "#1F7A48"
 CINZA = "#555555"
@@ -94,6 +131,13 @@ story = [
          "ferramentas de escrita sobre o próprio bpmn-js: criar, ligar, renomear, inserir no "
          "meio do fluxo, mover, alinhar, trocar o tipo, criar pool e raia — tudo desfazível com "
          "Ctrl+Z, porque passa pela pilha de comandos do modelador"],
+        ["<b>Desenha o processo que o aluno descreve de um jato</b>",
+         "descreve o processo falando, numa frase só, e vê a sequência e a decisão aparecerem",
+         "a unidade da ferramenta é a unidade da <b>frase</b>, não a do desenho: quem fala "
+         "descreve uma fila (“o pedido chega, o comprador confere, depois cota”) e uma decisão "
+         "inteira (“se sim…; se não…”), e cada uma é <b>um</b> comando — que compõe por dentro "
+         "os verbos já provados, para o desenho sair idêntico ao feito passo a passo, e para um "
+         "<font face='Courier'>Ctrl+Z</font> desfazer o trecho inteiro"],
         ["<b>Pergunta antes de apagar</b>",
          "pede para remover algo e precisa confirmar",
          "um portão de <b>ordem</b>: a remoção fica recusada até o aluno responder depois do "
@@ -121,16 +165,20 @@ story = [
         "afirmações sem lastro:", P),
     tabela([
         ["Camada de prova", "Tamanho", "O que ela garante"],
-        ["Testes determinísticos", "<b>32 suítes · 697 asserções</b>",
+        ["Testes determinísticos",
+         f"<b>{num(ARQUIVOS_DE_TESTE)} arquivos · {num(ASSERCOES)} asserções</b>",
          "o núcleo — prompt, despacho, ferramentas, memória, proteções, protocolo, áudio. Roda "
          "sem rede, sem credencial e em segundos"],
-        ["Portões no navegador", "<b>52 cenários</b><br/>35 sem credencial · 17 ao vivo",
+        ["Portões no navegador",
+         f"<b>{num(CENARIOS)} cenários</b><br/>{num(CENARIOS_SEM_COTA)} sem credencial · "
+         f"{num(CENARIOS_AO_VIVO)} ao vivo",
          "o sistema real: o bpmn-js de verdade desenhando, e o modelo de verdade respondendo"],
-        ["Conjunto de perguntas", "<b>35 perguntas · 13 categorias</b>",
+        ["Conjunto de perguntas", f"<b>{num(PERGUNTAS)} perguntas · {num(CATEGORIAS)} categorias</b>",
          "taxa de acerto por categoria, que é o que vira tabela no texto"],
-        ["Instrumentos de medição", "<b>33 ferramentas</b>",
+        ["Instrumentos de medição", f"<b>{num(FERRAMENTAS)} ferramentas</b>",
          "latência por turno, custo em tokens, limite de sessões, tamanho do contexto, qualidade "
-         "do microfone, corte de rede. Cada número citado tem o comando que o produziu"],
+         "do microfone, corte de rede. Cada número citado tem o comando que o produziu — e os "
+         "números desta tabela são contados no momento em que o documento é gerado"],
     ], [3.6 * cm, 4.0 * cm, 8.8 * cm]),
     Paragraph(
         "Três vezes um desses portões <b>reprovou o sistema e estava certo</b> — e duas vezes um "
@@ -171,6 +219,10 @@ story = [
         "fluxo, as setas são refeitas e nada fica sobreposto.",
         "<b>Clicar num elemento e perguntar “e esse aqui?”</b> — a resposta é sobre o elemento "
         "selecionado, porque a seleção viaja junto com a pergunta.",
+        "<b>Descrever um processo inteiro de uma vez</b> — “num pool novo chamado Suporte: o "
+        "chamado chega, o atendente analisa, e então uma decisão se os componentes são "
+        "suficientes; se sim…, se não…” — e o pool, a sequência e a decisão com os <b>dois</b> "
+        "caminhos rotulados aparecem em poucos segundos, sem o aluno nomear ferramenta nenhuma.",
         "<b>“Apaga essa tarefa.”</b> — o agente pergunta antes, e só remove depois da resposta.",
         "<b>Ficar em silêncio dois minutos e voltar a perguntar</b> — a conversa continua de onde "
         "parou, mesmo tendo o servidor encerrado a sessão nesse intervalo.",
@@ -186,6 +238,12 @@ story = [
         "<b>No modo voz, a conferência da citação não existe</b>: o áudio vai do provedor ao "
         "alto-falante sem passar pelo aplicativo. A tela diz isso no momento da consulta, em vez "
         "de prometer igual nos dois modos.",
+        "<b>A espera entre um bloco e o outro é do modelo, e está medida.</b> A escrita no "
+        "desenho é praticamente instantânea; o que o aluno espera é a ida e a volta ao provedor "
+        "de IA, uma por pedido. Por isso o trabalho não promete velocidade: o que ele controla é "
+        "<b>quantas vezes</b> precisa perguntar — e aí houve ganho real, porque um processo que "
+        "custava dezessete pedidos passou a custar três. O número, com o método de medição, está "
+        "no relatório interno da rodada.",
         "<b>A dimensão pedagógica está em elaboração com o orientador</b> — quando propor e "
         "quando calar, como explicar a escolha de representação, quanto corrigir de uma vez. A "
         "mecânica que a sustenta já existe e está provada: o agente propõe, a ferramenta recusa "
