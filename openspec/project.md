@@ -188,7 +188,15 @@ As duas saídas, as duas em uso no repositório:
 
 E não escreva crase dentro de um passo — nem em comentário.
 
-⚠ **Por que não há uma guarda mecânica para isto**, e a tentativa está registrada: em tempo de
+⚠ **A crase agora TEM guarda** (quarta vez, 2026-11-17): `npm run test:sintaxe` roda
+`node --check` na bateria e nos dois drives, e entra na frente da suíte. Não resolve a classe
+inteira — só a crase, que é a metade que dá `SyntaxError` — mas custa 0,2 s e pega antes de a
+corrida começar, em vez de no meio de um cenário ao vivo. A lição é a da própria quarta vez:
+**regra escrita não impediu**. Quando um defeito volta pela terceira vez, o próximo passo não é
+escrever a regra melhor — é achar a metade dele que uma máquina consegue checar, e checar.
+
+⚠ **Por que não há uma guarda mecânica para a OUTRA metade** (a barra consumida em silêncio), e a
+tentativa está registrada: em tempo de
 execução a informação já se perdeu (a barra foi consumida ao carregar o arquivo), então a guarda
 teria de ler o próprio fonte e distinguir o que está dentro de um template literal — e o
 separador é a mesma crase que aparece em comentário e em markdown no arquivo inteiro. Um
@@ -268,3 +276,85 @@ alguém lendo a **linha inteira**, inclusive os campos que não estavam sob susp
 segunda metade da regra, que é de leitura e não de escrita: **o relatório de um portão se lê
 todo, e um campo zerado ao lado de um verde é uma pergunta** — não um detalhe de formatação.
 Portão que imprime pouco esconde isso de graça: imprima o número, não só o veredito.
+
+## XIV. Conserte o INSTRUMENTO, nunca o produto, quando quem errou foi a medida
+
+Portão vermelho é uma afirmação sobre o produto, e ela pode estar errada. Antes de mexer no
+produto, pergunte se a MEDIDA está certa — porque consertar o produto para agradar um
+instrumento quebrado é o pior resultado possível de uma corrida: o defeito real continua lá, e
+agora há um conserto errado em cima dele.
+
+Três vezes em dois dias, as três no mesmo dia em que a regra foi escrita (2026-11-17):
+
+- **Contêiner contado como órfão.** O portão do gateway reprovou com
+  `orfaos:["Participant \"Suporte\""]` enquanto a decisão tinha os dois caminhos rotulados. Pool
+  e raia **não se ligam a nada por definição** — eles contêm o fluxo. "Órfão" é nó de fluxo sem
+  entrada nem saída, e a definição do instrumento estava mais larga que o conceito.
+- **Nó de DOM órfão.** O portão lia "6" onde a tela dizia "5": quando a lista encolhe, o painel
+  redesenha tudo (`replaceChildren`) e o nó capturado antes fica fora da árvore, mostrando o
+  número velho. Medir um passado que já saiu da tela. Quem re-consulta o DOM é o portão.
+- **Medir o RÓTULO quando o produto decide pelo ESTADO.** O portão ao vivo dizia que o selo
+  *desenhando* não existia, lendo o texto da tela. Lido o estado, apareceu o defeito de verdade
+  — outro, e pior (principio XV). Medir só o rótulo confunde *"o selo não existe"* com *"a tela
+  não pintou"*; medir só o estado perderia o defeito de tela. **O portão afirma o estado e
+  REPORTA o rótulo**, e divergir entre os dois é defeito que tem de aparecer no relatório.
+
+Como saber de qual lado está o erro, sem adivinhar: **leia o resto do veredito**. Um instrumento
+errado reprova no meio de um relatório que, no restante, está dizendo que deu certo — dois
+caminhos, dois rótulos, zero sobreposição, e um "órfão" que é um pool. É por isso que portão
+imprime o número, e não só o veredito.
+
+E a contrapartida, que é o que torna isto uma regra e não uma desculpa: **ajustar o pedido do
+portão para ele passar é proibido** — a não ser quando o que você tira é ambiguidade que **outro**
+portão mede. Na mesma corrida, o pedido do gateway ganhou "num pool novo chamado Suporte" porque
+o agente perguntava, com razão, em qual dos dois pools desenhar — e ambiguidade de lugar tem
+portão próprio (o do candidato clicável). Quem tira ambiguidade **escreve no portão qual outro
+portão cobre o que ele deixou de cobrir**; sem essa frase, "tirei a ambiguidade" é só o nome
+bonito de ajustar o teste ao defeito.
+
+## XV. Estado que a tela mostra tem de SOBREVIVER ao que ele descreve — e morrer com ele
+
+Um selo é duas promessas: ele aparece enquanto a coisa acontece, e **sai quando ela termina**.
+Quebrar qualquer uma das duas custa mais do que não ter selo nenhum, e as duas quebras são
+silênciosas — nenhum teste de "o estado foi setado" pega nenhuma delas.
+
+As duas aconteceram no mesmo dia (2026-11-17), ao separar *desenhando* de *consultando*:
+
+- **Preso.** A volta do estado estava escrita em DOIS lugares, e um deles conhecia só
+  `consultando`: escrita que recusa (ambiguidade, portão) nunca devolvia o selo. E selo preso
+  aqui não é cosmético — ele **trava a tela**: `escolherCandidato` só aceita clique em estado de
+  conversa, então o aluno clicava no botão que o agente acabou de desenhar e ouvia *"conecte
+  antes de escolher"*, com a sessão aberta. Conserto: a lista de "estou no meio de uma
+  ferramenta" passou a ter **uma fonte**.
+- **Instantâneo.** Numa construção de oito elementos o estado `escrevendo` **nunca** foi
+  observado — nem amostrando a tela a cada 120 ms — porque a nossa escrita no bpmn-js é
+  **síncrona** (mediana medida: 0,01 s). O selo nascia e morria no mesmo passo do laço de
+  eventos. Selo que existe por microssegundos não é feedback, é contabilidade interna.
+
+Daí a regra: **operação instantânea precisa de selo com tempo mínimo de LEITURA** (700 ms aqui),
+e operação lenta **não** precisa (esticar o selo de leitura, que leva tempo de rede, seria mentir
+sobre o presente). E a espera nunca pode custar o gesto do aluno: **agir prova que ele leu**,
+então o clique dele encurta o selo em vez de ser recusado por ele.
+
+Como se mede isto, porque não se mede olhando: amostre o estado em laço durante a operação
+(nunca antes e depois), e afirme as duas metades — **apareceu** e **saiu sozinho**. Um teste que
+só afirma que o selo volta aprova o selo instantâneo; um que só afirma que ele aparece aprova o
+selo preso.
+
+## XVI. Teto de cota é por DIA e por MODELO: um pedido por unidade natural não cabe
+
+O recorte natural de uma peça falada é o parágrafo, e por isso o narrador pedia um áudio por
+parágrafo — 28 pedidos numa peça. O teto gratuito do TTS, medido na resposta do próprio servidor
+(2026-11-17), é `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, **`quotaValue: 10`**: dez
+pedidos por **dia** e por **modelo**, com `retryDelay: 7590s` (a virada do dia no fuso do
+Google). A peça morria no terceiro parágrafo, e o sintoma chega como *"o TTS está fora"*.
+
+Duas consequências que valem para qualquer serviço medido assim:
+
+- **Agrupe até o limite de ENTRADA, não até o recorte bonito.** O limite de entrada do modelo é
+  muito maior que um parágrafo: blocos de ~1500 caracteres não custam qualidade, custam menos
+  junta — e a peça passou de 28 pedidos para 5. Recuo exponencial **não** resolve teto diário:
+  ele transforma uma falha rápida numa lenta.
+- **O balde é por modelo.** Com o do canônico gasto, o irmão não-lite tem o próprio — então
+  existe `--modelo`. Trocar muda a voz um pouco, e **quem troca diz no registro qual usou**:
+  nunca implícito, porque a próxima pessoa vai comparar duas peças e achar que a voz regrediu.
