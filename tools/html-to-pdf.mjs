@@ -8,7 +8,7 @@
  * Uso: node tools/html-to-pdf.mjs <entrada.html> <saida.pdf>
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -73,6 +73,9 @@ export async function imprimir(entrada, saida, opcoes = {}) {
     return saida;
   } finally {
     try { filho.kill(); } catch { /* ja morreu */ }
+    // Apaga o perfil efemero. Mesmo vazamento do `drive-page.mjs`: eram 25 pastas, 0,8 GB.
+    // O retry e' porque o Edge solta os arquivos alguns ms depois do kill.
+    try { rmSync(perfil, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch { /* 43 MB nunca derruba o PDF pronto */ }
     // `kill` sozinho nao basta: o Edge re-executa e deixa processos que nao sao filhos deste.
     // O filtro e o PERFIL (unico por corrida) e nunca o nome: o dono tem o Edge dele aberto.
     if (process.platform === 'win32') {

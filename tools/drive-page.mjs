@@ -21,7 +21,7 @@
  * Instalar Playwright para clicar em dois botões seria 300 MB para uma coisa de 120 linhas.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -249,6 +249,72 @@ function encerrarNavegador(perfil) {
   ], { stdio: 'ignore', timeout: 20000 });
 }
 
+/** A pasta de perfis efemeros: `%TEMP%`, onde o nome comeca com o prefixo da ferramenta. */
+const TEMP = process.env.TEMP ?? '/tmp';
+
+/**
+ * APAGA o perfil da corrida. Sem isto, cada corrida deixa ~43 MB em `%TEMP%` para sempre.
+ *
+ * ⚠ Isto nao e' zelo: em 16/11/2026 eram **1.464 pastas `bpmn-drive-*`, 62,6 GB**, com o disco
+ * do dono quase cheio. O perfil NOVO a cada corrida esta certo (o comentario do `--user-data-dir`
+ * diz por que), mas quem cria o efemero e' quem o apaga.
+ *
+ * O retry existe porque o Edge solta os arquivos alguns milissegundos DEPOIS do kill: apagar na
+ * hora falha com EBUSY e deixa a pasta inteira.
+ */
+function apagarPerfil(perfil) {
+  try {
+    rmSync(perfil, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch {
+    // Perfil preso e' lixo de 43 MB, nunca motivo para derrubar a corrida que ja terminou.
+  }
+}
+
+/**
+ * VARRE os perfis que ficaram de corridas mortas (Ctrl-C, timeout, crash) -- onde o `finally`
+ * nunca rodou. Idade minima de uma hora, para nunca alcancar uma corrida em paralelo.
+ */
+function varrerPerfisVelhos(prefixo = 'bpmn-drive-', horas = 1) {
+  const limite = Date.now() - horas * 3600_000;
+  let apagados = 0;
+  let bytes = 0;
+  try {
+    for (const nome of readdirSync(TEMP)) {
+      if (!nome.startsWith(prefixo)) continue;
+      const caminho = `${TEMP}/${nome}`;
+      try {
+        const st = statSync(caminho);
+        if (!st.isDirectory() || st.mtimeMs > limite) continue;
+        // ⚠ Idade NAO basta: uma corrida longa (bateria ao vivo leva minutos) tem perfil antigo
+        // e navegador vivo. O dono do perfil e' quem o tem na linha de comando -- o mesmo filtro
+        // do `encerrarNavegador`, usado aqui ao contrario: para NAO apagar.
+        if (navegadorVivoCom(nome)) continue;
+        rmSync(caminho, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+        apagados += 1;
+        bytes += st.size;
+      } catch {
+        // Pasta de outro usuario, ou que sumiu no meio: segue.
+      }
+    }
+  } catch {
+    // Sem TEMP legivel nao ha faxina, e isso nunca impede a corrida.
+  }
+  return { apagados, bytes };
+}
+
+/** Ha' navegador vivo com este perfil na linha de comando? (So Windows; fora dele, conservador.) */
+function navegadorVivoCom(nome) {
+  if (process.platform !== 'win32') return true;
+  const r = spawnSync('powershell', [
+    '-NoProfile', '-Command',
+    'Get-CimInstance Win32_Process -Filter "Name=\'msedge.exe\' or Name=\'chrome.exe\'" '
+    + `| Where-Object { $_.CommandLine -like '*${nome}*' } | Measure-Object | Select-Object -Expand Count`,
+  ], { encoding: 'utf8', timeout: 20000 });
+  // Falha da consulta nao autoriza apagar: no escuro, preserva.
+  if (r.status !== 0) return true;
+  return Number(String(r.stdout).trim()) > 0;
+}
+
 /**
  * FILMAR a corrida: um quadro a cada `intervaloMs` enquanto os passos rodam.
  *
@@ -310,7 +376,9 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
   // Perfil NOVO a cada corrida: um perfil compartilhado que ficou travado por uma corrida
   // anterior faz o Edge anexar na instancia velha e sair sem abrir a porta - e o sintoma e
   // "o navegador nao abriu a porta", que parece problema de rede e e lixo de disco.
-  const perfil = `${process.env.TEMP ?? '/tmp'}/bpmn-drive-${porta}-${process.pid}-${Date.now()}`;
+  // Faxina ANTES de criar o proximo: cobre a corrida que morreu sem rodar o `finally`.
+  varrerPerfisVelhos();
+  const perfil = `${TEMP}/bpmn-drive-${porta}-${process.pid}-${Date.now()}`;
   /**
    * Bandeiras EXTRAS do navegador, por ambiente (`BPMN_BROWSER_FLAGS`, separadas por espaco).
    *
@@ -453,6 +521,7 @@ export async function dirigir({ url, passos = [], shot = null, espera = 2500, po
   } finally {
     try { filho.kill(); } catch { /* já morreu */ }
     encerrarNavegador(perfil);
+    apagarPerfil(perfil);
   }
 
   return saida;
