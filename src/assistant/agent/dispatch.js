@@ -155,6 +155,11 @@ export function createToolDispatcher({
       try { onAtividade?.({ nome, fase: 'inicio', entrada }); } catch { /* tela nunca derruba */ }
       return comTeto(executor(entrada), nome);
     })();
+    // ⚠ O FIM tambem e' evento. Sem ele o diario tem o comeco de cada chamada e nada mais,
+    // e a pergunta "a espera e nossa ou e' a volta ao modelo?" nao tem como ser medida -- so
+    // estimada pelo intervalo entre comecos, que mistura as duas. Com `concluida`, a nossa
+    // execucao e' executando->concluida e a espera e' concluida->executando seguinte.
+    ev('concluida', nome);
     try { onAtividade?.({ nome, fase: 'fim', entrada: call?.args ?? {}, resultado: resposta }); }
     catch { /* tela nunca derruba */ }
     return { id: call?.id ?? null, name: nome, response: resposta };
