@@ -583,6 +583,20 @@ export function createWidget({ session, credentials, onClose } = {}) {
    * Chave não aparece: `gateways:exclusivo` é prova para nós e ruído para quem lê. O que o
    * aluno confere é "Gateways §10.5".
    */
+  /**
+   * O DETALHE da construção, dentro da mensagem que cresce.
+   *
+   * ⚠ As linhas continuam existindo — elas são a prova do que o agente fez (H3). O que muda é
+   * que elas param de rolar a conversa doze vezes enquanto a pessoa lê.
+   */
+  function montarConstrucao(m) {
+    const caixa = el('div', { className: 'bpmn-assist__constr' });
+    for (const linha of m.construcao.detalhes) {
+      caixa.append(el('div', { className: 'bpmn-assist__constr-item', textContent: linha }));
+    }
+    return caixa;
+  }
+
   function montarFontes(m) {
     const caixa = el('div', { className: 'bpmn-assist__fontes' });
     caixa.append(el('span', { className: 'bpmn-assist__fontes-rotulo', textContent: 'fonte:' }));
@@ -672,6 +686,7 @@ export function createWidget({ session, credentials, onClose } = {}) {
         li.append(el('span', { className: 'bpmn-assist__via', textContent: comoVeio }));
       }
       li.append(el('span', { className: 'bpmn-assist__text', textContent: m.text }));
+      if (m.construcao?.detalhes?.length) li.append(montarConstrucao(m));
       if (m.citacaoSuspeita?.length) li.append(montarCitacaoSuspeita(m));
       if (m.fontes?.length) li.append(montarFontes(m));
       if (m.candidatos?.length) li.append(montarCandidatos(m));
@@ -692,6 +707,14 @@ export function createWidget({ session, credentials, onClose } = {}) {
       // apareceriam na próxima mensagem — ou nunca.
       // ⚠ As fontes chegam DEPOIS do texto, e na voz a bolha já existia quando a consulta
       // terminou: sem este ramo a proveniência só apareceria na mensagem seguinte — ou nunca.
+      // A construção CRESCE: a lista de detalhes é reescrita a cada elemento novo.
+      if (li && m.construcao?.detalhes?.length) {
+        const atual = li.querySelector('.bpmn-assist__constr');
+        if (!atual || atual.children.length !== m.construcao.detalhes.length) {
+          atual?.remove();
+          li.append(montarConstrucao(m));
+        }
+      }
       if (li && m.citacaoSuspeita?.length && !li.querySelector('.bpmn-assist__citacao-suspeita')) {
         li.append(montarCitacaoSuspeita(m));
       }

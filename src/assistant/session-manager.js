@@ -18,7 +18,7 @@
 
 import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
-import { ACOES_COM_PORTAO, portaoDaFerramenta } from './agent/catalog.js';
+import { ACOES_COM_PORTAO, escreveNoDesenho, portaoDaFerramenta } from './agent/catalog.js';
 import {
   avisoDeCitacaoNaVoz, candidatosDoResultado, fontesDoResultado, linhaDeFim, linhaDeInicio,
   mostraveisDoResultado,
@@ -51,6 +51,9 @@ export const STATE_LABELS = {
   // Ferramenta rodando é um estado PRÓPRIO: dizer 'pronto' enquanto se varre o diagrama é mentir
   // para quem está esperando, e foi por falta deste selo que a espera parecia travamento.
   tool: 'consultando',
+  // ⚠ Três segundos de "pensando" e três de "desenhando" são a mesma espera com significados
+  // diferentes — e o segundo explica por que o canvas está mudando sozinho (2026-11-17).
+  escrevendo: 'desenhando',
   closing: 'encerrando',
   error: 'erro',
 };
@@ -246,6 +249,42 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
    * recorte certo é conversacional, não aritmético: **o que foi consultado desde que o aluno
    * falou** é exatamente a proveniência da resposta que ele está ouvindo.
    */
+  /**
+   * A MENSAGEM DE CONSTRUÇÃO: uma que cresce, em vez de uma linha por chamada.
+   *
+   * ⚠ Numa construção de doze elementos a conversa virava parede de texto — com duas linhas de
+   * *"desfiz"* no meio, que são o modelo se corrigindo e, para quem lê, parecem erro (print do
+   * dono, 2026-11-17). As linhas detalhadas continuam existindo DENTRO dela: elas são a prova do
+   * que foi feito (H3), e esconder a prova trocaria um problema pelo outro.
+   *
+   * A partir da SEGUNDA escrita do mesmo turno — uma escrita isolada não merece cerimônia.
+   */
+  let construcao = null;
+  const zerarConstrucao = () => { construcao = null; };
+  /**
+   * Desfazer DENTRO de uma construção é o modelo consertando a própria tentativa — não é
+   * erro, e a palavra *"desfiz"* no meio de doze linhas fez o dono achar que algo quebrou.
+   *
+   * ⚠ Mapa com chave não citada, nunca `nome === '...'`: nome de ferramenta como chave é
+   * declaração, como string seria despacho (guardrail).
+   */
+  const AJUSTE_DURANTE_CONSTRUCAO = { desfazer: true };
+  /**
+   * Quantas FORMAS o desenho tem agora.
+   *
+   * ⚠ A contagem da construção conta o DESENHO, e não as chamadas. Contar chamadas dizia
+   * *"7 elementos"* depois de seis criações e um desfazer — quando havia cinco. Era o número
+   * da mensagem mentindo sobre a tela, no commit que existe para a tela parar de mentir.
+   */
+  const formasAgora = () => {
+    try {
+      return (deps.acesso?.elementos?.() ?? [])
+        .filter((e) => e && !e.labelTarget && e.parent && !Array.isArray(e.waypoints)).length;
+    } catch {
+      return null;
+    }
+  };
+
   let fontesDaVez = [];
   /** Nova fala (ou nova pergunta digitada): a proveniência da anterior morre com ela. */
   const zerarFontes = () => { fontesDaVez = []; };
@@ -1016,13 +1055,18 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           // mensagem da conversa, não um enfeite paralelo.
           estadoAntesDaFerramenta = state;
           atividade = push({ role: 'tool', text: linhaDeInicio(nome), rodando: true, turn: turnSeq });
-          // Estado próprio: 'pronto' durante uma busca é mentira, e 'falando' também.
-          setState('tool', nome);
+          // Estado próprio: 'pronto' durante uma busca é mentira, e 'falando' também. E
+          // escrever no desenho tem selo próprio: a espera é a mesma, o significado não.
+          setState(escreveNoDesenho(nome) ? 'escrevendo' : 'tool', nome);
           return;
         }
         if (atividade) {
           // + a assimetria da voz, quando ela importa (K6): ver `avisoDeCitacaoNaVoz`.
           atividade.text = linhaDeFim(nome, entrada, resultado) + avisoDeCitacaoNaVoz(nome, mode);
+          if (AJUSTE_DURANTE_CONSTRUCAO[nome] && construcao) {
+            const quantos = Number(resultado?.resultado?.desfeitos ?? resultado?.desfeitos ?? 1);
+            atividade.text = `ajustei — refiz ${quantos} ${quantos === 1 ? 'elemento' : 'elementos'}`;
+          }
           atividade.rodando = false;
           /**
            * AMBIGUIDADE VIRA BOTÃO (change `close-the-loop-with-the-canvas`, tarefa 4).
@@ -1041,6 +1085,10 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
            */
           const mostraveis = mostraveisDoResultado(nome, resultado);
           if (mostraveis.length) atividade.mostraveis = mostraveis;
+          // E o CANVAS pisca no que acabou de mudar: é onde a pessoa está olhando.
+          for (const m of mostraveis) {
+            try { deps.acesso?.destacarBrevemente?.(m.id); } catch { /* cortesia nunca derruba */ }
+          }
           /**
            * E A PROVENIÊNCIA: o que a consulta SERVIU, na bolha dela e guardado no turno.
            *
@@ -1057,6 +1105,39 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           const fontes = fontesDoResultado(nome, resultado);
           // Duas consultas antes da mesma resposta somam, sem repetir chave.
           if (fontes.length) guardarFontes(fontes);
+
+          /**
+           * A PAREDE DE TEXTO VIRA UMA MENSAGEM QUE CRESCE.
+           *
+           * A partir da segunda escrita do mesmo turno, a linha nova é absorvida pela mensagem de
+           * construção: o detalhe entra numa lista dentro dela, e a conversa para de rolar doze
+           * vezes enquanto a pessoa lê.
+           */
+          if (escreveNoDesenho(nome)) {
+            const linha = atividade.text;
+            if (!construcao) {
+              // A base é o desenho ANTES desta construção: a primeira forma já entrou.
+              const agora = formasAgora();
+              construcao = { msg: atividade, base: agora === null ? null : agora - 1, elementos: 1, detalhes: [linha] };
+            } else {
+              const agora = formasAgora();
+              construcao.elementos = (agora !== null && construcao.base !== null)
+                ? Math.max(0, agora - construcao.base)
+                : construcao.elementos + 1;
+              construcao.detalhes.push(linha);
+              construcao.msg.construcao = { elementos: construcao.elementos, detalhes: [...construcao.detalhes] };
+              construcao.msg.text = `montando o processo — ${construcao.elementos} elementos`;
+              // A linha desta chamada já foi absorvida: a mensagem dela sai da conversa.
+              const i = messages.indexOf(atividade);
+              if (i >= 0) messages.splice(i, 1);
+              atividade = null;
+              if (state === 'escrevendo' || state === 'tool') {
+                setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
+              }
+              publish();
+              return;
+            }
+          }
           atividade = null;
         }
         // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
@@ -1375,7 +1456,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
           // ⚠ FALA NOVA ZERA A PROVENIÊNCIA: as fontes da resposta anterior não são fontes
           // desta. Só no começo da fala — um pedaço no meio dela não é uma fala nova (a mesma
           // conta da época do portão falado).
-          if (!rastreador?.estaFalando) zerarFontes();
+          if (!rastreador?.estaFalando) { zerarFontes(); zerarConstrucao(); }
           // ⚠ UM pedaço não é uma pergunta. O rastreador junta os pedaços numa fala só e a bolha
           // CRESCE; quem fecha é sinal do servidor, nunca um relógio nosso.
           turnoDaFala = turnoLocal(turno);
@@ -1744,6 +1825,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       voltarAFalar('pergunta nova');
       // Pergunta nova é resposta nova: as fontes da anterior não são fontes desta.
       zerarFontes();
+      zerarConstrucao();
       alunoFalou();
       const daSessao = session.ask(q, delta);
       const n = (daSessao === undefined || daSessao === null) ? ++turnSeq : turnoLocal(daSessao);

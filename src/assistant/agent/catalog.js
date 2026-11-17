@@ -589,6 +589,11 @@ export const ACOES_COM_PORTAO = Object.freeze(Object.fromEntries(
   FERRAMENTAS.filter((f) => f.exigeConfirmacao).map((f) => [f.nome, f.exigeConfirmacao]),
 ));
 
+/** A ferramenta mexe no DESENHO? O selo e a mensagem de construção perguntam isto. */
+export function escreveNoDesenho(nome) {
+  return Boolean(FERRAMENTAS.find((f) => f.nome === nome)?.escreve);
+}
+
 /** Existe no catálogo? É só isso — se vale AQUI é pergunta da política (`policy.js`). */
 export function declarada(nome) {
   return FERRAMENTAS.some((f) => f.nome === nome);

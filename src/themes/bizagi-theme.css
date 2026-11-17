@@ -119,3 +119,16 @@
   paint-order: stroke fill !important;
   vector-effect: non-scaling-stroke !important;
 }
+
+/* O PISCAR do elemento que o agente acabou de mexer (2026-11-17).
+   ⚠ Não é cor no DI: marca do canvas, que sai sozinha e não entra no arquivo do aluno. */
+.djs-element.bpmn-assist-pisca .djs-visual > :first-child {
+  stroke: #2563eb !important;
+  stroke-width: 3px !important;
+}
+.djs-element.bpmn-assist-pisca { animation: bpmn-assist-pisca 600ms ease-out 1; }
+@keyframes bpmn-assist-pisca {
+  0% { opacity: .35; }
+  40% { opacity: 1; }
+  100% { opacity: 1; }
+}

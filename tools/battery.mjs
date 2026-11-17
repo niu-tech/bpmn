@@ -1758,6 +1758,100 @@ CENARIOS.push({
 });
 
 /**
+ * O TRABALHO VISIVEL (change `show-the-work-while-the-agent-builds`, 2026-11-17).
+ *
+ * O dono, vendo o agente desenhar um processo inteiro: *"o usuario esta vendo e nao sabe que esta
+ * acontecendo alguma coisa, a nao ser a resposta visual que tem no chat, mas ela poderia ser
+ * melhor tambem"*. O canvas nao dava sinal nenhum, e o chat virava parede — uma linha por
+ * chamada, com duas de "desfiz" no meio que sao o modelo se corrigindo.
+ *
+ * O que este portao mede, sem cota:
+ *
+ *  1. seis escritas no mesmo turno viram UMA mensagem de construcao, nao seis mensagens;
+ *  2. o detalhe de cada escrita continua dentro dela (a prova nao some — H3);
+ *  3. o selo diz DESENHANDO enquanto a escrita corre (nao "consultando", nao "pronto");
+ *  4. o canvas PISCA no elemento que acabou de mudar, e para de piscar sozinho;
+ *  5. desfazer no meio da construcao aparece como AJUSTE, nao como erro.
+ *
+ * ⚠ Principio XIII: "nao ha seis mensagens" e' verdade num chat vazio. O portao afirma ANTES que
+ * os seis elementos entraram no desenho, e so' entao conta as mensagens.
+ */
+CENARIOS.push({
+  // ⚠ MAPA DOS VERMELHOS: `umaMensagem` e `detalheDentro` caem juntas se o agrupamento sumir;
+  // `seloDesenhando` cai sozinha; `piscou`/`parouDePiscar` caem juntas (sao o mesmo mecanismo);
+  // `ajusteNaoErro` cai sozinha se o desfazer voltar a dizer "desfiz" no meio da construcao.
+  nome: 'o trabalho visivel: uma mensagem que cresce, selo proprio e o canvas piscando',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `const A = window.__bpmnAssist;
+     const F = async (n, a) => (await A.ferramenta(n, a))?.resultado ?? null;
+     const nos = () => A.desenho.nos;
+     const msgs = () => [...document.querySelectorAll('.bpmn-assist__msg--tool')];
+     const base = nos().find((x) => (x.nome || '').toLowerCase() === 'pagar a pizza');
+     if (!base) return { ok: false, erro: 'o diagrama base nao tem a tarefa esperada' };
+
+     const formasAntes = nos().length;
+     const msgsAntes = msgs().length;
+
+     // 3. O SELO: dispara a escrita e olha o estado ANTES de ela terminar.
+     const emVoo = A.ferramenta('criar_elemento', { tipo: 'Task', nome: 'Passo 1', depoisDe: base.id });
+     let seloDesenhando = false;
+     for (let i = 0; i < 20 && !seloDesenhando; i++) {
+       if (A.estado.estado === 'escrevendo') seloDesenhando = true;
+       await new Promise((f) => setTimeout(f, 10));
+     }
+     const criado = (await emVoo)?.resultado ?? null;
+
+     // 4. O PISCAR, medido na classe do proprio canvas (nao e' cor no arquivo do aluno).
+     const seletor = 'g.djs-element[data-element-id="' + (criado?.criado?.id || '') + '"]';
+     const piscou = !!document.querySelector(seletor + '.bpmn-assist-pisca');
+
+     // 1 e 2. Mais cinco escritas: a conversa nao pode crescer cinco vezes.
+     let anterior = criado?.criado?.id;
+     for (let i = 2; i <= 6; i++) {
+       const r = await F('criar_elemento', { tipo: 'Task', nome: 'Passo ' + i, depoisDe: anterior });
+       anterior = r?.criado?.id ?? anterior;
+     }
+     const formasDepois = nos().length;
+     const entraram = formasDepois - formasAntes;
+
+     const construcao = msgs().find((m) => /montando o processo/.test(m.textContent));
+     const detalhes = construcao ? construcao.querySelectorAll('.bpmn-assist__constr-item').length : 0;
+     const umaMensagem = !!construcao && (msgs().length - msgsAntes) === 1;
+     const detalheDentro = detalhes >= 5;
+
+     // 5. Desfazer DENTRO da construcao e' ajuste.
+     await F('desfazer', {});
+     const ultima = msgs().at(-1)?.textContent || '';
+     const ajusteNaoErro = /ajustei/.test(ultima) && !/desfiz/.test(ultima);
+     // ⚠ E o NUMERO da mensagem tem de cair junto: contar chamadas diria 7 depois de seis
+     // criacoes e um desfazer, com cinco formas na tela. O numero conta o DESENHO.
+     const formasAgora = nos().length - formasAntes;
+     // ⚠ RE-CONSULTA o DOM: quando a mensagem do desfazer e' absorvida, a lista encolhe e o
+     // painel redesenha tudo (replaceChildren) — o no capturado antes fica orfao, mostrando o
+     // numero velho. Ler de um no destacado e' medir um passado que nao esta' mais na tela.
+     const construcaoAgora = msgs().find((m) => /montando o processo/.test(m.textContent));
+     const titulo = construcaoAgora ? (construcaoAgora.querySelector('.bpmn-assist__text')?.textContent || '') : '';
+     const numeroDito = parseInt((titulo.split('—')[1] || '').trim(), 10);
+     const numeroBateComATela = numeroDito === formasAgora;
+
+     await new Promise((f) => setTimeout(f, 900));
+     const parouDePiscar = !document.querySelector('.bpmn-assist-pisca');
+
+     return {
+       ok: entraram >= 6 && umaMensagem && detalheDentro && seloDesenhando && piscou
+         && parouDePiscar && ajusteNaoErro && numeroBateComATela,
+       entraram, umaMensagem, detalheDentro, detalhes, seloDesenhando, piscou, parouDePiscar,
+       ajusteNaoErro,
+       mensagensNovas: msgs().length - msgsAntes,
+       numeroDito, formasAgora, numeroBateComATela, tituloCru: titulo.slice(0, 60),
+       ultimaLinha: ultima.slice(0, 70),
+     };`,
+  ],
+});
+
+/**
  * A FOLHA LIMPA (change `start-a-new-process-without-losing-work`, 2026-11-17).
  *
  * O dono, vendo o produto no ar: *"eu estou olhando para um processo, mas eu quero fazer um do

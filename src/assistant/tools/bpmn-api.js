@@ -939,6 +939,30 @@ export function criarAcessoBpmn(modelador) {
      */
     get comandosRegistrados() { return comandos; },
 
+    /**
+     * PISCA o elemento que acabou de mudar — onde o aluno está olhando.
+     *
+     * ⚠ Durante uma construção de doze elementos, o canvas não dava sinal nenhum: a forma
+     * aparecia e pronto. O dono (2026-11-17): *"o usuário está vendo e não sabe que está
+     * acontecendo alguma coisa"*. O chat falava; o desenho, não.
+     *
+     * ⚠ NÃO é `setColor`: cor entra no DI e fica no arquivo do aluno depois que a curiosidade
+     * passou. Marca do próprio canvas, que sai sozinha e não existe no XML.
+     */
+    destacarBrevemente(id, ms = 600) {
+      const el = this.porId(id);
+      if (!el || typeof canvas.addMarker !== 'function') return false;
+      try {
+        canvas.addMarker(el.id, 'bpmn-assist-pisca');
+        setTimeout(() => {
+          try { canvas.removeMarker(el.id, 'bpmn-assist-pisca'); } catch { /* elemento saiu: nada a tirar */ }
+        }, Math.max(100, ms));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
     /** Pinta (ou despinta) elementos. `modeling.setColor` grava no DI — desfazível como o resto. */
     destacar({ els, cores }) {
       modeling.setColor(els, cores);
