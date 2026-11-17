@@ -46,7 +46,7 @@
 ## 6. Registro
 
 - [x] 6.1 `openspec/changes/README.md` com a linha da change
-- [ ] 6.2 Conferir no **publicado** depois do deploy (a lição de hoje: CI vermelho deixa o site
+- [x] 6.2 Conferir no **publicado** depois do deploy (a lição de hoje: CI vermelho deixa o site
       parado, e medir o publicado é o que denuncia)
 
 ## Ao vivo (2026-11-17) — o mesmo pedido, antes e depois
@@ -74,6 +74,17 @@ montando o processo — 7 elementos
 entendeu *"o chamado chega"* como o evento de início que já existia, em vez de criar outro. É
 escolha dele sobre o processo, não efeito do verbo — e vale registrar para ninguém ler a diferença
 de contagem como perda.
+
+## E no publicado (2026-11-17, 15h40), depois do CI verde
+
+`niu-tech.github.io/bpmn`, mesmo pedido: **3 chamadas** (`criar_pool` · `criar_sequencia` ·
+`criar_decisao`), **1,7 s**, 2 → 10 formas. O verbo chegou à tela de quem abre o site, e não só ao
+dev server.
+
+⚠ Aqui o modelo desenhou as **10** formas (contra 9 na corrida local), porque desta vez criou a
+tarefa *"o chamado chega"* em vez de aproveitar o evento de início. Mesma ferramenta, decisão dele
+sobre o processo — e é a razão de a prova desta frente afirmar **chamadas e verbos**, que são
+nossos, e não a contagem de formas, que é dele.
 
 ## Os dois achados desta rodada
 
