@@ -3858,6 +3858,289 @@ if (chaveViva) {
     });
   }
 
+  /**
+   * ------------------------------------------------- AO VIVO: a DECISAO com os dois caminhos
+   *
+   * O pedido e' o do dono, com as palavras dele na sessao de 2026-11-17 que abriu a change: um
+   * atendimento de chamado com uma decisao de ter componentes suficientes ou nao. Naquela sessao
+   * o modelo abriu UM caminho, desfez duas vezes, criou elementos soltos e tentou renomear um
+   * Flow_ que nao existia mais -- porque comoRamo nunca tinha sido declarado e nao havia
+   * ramificar.
+   *
+   * \u26a0 O que se mede e' o REGISTRO do bpmn-js, nunca a narracao. O agente dizer "pronto, a
+   * decisao tem dois caminhos" foi exatamente o que aconteceu no dia em que ela tinha um.
+   */
+  CENARIOS.push({
+    nome: 'AO VIVO: a decisao nasce com os DOIS caminhos rotulados, do pedido em palavras (5.3)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    espera: 4500,
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Come\u00e7ar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Come\u00e7ar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${MEDIR_SOBREPOSICAO}
+       window.__idsDe = (d) => d.nos.map((n) => n.id).concat(d.ligacoes.map((l) => l.id));
+       window.__antes = window.__idsDe(window.__bpmnAssist.desenho);
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && window.__antes.length > 5,
+         elementosAntes: window.__antes.length,
+       };`,
+
+      `// As palavras do dono, sem id, sem tipo, sem dizer "ramifique".
+       //
+       // ⚠ O pedido diz ONDE (um pool novo): o diagrama da aula e' uma colaboração com dois
+       // pools, e sem isso o agente pergunta em qual deles desenhar -- pergunta legítima, e
+       // ambiguidade que este portão NÃO mede. Quem mede lugar ambíguo e' o portão do
+       // candidato clicável; aqui o que está sob teste e' a DECISÃO ter dois caminhos.
+       const r = await window.__resposta('Quero desenhar, num pool novo chamado Suporte, o atendimento de um chamado. Ele comeca quando o chamado chega, o tecnico analisa o chamado, e depois tem uma decisao: se tem componentes suficientes ele faz o reparo e encerra; se nao tem, ele pede os componentes e o processo termina esperando.');
+       const d = window.__bpmnAssist.desenho;
+       const novos = d.nos.filter((n) => !window.__antes.includes(n.id));
+       const decisoes = novos.filter((n) => /Gateway/.test(n.tipo));
+       // A decisao que vale e a que tem mais saidas: se ele criou duas, o portao olha a melhor.
+       const saidasDe = (id) => d.ligacoes.filter((l) => l.de === id);
+       const decisao = decisoes
+         .map((g) => ({ g, saidas: saidasDe(g.id) }))
+         .sort((a, b) => b.saidas.length - a.saidas.length)[0] ?? null;
+       const rotulos = decisao ? decisao.saidas.map((l) => (l.nome ?? '').trim()) : [];
+       // \u26a0 ORFAO = elemento que nao se liga a nada, nem de entrada nem de saida. Foi o lixo que
+       // sobrou na sessao do dono quando o segundo caminho nao pode nascer ligado.
+       const ligado = (id) => d.ligacoes.some((l) => l.de === id || l.para === id);
+       // ⚠ Contêiner NÃO e' orfão: pool, raia, grupo e anotação não se ligam a nada por
+       // DEFINIÇÃO -- eles CONTÊM o fluxo. A primeira corrida verde deste portão reprovou
+       // com orfaos:[Participant "Suporte"] enquanto a decisão tinha os dois caminhos
+       // rotulados: era o instrumento medindo errado, e o conserto e' no instrumento.
+       const CONTEINER = /Participant|Lane|Group|TextAnnotation/;
+       const orfaos = novos
+         .filter((n) => !CONTEINER.test(n.tipo) && !ligado(n.id))
+         .map((n) => n.tipo + (n.nome ? ' "' + n.nome + '"' : ''));
+       const empilhados = novos
+         .map((n) => ({ id: n.id, sobre: window.__sobrepoe(n.id) }))
+         .filter((x) => Array.isArray(x.sobre) && x.sobre.length)
+         .map((x) => x.id + ' sobre ' + x.sobre.join(','));
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').map((e) => e.detail);
+       return {
+         // \u26a0 Principio XIII: "zero orfaos" e verdade num canvas que nao desenhou nada. O piso
+         // (o desenho CRESCEU, a decisao existe) vem antes da ausencia.
+         ok: !r.startsWith('[FALHA DO SERVICO]')
+           && novos.length >= 4
+           && !!decisao
+           && decisao.saidas.length >= 2
+           && rotulos.filter(Boolean).length >= 2
+           && orfaos.length === 0
+           && empilhados.length === 0,
+         elementosNovos: novos.length,
+         decisao: decisao ? (decisao.g.nome ?? decisao.g.id) + ' (' + decisao.g.tipo + ')' : null,
+         caminhos: decisao ? decisao.saidas.length : 0,
+         rotulos,
+         orfaos,
+         nasceramEmpilhados: empilhados,
+         // A prova de que o modelo ESCOLHEU o verbo novo -- ou nao precisou dele.
+         ferramentasChamadas: chamadas,
+         ramificou: chamadas.filter((x) => /ramificar/.test(x ?? '')).length,
+         ligacoesNovas: d.ligacoes.filter((l) => !window.__antes.includes(l.id)).map((l) => l.de + ' -> ' + l.para + (l.nome ? ' «' + l.nome + '»' : '')),
+         respondeu: r.slice(0, 300),
+       };`,
+    ],
+  });
+
+  /**
+   * ------------------------------------------- AO VIVO: o trabalho VISIVEL, do comeco ao fim
+   *
+   * O dono olhou a tela durante uma construcao em producao e nao soube se algo estava
+   * acontecendo: cada bloco levava 3 a 5 s e a tela nao dizia nada. Este portao mede o que a
+   * tela MOSTROU enquanto o modelo trabalhava -- amostrando durante, nao depois.
+   *
+   * \u26a0 Esta change NAO promete velocidade: a espera entre chamadas e a volta ao modelo. O que
+   * ela promete e a espera LEGIVEL, e e isso que esta sob teste. O filme fica em
+   * artifacts/bateria/filme-construcao/ (monte com: node tools/video-prova.mjs).
+   */
+  CENARIOS.push({
+    nome: 'AO VIVO: a tela conta o que esta sendo desenhado, do comeco ao fim (5.3)',
+    url: ALVO.replace('viewer.html', 'index.html'),
+    espera: 4500,
+    filme: { pasta: 'artifacts/bateria/filme-construcao', intervaloMs: 500 },
+    passos: [
+      `${ESPERAR_RESPOSTA}
+       document.querySelector('.bpmn-assist__toggle').click();
+       document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+       const c = document.querySelector('#bpmn-assist-consent');
+       c.checked = true; c.dispatchEvent(new Event('change'));
+       for (let i = 0; i < 40 && !window.__btn('Come\u00e7ar'); i++) await new Promise((r) => setTimeout(r, 250));
+       window.__btn('Come\u00e7ar').click();
+       for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+         await new Promise((r) => setTimeout(r, 500));
+       }
+       ${MEDIR_SOBREPOSICAO}
+       window.__idsDe = (d) => d.nos.map((n) => n.id).concat(d.ligacoes.map((l) => l.id));
+       window.__antes = window.__idsDe(window.__bpmnAssist.desenho);
+       return {
+         ok: document.querySelector('.bpmn-assist__status').textContent === 'pronto' && window.__antes.length > 5,
+         elementosAntes: window.__antes.length,
+       };`,
+
+      `// NAO espera a resposta: o que interessa e o MEIO da construcao.
+       // O lugar vem no pedido (pool novo): a ambiguidade de pool e' de outro portao, e aqui
+       // ela impediria a construcao de comecar -- o agente para e pergunta, com razao.
+       //
+       // ⚠ E o laco para quando a RESPOSTA chega. Antes ele olhava window.__terminou, que
+       // ninguem setava: a amostragem ia ate o fim das 160 voltas (64 s) medindo tela parada.
+       const pedido = window.__resposta('Monte, num pool novo chamado Compras, um processo de compra com seis passos em sequencia: o pedido chega, o comprador confere o estoque, cota com tres fornecedores, escolhe o fornecedor, emite a ordem de compra e recebe o material; no fim o processo termina.');
+       pedido.then(() => { window.__pronto = true; }, () => { window.__pronto = true; });
+       const selos = new Set();
+       const estados = new Set();
+       const amostras = [];
+       let piscouAlgumaVez = false;
+       let maiorContagem = 0;
+       // 120 ms: uma escrita custa ~0,6 s do nosso lado, e amostrar a 400 ms pode perder a
+       // janela inteira de um selo. O laco roda na pagina, entao amostrar mais rapido e' de graca.
+       for (let i = 0; i < 500; i++) {
+         await new Promise((r) => setTimeout(r, 120));
+         // ⚠ Os DOIS: o estado (que e' o que o produto decide) e o rótulo (que e' o que o
+         // aluno lê). Medir só o rótulo confunde "o selo não existe" com "a tela não pintou".
+         const selo = document.querySelector('.bpmn-assist__status')?.textContent?.trim() ?? '';
+         selos.add(selo);
+         estados.add(window.__bpmnAssist.estado.estado);
+         if (document.querySelector('.djs-element.bpmn-assist-pisca')) piscouAlgumaVez = true;
+         const constr = document.querySelector('.bpmn-assist__msg--tool .bpmn-assist__constr, .bpmn-assist__constr');
+         const titulo = [...document.querySelectorAll('.bpmn-assist__msg--tool')].at(-1)?.textContent?.trim() ?? '';
+         const m = /(\\d+) elemento/.exec(titulo);
+         if (m) maiorContagem = Math.max(maiorContagem, Number(m[1]));
+         if (i % 8 === 0) amostras.push((i * 0.12).toFixed(1) + 's ' + selo + ' | ' + titulo.slice(0, 60));
+         if (window.__pronto) break;
+       }
+       window.__r = await pedido;
+       window.__selos = [...selos];
+       window.__estados = [...estados];
+       window.__amostras = amostras;
+       window.__piscou = piscouAlgumaVez;
+       window.__maiorContagem = maiorContagem;
+       return { ok: true, selosVistos: window.__selos, estadosVistos: window.__estados, piscou: piscouAlgumaVez };`,
+
+      `const d = window.__bpmnAssist.desenho;
+       const novos = d.nos.filter((n) => !window.__antes.includes(n.id));
+       // A mensagem de construcao: UMA, com a lista dentro dela.
+       const constr = [...document.querySelectorAll('.bpmn-assist__constr')];
+       const detalhes = constr.length ? constr[0].querySelectorAll('.bpmn-assist__constr-item').length : 0;
+       const titulo = [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim()).at(-1) ?? '';
+       const linhasDeFerramenta = document.querySelectorAll('.bpmn-assist__msg--tool').length;
+       const chamadas = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando').length;
+       // Quanto tempo o aluno passou olhando: do primeiro tool.executando ao ultimo.
+       const exec = window.__bpmnAssist.eventos.filter((e) => e.key === 'tool.executando');
+       const duracao = exec.length > 1 ? Number(((exec.at(-1).ms - exec[0].ms) / 1000).toFixed(1)) : null;
+       return {
+         // Piso primeiro (o desenho cresceu e houve mais de uma escrita), depois o que a tela disse.
+         ok: novos.length >= 5
+           && chamadas >= 2
+           && window.__estados.includes('escrevendo')
+           && window.__piscou === true
+           && constr.length === 1
+           && detalhes >= 2
+           && linhasDeFerramenta < chamadas,
+         elementosNovos: novos.length,
+         chamadasDeFerramenta: chamadas,
+         // A PROVA da change: a conversa tem MENOS linhas do que chamadas -- elas foram absorvidas.
+         linhasDeFerramenta,
+         mensagensDeConstrucao: constr.length,
+         detalhesDentro: detalhes,
+         estadoDeEscritaApareceu: window.__estados.includes('escrevendo'),
+         estadosVistos: window.__estados,
+         // O que o ALUNO leu. Divergir do estado e' defeito de tela, e tem de aparecer aqui.
+         selosQueATelaPintou: window.__selos,
+         canvasPiscou: window.__piscou,
+         tituloFinal: titulo.slice(0, 80),
+         segundosDeConstrucao: duracao,
+         // \u26a0 Numero do nosso lado + numero da espera: e o insumo de 1.3, nao uma promessa.
+         segundosPorChamada: duracao && chamadas > 1 ? Number((duracao / (chamadas - 1)).toFixed(1)) : null,
+         comoATelaFoiMudando: window.__amostras,
+       };`,
+    ],
+  });
+
+  /**
+   * --------------------------------------------- AO VIVO: a FOLHA LIMPA pedida por voz (5.3)
+   *
+   * Duas falas num WAV so, com 14 s de silencio entre elas (tools/wav-pad.mjs juntar): a
+   * primeira pede do zero, a segunda responde o que fazer com o que havia. O silencio e' o que
+   * da tempo de o agente perguntar.
+   *
+   * \u26a0 A ORDEM e' o que se mede: recusou primeiro, limpou depois. Um portao frouxo apaga o
+   * desenho do aluno sem ele ter dito nada; um duro trava a conversa.
+   */
+  const WAV_FOLHA = 'artifacts/voz/folha-limpa.wav';
+  if (existsSync(WAV_FOLHA)) {
+    CENARIOS.push({
+      nome: 'AO VIVO: "quero comecar do zero" por VOZ -- recusa, o aluno responde, e so entao limpa (5.3)',
+      url: ALVO.replace('viewer.html', 'index.html'),
+      mic: WAV_FOLHA,
+      espera: 3000,
+      passos: [
+        `window.__btn = (txt) => [...document.querySelectorAll('.bpmn-assist__panel button')].find((b) => b.textContent.trim() === txt);
+         document.querySelector('.bpmn-assist__toggle').click();
+         document.querySelector('#bpmn-assist-key').value = ${JSON.stringify(chaveViva)};
+         const c = document.querySelector('#bpmn-assist-consent');
+         c.checked = true; c.dispatchEvent(new Event('change'));
+         window.__btn('Come\u00e7ar').click();
+         for (let i = 0; i < 40 && document.querySelector('.bpmn-assist__status').textContent !== 'pronto'; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+         }
+         window.__formas = () => window.__bpmnAssist.desenho.nos.length;
+         window.__antesDeTudo = window.__formas();
+         document.querySelector('.bpmn-assist__mic').click();
+         for (let i = 0; i < 60 && !window.__bpmnAssist.estado.micOn; i++) await new Promise((r) => setTimeout(r, 500));
+         return {
+           ok: window.__bpmnAssist.estado.micOn === true && window.__antesDeTudo > 5,
+           micAberto: window.__bpmnAssist.estado.micOn,
+           // Piso: havia TRABALHO na tela. Limpar um canvas vazio nao prova portao nenhum.
+           formasAntes: window.__antesDeTudo,
+           selo: document.querySelector('.bpmn-assist__status').textContent,
+         };`,
+
+        `// A primeira fala esta tocando. O agente deve RECUSAR e perguntar -- e nada pode mudar.
+         let recusouEm = null;
+         for (let i = 0; i < 70; i++) {
+           await new Promise((r) => setTimeout(r, 500));
+           const ev = window.__bpmnAssist.eventos.find((e) => e.key === 'tool.sem-confirmacao');
+           if (ev) { recusouEm = Number((ev.ms / 1000).toFixed(1)); break; }
+         }
+         window.__recusouEm = recusouEm;
+         return {
+           ok: recusouEm !== null && window.__formas() === window.__antesDeTudo,
+           recusouEm: recusouEm === null ? 'nunca' : recusouEm + 's',
+           // Enquanto o aluno nao responde, o desenho dele TEM de continuar inteiro.
+           desenhoIntacto: window.__formas() === window.__antesDeTudo,
+           formasAgora: window.__formas(),
+           perguntou: [...document.querySelectorAll('.bpmn-assist__msg--assistant')].map((m) => m.textContent.trim()).at(-1)?.slice(0, 200) ?? '(sem fala)',
+         };`,
+
+        `// A segunda fala ("Pode limpar, sim") entra 14 s depois. So entao a tela limpa.
+         for (let i = 0; i < 100 && window.__formas() > 2; i++) await new Promise((r) => setTimeout(r, 500));
+         const ev = window.__bpmnAssist.eventos;
+         const falas = [...document.querySelectorAll('.bpmn-assist__msg--user')].map((m) => m.textContent.trim());
+         const linhas = [...document.querySelectorAll('.bpmn-assist__msg--tool')].map((m) => m.textContent.trim());
+         const d = window.__bpmnAssist.desenho;
+         return {
+           ok: window.__formas() <= 2 && window.__recusouEm !== null && window.__formas() < window.__antesDeTudo,
+           // A ORDEM e a prova: recusou primeiro, limpou depois.
+           recusouEm: window.__recusouEm + 's',
+           formasAntes: window.__antesDeTudo,
+           formasAgora: window.__formas(),
+           oQueSobrou: d.nos.map((n) => n.tipo + (n.nome ? ' "' + n.nome + '"' : '')),
+           ouviu: falas.map((f) => f.slice(0, 80)),
+           linhasDeFerramenta: linhas.slice(-3),
+           linhaDoTempo: ev.filter((e) => ['ws.input-text', 'tool.executando', 'tool.sem-confirmacao', 'ws.turn-complete'].includes(e.key))
+             .map((e) => Number((e.ms / 1000).toFixed(1)) + 's ' + e.key + (e.detail ? ' ' + e.detail : '')),
+         };`,
+      ],
+    });
+  }
+
   console.log('(cenarios AO VIVO habilitados: .env com chave encontrado)\n');
 } else {
   console.log('(sem .env com GEMINI_API_KEY: o cenario AO VIVO fica de fora)\n');
@@ -3918,6 +4201,8 @@ for (const c of aRodar) {
   const r = await dirigir({
     url: c.url,
     mic: c.mic ?? null,
+    // Filme: quadros com carimbo de tempo, para VER a construcao acontecendo (video-prova.mjs).
+    filme: c.filme ?? null,
     passos: c.passos,
     espera: c.espera ?? 2600,
     largura: c.janela?.[0] ?? 1280,

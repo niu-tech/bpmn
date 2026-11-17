@@ -283,6 +283,20 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   /** Quantas formas o desenho tinha quando a ferramenta de agora começou. */
   let formasAntesDaFerramenta = null;
   /**
+   * Quanto tempo o selo de ESCRITA fica no mínimo, para dar tempo de ler.
+   *
+   * ⚠ Medido ao vivo em 2026-11-17: numa construção de oito elementos, o estado `escrevendo`
+   * **nunca** foi observado — nem amostrando a tela a cada 120 ms. A escrita do nosso lado é
+   * SÍNCRONA (`modeling.appendShape` volta na hora): o estado nascia e morria no mesmo passo do
+   * laço de eventos, e os 0,6 s entre elementos são a volta ao MODELO, com o selo já devolvido.
+   *
+   * Um selo que existe por microssegundos não é feedback — é contabilidade interna. Esta espera
+   * é o que transforma o estado em algo que o aluno consegue LER, e é exatamente o que ele pediu
+   * ao dizer que a tela não contava nada enquanto o modelo trabalhava.
+   */
+  const SELO_DE_ESCRITA_MS = 700;
+  let devolverSeloEm = null;
+  /**
    * Quantas FORMAS o desenho tem agora.
    *
    * ⚠ A contagem da construção conta o DESENHO, e não as chamadas. Contar chamadas dizia
@@ -832,12 +846,51 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
   }
 
   /**
+   * Devolve o estado de onde a ferramenta veio — e, se era ESCRITA, só depois de dar tempo de ler.
+   *
+   * Leitura (`consultando`) devolve na hora: ela leva tempo de rede, e o selo já ficou visível o
+   * bastante. Esticar o de leitura seria mentir sobre o presente.
+   *
+   * ⚠ Nunca trava: o relógio sempre dispara, e quando dispara só troca se o estado AINDA for de
+   * ferramenta — se a conversa seguiu (resposta chegou, sessão caiu), quem mandou foi ela.
+   */
+  function devolverSelo() {
+    const destino = () => (micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
+    if (state !== 'escrevendo') {
+      if (OCUPADO_POR_FERRAMENTA[state]) setState(destino());
+      return;
+    }
+    clearTimeout(devolverSeloEm);
+    devolverSeloEm = setTimeout(() => {
+      devolverSeloEm = null;
+      if (OCUPADO_POR_FERRAMENTA[state]) setState(destino());
+    }, SELO_DE_ESCRITA_MS);
+  }
+
+  /**
+   * Devolve o selo AGORA, sem esperar o tempo de leitura.
+   *
+   * ⚠ O aluno AGIR prova que ele leu — a espera existia para isso. E ela não pode custar o
+   * gesto dele: os botões de candidato nascem logo depois de uma escrita recusada, exatamente
+   * dentro da janela da espera, e `escolherCandidato` só aceita clique em estado de conversa.
+   * Sem isto, o aluno clicaria no botão que o agente acabou de desenhar e ouviria *"conecte
+   * antes de escolher"* — com a sessão aberta.
+   */
+  function devolverSeloJa() {
+    clearTimeout(devolverSeloEm);
+    devolverSeloEm = null;
+    if (OCUPADO_POR_FERRAMENTA[state]) setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
+  }
+
+  /**
    * Encerra tudo: microfone, reprodução, socket. **Idempotente** e serializado — duas chamadas
    * simultâneas (clicar Encerrar duas vezes, ou Encerrar durante `beforeunload`) compartilham a
    * mesma promessa em vez de correrem uma por cima da outra.
    */
   function teardown() {
     if (teardownInFlight) return teardownInFlight;
+    clearTimeout(devolverSeloEm);
+    devolverSeloEm = null;
     const sessionRef = session;
     const micRef = mic;
     const speakerRef = speaker;
@@ -1150,9 +1203,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
               const i = messages.indexOf(atividade);
               if (i >= 0) messages.splice(i, 1);
               atividade = null;
-              if (OCUPADO_POR_FERRAMENTA[state]) {
-                setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
-              }
+              devolverSelo();
               publish();
               return;
             }
@@ -1161,7 +1212,7 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         }
         // Devolve o estado de onde veio. Sem isto o selo fica preso em "consultando" depois de a
         // ferramenta terminar — e selo preso é pior que selo nenhum: mente com confiança.
-        if (OCUPADO_POR_FERRAMENTA[state]) setState(micOn ? 'listening' : (estadoAntesDaFerramenta ?? 'ready'));
+        devolverSelo();
         publish();
       },
       executores: {
@@ -2132,6 +2183,8 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
       const alvo = candidato && typeof candidato === 'object' ? candidato : { rotulo: String(candidato ?? '') };
       const rotulo = String(alvo.rotulo ?? alvo.nome ?? alvo.id ?? '').trim();
       if (!rotulo) return false;
+      // O gesto dele vale mais que o tempo de leitura do selo (ver `devolverSeloJa`).
+      if (session) devolverSeloJa();
       if (!session || !(state === 'ready' || state === 'listening' || state === 'speaking')) {
         note('conecte antes de escolher.', 'error');
         return false;

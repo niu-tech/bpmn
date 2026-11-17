@@ -1567,9 +1567,32 @@ testAsync('o selo de ESCRITA volta quando a ferramenta termina \u2014 e a tela n
   assert.equal(session.state, 'escrevendo', `escrita devia dizer desenhando, e diz ${session.state}`);
   await espera;
 
-  assert.notEqual(session.state, 'escrevendo', 'o selo de escrita ficou preso');
+  // \u26a0 DEPOIS de a ferramenta terminar o selo CONTINUA: a escrita e sincrona, e sem este tempo
+  // de leitura o estado nascia e morria no mesmo passo do laco de eventos -- medido ao vivo, onde
+  // `escrevendo` nunca foi observado nem amostrando a tela a cada 120 ms.
+  assert.equal(session.state, 'escrevendo', 'o selo de escrita nao deu tempo de ler');
+
+  // E o gesto do aluno vale mais que a espera: clicar encurta o selo em vez de ser recusado.
   assert.equal(session.escolherCandidato({ id: 'Task_1', rotulo: 'Assar a pizza' }), true,
-    'o clique do aluno foi recusado com a sessao aberta: o selo preso travou a tela');
+    'o clique do aluno foi recusado com a sessao aberta: o selo travou a tela');
+  assert.notEqual(session.state, 'escrevendo', 'o clique devia ter encurtado o selo');
+  forgetSecrets();
+});
+
+testAsync('o selo de escrita volta SOZINHO depois do tempo de leitura, sem ninguem clicar', async () => {
+  // A outra metade: sem gesto nenhum, o relogio devolve o selo. Um selo que so volta no clique
+  // ficaria preso em "desenhando" na tela de quem olha e nao mexe -- e selo preso mente.
+  const { session, live } = montarComDiagrama();
+  await session.connect('texto');
+  live.ultima.pronta();
+  session.ask('pinte o assar');
+  const d = live.ultima.opts.dispatcher;
+
+  await d.despachar([{ id: 'c1', name: 'destacar', args: { ids: ['Task_1'], cor: 'azul' } }]);
+  assert.equal(session.state, 'escrevendo', 'o selo precisa ficar para ser lido');
+
+  await new Promise((r) => setTimeout(r, 900));
+  assert.notEqual(session.state, 'escrevendo', 'o selo nao voltou sozinho: ficou preso em desenhando');
   forgetSecrets();
 });
 

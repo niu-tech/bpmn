@@ -536,8 +536,10 @@ export const FERRAMENTAS = Object.freeze([
     declaracao: {
       name: 'comecar_do_zero',
       description:
-        'Troca o diagrama por uma folha limpa, com um evento de in\u00edcio. Use quando o aluno '
-        + 'disser que quer come\u00e7ar outro processo, do zero, e n\u00e3o aproveitar o que est\u00e1 na tela. '
+        'Troca o diagrama por uma folha limpa, com um evento de in\u00edcio. Use S\u00d3 quando o aluno '
+        + 'pedir para LIMPAR a tela: apagar tudo, jogar fora o que est\u00e1 desenhado, recome\u00e7ar do nada. '
+        + 'ATEN\u00c7\u00c3O: descrever um processo novo N\u00c3O \u00e9 pedido de limpar. O desenho aceita mais de um '
+        + 'processo, ent\u00e3o \"quero desenhar o processo X\" \u00e9 para DESENHAR X junto do que j\u00e1 existe. '
         + 'O aluno CONFIRMA antes: n\u00e3o diga que limpou antes de receber o resultado, e se ele '
         + 'recusar o resultado traz recusadoPeloAluno: true. O desenho anterior N\u00c3O fica guardado '
         + '\u2014 se ele quiser manter, diga que d\u00e1 para baixar o arquivo antes, pelo bot\u00e3o "Do zero" '

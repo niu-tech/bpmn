@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npm run test:sim && npm run test:primeira-vez && npm run test:assistant && npm run test:spike",
+    "test": "npm run test:sintaxe && npm run test:sim && npm run test:primeira-vez && npm run test:assistant && npm run test:spike",
+    "test:sintaxe": "node --check tools/battery.mjs && node --check tools/drive-page.mjs && node --check tools/html-to-pdf.mjs",
     "test:primeira-vez": "node src/primeira-vez/__tests__/abertura.mjs",
     "dev": "webpack serve --config webpack.config.js",
     "build": "webpack --config webpack.config.js && node tools/build-knowledge.mjs",

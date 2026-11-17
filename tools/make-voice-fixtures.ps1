@@ -62,6 +62,10 @@ $fixtures = [ordered]@{
     # A primeira pede; a segunda responde a pergunta que o agente faz no meio.
     'apagar'       = 'Apaga essa tarefa que eu selecionei, por favor.'
     'pode-apagar'  = 'Pode apagar, sim.'
+    # Change start-a-new-process-without-losing-work (5.3): o portao da FOLHA LIMPA, nas
+    # duas falas. A primeira pede do zero; a segunda responde o que fazer com o que havia.
+    'do-zero'      = 'Quero comecar um processo do zero.'
+    'pode-limpar'  = 'Pode limpar, sim, nao precisa guardar.'
 }
 
 $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(
