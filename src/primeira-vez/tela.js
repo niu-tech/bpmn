@@ -267,7 +267,7 @@ export function montarTelaBase({
  * CSS (`body.pv-no-ar`) — você não precisa de um botão para ir onde já está, e assim não existe
  * estado em JS para divergir.
  */
-export function montarAncora({ raiz = document.body, aoVoltar = () => {} } = {}) {
+export function montarAncora({ raiz = document.body, aoVoltar = () => {}, aoComecarDoZero = null } = {}) {
   const botao = el('button', { type: 'button', className: 'pv-ancora', title: 'Voltar ao início' }, [
     el('span', { className: 'pv-ancora__icone', textContent: '⌂' }),
     el('span', { className: 'pv-ancora__txt', textContent: 'Início' }),
@@ -275,6 +275,28 @@ export function montarAncora({ raiz = document.body, aoVoltar = () => {} } = {})
   botao.setAttribute('aria-label', 'Voltar ao início e escolher outro caminho');
   botao.addEventListener('click', () => aoVoltar());
   raiz.append(botao);
+
+  /**
+   * A SEGUNDA SAÍDA: folha limpa, sem passar pelo menu (2026-11-17).
+   *
+   * ⚠ Voltar ao início oferece outra TRILHA (ver o exemplo, descrever o processo, descobrir o
+   * BPMN). Quem está olhando a pizzaria e quer desenhar o processo dele não quer trilha nenhuma
+   * — quer a folha limpa, no mesmo lugar onde já está. O dono pediu isso vendo o produto no ar:
+   * *"eu estou olhando para um processo, mas eu quero fazer um do zero"*.
+   *
+   * Botão irmão, e não menu: menu esconde a saída atrás de um clique a mais, e esta é a saída
+   * que a pessoa procura justamente quando já se sentiu presa.
+   */
+  let doZero = null;
+  if (typeof aoComecarDoZero === 'function') {
+    doZero = el('button', { type: 'button', className: 'pv-ancora pv-ancora--zero', title: 'Começar um processo do zero' }, [
+      el('span', { className: 'pv-ancora__icone', textContent: '✎' }),
+      el('span', { className: 'pv-ancora__txt', textContent: 'Do zero' }),
+    ]);
+    doZero.setAttribute('aria-label', 'Começar um processo do zero');
+    doZero.addEventListener('click', () => aoComecarDoZero());
+    raiz.append(doZero);
+  }
 
   /**
    * A âncora senta AO LADO do interruptor da simulação, medindo-o.
@@ -289,10 +311,20 @@ export function montarAncora({ raiz = document.body, aoVoltar = () => {} } = {})
    * para o CSS poder mandar.
    */
   function sentarAoLadoDaSimulacao() {
-    if (window.innerWidth <= 520) { botao.style.removeProperty('--pv-ancora-left'); return; }
-    const r = document.querySelector('.bts-toggle-mode')?.getBoundingClientRect();
-    if (!r || !r.width) { botao.style.removeProperty('--pv-ancora-left'); return; }
-    botao.style.setProperty('--pv-ancora-left', `${Math.round(r.right + 12)}px`);
+    // O irmão anda junto: ele mede a ÂNCORA, que por sua vez mede a simulação.
+    const estreito = window.innerWidth <= 520;
+    const r = estreito ? null : document.querySelector('.bts-toggle-mode')?.getBoundingClientRect();
+    if (!r || !r.width) {
+      botao.style.removeProperty('--pv-ancora-left');
+      doZero?.style.removeProperty('--pv-ancora-left');
+      return;
+    }
+    const esquerda = Math.round(r.right + 12);
+    botao.style.setProperty('--pv-ancora-left', `${esquerda}px`);
+    // Largura real da âncora, medida: somar um número à mão volta a se sobrepor quando o
+    // rótulo muda de tamanho (tradução, fonte do sistema).
+    const largura = Math.round(botao.getBoundingClientRect().width) || 92;
+    doZero?.style.setProperty('--pv-ancora-left', `${esquerda + largura + 8}px`);
   }
 
   sentarAoLadoDaSimulacao();
@@ -306,8 +338,61 @@ export function montarAncora({ raiz = document.body, aoVoltar = () => {} } = {})
       clearTimeout(segundaOlhada);
       window.removeEventListener('resize', sentarAoLadoDaSimulacao);
       botao.remove();
+      doZero?.remove();
     },
   };
+}
+
+/**
+ * A PERGUNTA DA FOLHA LIMPA — e ela tem TRÊS respostas.
+ *
+ * ⚠ Sim/não transformaria *"quero desenhar o meu processo"* numa aposta: quem hesita cancela e
+ * fica preso no exemplo. A terceira resposta é o pedido literal do dono (2026-11-17): *"abrir
+ * para perguntar se ele quer salvar, caso sim a gente abra para salvar, caso não ele descarta"*.
+ *
+ * ⚠ E a frase conta a perda ONDE ela acontece: o desenho vive nesta aba e morre com ela. O
+ * produto diz isso no aviso de privacidade, na primeira visita — e ninguém lê aviso de
+ * privacidade no momento em que vai descartar.
+ *
+ * Sem `confirm()`: ele trava o navegador e nenhum portão consegue dirigi-lo.
+ */
+export function perguntarFolhaLimpa({ raiz = document.body, aoResponder = () => {} } = {}) {
+  const caixa = el('div', { className: 'pv-folha' });
+  caixa.setAttribute('role', 'dialog');
+  caixa.setAttribute('aria-modal', 'false');
+  caixa.setAttribute('aria-label', 'Começar um processo do zero');
+
+  caixa.append(
+    el('p', { className: 'pv-folha__titulo', textContent: 'Começar um processo do zero?' }),
+    el('p', {
+      className: 'pv-folha__txt',
+      textContent: 'O que está desenhado agora sai da tela — e ele vive só nesta aba, '
+        + 'não fica guardado em lugar nenhum.',
+    }),
+  );
+
+  const acoes = el('div', { className: 'pv-folha__acoes' });
+  const responder = (resposta) => { fechar(); aoResponder(resposta); };
+  const baixar = el('button', { type: 'button', className: 'pv-folha__btn pv-folha__btn--primario', textContent: 'Baixar e começar' });
+  const descartar = el('button', { type: 'button', className: 'pv-folha__btn', textContent: 'Começar sem baixar' });
+  const cancelar = el('button', { type: 'button', className: 'pv-folha__btn pv-folha__btn--leve', textContent: 'Cancelar' });
+  baixar.addEventListener('click', () => responder('baixar'));
+  descartar.addEventListener('click', () => responder('descartar'));
+  cancelar.addEventListener('click', () => responder('cancelar'));
+  acoes.append(baixar, descartar, cancelar);
+  caixa.append(acoes);
+
+  const naTecla = (e) => { if (e.key === 'Escape') { e.preventDefault(); responder('cancelar'); } };
+  document.addEventListener('keydown', naTecla);
+
+  function fechar() {
+    document.removeEventListener('keydown', naTecla);
+    caixa.remove();
+  }
+
+  raiz.append(caixa);
+  baixar.focus();
+  return { raiz: caixa, fechar };
 }
 
 /**

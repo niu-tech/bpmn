@@ -218,6 +218,16 @@ const COMO_MOSTRAR = {
     return r.removido ? 'removi ' + alvo : 'não removi ' + alvo;
   },
 
+  comecar_do_zero: (_e, r) => {
+    if (!r || r.ok === false) return 'tentei come\u00e7ar do zero';
+    if (r.recusadoPeloAluno) return 'n\u00e3o comecei do zero \u2014 voc\u00ea recusou';
+    const antes = Number(r.formasAntes ?? 0);
+    // O n\u00famero do que saiu \u00e9 o fato que importa aqui: \u00e9 o tamanho do que a pessoa perdeu de vista.
+    return antes > 0
+      ? `comecei do zero \u2014 ${plural(antes, 'forma saiu', 'formas sa\u00edram')} da tela`
+      : 'comecei do zero';
+  },
+
   desfazer: (_e, r) => {
     if (!r || r.ok === false || !r.desfeito) return 'tentei desfazer';
     const sairam = r.sairamDoDiagrama?.length ?? 0;
@@ -347,6 +357,7 @@ export function linhaDeInicio(nome) {
     mover: 'movendo no desenho…',
     alinhar: 'alinhando…',
     trocar_tipo: 'trocando o tipo…',
+    comecar_do_zero: 'começando do zero…',
     desfazer: 'desfazendo…',
     destacar: 'destacando no diagrama…',
     // ⚠ "removendo…" mentiria: nesse instante ainda se espera o aluno confirmar.

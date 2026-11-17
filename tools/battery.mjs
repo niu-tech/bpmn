@@ -1758,6 +1758,104 @@ CENARIOS.push({
 });
 
 /**
+ * A FOLHA LIMPA (change `start-a-new-process-without-losing-work`, 2026-11-17).
+ *
+ * O dono, vendo o produto no ar: *"eu estou olhando para um processo, mas eu quero fazer um do
+ * zero"*. Nao havia saida: a ancora leva ao menu (que oferece outra TRILHA) e o "Recomecar" da
+ * barra do modelador descarta sem oferecer nada.
+ *
+ * O que este portao mede, sem cota:
+ *
+ *  1. com trabalho na tela, pedir folha limpa PERGUNTA — e nao apaga nada antes da resposta;
+ *  2. cancelar deixa o desenho IDENTICO (contagem antes e depois);
+ *  3. comecar sem baixar deixa a tela com UMA forma (o evento de inicio), nao com zero;
+ *  4. e o primeiro pedido do aluno na folha limpa FUNCIONA — era a recusa por falta de lugar
+ *     que o canvas vazio produzia.
+ *
+ * ⚠ Principio XIII: a contagem de depois so' prova alguma coisa porque o ANTES esta' afirmado
+ * (57 formas do exemplo + a que o portao cria). Medir "sobrou pouco" num canvas que nunca
+ * desenhou aprovaria o nada.
+ */
+CENARIOS.push({
+  // ⚠ MAPA DOS VERMELHOS: `perguntou` cai sozinha se a pergunta sumir; `nadaMudouAoPerguntar` e
+  // `cancelarManteve` caem juntas se a pergunta passar a agir antes da resposta; `limpouParaUma`
+  // cai sozinha se a folha nascer vazia ou nao limpar; `primeiroPedidoFunciona` cai sozinha se o
+  // evento de inicio deixar de vir junto.
+  nome: 'folha limpa: pergunta, cancelar mantem tudo, e o primeiro pedido funciona',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `const A = window.__bpmnAssist;
+     const F = async (n, a) => (await A.ferramenta(n, a))?.resultado ?? null;
+     const formas = () => A.desenho.nos.filter((n) => n.tipo !== 'Process' && n.tipo !== 'Collaboration').length;
+     const btn = (txt) => [...document.querySelectorAll('.pv-folha__btn')].find((b) => b.textContent.trim() === txt);
+
+     // Uma edicao de verdade: sem trabalho na tela nao ha o que perguntar (e o autosave so'
+     // nasce no primeiro comando, porque importar diagrama nao e' comando).
+     const base = A.desenho.nos.find((x) => (x.nome || '').toLowerCase() === 'pagar a pizza');
+     if (!base) return { ok: false, erro: 'o diagrama base nao tem a tarefa esperada' };
+     await F('criar_elemento', { tipo: 'Task', nome: 'Conferir troco', depoisDe: base.id });
+     const antes = formas();
+     if (antes < 2) return { ok: false, erro: 'o exemplo nao carregou', antes };
+
+     // 1. Pedir a folha limpa PERGUNTA, e nao mexe em nada.
+     const doZero = document.querySelector('.pv-ancora--zero');
+     if (!doZero) return { ok: false, erro: 'nao existe a saida para comecar do zero' };
+     doZero.click();
+     await new Promise((f) => setTimeout(f, 150));
+     const perguntou = !!document.querySelector('.pv-folha');
+     const nadaMudouAoPerguntar = formas() === antes;
+     const dizQueMorreComAAba = /nesta aba/i.test(document.querySelector('.pv-folha')?.textContent || '');
+
+     // 2. Cancelar deixa o desenho identico.
+     btn('Cancelar')?.click();
+     await new Promise((f) => setTimeout(f, 150));
+     const cancelarManteve = formas() === antes && !document.querySelector('.pv-folha');
+
+     // 3. Comecar sem baixar: a tela fica com UMA forma, o evento de inicio.
+     doZero.click();
+     await new Promise((f) => setTimeout(f, 150));
+     btn('Comecar sem baixar') || btn('Come\u00e7ar sem baixar');
+     (btn('Come\u00e7ar sem baixar') || btn('Comecar sem baixar'))?.click();
+     await new Promise((f) => setTimeout(f, 500));
+     const depois = formas();
+     const limpouParaUma = depois === 1;
+     const inicioAntes = A.desenho.nos.find((n) => n.tipo === 'StartEvent');
+     if (!inicioAntes) return { ok: false, erro: 'a folha limpa nasceu sem evento de inicio' };
+
+     // 4. BAIXAR E COMECAR: o que a pessoa recebe tem de ser um BPMN de verdade.
+     //    O blob e' capturado no createObjectURL — e' o unico ponto por onde o arquivo passa
+     //    antes de sair do navegador, e sem isto o portao so' provaria que o botao fecha.
+     await F('criar_elemento', { tipo: 'Task', nome: 'Guardar antes', depoisDe: inicioAntes.id });
+     const originalURL = URL.createObjectURL;
+     let baixado = null;
+     URL.createObjectURL = (blob) => { baixado = blob; return originalURL.call(URL, blob); };
+     doZero.click();
+     await new Promise((f) => setTimeout(f, 150));
+     (btn('Baixar e come\u00e7ar') || btn('Baixar e comecar'))?.click();
+     await new Promise((f) => setTimeout(f, 600));
+     URL.createObjectURL = originalURL;
+     const texto = baixado ? await baixado.text() : '';
+     const arquivoEBpmn = texto.includes('bpmn:definitions') || texto.includes('<definitions');
+     const temATarefaGuardada = texto.includes('Guardar antes');
+
+     // 5. E o primeiro pedido do aluno funciona na folha limpa.
+     const inicio = A.desenho.nos.find((n) => n.tipo === 'StartEvent');
+     const novo = inicio ? await F('criar_elemento', { tipo: 'Task', nome: 'Receber pedido', depoisDe: inicio.id }) : null;
+     const primeiroPedidoFunciona = !!novo && !!novo.criado;
+
+     return {
+       ok: perguntou && nadaMudouAoPerguntar && dizQueMorreComAAba && cancelarManteve
+         && limpouParaUma && arquivoEBpmn && temATarefaGuardada && primeiroPedidoFunciona,
+       antes, depois, perguntou, nadaMudouAoPerguntar, dizQueMorreComAAba,
+       cancelarManteve, limpouParaUma, arquivoEBpmn, temATarefaGuardada, primeiroPedidoFunciona,
+       tamanhoDoArquivo: texto.length,
+       inicio: inicio ? inicio.tipo : null,
+     };`,
+  ],
+});
+
+/**
  * A DECISAO COM OS DOIS CAMINHOS (change `give-gateways-their-second-path`, 2026-11-17).
  *
  * O dono descreveu um processo por voz e o gateway saiu com UM caminho, com o outro lado solto no

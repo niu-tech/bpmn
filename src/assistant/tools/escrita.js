@@ -143,7 +143,15 @@ function resolverTipo(tipo) {
  * decide é o aluno, nunca este módulo. Sem ela, remover é recusado: ferramenta destrutiva sem
  * quem perguntar não roda.
  */
-export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, portaoAberto = () => false } = {}) {
+export function criarExecutoresDeEscrita({
+  acesso, pedirConfirmacao = null, portaoAberto = () => false, comecarDoZero = null,
+  /**
+   * Os nomes das ações com portão, vindos do CATÁLOGO (uma fonte só). Acesso de propriedade,
+   * e não literal: dois nomes de ferramenta citados como string no mesmo arquivo são uma
+   * tabela de roteamento esperando para acontecer (guardrail).
+   */
+  portoes = {},
+} = {}) {
   const exigirEdicao = () => {
     if (!acesso?.disponivel) throw nomeado(ERROS_ESCRITA.SEM_DIAGRAMA);
     // ⚠ Segunda trava, DEPOIS da política. A política esconde a ferramenta do modelo numa página
@@ -927,6 +935,53 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
      * o clique, recusa: o `id` de então pode ser outro elemento agora, e apagar o errado por
      * causa de meio segundo de diferença é o pior defeito possível aqui (H14).
      */
+    /**
+     * COMEÇAR UM PROCESSO DO ZERO — apaga o desenho inteiro, então passa pelo PORTÃO.
+     *
+     * ⚠ Pedido do dono vendo o produto no ar (2026-11-17): *"eu estou olhando para um processo,
+     * mas eu quero fazer um do zero"*. Até aqui a única saída era apagar elemento por elemento —
+     * que o agente faz, e gasta um turno por forma.
+     *
+     * Quem troca o diagrama é a PÁGINA: autosave, trilha e a tira do que está aberto não são do
+     * bpmn-js. O agente pede, a página faz, e o resultado volta para ele contar.
+     *
+     * ⚠ MESMO fluxo de confirmação do `remover`, e pela mesma razão: destrutivo pede resposta do
+     * aluno. Nada aqui lê o texto dele — é ordem, nunca palavra-chave (§III).
+     */
+    async comecar_do_zero() {
+      exigirEdicao();
+      if (typeof comecarDoZero !== 'function') {
+        throw nomeado(ERROS_ESCRITA.NAO_EDITAVEL, 'esta p\u00e1gina n\u00e3o troca o diagrama');
+      }
+      if (typeof pedirConfirmacao !== 'function') {
+        throw nomeado(ERROS_ESCRITA.NAO_EDITAVEL, 'sem confirma\u00e7\u00e3o na interface');
+      }
+      const retratoAntes = retrato();
+      const formasAntes = retratoAntes?.formas ?? null;
+      const alvo = { id: 'diagrama', tipo: 'Diagrama', nome: 'o desenho inteiro' };
+      const versao = assinaturaDoDiagrama(acesso.elementos());
+
+      const acao = portoes.comecar_do_zero;
+      const autorizado = portaoAberto(acao) || await pedirConfirmacao({ acao, alvo, versao });
+      if (!autorizado) {
+        // Recusa \u00e9 FATO que volta ao modelo: sem isso ele narra a folha limpa como feita.
+        return { comecou: false, recusadoPeloAluno: true, formasAntes };
+      }
+
+      // `jaConfirmado`: o port\u00e3o J\u00c1 foi a confirma\u00e7\u00e3o, e perguntar de novo na tela cobraria duas
+      // vezes a mesma decis\u00e3o do aluno.
+      const feito = await comecarDoZero({ jaConfirmado: true });
+      const depois = retrato();
+      return {
+        comecou: Boolean(feito?.feito ?? true),
+        formasAntes,
+        formasAgora: depois?.formas ?? null,
+        // O aluno precisa saber o que aconteceu com o anterior, e a resposta honesta \u00e9 esta.
+        oAnteriorSaiu: true,
+        tela: tela(null, retratoAntes),
+      };
+    },
+
     async remover({ id } = {}) {
       exigirEdicao();
       const retratoAntes = retrato();
@@ -947,7 +1002,8 @@ export function criarExecutoresDeEscrita({ acesso, pedirConfirmacao = null, port
        * O diálogo continua para quem não respondeu — e a assinatura do diagrama (H14) é conferida
        * nos dois caminhos, logo abaixo.
        */
-      const autorizado = portaoAberto('remover') || await pedirConfirmacao({ acao: 'remover', alvo, versao });
+      const acao = portoes.remover;
+      const autorizado = portaoAberto(acao) || await pedirConfirmacao({ acao, alvo, versao });
       if (!autorizado) {
         // Recusa é FATO que volta ao modelo. Sem isso ele narra a remoção como feita.
         return { removido: false, recusadoPeloAluno: true, alvo };

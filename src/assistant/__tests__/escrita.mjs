@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 import { ERROS_ESCRITA, TIPOS_CRIAVEIS, criarExecutoresDeEscrita } from '../tools/escrita.js';
 import { criarAcessoBpmn } from '../tools/bpmn-api.js';
 import { permitida } from '../agent/policy.js';
-import { FERRAMENTAS } from '../agent/catalog.js';
+import { ACOES_COM_PORTAO, FERRAMENTAS } from '../agent/catalog.js';
 import { report, test, testAsync } from '../../../tools/test-harness.mjs';
 // O dublê do modelador mora em `tools/`: a avaliação do acervo dourado usa o MESMO.
 import { criarModeladorFalso } from '../../../tools/modelador-falso.mjs';
@@ -57,6 +57,9 @@ function montar({ confirmar = async () => true, semVaga = false, updateLabelMudo
   const exec = criarExecutoresDeEscrita({
     acesso,
     pedirConfirmacao: async (pedido) => { pedidos.push(pedido); return confirmar(pedido); },
+    // ⚠ Os nomes dos portoes vem do CATALOGO, como no produto: a ferramenta nao cita o
+    // proprio nome (guardrail), entao quem monta os executores precisa passar o mapa.
+    portoes: ACOES_COM_PORTAO,
   });
   return { ...falso, acesso, exec, pedidos };
 }
@@ -1000,6 +1003,58 @@ testAsync('alvo que não é pool nem raia, e `onde` desconhecido, são recusas n
 });
 
 /* ---------------------------------------------------------------- desfazer e destacar */
+
+/* ---------------------------------------------------------------- a folha limpa */
+
+/**
+ * A folha limpa e' ato da PAGINA (autosave, trilha, tira do que esta' aberto), entao o teste
+ * injeta a pagina como funcao e mede o que o agente faz com ela.
+ */
+function montarFolhaLimpa({ confirmar = async () => true, comPagina = true } = {}) {
+  const falso = criarModeladorFalso();
+  const acesso = criarAcessoBpmn(falso.modelador);
+  falso.guardar({ id: 'Task_1', type: 'bpmn:Task', parent: falso.raiz, businessObject: { name: 'Receber' }, incoming: [], outgoing: [] });
+  const chamadas = [];
+  const exec = criarExecutoresDeEscrita({
+    acesso,
+    pedirConfirmacao: async (pedido) => { chamadas.push(pedido); return confirmar(pedido); },
+    portoes: ACOES_COM_PORTAO,
+    comecarDoZero: comPagina ? async (opcoes) => { chamadas.push({ pagina: true, ...opcoes }); return { feito: true }; } : null,
+  });
+  return { ...falso, acesso, exec, chamadas };
+}
+
+testAsync('comecar do zero PERGUNTA antes, e a pergunta carrega a versao do diagrama', async () => {
+  const { exec, chamadas } = montarFolhaLimpa({ confirmar: async () => true });
+  const r = await exec.comecar_do_zero();
+
+  const pedido = chamadas.find((c) => c.acao);
+  assert.ok(pedido, 'ninguem foi perguntado antes de limpar a tela');
+  assert.equal(pedido.acao, 'comecar_do_zero');
+  assert.ok(pedido.versao, 'a pergunta precisa carregar a versao do diagrama (H14)');
+  assert.equal(r.comecou, true);
+  // O numero do que saiu e' o tamanho do que a pessoa perdeu de vista.
+  assert.equal(r.formasAntes, 1, 'o resultado deveria contar o que estava na tela');
+  assert.equal(r.oAnteriorSaiu, true);
+});
+
+testAsync('aluno RECUSANDO e fato que volta ao modelo \u2014 e a pagina nao e chamada', async () => {
+  const { exec, chamadas } = montarFolhaLimpa({ confirmar: async () => false });
+  const r = await exec.comecar_do_zero();
+
+  assert.equal(r.comecou, false);
+  assert.equal(r.recusadoPeloAluno, true);
+  assert.ok(!chamadas.some((c) => c.pagina), 'a pagina foi chamada mesmo com o aluno recusando');
+});
+
+testAsync('pagina que nao troca o diagrama recusa com nome, sem perguntar nada', async () => {
+  const { exec, chamadas } = montarFolhaLimpa({ comPagina: false });
+  await assert.rejects(
+    () => exec.comecar_do_zero(),
+    (e) => e.nome === ERROS_ESCRITA.NAO_EDITAVEL,
+  );
+  assert.equal(chamadas.length, 0, 'perguntou ao aluno algo que nao teria como fazer');
+});
 
 /* ---------------------------------------------------------------- o caminho da decisao */
 

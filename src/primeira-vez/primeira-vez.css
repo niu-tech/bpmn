@@ -237,6 +237,61 @@ body.pv-no-ar .sim-dashboard { display: none; }
    fazer isso por CSS e' o que evita um segundo estado em JS para divergir do primeiro. */
 body.pv-no-ar .pv-ancora { display: none; }
 
+/* A SEGUNDA SAIDA, irma da ancora: folha limpa sem passar pelo menu (2026-11-17).
+   O `left` dela tambem e' MEDIDO (da ancora, que mede a simulacao) — somar um numero a mao
+   volta a se sobrepor quando o rotulo muda de tamanho. */
+.pv-ancora--zero {
+  font-weight: 500;
+  color: #475569;
+}
+.pv-ancora--zero .pv-ancora__icone { opacity: 0.6; }
+
+/* A PERGUNTA DA FOLHA LIMPA. Card, nao modal: ela nao bloqueia o canvas, e `confirm()` esta'
+   fora de questao (trava o navegador e nenhum portao consegue dirigi-lo). */
+.pv-folha {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9900;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(23, 38, 60, 0.18);
+  font: 14px/1.45 Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #334155;
+}
+.pv-folha__titulo {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.pv-folha__txt { margin: 0 0 16px; }
+.pv-folha__acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.pv-folha__btn {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+.pv-folha__btn:hover { border-color: #94a3b8; color: #17263c; }
+.pv-folha__btn:focus-visible { outline: 3px solid var(--cor-primaria, #2563eb); outline-offset: 2px; }
+.pv-folha__btn--primario {
+  border-color: var(--cor-primaria, #2563eb);
+  background: var(--cor-primaria, #2563eb);
+  color: #fff;
+}
+.pv-folha__btn--primario:hover { background: #1a60cf; color: #fff; }
+.pv-folha__btn--leve { border-color: transparent; color: #64748b; font-weight: 500; }
+
 /* ---- a barra do tutor ------------------------------------------------------------------------
    Encostada na alavanca do ajudante, no canto de baixo a' direita: a ajuda mora ao lado de quem
    pode ajudar, e nao em cima do desenho (a pilula anterior pousava no alto do canvas e cobria o

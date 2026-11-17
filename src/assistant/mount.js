@@ -75,6 +75,12 @@ export function mountAssistant({
    * errado. Sem este parâmetro, `recarregarDiagrama` recusa em vez de adivinhar.
    */
   diagramaBase = null,
+  /**
+   * A FOLHA LIMPA da página. Trocar o diagrama inteiro envolve o autosave, a escolha de
+   * trilha e a tira do que está aberto — nada disso é do bpmn-js, e por isso a página passa a
+   * função em vez de o agente reimplementar. Ausente, a ferramenta recusa com nome.
+   */
+  comecarDoZero = null,
 } = {}) {
   if (document.documentElement.dataset[MARK] === '1') return null;
   document.documentElement.dataset[MARK] = '1';
@@ -112,6 +118,7 @@ export function mountAssistant({
       acervo,
       lerDiagrama: () => olho.atual(),
       lerSimulacao: () => simulacao,
+      comecarDoZero,
     },
     // ⚠ Renderiza o que RECEBEU. Antes isto montava a vista de novo, do zero, e ignorava o
     // argumento: o estado da interface existia em dois lugares, e um campo novo na sessão podia

@@ -526,6 +526,27 @@ export const FERRAMENTAS = Object.freeze([
   },
 
   {
+    nome: 'comecar_do_zero',
+    escreve: true,
+    /**
+     * ⚠ Apaga o desenho INTEIRO — o portão do aluno vale aqui ainda mais que no `remover`, e
+     * pela mesma mecânica: recusada até ele responder DEPOIS da pergunta.
+     */
+    exigeConfirmacao: 'comecar_do_zero',
+    declaracao: {
+      name: 'comecar_do_zero',
+      description:
+        'Troca o diagrama por uma folha limpa, com um evento de in\u00edcio. Use quando o aluno '
+        + 'disser que quer come\u00e7ar outro processo, do zero, e n\u00e3o aproveitar o que est\u00e1 na tela. '
+        + 'O aluno CONFIRMA antes: n\u00e3o diga que limpou antes de receber o resultado, e se ele '
+        + 'recusar o resultado traz recusadoPeloAluno: true. O desenho anterior N\u00c3O fica guardado '
+        + '\u2014 se ele quiser manter, diga que d\u00e1 para baixar o arquivo antes, pelo bot\u00e3o "Do zero" '
+        + 'da tela, que oferece baixar.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+
+  {
     nome: 'remover',
     escreve: true,
     /**
@@ -552,6 +573,21 @@ export const FERRAMENTAS = Object.freeze([
     },
   },
 ]);
+
+/**
+ * AS AÇÕES QUE PEDEM CONFIRMAÇÃO, derivadas do próprio catálogo.
+ *
+ * ⚠ Existe para as ferramentas não citarem o próprio nome como string. A varredura do guardrail
+ * recusa dois nomes de ferramenta como literal no mesmo arquivo — e com razão: dois literais são
+ * uma tabela de roteamento esperando para acontecer. Aqui o nome é **declaração**; lá ele passa a
+ * ser acesso de propriedade (`portoes.remover`), que diz a mesma coisa sem abrir a porta.
+ *
+ * E tem um ganho de verdade: o nome do portão passa a ter UMA fonte. Antes ele existia duas
+ * vezes — no `exigeConfirmacao` daqui e na chamada da ferramenta — e nada impedia de divergirem.
+ */
+export const ACOES_COM_PORTAO = Object.freeze(Object.fromEntries(
+  FERRAMENTAS.filter((f) => f.exigeConfirmacao).map((f) => [f.nome, f.exigeConfirmacao]),
+));
 
 /** Existe no catálogo? É só isso — se vale AQUI é pergunta da política (`policy.js`). */
 export function declarada(nome) {

@@ -18,7 +18,7 @@
 
 import { ferramentasPermitidas, permitida } from './agent/policy.js';
 import { createToolDispatcher } from './agent/dispatch.js';
-import { portaoDaFerramenta } from './agent/catalog.js';
+import { ACOES_COM_PORTAO, portaoDaFerramenta } from './agent/catalog.js';
 import {
   avisoDeCitacaoNaVoz, candidatosDoResultado, fontesDoResultado, linhaDeFim, linhaDeInicio,
   mostraveisDoResultado,
@@ -1079,7 +1079,15 @@ export function createAssistantSession({ credentials, onUpdate, deps = {} } = {}
         ...criarExecutoresDeLeitura({ acesso: deps.acesso, lerSimulacao: deps.lerSimulacao }),
         // As que ESCREVEM (F7). A política já as esconde numa página que só lê; a camada fina
         // recusa de novo se a declaração vazar de uma sessão anterior.
-        ...criarExecutoresDeEscrita({ acesso: deps.acesso, pedirConfirmacao, portaoAberto }),
+        ...criarExecutoresDeEscrita({
+          acesso: deps.acesso,
+          pedirConfirmacao,
+          portaoAberto,
+          // A folha limpa é ato da PÁGINA (autosave, trilha, tira do que está aberto).
+          comecarDoZero: deps.comecarDoZero,
+          // Os nomes dos portões vêm do catálogo: a ferramenta não cita o próprio nome.
+          portoes: ACOES_COM_PORTAO,
+        }),
         /**
          * O ACERVO (change `add-bpmn-norm-knowledge-base`). Cada chave servida entra em
          * `chavesServidas` — é contra esse conjunto que a resposta é conferida no modo texto (K6).

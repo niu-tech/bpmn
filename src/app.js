@@ -13,7 +13,7 @@ import { bindSimulation } from "./batchsim/simulation-integration.js";
 
 import { mountAssistant } from "./assistant/mount.js";
 import { CHAVE_ESCOLHA, barraPara, decidirAbertura } from "./primeira-vez/abertura.js";
-import { montarAncora, montarBarra, montarTelaBase } from "./primeira-vez/tela.js";
+import { montarAncora, montarBarra, montarTelaBase, perguntarFolhaLimpa } from "./primeira-vez/tela.js";
 import { FRASES } from "./assistant/identidade.js";
 
 const DEFAULT_DIAGRAM_URL = "pizza-collaboration.bpmn";
@@ -410,6 +410,14 @@ function createFloatingToolbar() {
  * edição), e sem isto ele teria de recarregar a página para achar o menu.
  */
 let voltarAoInicio = null;
+/**
+ * A folha limpa, exposta para o AJUDANTE.
+ *
+ * ⚠ Mora aqui e não na camada de acesso do agente porque trocar o diagrama inteiro é ato da
+ * PÁGINA: envolve o autosave, a escolha de trilha e a tira que diz o que está aberto — nada
+ * disso pertence ao bpmn-js. O agente pede; a página faz.
+ */
+let comecarDoZeroDaPagina = null;
 
 /**
  * "♻️ Recomeçar" — era "♻️ Novo", e fazia outra coisa.
@@ -675,6 +683,63 @@ function receberQuemChega(modeler, abertura, ajudante) {
   }
 
   /**
+   * COMEÇAR DO ZERO — a terceira saída, com a pergunta de três respostas (2026-11-17).
+   *
+   * ⚠ NÃO é voltar ao menu: a pessoa continua no modelador, com a folha limpa. Voltar ao menu
+   * oferece outra TRILHA, e quem pede isto não quer trilha — quer desenhar o processo dela.
+   *
+   * ⚠ A pergunta só aparece quando há trabalho a perder. Perguntar sobre o estado inicial seria
+   * cerimônia sobre nada.
+   *
+   * Devolve uma promessa que resolve com o que aconteceu, para o verbo do agente poder contar ao
+   * aluno (e para o portão poder medir): `{ feito, perguntou, resposta }`.
+   */
+  function comecarDoZero({ jaConfirmado = false } = {}) {
+    const temTrabalho = Boolean(localStorage.getItem(LOCAL_STORAGE_KEY));
+    if (!temTrabalho || jaConfirmado) {
+      return folhaLimpa().then(() => ({ feito: true, perguntou: false, resposta: null }));
+    }
+    return new Promise((resolve) => {
+      perguntarFolhaLimpa({
+        aoResponder: async (resposta) => {
+          if (resposta === "cancelar") { resolve({ feito: false, perguntou: true, resposta }); return; }
+          if (resposta === "baixar") await baixarDiagrama();
+          await folhaLimpa();
+          resolve({ feito: true, perguntou: true, resposta });
+        },
+      });
+    });
+  }
+
+  /** Guardar é BAIXAR: sem conta, sem nuvem, e o arquivo abre em qualquer ferramenta BPMN. */
+  async function baixarDiagrama() {
+    try {
+      const { xml } = await modeler.saveXML({ format: true });
+      downloadText("processo.bpmn", xml, "application/xml");
+      return true;
+    } catch (err) {
+      console.error("Falha ao baixar o processo:", err);
+      return false;
+    }
+  }
+
+  /**
+   * A folha limpa nasce DESENHÁVEL: `createDiagram` do bpmn-js traz um evento de início.
+   *
+   * ⚠ Canvas vazio de verdade quebraria o `fit-viewport` (escala não-finita) e faria o primeiro
+   * pedido do aluno ser recusado por falta de lugar — `criar_elemento` sem âncora precisa de algo
+   * que as regras aceitem. Com o início lá, o primeiro `depoisDe` funciona.
+   */
+  async function folhaLimpa() {
+    await abrirDiagrama(modeler, "branco");
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    localStorage.setItem(CHAVE_ESCOLHA, "branco");
+    convite?.fechar();
+    convite = null;
+    mostrarBarra("branco");
+  }
+
+  /**
    * VOLTAR AO MENU sem descartar nada: o convite e' opaco e cobre o canvas, entao o que estava
    * aberto continua la' ate' a pessoa escolher de novo. Esquece a escolha anterior porque voltar
    * ao menu e' justamente dizer "ainda nao decidi" — e um recarregar depois disso tem de trazer
@@ -728,7 +793,9 @@ function receberQuemChega(modeler, abertura, ajudante) {
   // nao morre com a orientacao. E' isso que faz dela um caminho de volta (N3) — o defeito que o
   // dono relatou era justamente o caminho de volta morar na barra, que morre na primeira edicao.
   // Com o convite no ar ela sai de cena por CSS, nao por codigo daqui.
-  montarAncora({ aoVoltar: voltarAoMenu });
+  montarAncora({ aoVoltar: voltarAoMenu, aoComecarDoZero: () => comecarDoZero() });
+  // O verbo do agente usa o MESMO caminho da tela: uma implementação, dois gestos.
+  comecarDoZeroDaPagina = comecarDoZero;
 
   if (abertura === "convite") convite = abrirConvite();
   else mostrarBarra(barraPara(abertura));
@@ -795,7 +862,12 @@ async function run() {
   // precisa existir antes do diagrama. Falhar aqui nao pode levar o modelador junto.
   let ajudante = null;
   try {
-    ajudante = mountAssistant({ modelador: modeler, diagramaBase: DEFAULT_DIAGRAM_URL });
+    ajudante = mountAssistant({
+      modelador: modeler,
+      diagramaBase: DEFAULT_DIAGRAM_URL,
+      // A folha limpa e' ato da PAGINA: o agente pede, e quem troca o diagrama e' daqui.
+      comecarDoZero: (opcoes) => comecarDoZeroDaPagina?.(opcoes) ?? Promise.resolve({ feito: false }),
+    });
   } catch (e) {
     console.warn("Ajudante indisponivel:", e);
   }
