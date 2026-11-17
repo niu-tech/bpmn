@@ -18,6 +18,9 @@ ideia).
 | `add-bpmn-norm-knowledge-base` | 1 | a 6.3 **ao vivo**: induzir o modelo a citar chave inexistente. Está provada no gerente, que é onde a troca por `[fonte não conferida]` acontece; ao vivo gastaria sessão para medir o que o nosso código decide sozinho |
 | `harvest-proven-voice-foundations` | 1 | declarar no texto do TCC a licença do `bpmn-js` e a marca d'água (K-G) — é de banca, não de software |
 | `guide-the-first-run-trails` | 2 | o que fica **fora** dela, de propósito: partidas por histórico de quem volta (depende de memória entre visitas, decidida em contrário) e medir se a orientação funcionou (não há telemetria) |
+| `give-gateways-their-second-path` | 19 | **nova (2026-11-17)**, do teste ao vivo do dono: o gateway sai com UM caminho e o outro fica solto. Causa medida — `comoRamo` existe no handler e **nunca foi declarado**, então pedir o segundo caminho encadeia no primeiro |
+| `start-a-new-process-without-losing-work` | 21 | **nova (2026-11-17)**: com um processo aberto não dá para começar do zero. A pergunta ganha três respostas (baixar · descartar · cancelar), porque guardar é **baixar o arquivo**, nunca servidor |
+| `show-the-work-while-the-agent-builds` | 19 | **nova (2026-11-17)**: durante a construção o canvas não dá sinal e o chat vira parede de linhas. ⚠ Mede a latência antes de prometer velocidade: o nosso lado leva 0,4–1,0 s por chamada |
 
 > A orientação da primeira visita teve uma segunda metade, e ela está **arquivada**: `name-the-tutor-and-anchor-the-exit` (2026-11-16) nomeou o agente e consertou o caminho de volta. Quem for ler a trilha inteira lê as duas.
 
