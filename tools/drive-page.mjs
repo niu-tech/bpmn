@@ -129,7 +129,23 @@ function acharNavegador() {
  * corridas ao vivo do acervo ficaram ~30 e ~50 minutos vivas com menos de 1 s de CPU, parecendo
  * que estavam trabalhando (2026-11-15).
  */
-async function esperarDevTools(porta, prazoMs = 15000) {
+/**
+ * Prazo para o navegador abrir a porta. **Maior na esteira**, e isso tem uma consequência medida.
+ *
+ * ⚠ Incidente 2026-11-17: o passo `Screen battery (no quota)` do CI reprovou com *"o navegador nao
+ * abriu a porta de depuracao 9632 em 15000ms"* — no **vigésimo quinto** cenário, depois de 24
+ * navegadores terem subido na mesma corrida. Não foi defeito do produto nem do instrumento: foi um
+ * runner sob carga demorando mais que o prazo local.
+ *
+ * E o preço não foi um vermelho: o job de **deploy depende do build**, então o site publicado
+ * ficou parado no commit anterior **o dia inteiro**, enquanto o repositório tinha o conserto. Um
+ * teto curto demais no instrumento não "pega um defeito antes" — ele para a publicação por um
+ * motivo que não é do código. Local continua curto de propósito (15 s): aqui, porta que não abre
+ * rápido é Edge zumbi de outra corrida, e esperar 45 s por ele é esconder o problema.
+ */
+const PRAZO_DEVTOOLS_MS = process.env.CI ? 45000 : 15000;
+
+async function esperarDevTools(porta, prazoMs = PRAZO_DEVTOOLS_MS) {
   const fim = Date.now() + prazoMs;
   while (Date.now() < fim) {
     try {
