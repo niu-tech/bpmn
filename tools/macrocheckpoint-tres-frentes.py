@@ -127,7 +127,7 @@ def tabela(linhas, larguras):
 
 
 story = [
-    Paragraph("Ajudante BPMN — macrocheckpoint do dia: três frentes e o agrupamento", H1),
+    Paragraph("Tutor BPMN — macrocheckpoint do dia: três frentes e o agrupamento", H1),
     Paragraph("17 de novembro de 2026 · o que você viu no teste ao vivo, o que estava errado por "
               "baixo, o que a medição mandou fazer depois, e onde a alavanca acabou", SUB),
 
@@ -374,7 +374,7 @@ story = [
 
 SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
                   topMargin=1.8 * cm, bottomMargin=1.6 * cm,
-                  title="Macrocheckpoint das três frentes — Ajudante BPMN",
+                  title="Macrocheckpoint das três frentes — Tutor BPMN",
                   author="rodada de 2026-11-17").build(story)
 print(f"PDF: {OUT}")
 print(f"  bateria={CENARIOS_OK}/{CENARIOS_DE} · assercoes={ASSERCOES} em {SUITES} suites")

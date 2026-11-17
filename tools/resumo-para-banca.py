@@ -142,6 +142,16 @@ story = [
          "pede para remover algo e precisa confirmar",
          "um portão de <b>ordem</b>: a remoção fica recusada até o aluno responder depois do "
          "pedido. Não é palavra-chave — é quem falou por último"],
+        ["<b>Começar do zero sem perder o que está na tela</b>",
+         "pede uma folha limpa, pelo botão ou falando, com um processo já desenhado",
+         "a pergunta diz a perda onde ela acontece e oferece <b>baixar e começar</b>, "
+         "<b>começar sem baixar</b> ou <b>cancelar</b>. Falando, vale o mesmo portão do apagar: "
+         "o agente recusa e pergunta, e só limpa depois da resposta"],
+        ["<b>A tela conta o que está sendo desenhado</b>",
+         "vê o que já entrou enquanto o agente ainda trabalha",
+         "o elemento que acabou de mudar pisca no canvas, as escritas de um mesmo pedido viram "
+         "uma mensagem que cresce (“montando o processo — N elementos”), e a contagem conta o "
+         "<b>desenho</b>: se o agente desfaz, o número cai"],
         ["<b>Ensina com fonte</b>",
          "pergunta sobre a notação e recebe a resposta com a referência",
          "um acervo autoral de BPMN servido com o site; o modelo <b>escolhe</b> consultá-lo, e o "
@@ -181,13 +191,24 @@ story = [
          "números desta tabela são contados no momento em que o documento é gerado"],
     ], [3.6 * cm, 4.0 * cm, 8.8 * cm]),
     Paragraph(
-        "Três vezes um desses portões <b>reprovou o sistema e estava certo</b> — e duas vezes um "
-        "portão passou <b>sem provar nada</b> e teve de ser reescrito (media uma diferença que o "
-        "exemplo já tinha por acaso). E uma vez a medição contradisse a <b>anotação de quem "
-        "escreveu o sistema</b>: estava registrado que uma operação custava dois "
-        "<font face='Courier'>Ctrl+Z</font>, e o portão mediu <b>sete</b>. Esses episódios, "
-        "registrados, são o que o trabalho tem a dizer sobre método: a diferença entre um teste "
-        "que protege, um teste que apenas tranquiliza, e uma anotação que ninguém mediu.", P),
+        "Esses portões já <b>reprovaram o sistema com razão</b>, e também já <b>passaram sem "
+        "provar nada</b> e tiveram de ser reescritos. Quatro episódios registrados são o que o "
+        "trabalho tem a dizer sobre método:", P),
+    bullets([
+        "um portão que media uma diferença <b>que o exemplo já tinha por acaso</b> — passava "
+        "sempre, inclusive com a capacidade desligada;",
+        "uma medição que contradisse a <b>anotação de quem escreveu o sistema</b>: estava "
+        "registrado que uma operação custava dois <font face='Courier'>Ctrl+Z</font>, e o portão "
+        "mediu <b>sete</b>;",
+        "um portão que <b>derrubou a primeira versão de uma correção</b> que já tinha passado na "
+        "bancada: ela ligava a fonte consultada ao <i>turno</i> da resposta, e em voz o turno da "
+        "fala não é o da pergunta — o recorte certo era conversacional, não aritmético;",
+        "uma tela que dizia “<b>sete elementos</b>” com cinco no desenho, justamente na mudança "
+        "feita para a tela parar de mentir: ela contava chamadas, e o que o aluno vê é o desenho.",
+    ]),
+    Paragraph(
+        "É a diferença entre um teste que protege, um teste que apenas tranquiliza, e uma "
+        "anotação que ninguém mediu.", P),
 
     Paragraph("Uma decisão de interface tomada por pesquisa, não por gosto", H2),
     Paragraph(
@@ -235,9 +256,12 @@ story = [
         "estático, e isso é o que torna o trabalho reproduzível por quem for avaliá-lo.",
         "<b>A memória dura uma aula.</b> Fechou a aba, acabou — por escolha registrada, não por "
         "limitação descoberta tarde.",
-        "<b>No modo voz, a conferência da citação não existe</b>: o áudio vai do provedor ao "
-        "alto-falante sem passar pelo aplicativo. A tela diz isso no momento da consulta, em vez "
-        "de prometer igual nos dois modos.",
+        "<b>No modo voz, o áudio já foi falado quando a conferência acontece.</b> A citação É "
+        "conferida nos dois modos — a legenda da voz passa pelo mesmo teste do texto, e a fonte "
+        "mostrada vem do que o aplicativo <b>serviu</b> na consulta, não do que o modelo disse. "
+        "O que o áudio não permite é <b>desdizer</b>: por escrito a etiqueta errada cai antes de "
+        "aparecer, e falando o aluno já ouviu — então a tela <b>avisa</b> em vez de corrigir em "
+        "silêncio, que deixaria a palavra falada valer mais que o nosso registro.",
         "<b>A espera entre um bloco e o outro é do modelo, e está medida.</b> A escrita no "
         "desenho é praticamente instantânea; o que o aluno espera é a ida e a volta ao provedor "
         "de IA, uma por pedido. Por isso o trabalho não promete velocidade: o que ele controla é "

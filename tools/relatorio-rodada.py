@@ -57,7 +57,7 @@ def tabela(linhas, larguras):
 
 
 story = [
-    Paragraph("Ajudante BPMN — rodada autônoma da noite", H1),
+    Paragraph("Tutor BPMN — rodada autônoma da noite", H1),
     Paragraph("15 de novembro de 2026 · a aula deixou de cair junto com a conexão, e três "
               "defeitos apareceram porque passaram a existir portões que os medem", SUB),
 
@@ -174,6 +174,6 @@ story = [
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
                         topMargin=1.8 * cm, bottomMargin=1.6 * cm,
-                        title="Ajudante BPMN — rodada autônoma", author="Ajudante BPMN (TCC)")
+                        title="Tutor BPMN — rodada autônoma", author="Tutor BPMN (TCC)")
 doc.build(story)
 print(f"PDF: {OUT}")
