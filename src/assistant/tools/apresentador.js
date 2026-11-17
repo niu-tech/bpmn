@@ -149,6 +149,22 @@ const COMO_MOSTRAR = {
     return r.parou ? `${base} · parei no passo ${r.parou.passo}` : base;
   },
 
+  /**
+   * A DECISÃO: uma linha para a árvore inteira, com os rótulos — que é o que o aluno confere.
+   *
+   * ⚠ A linha diz os RÓTULOS, nunca os ids das ligações: o aluno lê "Sim" e "Não" na tela, e
+   * Flow_0x9a1 não existe para ele.
+   */
+  criar_decisao: (e, r) => {
+    if (!r || r.ok === false || !r.decisao) return 'tentei desenhar a decisão';
+    const nome = r.decisao.nome ? QUOTE + r.decisao.nome + QUOTE : r.decisao.id;
+    const rotulos = (r.caminhos ?? []).map((c) => QUOTE + c.rotulo + QUOTE).join(' e ');
+    const elementos = (r.caminhos ?? []).reduce((a, c) => a + (c.criados?.length ?? 0), 0);
+    const base = `desenhei a decisão ${nome} — ${rotulos}, ${plural(elementos, 'elemento', 'elementos')}`;
+    // Parar no meio da árvore é o fato mais importante: o aluno pediu dois caminhos e viu um.
+    return r.parou ? `${base} · parei no caminho ${QUOTE}${r.parou.rotulo}${QUOTE}` : base;
+  },
+
   ramificar: (e, r) => {
     if (!r || r.ok === false || !r.criado) return 'tentei abrir um caminho';
     const alvo = r.criado.nome ? QUOTE + r.criado.nome + QUOTE : r.criado.id;
@@ -370,6 +386,7 @@ export function linhaDeInicio(nome) {
     resumir_simulacao: 'lendo a simulação…',
     criar_elemento: 'criando no diagrama…',
     criar_sequencia: 'desenhando a sequência…',
+    criar_decisao: 'desenhando a decisão…',
     ramificar: 'abrindo o caminho…',
     criar_pool: 'criando o pool…',
     criar_raia: 'criando a raia…',

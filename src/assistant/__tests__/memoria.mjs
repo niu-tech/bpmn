@@ -132,7 +132,7 @@ test('a politica e default-deny: nome fora do catalogo nao passa', () => {
 const LEITURA = ['lembrar', 'consultar_norma', 'descrever_diagrama', 'buscar_elemento', 'detalhar_elemento', 'resumir_simulacao'];
 // Na ordem do catalogo: criar, os tres de GEOMETRIA (mover/alinhar/trocar_tipo, nascidos da
 // trilha de 2026-11-14), ligar, renomear, remover.
-const ESCRITA = ['criar_elemento', 'criar_sequencia', 'ramificar', 'criar_pool', 'criar_raia', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'comecar_do_zero', 'remover'];
+const ESCRITA = ['criar_elemento', 'criar_sequencia', 'ramificar', 'criar_decisao', 'criar_pool', 'criar_raia', 'mover', 'alinhar', 'trocar_tipo', 'conectar', 'desfazer', 'destacar', 'renomear', 'comecar_do_zero', 'remover'];
 
 test('os DOIS perfis declaram as ferramentas; so o texto declara a ENTREGA', () => {
   const nomes = (modo, pagina) => {

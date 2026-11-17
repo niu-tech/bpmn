@@ -105,6 +105,16 @@ async function medir(url) {
          formasAntes: window.__antes,
          formasDepois: window.__nos(),
          eventos: ev,
+         /**
+          * O QUE ELE DISSE quando parou de desenhar.
+          *
+          * ⚠ Sem isto, uma corrida que para no primeiro verbo e' um numero sem explicacao: "1
+          * chamada, 3 formas" nao distingue recusa, pergunta ao aluno e defeito nosso. Medido em
+          * 2026-11-17: o modelo criou o pool e PERGUNTOU em qual ordem desenhar -- e a leitura do
+          * numero sozinho diria "a fila nao foi escolhida".
+          */
+         ultimaFala: ([...document.querySelectorAll('.bpmn-assist__msg')]
+           .filter((m) => !m.className.includes('tool')).at(-1)?.textContent ?? '').slice(0, 400),
          // O relogio que o ALUNO sente: do envio ao ultimo elemento entrar.
          doEnvioAoFimMs: ev.length ? Math.round(ev.at(-1).ms - ev[0].ms) : null,
        };`,
@@ -137,6 +147,8 @@ async function medir(url) {
      * evento `tool.executando` que já era lido aqui; o pedido nunca cita nome de ferramenta.
      */
     verbos: ev.filter((e) => e.key === 'tool.executando').map((e) => e.nome),
+    // O que ele falou no fim do turno: e' o que explica uma corrida que parou cedo.
+    ultimaFala: passo.ultimaFala || null,
     formas: `${passo.formasAntes ?? '?'} -> ${passo.formasDepois ?? '?'}`,
     segundosDoAlunoEsperando: passo.doEnvioAoFimMs ? Number((passo.doEnvioAoFimMs / 1000).toFixed(1)) : null,
     nosso: { mediana: mediana(nossos), pior: nossos.length ? Number(Math.max(...nossos).toFixed(2)) : null },

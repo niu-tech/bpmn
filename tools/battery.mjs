@@ -2133,6 +2133,129 @@ CENARIOS.push({
 });
 
 /**
+ * A DECISAO INTEIRA NUMA CHAMADA (change `one-call-for-a-whole-decision`, 2026-11-17).
+ *
+ * A fila fechou o tronco; sobrou a ARVORE. Baseline medido ao vivo no mesmo dia, com o pedido em
+ * palavras do aluno: **6 chamadas** (`criar_pool`, `criar_sequencia`, `ramificar`,
+ * `criar_elemento`, `ramificar`, `criar_elemento`) -- um ramificar por caminho mais uma chamada
+ * por elemento depois dele.
+ *
+ * O que este portao mede, contra o bpmn-js de verdade e SEM cota:
+ *
+ *  1. a decisao e os dois caminhos saem de UMA chamada, com os dois rotulos NO DESENHO;
+ *  2. os passos de cada caminho ficam encadeados dentro do galho;
+ *  3. nenhum orfao, nenhuma sobreposicao, nenhuma seta atravessando caixa -- o desenho tem de
+ *     sair igual ao de seis chamadas, senao a economia veio as custas da tela do aluno;
+ *  4. a tela conta a decisao em UMA linha, com os rotulos, e o selo diz DESENHANDO;
+ *  5. desfazer o total informado volta ao estado de antes (em duas chamadas se passar do teto de
+ *     10, e a primeira AVISA);
+ *  6. e o FATO que este portao achou: decisao criada NO MEIO de um fluxo **herda** a continuacao
+ *     antiga como um terceiro caminho, SEM rotulo. Nao e defeito -- e' a regra de encadeamento
+ *     (uma decisao no meio do caminho continua ligada ao que vinha depois). O que o produto deve
+ *     fazer e' CONTAR: `caminhosDaDecisao: 3, rotulados: 2`, e deixar o modelo decidir se pergunta
+ *     ao aluno, rotula ou tira. Portao que exigisse "exatamente 2 saidas" estaria exigindo que o
+ *     produto desligasse o resto do processo pelas costas dele.
+ *
+ * ⚠ Principio XIII: o portao afirma primeiro que os cinco elementos ENTRARAM, e so' entao conta
+ * as linhas e os rotulos.
+ */
+CENARIOS.push({
+  // ⚠ MAPA DOS VERMELHOS: `umaChamadaDesenhouTudo` cai sozinha se o laco parar no primeiro
+  // caminho; `doisRotulosNoDesenho` cai sozinha se o rotulo deixar de ser escrito por `ramificar`;
+  // `encadeouDentroDoGalho` cai sozinha se a fila do caminho deixar de pendurar no ramo;
+  // `umaLinha` cai sozinha se a decisao voltar a narrar elemento por elemento; `voltouTudo` cai
+  // sozinha se o total de comandos deixar de cobrir a arvore.
+  nome: 'a decisao inteira numa chamada: dois caminhos rotulados, com os passos de cada um',
+  url: ALVO,
+  passos: [
+    PREPARAR,
+    `${MEDIR_SOBREPOSICAO}
+     const A = window.__bpmnAssist;
+     const nos = () => A.desenho.nos;
+     const ligs = () => A.desenho.ligacoes;
+     const msgs = () => [...document.querySelectorAll('.bpmn-assist__msg--tool')];
+     const base = nos().find((x) => (x.nome || '').toLowerCase() === 'pagar a pizza');
+     if (!base) return { ok: false, erro: 'o diagrama base nao tem a tarefa esperada' };
+
+     const formasAntes = nos().length;
+     const ligacoesAntes = ligs().length;
+     const msgsAntes = msgs().length;
+
+     // 1 e 4. UMA chamada, e o selo medido ENQUANTO ela corre.
+     const emVoo = A.ferramenta('criar_decisao', {
+       pergunta: 'Pagou?',
+       depoisDe: base.id,
+       caminhos: [
+         { rotulo: 'Sim', passos: [{ tipo: 'Task', nome: 'Entregar o pedido' }, { tipo: 'EndEvent', nome: 'Pedido entregue' }] },
+         { rotulo: 'Nao', passos: [{ tipo: 'Task', nome: 'Cobrar de novo' }, { tipo: 'EndEvent', nome: 'Pedido cancelado' }] },
+       ],
+     });
+     let seloDesenhando = false;
+     for (let i = 0; i < 60 && !seloDesenhando; i++) {
+       if (A.estado.estado === 'escrevendo') seloDesenhando = true;
+       await new Promise((f) => setTimeout(f, 10));
+     }
+     const r = (await emVoo)?.resultado ?? null;
+
+     const idGw = r?.decisao?.id ?? null;
+     const criados = (r?.caminhos ?? []).flatMap((c) => c.criados.map((x) => x.id));
+     const umaChamadaDesenhouTudo = !!idGw && criados.length === 4
+       && (nos().length - formasAntes) === 5 && !r?.parou;
+
+     // 1. Os ROTULOS PEDIDOS, lidos do DESENHO (e nao do que a chamada pediu).
+     const flechas = () => ligs().filter((l) => l.de === idGw);
+     const rotulos = flechas().map((l) => (l.nome || '').trim()).sort();
+     const doisRotulosNoDesenho = ['Nao', 'Sim'].every((x) => rotulos.includes(x));
+
+     // 6. A HERANCA contada com honestidade: a tarefa base ja tinha continuacao, entao a decisao
+     //    entrou no meio e ficou com TRES saidas -- duas rotuladas e a antiga, sem rotulo.
+     const herdouSemRotulo = rotulos.filter((x) => x === '').length === 1;
+     const contouAHeranca = r?.caminhosDaDecisao === 3 && r?.rotulados === 2;
+
+     // 2. O segundo passo de cada caminho pendurado no primeiro.
+     const encadeouDentroDoGalho = (r?.caminhos ?? []).every(
+       (c) => c.criados.length === 2 && ligs().some((l) => l.de === c.criados[0].id && l.para === c.criados[1].id),
+     );
+
+     // 3. Geometria limpa, e ninguem solto.
+     const temEntrada = (id) => ligs().some((l) => l.para === id);
+     const orfaos = [idGw, ...criados].filter((id) => id && !temEntrada(id));
+     const sobrepostos = [idGw, ...criados].flatMap((id) => window.__sobrepoe(id) || []);
+     const atravessadas = [idGw, ...criados].flatMap((id) => window.__linhaAtravessa(id) || []);
+
+     // 4. UMA linha, com os rotulos dentro.
+     const novas = msgs().length - msgsAntes;
+     const ultima = msgs().at(-1)?.textContent || '';
+     const umaLinha = novas === 1 && /desenhei a decis/.test(ultima) && /Sim/.test(ultima) && /Nao/.test(ultima);
+
+     // 5. Desfazer a arvore inteira, em quantas chamadas o teto exigir.
+     const total = r?.comandos ?? 1;
+     const u = (await A.ferramenta('desfazer', { quantos: total }))?.resultado ?? null;
+     const faltou = Math.max(0, total - (u?.desfeitos ?? 0));
+     const avisouQueFalta = faltou === 0 || u?.aindaDaParaDesfazer === true;
+     const u2 = faltou > 0 ? (await A.ferramenta('desfazer', { quantos: faltou }))?.resultado ?? null : null;
+     const voltouTudo = nos().length === formasAntes && ligs().length === ligacoesAntes;
+
+     return {
+       ok: umaChamadaDesenhouTudo && doisRotulosNoDesenho && encadeouDentroDoGalho
+         && orfaos.length === 0 && sobrepostos.length === 0 && atravessadas.length === 0
+         && seloDesenhando && umaLinha && avisouQueFalta && voltouTudo
+         && herdouSemRotulo && contouAHeranca,
+       umaChamadaDesenhouTudo, doisRotulosNoDesenho, encadeouDentroDoGalho,
+       seloDesenhando, umaLinha, avisouQueFalta, voltouTudo,
+       herdouSemRotulo, contouAHeranca,
+       rotulos, orfaos, sobrepostos, atravessadas,
+       caminhosDaDecisao: r?.caminhosDaDecisao ?? null,
+       rotulados: r?.rotulados ?? null,
+       comandosDaArvore: total,
+       desfeitos: (u?.desfeitos ?? 0) + (u2?.desfeitos ?? 0),
+       emQuantasChamadas: u2 ? 2 : 1,
+       linha: ultima.slice(0, 180),
+     };`,
+  ],
+});
+
+/**
  * A CITACAO CONFERIDA NA VOZ (K6, corrigido em 2026-11-16).
  *
  * O dono perguntou se o modo voz usa o acervo. Usa — `consultar_norma` e declarada nos dois modos

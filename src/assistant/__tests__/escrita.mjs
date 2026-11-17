@@ -24,7 +24,9 @@
  */
 import assert from 'node:assert/strict';
 
-import { ERROS_ESCRITA, TETO_DE_PASSOS, TIPOS_CRIAVEIS, criarExecutoresDeEscrita } from '../tools/escrita.js';
+import {
+  ERROS_ESCRITA, TETO_DE_CAMINHOS, TETO_DE_PASSOS, TIPOS_CRIAVEIS, criarExecutoresDeEscrita,
+} from '../tools/escrita.js';
 import { criarAcessoBpmn } from '../tools/bpmn-api.js';
 import { permitida } from '../agent/policy.js';
 import { ACOES_COM_PORTAO, FERRAMENTAS } from '../agent/catalog.js';
@@ -1340,6 +1342,187 @@ testAsync('UMA tela no fim, e o desfazer da fila inteira vem contado', async () 
   // O `quantos` de `desfazer`: menos que o numero de passos seria mentira na mao do aluno.
   assert.ok(r.comandos >= 3, `fila de 3 passos custou ${r.comandos} comandos`);
   assert.equal(r.ligacoes, 3);
+});
+
+/* ---------------------------------------------------------------- a decisao numa chamada */
+
+/** O diagrama de partida das provas da decisao: um inicio onde a decisao se pendura. */
+function comInicio() {
+  const m = montar();
+  m.guardar({ id: 'StartEvent_1', type: 'bpmn:StartEvent', parent: m.raiz, businessObject: {}, incoming: [], outgoing: [] });
+  return m;
+}
+
+testAsync('a decisao sai com os dois caminhos ROTULADOS e os passos de cada um', async () => {
+  // Change `one-call-for-a-whole-decision`: a arvore inteira numa chamada. O desenho tem de sair
+  // identico ao de seis chamadas -- por dentro sao os mesmos tres verbos.
+  const { exec, acesso } = comInicio();
+
+  const r = await exec.criar_decisao({
+    pergunta: 'Componentes suficientes?',
+    depoisDe: 'StartEvent_1',
+    caminhos: [
+      { rotulo: 'Sim', passos: [{ tipo: 'Task', nome: 'Montar a base' }, { tipo: 'EndEvent', nome: 'Entregue ao dev' }] },
+      { rotulo: 'Nao', passos: [{ tipo: 'Task', nome: 'Gerar o resultado' }, { tipo: 'EndEvent', nome: 'Entregue ao cliente' }] },
+    ],
+  });
+
+  assert.equal(r.decisao.tipo, 'ExclusiveGateway');
+  assert.equal(r.decisao.nome, 'Componentes suficientes?');
+  assert.equal(r.parou, null);
+  assert.deepEqual(r.caminhos.map((c) => c.rotulo), ['Sim', 'Nao']);
+  assert.deepEqual(r.caminhos.map((c) => c.criados.length), [2, 2]);
+
+  // Os ROTULOS no desenho, lidos das ligacoes que saem da decisao -- nao do que a chamada pediu.
+  const saidas = acesso.entradasESaidas(r.decisao.id).saidas
+    .filter((f) => String(f.type) === 'bpmn:SequenceFlow');
+  assert.equal(saidas.length, 2);
+  assert.deepEqual(saidas.map((f) => f.businessObject?.name).sort(), ['Nao', 'Sim']);
+
+  // E o segundo passo de cada caminho pendurado no primeiro: a fila dentro do galho.
+  for (const c of r.caminhos) {
+    const entradas = acesso.entradasESaidas(c.criados[1].id).entradas;
+    assert.equal(entradas[0]?.source?.id, c.criados[0].id, `${c.rotulo} nao encadeou`);
+  }
+});
+
+testAsync('caminho sem rotulo recusa ANTES de desenhar -- nao fica meia decisao na tela', async () => {
+  /**
+   * ⚠ O erro estava na chamada desde o comeco. Desenhar o gateway e um caminho so deixaria na
+   * tela exatamente o desenho pela metade que a change do gateway existiu para consertar.
+   */
+  const { exec, mapa } = comInicio();
+  const quantos = mapa.size;
+
+  await assert.rejects(
+    () => exec.criar_decisao({
+      pergunta: 'Pagou?',
+      depoisDe: 'StartEvent_1',
+      caminhos: [
+        { rotulo: 'Sim', passos: [{ tipo: 'Task', nome: 'Entregar' }] },
+        { rotulo: 'Nao', passos: [{ tipo: 'Task', nome: 'Cobrar' }] },
+        { rotulo: '   ', passos: [{ tipo: 'Task', nome: 'Sei la' }] },
+      ],
+    }),
+    /tipo_invalido.*caminho 3/s,
+  );
+  assert.equal(mapa.size, quantos, 'desenhou algo numa decisao recusada na entrada');
+});
+
+testAsync('falha no SEGUNDO caminho preserva a decisao e o primeiro caminho', async () => {
+  /**
+   * Dois caminhos de codigo diferentes, os dois provados aqui:
+   *  · o galho estoura na ABERTURA (`ramificar` recusa) -> o `catch` vira `parou`;
+   *  · o galho estoura no MEIO da fila dele -> o `parou` da fila sobe com o passo deslocado.
+   *
+   * ⚠ LIMITE QUE ESTE TESTE ACHOU: a guarda de GEMEO vive em `criar_elemento`, e `ramificar`
+   * nao a tem. Entao dois caminhos que abrem a MESMA tarefa, com o mesmo nome, nao sao recusados
+   * -- a decisao herda isso. Nao e o que esta change conserta (e dois caminhos podem levar a
+   * tarefas homonimas de verdade); fica medido para quem for mexer em `ramificar`.
+   */
+  const a = comInicio();
+  const r1 = await a.exec.criar_decisao({
+    pergunta: 'Pagou?',
+    depoisDe: 'StartEvent_1',
+    caminhos: [
+      { rotulo: 'Sim', passos: [{ tipo: 'Task', nome: 'Entregar' }] },
+      // Tipo que nao existe: a recusa nomeada acontece na ABERTURA do caminho.
+      { rotulo: 'Nao', passos: [{ tipo: 'Banana', nome: 'Cobrar' }] },
+    ],
+  });
+
+  assert.equal(r1.parou.caminho, 2);
+  assert.equal(r1.parou.rotulo, 'Nao');
+  assert.equal(r1.parou.passo, 1);
+  assert.match(r1.parou.motivo, /tipo_invalido/);
+  // A decisao e o primeiro caminho FICAM: o aluno os viu aparecer.
+  assert.ok(a.acesso.porId(r1.decisao.id));
+  assert.equal(r1.caminhos[0].criados.length, 1);
+  assert.ok(a.acesso.porId(r1.caminhos[0].criados[0].id));
+  // E a contagem lida do DESENHO conta a verdade: um caminho, nao dois.
+  assert.equal(r1.caminhosDaDecisao, 1);
+
+  const b = comInicio();
+  const r2 = await b.exec.criar_decisao({
+    pergunta: 'Pagou?',
+    depoisDe: 'StartEvent_1',
+    caminhos: [
+      { rotulo: 'Sim', passos: [{ tipo: 'Task', nome: 'Entregar' }] },
+      // O gemeo DENTRO da fila do caminho: o terceiro passo repete o segundo, colado nele.
+      {
+        rotulo: 'Nao',
+        passos: [
+          { tipo: 'Task', nome: 'Cobrar' },
+          { tipo: 'Task', nome: 'Avisar' },
+          { tipo: 'Task', nome: 'Avisar' },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(r2.parou.caminho, 2);
+  assert.equal(r2.parou.erro, ERROS_ESCRITA.JA_EXISTE);
+  /**
+   * O PASSO CONTA O RAMO, e e' por isso que o numero e' deslocado em um.
+   *
+   * ⚠ A fila daquele caminho recebeu [Avisar, Avisar] -- o gemeo e' o 2o passo DELA, e o 3o
+   * elemento do CAMINHO. Quem le o resultado e' o modelo, que vai contar para o aluno ("parei no
+   * terceiro passo do caminho Nao"): numero da fila interna seria um numero que so' faz sentido
+   * aqui dentro.
+   */
+  assert.equal(r2.parou.passo, 3);
+  assert.equal(r2.caminhos[1].criados.length, 2);
+  assert.equal(r2.caminhosDaDecisao, 2);
+});
+
+
+testAsync('os TETOS da decisao: caminhos e total de elementos', async () => {
+  const { exec, mapa } = comInicio();
+  const quantos = mapa.size;
+  const umCaminho = (i) => ({ rotulo: `R${i}`, passos: [{ tipo: 'Task', nome: `T${i}` }] });
+
+  // Cinco caminhos: uma decisao que o aluno nao le.
+  await assert.rejects(
+    () => exec.criar_decisao({ depoisDe: 'StartEvent_1', caminhos: [1, 2, 3, 4, 5].map(umCaminho) }),
+    new RegExp(`muitos_passos.*${TETO_DE_CAMINHOS}`),
+  );
+  // Dentro do teto de caminhos, mas estourando o de elementos (gateway + 12 passos).
+  const gordo = [1, 2].map((i) => ({
+    rotulo: `R${i}`,
+    passos: Array.from({ length: 6 }, (_, k) => ({ tipo: 'Task', nome: `T${i}-${k}` })),
+  }));
+  await assert.rejects(
+    () => exec.criar_decisao({ depoisDe: 'StartEvent_1', caminhos: gordo }),
+    new RegExp(`muitos_passos.*${TETO_DE_PASSOS}`),
+  );
+  // Caminho sem passo nenhum tambem nao e caminho.
+  await assert.rejects(
+    () => exec.criar_decisao({ depoisDe: 'StartEvent_1', caminhos: [{ rotulo: 'Sim', passos: [] }] }),
+    /tipo_invalido/,
+  );
+  await assert.rejects(() => exec.criar_decisao({ caminhos: [] }), /tipo_invalido/);
+  assert.equal(mapa.size, quantos, 'desenhou algo numa decisao recusada pelo teto');
+});
+
+testAsync('UMA tela no fim, os caminhos contados pelo DESENHO e o desfazer da arvore inteira', async () => {
+  const { exec } = comInicio();
+
+  const r = await exec.criar_decisao({
+    pergunta: 'Pagou?',
+    depoisDe: 'StartEvent_1',
+    caminhos: [
+      { rotulo: 'Sim', passos: [{ tipo: 'Task', nome: 'Entregar' }] },
+      { rotulo: 'Nao', passos: [{ tipo: 'Task', nome: 'Cobrar de novo' }] },
+    ],
+  });
+
+  assert.equal(r.caminhosDaDecisao, 2);
+  assert.equal(r.rotulados, 2);
+  assert.equal(typeof r.tela, 'string');
+  // 4 formas: o inicio, a decisao e os dois caminhos. O retrato e' do FIM.
+  assert.match(r.tela, /4 formas/);
+  // O `quantos` de `desfazer` cobre a arvore inteira: tres elementos, no minimo tres comandos.
+  assert.ok(r.comandos >= 3, `a arvore custou ${r.comandos} comandos`);
 });
 
 /* ---------------------------------------------------------------- catálogo */

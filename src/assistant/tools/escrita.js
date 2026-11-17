@@ -62,6 +62,15 @@ export const ERROS_ESCRITA = Object.freeze({
 export const TETO_DE_PASSOS = 12;
 
 /**
+ * Quantos caminhos uma decisão aceita por chamada (D5 da change `one-call-for-a-whole-decision`).
+ *
+ * Quatro porque decisão de aula tem dois ou três, e cinco saídas num exclusivo é um desenho que o
+ * aluno não consegue ler — o problema deixa de ser quantas chamadas custou e passa a ser o que
+ * ficou na tela dele.
+ */
+export const TETO_DE_CAMINHOS = 4;
+
+/**
  * As direções de `mover`, em palavras — porque o modelo NÃO vê coordenadas (a projeção manda id,
  * tipo e nome, design H4). Pedir pixel a quem não vê a régua é pedir palpite.
  */
@@ -504,6 +513,149 @@ export function criarExecutoresDeEscrita({
         comandos: Math.max(1, contarComandos() - comandosAntes),
         // UMA tela, no fim (D5): seis retratos completos estourariam o teto do corpo sozinhos.
         tela: tela(criados.at(-1)?.id ?? null, retratoAntes),
+      };
+    },
+
+    /**
+     * A DECISÃO INTEIRA NUMA CHAMADA — o gateway, cada caminho rotulado e os passos de cada um.
+     *
+     * ⚠ Medido em 2026-11-17, com o pedido em palavras de quem está aprendendo (*"e então uma
+     * decisão se os componentes são suficientes; se sim, …; se não, …"*): **6 chamadas**. A fila
+     * resolveu o tronco numa só, e sobrou a ÁRVORE — um `ramificar` por caminho mais uma chamada
+     * por elemento depois de cada ramo. E é o pedaço que o aluno descreve de um jato: *"se sim…,
+     * se não…"* é **uma** frase.
+     *
+     * Por dentro são os três verbos que já existem e já foram provados (D2): `criar_elemento` faz
+     * o gateway, `ramificar` abre e ROTULA cada caminho, `criar_sequencia` completa cada um. O
+     * rótulo da seta continua só em `ramificar`, porque rotular depois exigiria o id da ligação —
+     * a única coisa do desenho que o aluno nunca diz, e que morre a cada desfazer.
+     *
+     * A assimetria é de propósito (D3): o gateway ENCADEIA (*"e então uma decisão"* é a próxima
+     * etapa), e só os caminhos ramificam.
+     */
+    async criar_decisao({ pergunta, depoisDe, tipo, caminhos } = {}) {
+      exigirEdicao();
+
+      /**
+       * ENTRADA CONFERIDA ANTES DE DESENHAR QUALQUER COISA (D4).
+       *
+       * ⚠ Um rótulo faltando no terceiro caminho não pode deixar meia decisão na tela: o erro
+       * estava na chamada desde o começo, e o aluno ficaria com um gateway e um caminho só —
+       * exatamente o desenho pela metade que a change do gateway existiu para consertar.
+       */
+      const lista = Array.isArray(caminhos)
+        ? caminhos.filter((c) => c && typeof c === 'object')
+        : [];
+      if (!lista.length) {
+        throw nomeado(
+          ERROS_ESCRITA.TIPO_INVALIDO,
+          'caminhos pede uma lista de { rotulo, passos } — uma decisão com nenhum caminho não é uma decisão',
+        );
+      }
+      if (lista.length > TETO_DE_CAMINHOS) {
+        throw nomeado(
+          ERROS_ESCRITA.MUITOS_PASSOS,
+          `uma decisão aceita ${TETO_DE_CAMINHOS} caminhos por chamada e o pedido tem ${lista.length}`,
+        );
+      }
+      const trilhas = lista.map((c, i) => {
+        const marca = typeof c.rotulo === 'string' ? c.rotulo.trim() : '';
+        if (!marca) {
+          throw nomeado(
+            ERROS_ESCRITA.TIPO_INVALIDO,
+            `o caminho ${i + 1} veio sem rotulo: o rótulo é a resposta que leva por ali (Sim, Não, `
+            + '"acima de R$ 1.000") e eu não invento a resposta do aluno',
+          );
+        }
+        const passos = Array.isArray(c.passos) ? c.passos.filter((x) => x && typeof x === 'object') : [];
+        if (!passos.length) {
+          throw nomeado(
+            ERROS_ESCRITA.TIPO_INVALIDO,
+            `o caminho "${marca}" veio sem passos: um caminho precisa de pelo menos o elemento que ele abre`,
+          );
+        }
+        return { rotulo: marca, passos };
+      });
+      // O gateway conta como elemento: o teto é do RESULTADO que volta ao modelo, não dos passos.
+      const total = 1 + trilhas.reduce((a, t) => a + t.passos.length, 0);
+      if (total > TETO_DE_PASSOS) {
+        throw nomeado(
+          ERROS_ESCRITA.MUITOS_PASSOS,
+          `a decisão e os caminhos somam ${total} elementos e o teto é ${TETO_DE_PASSOS}; `
+          + 'desenhe a decisão com os primeiros passos e complete os caminhos com criar_sequencia',
+        );
+      }
+
+      const comandosAntes = contarComandos();
+      const retratoAntes = retrato();
+
+      // 1. O GATEWAY. Falha aqui ⇒ lança: nada foi desenhado, e a recusa nomeada é o resultado.
+      const gw = await exec.criar_elemento({
+        tipo: tipo ?? 'ExclusiveGateway',
+        nome: typeof pergunta === 'string' ? pergunta : undefined,
+        ...(typeof depoisDe === 'string' && depoisDe.trim() ? { depoisDe } : {}),
+      });
+      const idDaDecisao = gw?.criado?.id ?? null;
+      if (!idDaDecisao) throw nomeado(ERROS_ESCRITA.NAO_MUDOU, 'a decisão não apareceu no registro');
+
+      const feitos = [];
+      let parou = null;
+
+      for (let i = 0; i < trilhas.length; i++) {
+        const { rotulo, passos } = trilhas[i];
+        const criados = [];
+        try {
+          // 2. O caminho nasce ROTULADO, pelo verbo que escreve na seta no mesmo comando.
+          const ramo = await exec.ramificar({
+            decisao: idDaDecisao, tipo: passos[0].tipo, nome: passos[0].nome, rotulo,
+          });
+          criados.push(ramo.criado);
+          // 3. E o resto do caminho é uma FILA, encadeada no ramo.
+          if (passos.length > 1) {
+            const fila = await exec.criar_sequencia({
+              depoisDe: ramo.criado.id, passos: passos.slice(1),
+            });
+            criados.push(...fila.criados);
+            // Fila que parou no meio é parada do CAMINHO: o número do passo conta o ramo.
+            if (fila.parou) {
+              parou = { caminho: i + 1, rotulo, passo: fila.parou.passo + 1, erro: fila.parou.erro, motivo: fila.parou.motivo };
+            }
+          }
+        } catch (err) {
+          /**
+           * O que entrou FICA, e o galho que falhou vira fato (D4) — mesmo motivo mecânico da
+           * fila: exceção vira `{ok:false}` no despachante e o corpo é descartado, então o modelo
+           * narraria o contrário do que o aluno tem na tela.
+           */
+          parou = {
+            caminho: i + 1,
+            rotulo,
+            passo: criados.length + 1,
+            erro: err?.nome ?? null,
+            motivo: String(err?.message ?? err).slice(0, 200),
+          };
+        }
+        feitos.push({ rotulo, criados });
+        if (parou) break;
+      }
+
+      const quantos = acesso.caminhosDe?.(idDaDecisao) ?? null;
+      const ultimo = feitos.at(-1)?.criados?.at(-1)?.id ?? idDaDecisao;
+      return {
+        decisao: gw.criado,
+        caminhos: feitos,
+        /**
+         * Quantos caminhos ela tem AGORA e quantos têm rótulo, lidos do DESENHO — como em
+         * `ramificar`. É por aqui que o modelo descobre sozinho que a decisão ficou pela metade,
+         * e nada no nosso código decide por ele o que fazer a respeito.
+         */
+        ...(quantos ? { caminhosDaDecisao: quantos.caminhos, rotulados: quantos.rotulados } : {}),
+        parou,
+        total: acesso.elementos().filter((e) => e && !e.labelTarget && e.parent).length,
+        // O total da decisão inteira. Passa dos 10 que `desfazer` aceita por chamada: a volta sai
+        // em duas, e a primeira avisa (`aindaDaParaDesfazer`) — está na declaração do desfazer.
+        comandos: Math.max(1, contarComandos() - comandosAntes),
+        tela: tela(ultimo, retratoAntes),
       };
     },
 

@@ -14,7 +14,9 @@
 // ponytail: um array e duas funções. Sem registry, sem decorator, sem plugin.
 
 import { CATEGORIAS } from './memory.js';
-import { CORES_DESTAQUE, DIRECOES_MOVER, EIXOS_ALINHAR, TIPOS_CRIAVEIS } from '../tools/escrita.js';
+import {
+  CORES_DESTAQUE, DIRECOES_MOVER, EIXOS_ALINHAR, TETO_DE_CAMINHOS, TIPOS_CRIAVEIS,
+} from '../tools/escrita.js';
 
 export const FERRAMENTAS = Object.freeze([
   {
@@ -319,6 +321,81 @@ export const FERRAMENTAS = Object.freeze([
           },
         },
         required: ['decisao', 'tipo', 'rotulo'],
+      },
+    },
+  },
+
+  {
+    nome: 'criar_decisao',
+    escreve: true,
+    /**
+     * ⚠ Terceira vez que o ensino vai para a DECLARAÇÃO e não para o prompt estável, e pela mesma
+     * razão: o estável custa em todo turno da sessão e é imutável depois do `setup` (§IX). Aqui a
+     * fronteira dos quatro verbos de criação cabe na descrição, que é o que o modelo lê no momento
+     * de escolher a chamada.
+     */
+    declaracao: {
+      name: 'criar_decisao',
+      description:
+        'Desenha uma DECISÃO inteira numa chamada: o gateway com a pergunta, cada caminho já com o '
+        + 'RÓTULO na seta, e os passos que vêm depois de cada caminho. Use quando o aluno descrever '
+        + 'a decisão e os caminhos de um jato ("e aí, se tiver componentes, monta a base e entrega; '
+        + 'se não, gera o resultado e entrega ao cliente"). O rótulo de cada caminho é a resposta '
+        + 'que leva por ali e é OBRIGATÓRIO — se o aluno não disse, pergunte em vez de inventar. '
+        + 'Para um caminho a mais numa decisão que já existe, use ramificar; para passos em '
+        + 'sequência sem decisão, criar_sequencia; para um elemento só, criar_elemento. O resultado '
+        + 'diz quantos caminhos a decisão tem e quantos têm rótulo, quantos desfazeres ela custou '
+        + 'e, se algum caminho falhar, qual parou e por quê — o que já entrou fica desenhado.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pergunta: {
+            type: 'string',
+            description: 'O rótulo do gateway, do jeito que o aluno pergunta ("Componentes suficientes?").',
+          },
+          depoisDe: {
+            type: 'string',
+            description: 'Id do elemento de onde a decisão sai. Sem ele a decisão nasce solta.',
+          },
+          tipo: {
+            type: 'string',
+            enum: ['ExclusiveGateway', 'ParallelGateway', 'InclusiveGateway', 'EventBasedGateway'],
+            description:
+              'Tipo do gateway. O padrão é ExclusiveGateway, que é o "se… senão" do aluno: UM '
+              + 'caminho. Paralelo abre TODOS ao mesmo tempo; inclusivo, um ou mais.',
+          },
+          caminhos: {
+            type: 'array',
+            description: `Os caminhos da decisão, no máximo ${TETO_DE_CAMINHOS} por chamada.`,
+            items: {
+              type: 'object',
+              properties: {
+                rotulo: {
+                  type: 'string',
+                  description: 'A resposta que leva por este caminho — vai escrita na seta.',
+                },
+                passos: {
+                  type: 'array',
+                  description: 'Os passos deste caminho, na ordem. O primeiro é o que a seta liga.',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      tipo: {
+                        type: 'string',
+                        enum: [...TIPOS_CRIAVEIS],
+                        description: 'Tipo BPMN do passo, sem o prefixo bpmn:.',
+                      },
+                      nome: { type: 'string', description: 'O rótulo que aparece no desenho.' },
+                    },
+                    required: ['tipo'],
+                  },
+                },
+              },
+              required: ['rotulo', 'passos'],
+            },
+          },
+        },
+        required: ['caminhos'],
       },
     },
   },
